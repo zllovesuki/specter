@@ -30,7 +30,7 @@ In order to support the requirements outlined above, the following libraries are
 1. Each node and client will be identified by an ID, where it will be used with Chord as distributed KV storage to identify which public node(s) is connected to the user's client.
 2. To identify an unique tunnel on the public Internet, a random combination of English words is formed (tunnel name), used to generate a hash, and the same hash will be used as the ID for the client. Subdomain of the tunnel name is then used as part of the TLS handshake for the connecting node for routing purpose.
 3. The connected node(s) from the client will then publish/advertise the client on the DHT network via Chord, so other public nodes can discover the client via DHT.
-4. Upon initial connection a peer, the client will request for a subset of the peers known to the connected peer, and the client will then connect to those other peers, so the client is known to the network via at least 1 node.
+4. Upon initial connection a peer, the client will request for a subset of the peers known to the connected peer, and the client will then connect to those other peers, so the client is known to the network via at least 1 node. The same peer will also assign the ID for the tunnel, so it can be reused by the client to connect to other peers.
 
 ![Architecture](./specter.png)
 
