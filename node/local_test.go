@@ -1,4 +1,4 @@
-package chord
+package node
 
 import (
 	"fmt"
@@ -30,6 +30,9 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 		as.NotNil(node.predecessor)
 		as.NotNil(node.successor)
 	}
+
+	fmt.Printf("Ring: %s", nodes[0].RingTrace())
+
 	if len(nodes) == 1 {
 		as.Equal(nodes[0].ID(), nodes[0].predecessor.ID())
 		as.Equal(nodes[0].ID(), nodes[0].successor.ID())
@@ -48,8 +51,6 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 		as.Equal(nodes[i+1].ID(), nodes[i].successor.ID())
 	}
 	as.Equal(nodes[0].ID(), nodes[len(nodes)-1].successor.ID())
-
-	fmt.Printf("Ring: %s", nodes[0].RingTrace())
 }
 
 func TestCreate(t *testing.T) {
@@ -58,9 +59,10 @@ func TestCreate(t *testing.T) {
 
 	n1 := NewLocalNode(conf)
 	n1.Create()
-	defer n1.Stop()
 
 	<-time.After(time.Millisecond * 500)
+
+	n1.Stop()
 
 	RingCheck(as, []*LocalNode{n1})
 }
@@ -71,13 +73,14 @@ func TestJoin(t *testing.T) {
 
 	n2 := NewLocalNode(conf)
 	n2.Create()
-	defer n2.Stop()
 
 	n1 := NewLocalNode(conf)
 	as.Nil(n1.Join(n2))
-	defer n1.Stop()
 
 	<-time.After(time.Millisecond * 500)
+
+	n1.Stop()
+	n2.Stop()
 
 	RingCheck(as, []*LocalNode{
 		n1,
@@ -111,6 +114,7 @@ func TestRandomNodes(t *testing.T) {
 	}
 
 	for i := 0; i < num; i++ {
+		as.Equal(nodes[i].successor.ID(), nodes[i].fingers[0].ID())
 		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
 	}
 }

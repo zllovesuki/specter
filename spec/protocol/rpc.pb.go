@@ -22,6 +22,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type KVOperation int32
+
+const (
+	KVOperation_UNKNOWN KVOperation = 0
+	KVOperation_PUT     KVOperation = 1
+	KVOperation_GET     KVOperation = 2
+)
+
+// Enum value maps for KVOperation.
+var (
+	KVOperation_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "PUT",
+		2: "GET",
+	}
+	KVOperation_value = map[string]int32{
+		"UNKNOWN": 0,
+		"PUT":     1,
+		"GET":     2,
+	}
+)
+
+func (x KVOperation) Enum() *KVOperation {
+	p := new(KVOperation)
+	*p = x
+	return p
+}
+
+func (x KVOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (KVOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_spec_protocol_rpc_proto_enumTypes[0].Descriptor()
+}
+
+func (KVOperation) Type() protoreflect.EnumType {
+	return &file_spec_protocol_rpc_proto_enumTypes[0]
+}
+
+func (x KVOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use KVOperation.Descriptor instead.
+func (KVOperation) EnumDescriptor() ([]byte, []int) {
+	return file_spec_protocol_rpc_proto_rawDescGZIP(), []int{0}
+}
+
 type Node struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -417,6 +466,124 @@ func (x *GetPredecessorResponse) GetNode() *Node {
 	return nil
 }
 
+type KVRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Op    KVOperation `protobuf:"varint,1,opt,name=op,proto3,enum=protocol.KVOperation" json:"op,omitempty"`
+	Key   []byte      `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value []byte      `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *KVRequest) Reset() {
+	*x = KVRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_protocol_rpc_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *KVRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KVRequest) ProtoMessage() {}
+
+func (x *KVRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_protocol_rpc_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KVRequest.ProtoReflect.Descriptor instead.
+func (*KVRequest) Descriptor() ([]byte, []int) {
+	return file_spec_protocol_rpc_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *KVRequest) GetOp() KVOperation {
+	if x != nil {
+		return x.Op
+	}
+	return KVOperation_UNKNOWN
+}
+
+func (x *KVRequest) GetKey() []byte {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *KVRequest) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type KVResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Op    KVOperation `protobuf:"varint,1,opt,name=op,proto3,enum=protocol.KVOperation" json:"op,omitempty"`
+	Value []byte      `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *KVResponse) Reset() {
+	*x = KVResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_protocol_rpc_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *KVResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KVResponse) ProtoMessage() {}
+
+func (x *KVResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_protocol_rpc_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KVResponse.ProtoReflect.Descriptor instead.
+func (*KVResponse) Descriptor() ([]byte, []int) {
+	return file_spec_protocol_rpc_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *KVResponse) GetOp() KVOperation {
+	if x != nil {
+		return x.Op
+	}
+	return KVOperation_UNKNOWN
+}
+
+func (x *KVResponse) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
 var File_spec_protocol_rpc_proto protoreflect.FileDescriptor
 
 var file_spec_protocol_rpc_proto_rawDesc = []byte{
@@ -443,9 +610,22 @@ var file_spec_protocol_rpc_proto_rawDesc = []byte{
 	0x65, 0x74, 0x50, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x52, 0x65, 0x73,
 	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x22, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e,
-	0x6f, 0x64, 0x65, 0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x42, 0x17, 0x5a, 0x15, 0x73, 0x70, 0x65,
-	0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x64, 0x65, 0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x22, 0x5a, 0x0a, 0x09, 0x4b, 0x56, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x25, 0x0a, 0x02, 0x6f, 0x70, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0e, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4b, 0x56,
+	0x4f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x02, 0x6f, 0x70, 0x12, 0x10, 0x0a,
+	0x03, 0x6b, 0x65, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x49, 0x0a, 0x0a, 0x4b, 0x56, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x25, 0x0a, 0x02, 0x6f, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4b, 0x56, 0x4f, 0x70, 0x65,
+	0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x02, 0x6f, 0x70, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61,
+	0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65,
+	0x2a, 0x2c, 0x0a, 0x0b, 0x4b, 0x56, 0x4f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12,
+	0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x07, 0x0a, 0x03,
+	0x50, 0x55, 0x54, 0x10, 0x01, 0x12, 0x07, 0x0a, 0x03, 0x47, 0x45, 0x54, 0x10, 0x02, 0x42, 0x17,
+	0x5a, 0x15, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -460,27 +640,33 @@ func file_spec_protocol_rpc_proto_rawDescGZIP() []byte {
 	return file_spec_protocol_rpc_proto_rawDescData
 }
 
-var file_spec_protocol_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_spec_protocol_rpc_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_spec_protocol_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_spec_protocol_rpc_proto_goTypes = []interface{}{
-	(*Node)(nil),                   // 0: protocol.Node
-	(*PingRequest)(nil),            // 1: protocol.PingRequest
-	(*PingResponse)(nil),           // 2: protocol.PingResponse
-	(*NotifyRequest)(nil),          // 3: protocol.NotifyRequest
-	(*NotifyResponse)(nil),         // 4: protocol.NotifyResponse
-	(*FindSuccessorRequest)(nil),   // 5: protocol.FindSuccessorRequest
-	(*FindSuccessorResponse)(nil),  // 6: protocol.FindSuccessorResponse
-	(*GetPredecessorRequest)(nil),  // 7: protocol.GetPredecessorRequest
-	(*GetPredecessorResponse)(nil), // 8: protocol.GetPredecessorResponse
+	(KVOperation)(0),               // 0: protocol.KVOperation
+	(*Node)(nil),                   // 1: protocol.Node
+	(*PingRequest)(nil),            // 2: protocol.PingRequest
+	(*PingResponse)(nil),           // 3: protocol.PingResponse
+	(*NotifyRequest)(nil),          // 4: protocol.NotifyRequest
+	(*NotifyResponse)(nil),         // 5: protocol.NotifyResponse
+	(*FindSuccessorRequest)(nil),   // 6: protocol.FindSuccessorRequest
+	(*FindSuccessorResponse)(nil),  // 7: protocol.FindSuccessorResponse
+	(*GetPredecessorRequest)(nil),  // 8: protocol.GetPredecessorRequest
+	(*GetPredecessorResponse)(nil), // 9: protocol.GetPredecessorResponse
+	(*KVRequest)(nil),              // 10: protocol.KVRequest
+	(*KVResponse)(nil),             // 11: protocol.KVResponse
 }
 var file_spec_protocol_rpc_proto_depIdxs = []int32{
-	0, // 0: protocol.NotifyRequest.node:type_name -> protocol.Node
-	0, // 1: protocol.FindSuccessorResponse.node:type_name -> protocol.Node
-	0, // 2: protocol.GetPredecessorResponse.node:type_name -> protocol.Node
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // 0: protocol.NotifyRequest.node:type_name -> protocol.Node
+	1, // 1: protocol.FindSuccessorResponse.node:type_name -> protocol.Node
+	1, // 2: protocol.GetPredecessorResponse.node:type_name -> protocol.Node
+	0, // 3: protocol.KVRequest.op:type_name -> protocol.KVOperation
+	0, // 4: protocol.KVResponse.op:type_name -> protocol.KVOperation
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_spec_protocol_rpc_proto_init() }
@@ -597,19 +783,44 @@ func file_spec_protocol_rpc_proto_init() {
 				return nil
 			}
 		}
+		file_spec_protocol_rpc_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*KVRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_protocol_rpc_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*KVResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_spec_protocol_rpc_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   9,
+			NumEnums:      1,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_spec_protocol_rpc_proto_goTypes,
 		DependencyIndexes: file_spec_protocol_rpc_proto_depIdxs,
+		EnumInfos:         file_spec_protocol_rpc_proto_enumTypes,
 		MessageInfos:      file_spec_protocol_rpc_proto_msgTypes,
 	}.Build()
 	File_spec_protocol_rpc_proto = out.File

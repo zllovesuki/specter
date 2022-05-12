@@ -1,6 +1,8 @@
 package chord
 
 type VNode interface {
+	KV
+
 	ID() uint64
 
 	Ping() error
@@ -9,5 +11,4 @@ type VNode interface {
 
 	FindSuccessor(key uint64) (VNode, error)
 	GetPredecessor() (VNode, error)
-	CheckPredecessor() error
 }
