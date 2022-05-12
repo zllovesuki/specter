@@ -1,0 +1,28 @@
+// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\node.proto
+
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+message Node {
+    uint64 id = 1;
+    string address = 2;
+}
+
+message PingRequest {}
+
+message NotifyRequest {
+    Node node = 1;
+}
+
+message FindSuccessorRequest {
+    uint64 key = 1;
+}
+
+message GetPredecessorRequest {}
+
+message IsBetweenRequest {
+    uint64 low = 1;
+    uint64 high = 2;
+}
