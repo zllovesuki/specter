@@ -1,12 +1,14 @@
 package chord
 
 const (
-	MaxFingerEntries = 16
+	MaxFingerEntries = 32
 )
 
-func between(low, target, high uint64) bool {
-	if target == high || (target > low && target <= high) {
-		return true
+func between(low, target, high uint64, inclusive bool) bool {
+	// account for loop around
+	if high > low {
+		return (low < target && target < high) || (inclusive && target == high)
+	} else {
+		return low < target || target < high || (inclusive && target == high)
 	}
-	return false
 }

@@ -11,25 +11,30 @@ func (n *RemoteNode) ID() uint64 {
 }
 
 func (n *RemoteNode) Ping() error {
+	// TODO: RPC
 	return nil
 }
 
 func (n *RemoteNode) Notify(predecessor VNode) error {
+	// TODO: RPC
 	return nil
 }
 
 func (n *RemoteNode) FindSuccessor(key uint64) (VNode, error) {
+	// TODO: RPC
 	return nil, nil
 }
 
 func (n *RemoteNode) GetPredecessor() (VNode, error) {
+	// TODO: RPC
 	return nil, nil
 }
 
-func (n *RemoteNode) CheckPredecessor() error {
-	return nil
+func (n *RemoteNode) IsBetween(low, high VNode) bool {
+	// TODO: RPC
+	return true
 }
 
-func (n *RemoteNode) IsBetween(low, high VNode) bool {
-	return true
+func (n *RemoteNode) CheckPredecessor() error {
+	panic("CheckPredecessor not implemented in RemoteNode")
 }

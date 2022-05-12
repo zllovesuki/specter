@@ -1,31 +1,53 @@
 package chord
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
-func routineOnce(assert *assert.Assertions, node *LocalNode) {
-	assert.Nil(node.Stablize())
-	for i := 1; i < MaxFingerEntries; i++ {
-		assert.Nil(node.FixFinger(i))
+func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
+	if len(nodes) == 0 {
+		return
 	}
-	assert.Nil(node.CheckPredecessor())
+	for _, node := range nodes {
+		as.NotNil(node.predecessor)
+		as.NotNil(node.successor)
+	}
+	if len(nodes) == 1 {
+		as.Equal(nodes[0].ID(), nodes[0].predecessor.ID())
+		as.Equal(nodes[0].ID(), nodes[0].successor.ID())
+		return
+	}
+	// counter clockwise
+	for i := 0; i < len(nodes)-1; i++ {
+		as.Equal(nodes[i].ID(), nodes[i+1].predecessor.ID())
+	}
+	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].predecessor.ID())
+	// clockwise
+	for i := 0; i < len(nodes)-1; i++ {
+		as.Equal(nodes[i+1].ID(), nodes[i].successor.ID())
+	}
+	as.Equal(nodes[0].ID(), nodes[len(nodes)-1].successor.ID())
+
+	fmt.Printf("Ring: %s", nodes[0].Trace())
 }
 
 func TestCreate(t *testing.T) {
-	assert := assert.New(t)
+	as := assert.New(t)
 	logger, err := zap.NewDevelopment()
-	assert.Nil(err)
+	as.Nil(err)
 
 	n1 := NewLocalNode(1, logger)
+	n1.Create()
+	n1.StartTasks()
 
-	routineOnce(assert, n1)
+	<-time.After(time.Second)
 
-	assert.Nil(n1.predecessor)
-	assert.Equal(n1.successor, n1)
+	RingCheck(as, []*LocalNode{n1})
 }
 
 func TestJoin(t *testing.T) {
@@ -33,16 +55,20 @@ func TestJoin(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	assert.Nil(err)
 
+	n2 := NewLocalNode(2, logger)
+	n2.Create()
+	n2.StartTasks()
+
 	n1 := NewLocalNode(1, logger)
-	n2 := NewLocalNode(10, logger)
-
 	assert.Nil(n1.Join(n2))
+	n1.StartTasks()
 
-	routineOnce(assert, n1)
-	routineOnce(assert, n2)
+	<-time.After(time.Second)
 
-	assert.Equal(n2.ID(), n1.successor.ID())
-	assert.Equal(n1.ID(), n2.predecessor.ID())
+	RingCheck(assert, []*LocalNode{
+		n1,
+		n2,
+	})
 }
 
 func TestMultiNode(t *testing.T) {
@@ -53,20 +79,55 @@ func TestMultiNode(t *testing.T) {
 	n1 := NewLocalNode(1, logger)
 	n2 := NewLocalNode(10, logger)
 	n3 := NewLocalNode(100, logger)
+	n4 := NewLocalNode(1000, logger)
+
+	n4.Create()
+	n4.StartTasks()
+
+	assert.Nil(n2.Join(n4))
+	n2.StartTasks()
+
+	<-time.After(time.Second)
+
+	RingCheck(assert, []*LocalNode{
+		n2,
+		n4,
+	})
+
+	assert.Nil(n3.Join(n4))
+	n3.StartTasks()
+
+	<-time.After(time.Second)
+
+	RingCheck(assert, []*LocalNode{
+		n2,
+		n3,
+		n4,
+	})
 
 	assert.Nil(n1.Join(n3))
+	n1.StartTasks()
 
-	routineOnce(assert, n1)
-	routineOnce(assert, n3)
+	<-time.After(time.Second)
 
-	assert.Nil(n2.Join(n3))
+	RingCheck(assert, []*LocalNode{
+		n1,
+		n2,
+		n3,
+		n4,
+	})
 
-	routineOnce(assert, n1)
-	routineOnce(assert, n2)
-	routineOnce(assert, n3)
+	n5 := NewLocalNode(10000, logger)
+	assert.Nil(n5.Join(n1))
+	n5.StartTasks()
 
-	assert.Equal(n3.ID(), n2.successor.ID())
-	assert.Equal(n2.ID(), n1.successor.ID())
-	assert.Equal(n1.ID(), n2.predecessor.ID())
-	assert.Equal(n2.ID(), n3.predecessor.ID())
+	<-time.After(time.Second)
+
+	RingCheck(assert, []*LocalNode{
+		n1,
+		n2,
+		n3,
+		n4,
+		n5,
+	})
 }
