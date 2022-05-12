@@ -6,6 +6,11 @@ type RemoteNode struct {
 
 var _ VNode = &RemoteNode{}
 
+func (n *RemoteNode) Dial() error {
+	// TODO: handshake and maintain connection via manager
+	return nil
+}
+
 func (n *RemoteNode) ID() uint64 {
 	return n.id
 }
@@ -28,11 +33,6 @@ func (n *RemoteNode) FindSuccessor(key uint64) (VNode, error) {
 func (n *RemoteNode) GetPredecessor() (VNode, error) {
 	// TODO: RPC
 	return nil, nil
-}
-
-func (n *RemoteNode) IsBetween(low, high VNode) bool {
-	// TODO: RPC
-	return true
 }
 
 func (n *RemoteNode) CheckPredecessor() error {

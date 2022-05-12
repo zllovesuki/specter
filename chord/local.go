@@ -3,17 +3,20 @@ package chord
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
 type LocalNode struct {
 	id     uint64
 	logger *zap.Logger
+	conf   NodeConfig
 
 	predecessor VNode
 	preMutex    sync.RWMutex
@@ -24,24 +27,31 @@ type LocalNode struct {
 	fingers []VNode
 	ftMutex sync.RWMutex
 
-	stopCtx context.Context
+	started    *atomic.Bool
+	stopCtx    context.Context
+	cancelFunc context.CancelFunc
 }
 
 var _ VNode = &LocalNode{}
 
-func NewLocalNode(id uint64, logger *zap.Logger) *LocalNode {
-	n := &LocalNode{
-		id:      id,
-		logger:  logger,
-		fingers: make([]VNode, MaxFingerEntries),
-		stopCtx: context.Background(),
+func NewLocalNode(conf NodeConfig) *LocalNode {
+	if err := conf.Validate(); err != nil {
+		panic(err)
 	}
+	n := &LocalNode{
+		conf:    conf,
+		id:      rand.Uint64() % (1 << MaxFingerEntries),
+		logger:  conf.Logger,
+		fingers: make([]VNode, MaxFingerEntries),
+		started: atomic.NewBool(false),
+	}
+	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 
 	return n
 }
 
 func (n *LocalNode) ID() uint64 {
-	return n.id % (1 << MaxFingerEntries)
+	return n.id
 }
 
 func (n *LocalNode) Ping() error {
@@ -86,10 +96,10 @@ func (n *LocalNode) FindSuccessor(key uint64) (VNode, error) {
 func (n *LocalNode) closestPreceedingNode(key uint64) VNode {
 	n.ftMutex.RLock()
 	defer n.ftMutex.RUnlock()
-	for i := MaxFingerEntries - 1; i >= 1; i-- {
-		finger := n.fingers[i-1]
+	for i := MaxFingerEntries - 1; i >= 0; i-- {
+		finger := n.fingers[i]
 		if finger != nil {
-			if between(n.ID(), finger.ID(), key, true) {
+			if between(n.ID(), finger.ID(), key, false) {
 				return finger
 			}
 		}
@@ -126,6 +136,11 @@ func (n *LocalNode) CheckPredecessor() error {
 }
 
 func (n *LocalNode) Create() error {
+
+	if !n.started.CAS(false, true) {
+		return errors.New("wtf")
+	}
+
 	n.logger.Info("Creating new Chord ring",
 		zap.Uint64("node", n.ID()),
 	)
@@ -138,10 +153,16 @@ func (n *LocalNode) Create() error {
 	n.successor = n
 	n.succMutex.Unlock()
 
+	n.startTasks()
+
 	return nil
 }
 
 func (n *LocalNode) Join(peer VNode) error {
+	if !n.started.CAS(false, true) {
+		return errors.New("wtf")
+	}
+
 	proposedSucc, err := peer.FindSuccessor(n.ID())
 	n.logger.Info("Joining Chord ring",
 		zap.Uint64("node", n.ID()),
@@ -164,6 +185,8 @@ func (n *LocalNode) Join(peer VNode) error {
 			zap.Uint64("remote", peer.ID()),
 		)
 	}
+
+	n.startTasks()
 
 	return err
 }
@@ -207,7 +230,22 @@ func (n *LocalNode) FixFinger() error {
 	return nil
 }
 
-func (n *LocalNode) Trace() string {
+func (n *LocalNode) FingerTrace() string {
+	var sb strings.Builder
+	n.ftMutex.RLock()
+	defer n.ftMutex.RUnlock()
+
+	for i := 0; i < MaxFingerEntries; i++ {
+		sb.WriteString(strconv.FormatInt(int64(i), 10))
+		sb.WriteString(":")
+		sb.WriteString(strconv.FormatUint(n.fingers[i].ID(), 10))
+		sb.WriteString("/")
+	}
+
+	return sb.String()
+}
+
+func (n *LocalNode) RingTrace() string {
 	var sb strings.Builder
 	sb.WriteString(strconv.FormatUint(n.ID(), 10))
 
@@ -235,14 +273,15 @@ func (n *LocalNode) Trace() string {
 	return sb.String()
 }
 
-func (n *LocalNode) StartTasks() {
+func (n *LocalNode) startTasks() {
 	go func() {
-		ticker := time.NewTicker(time.Millisecond * 100)
+		ticker := time.NewTicker(n.conf.StablizeInterval)
 		for {
 			select {
 			case <-ticker.C:
 				n.Stablize()
 			case <-n.stopCtx.Done():
+				n.logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
 				ticker.Stop()
 				return
 			}
@@ -250,12 +289,13 @@ func (n *LocalNode) StartTasks() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(time.Millisecond * 100)
+		ticker := time.NewTicker(n.conf.PredecessorCheckInterval)
 		for {
 			select {
 			case <-ticker.C:
 				n.CheckPredecessor()
 			case <-n.stopCtx.Done():
+				n.logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
 				ticker.Stop()
 				return
 			}
@@ -263,15 +303,23 @@ func (n *LocalNode) StartTasks() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(time.Millisecond * 100)
+		ticker := time.NewTicker(n.conf.FixFingerInterval)
 		for {
 			select {
 			case <-ticker.C:
 				n.FixFinger()
 			case <-n.stopCtx.Done():
+				n.logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
 				ticker.Stop()
 				return
 			}
 		}
 	}()
+}
+
+func (n *LocalNode) Stop() {
+	if !n.started.CAS(true, false) {
+		return
+	}
+	n.cancelFunc()
 }
