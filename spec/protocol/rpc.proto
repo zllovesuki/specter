@@ -1,4 +1,4 @@
-// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\node.proto
+// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\rpc.proto
 
 syntax = "proto3";
 package protocol;
@@ -12,17 +12,24 @@ message Node {
 
 message PingRequest {}
 
+message PingResponse {}
+
 message NotifyRequest {
     Node node = 1;
 }
+
+message NotifyResponse {}
 
 message FindSuccessorRequest {
     uint64 key = 1;
 }
 
+message FindSuccessorResponse {
+    Node node = 1;
+}
+
 message GetPredecessorRequest {}
 
-message IsBetweenRequest {
-    uint64 low = 1;
-    uint64 high = 2;
+message GetPredecessorResponse {
+    Node node = 1;
 }
