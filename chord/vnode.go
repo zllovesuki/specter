@@ -1,9 +1,12 @@
 package chord
 
+import "specter/spec/protocol"
+
 type VNode interface {
 	KV
 
 	ID() uint64
+	Identity() *protocol.Node
 
 	Ping() error
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"specter/chord"
+	"specter/spec/protocol"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -54,6 +55,10 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 
 func (n *LocalNode) ID() uint64 {
 	return n.id
+}
+
+func (n *LocalNode) Identity() *protocol.Node {
+	return nil
 }
 
 func (n *LocalNode) Ping() error {

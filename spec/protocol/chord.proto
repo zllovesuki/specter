@@ -15,7 +15,7 @@ message PingRequest {}
 message PingResponse {}
 
 message NotifyRequest {
-    Node node = 1;
+    Node predecessor = 1;
 }
 
 message NotifyResponse {}
@@ -25,13 +25,13 @@ message FindSuccessorRequest {
 }
 
 message FindSuccessorResponse {
-    Node node = 1;
+    Node successor = 1;
 }
 
 message GetPredecessorRequest {}
 
 message GetPredecessorResponse {
-    Node node = 1;
+    Node predecessor = 1;
 }
 
 enum KVOperation {
