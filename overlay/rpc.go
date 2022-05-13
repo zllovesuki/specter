@@ -1,55 +1,140 @@
 package overlay
 
 import (
+	"context"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
+	"sync"
+	"time"
+
+	"specter/spec/protocol"
 
 	"github.com/lucas-clemente/quic-go"
+	"go.uber.org/atomic"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func RequestReply(stream quic.Stream, req proto.Message, resp protoreflect.ProtoMessage) error {
-	rr, err := proto.Marshal(req)
-	if err != nil {
-		return err
+type rrContainer struct {
+	rr *protocol.RequestReply
+	e  error
+}
+
+type rrChan chan *protocol.RequestReply
+
+type rpcHandler func(context.Context, *protocol.RequestReply) error
+
+type RPC struct {
+	stream quic.Stream
+	num    *atomic.Uint64
+
+	// TODO: candidate for 1.18 generics
+	rMap sync.Map
+
+	handler rpcHandler
+}
+
+func NewRPC(stream quic.Stream, handler rpcHandler) *RPC {
+	return &RPC{
+		stream:  stream,
+		num:     atomic.NewUint64(0),
+		handler: handler,
+	}
+}
+
+func (r *RPC) Start(ctx context.Context) {
+	for {
+		rr := &protocol.RequestReply{}
+		if err := receiveRPC(r.stream, rr); err != nil {
+			r.stream.Close()
+			return
+		}
+		go func(rr *protocol.RequestReply) {
+			switch rr.GetType() {
+			case protocol.RequestReply_REPLY:
+				rC, ok := r.rMap.LoadAndDelete(rr.GetReqNum())
+				if !ok {
+					return
+				}
+				rC.(rrChan) <- rr
+
+			case protocol.RequestReply_REQUEST:
+				if err := r.handler(ctx, rr); err != nil {
+					return
+				}
+				if err := sendRPC(r.stream, rr); err != nil {
+					r.stream.Close()
+				}
+			default:
+				return
+			}
+		}(rr)
+	}
+}
+
+func (r *RPC) Close() error {
+	return r.stream.Close()
+}
+
+func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
+	rNum := r.num.Inc()
+	rC := make(rrChan)
+	rr.ReqNum = rNum
+	r.rMap.Store(rNum, rC)
+	if err := sendRPC(r.stream, rr); err != nil {
+		r.rMap.Delete(rNum)
+		r.stream.Close()
+		return nil, err
 	}
 
-	buf := make([]byte, 8+len(rr))
-	binary.BigEndian.PutUint64(buf[0:7], uint64(len(rr)))
-	copy(buf[7:], rr)
-
-	n, err := stream.Write(buf)
-	if err != nil {
-		return err
+	select {
+	case <-time.After(time.Second):
+		return nil, fmt.Errorf("RPC Call timeout after 1 second")
+	case rs := <-rC:
+		return rs, nil
 	}
-	if n != len(buf) {
-		return errors.New("wtf")
-	}
+}
 
-	// then we read
+func receiveRPC(stream quic.Stream, rr proto.Message) error {
 	sb := make([]byte, 8)
-	n, err = io.ReadFull(stream, sb)
+	n, err := io.ReadFull(stream, sb)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading RPC message buffer size: %w", err)
 	}
-	if n != len(buf) {
-		return errors.New("wtf")
+	if n != 8 {
+		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", 8, n)
 	}
 
-	l := binary.BigEndian.Uint64(sb)
-	nb := make([]byte, l)
-	n, err = io.ReadFull(stream, nb)
+	ms := binary.BigEndian.Uint64(sb)
+	mb := make([]byte, ms)
+	n, err = io.ReadFull(stream, mb)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading RPC message: %w", err)
 	}
-	if n != len(buf) {
-		return errors.New("wtf")
+	if ms != uint64(n) {
+		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", ms, n)
 	}
 
-	if err := proto.Unmarshal(nb, resp); err != nil {
-		return err
+	return proto.Unmarshal(mb, rr)
+}
+
+func sendRPC(stream quic.Stream, rr proto.Message) error {
+	buf, err := proto.Marshal(rr)
+	if err != nil {
+		return fmt.Errorf("encoding outbound RPC message: %w", err)
+	}
+
+	l := len(buf)
+	mb := make([]byte, 8+l)
+	binary.BigEndian.PutUint64(mb[0:8], uint64(l))
+	copy(mb[8:], buf)
+
+	n, err := stream.Write(mb)
+	if err != nil {
+		return fmt.Errorf("sending RPC message: %w", err)
+	}
+	if n != 8+l {
+		return fmt.Errorf("expected %d bytes sent but %d bytes was sent", l, n)
 	}
 
 	return nil

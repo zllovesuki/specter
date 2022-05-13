@@ -2,47 +2,57 @@ package node
 
 import (
 	"context"
+
 	"specter/chord"
 	"specter/overlay"
 	"specter/spec/protocol"
-
-	"github.com/lucas-clemente/quic-go"
 )
 
 type RemoteNode struct {
 	parentCtx context.Context
 
-	id *protocol.Node
-	s  quic.Stream
-	t  *overlay.Transport
+	id  *protocol.Node
+	rpc *overlay.RPC
+	t   *overlay.Transport
 }
 
 var _ chord.VNode = &RemoteNode{}
 
-func NewRemoteNode(ctx context.Context, t *overlay.Transport, node *protocol.Node) (*RemoteNode, error) {
-	stream, err := t.Dial(ctx, node)
+func NewUnknownRemoteNode(ctx context.Context, t *overlay.Transport, addr string) (*RemoteNode, error) {
+	n := &RemoteNode{
+		parentCtx: ctx,
+		t:         t,
+	}
+	r, err := t.DialRPC(ctx, addr, n.handshake)
 	if err != nil {
 		return nil, err
 	}
-	n := &RemoteNode{
-		parentCtx: ctx,
-		s:         stream,
-		t:         t,
-	}
-	if err := n.handshake(); err != nil {
-		return nil, err
-	}
+	n.rpc = r
 	return n, nil
 }
 
-func (n *RemoteNode) handshake() error {
-	// exchange identity
-	identity := &protocol.Node{}
-	if err := overlay.RequestReply(n.s, n.t.Identifty(), identity); err != nil {
+func NewKnownRemoteNode(ctx context.Context, t *overlay.Transport, peer *protocol.Node) (*RemoteNode, error) {
+	n := &RemoteNode{
+		parentCtx: ctx,
+		id:        peer,
+		t:         t,
+	}
+	r, err := t.DialRPC(ctx, peer.GetAddress(), nil)
+	if err != nil {
+		return nil, err
+	}
+	n.rpc = r
+	return n, nil
+}
+
+func (n *RemoteNode) handshake(r *overlay.RPC) error {
+	rReq := newRR(protocol.RequestReply_IDENTITY)
+	rResp, err := r.Call(rReq)
+	if err != nil {
 		return err
 	}
 
-	n.id = identity
+	n.id = rResp.GetIdentityResponse().GetIdentity()
 	return nil
 }
 
@@ -54,39 +64,49 @@ func (n *RemoteNode) Identity() *protocol.Node {
 	return n.id
 }
 
-func (n *RemoteNode) Ping() error {
-	resp := &protocol.PingResponse{}
-	if err := overlay.RequestReply(n.s, &protocol.PingRequest{}, resp); err != nil {
-		return err
+func newRR(t protocol.RequestReply_Kind) *protocol.RequestReply {
+	return &protocol.RequestReply{
+		Kind: t,
+		Type: protocol.RequestReply_REQUEST,
 	}
-	return nil
+}
+
+func (n *RemoteNode) Ping() error {
+	rReq := newRR(protocol.RequestReply_PING)
+	rReq.PingRequest = &protocol.PingRequest{}
+	_, err := n.rpc.Call(rReq)
+	return err
 }
 
 func (n *RemoteNode) Notify(predecessor chord.VNode) error {
-	req := &protocol.NotifyRequest{
+	rReq := newRR(protocol.RequestReply_NOTIFY)
+	rReq.NotifyRequest = &protocol.NotifyRequest{
 		Predecessor: predecessor.Identity(),
 	}
-	resp := &protocol.NotifyResponse{}
-	if err := overlay.RequestReply(n.s, req, resp); err != nil {
-		return err
-	}
-	return nil
+	_, err := n.rpc.Call(rReq)
+	return err
 }
 
 func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	req := &protocol.FindSuccessorRequest{
+	rReq := newRR(protocol.RequestReply_FIND_SUCCESSOR)
+	rReq.FindSuccessorRequest = &protocol.FindSuccessorRequest{
 		Key: key,
 	}
-	resp := &protocol.FindSuccessorResponse{}
-	if err := overlay.RequestReply(n.s, req, resp); err != nil {
+	rResp, err := n.rpc.Call(rReq)
+	if err != nil {
 		return nil, err
 	}
 
-	if resp.Successor.GetId() == n.ID() {
+	resp := rResp.GetFindSuccessorResponse()
+	if resp.GetSuccessor() == nil {
+		return nil, nil
+	}
+
+	if resp.GetSuccessor().GetId() == n.ID() {
 		return n, nil
 	}
 
-	succ, err := NewRemoteNode(n.parentCtx, n.t, resp.Successor)
+	succ, err := NewKnownRemoteNode(n.parentCtx, n.t, resp.GetSuccessor())
 	if err != nil {
 		return nil, err
 	}
@@ -95,17 +115,22 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 }
 
 func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
-	req := &protocol.GetPredecessorRequest{}
-	resp := &protocol.GetPredecessorResponse{}
-	if err := overlay.RequestReply(n.s, req, resp); err != nil {
+	rReq := newRR(protocol.RequestReply_GET_PREDECESSOR)
+	rReq.GetPredecessorRequest = &protocol.GetPredecessorRequest{}
+	rResp, err := n.rpc.Call(rReq)
+	if err != nil {
 		return nil, err
 	}
 
-	if resp.Predecessor.GetId() == n.ID() {
+	resp := rResp.GetGetPredecessorResponse()
+	if resp.GetPredecessor() == nil {
+		return nil, nil
+	}
+	if resp.GetPredecessor().GetId() == n.ID() {
 		return n, nil
 	}
 
-	pre, err := NewRemoteNode(n.parentCtx, n.t, resp.Predecessor)
+	pre, err := NewKnownRemoteNode(n.parentCtx, n.t, resp.GetPredecessor())
 	if err != nil {
 		return nil, err
 	}
@@ -114,16 +139,35 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 }
 
 func (n *RemoteNode) Put(key, value []byte) error {
-	// TODO: RPC
-	return nil
+	rReq := newRR(protocol.RequestReply_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PUT,
+		Key:   key,
+		Value: value,
+	}
+	_, err := n.rpc.Call(rReq)
+	return err
 }
 
 func (n *RemoteNode) Get(key []byte) ([]byte, error) {
-	// TODO: RPC
-	return nil, nil
+	rReq := newRR(protocol.RequestReply_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_GET,
+		Key: key,
+	}
+	rResp, err := n.rpc.Call(rReq)
+	if err != nil {
+		return nil, err
+	}
+	return rResp.GetKvResponse().GetValue(), nil
 }
 
 func (n *RemoteNode) Delete(key []byte) error {
-	// TODO: RPC
-	return nil
+	rReq := newRR(protocol.RequestReply_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_DELETE,
+		Key: key,
+	}
+	_, err := n.rpc.Call(rReq)
+	return err
 }

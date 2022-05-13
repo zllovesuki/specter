@@ -11,12 +11,13 @@ import (
 
 func (n *LocalNode) FingerTrace() string {
 	var sb strings.Builder
-	n.ftMutex.RLock()
-	defer n.ftMutex.RUnlock()
 
 	ftMap := map[uint64][]int{}
 	for i := 0; i < chord.MaxFingerEntries; i++ {
-		id := n.fingers[i].ID()
+		finger := &n.fingers[i]
+		finger.mu.RLock()
+		id := finger.n.ID()
+		finger.mu.RUnlock()
 		if _, found := ftMap[id]; !found {
 			ftMap[id] = make([]int, 0)
 		}
@@ -55,6 +56,9 @@ func (n *LocalNode) RingTrace() string {
 			sb.WriteString("error")
 			break
 		}
+		if next == nil {
+			break
+		}
 		if next.ID() == n.ID() {
 			sb.WriteString(" -> ")
 			sb.WriteString(strconv.FormatUint(n.ID(), 10))
@@ -64,6 +68,5 @@ func (n *LocalNode) RingTrace() string {
 		sb.WriteString(strconv.FormatUint(next.ID(), 10))
 	}
 
-	sb.WriteString("\n")
 	return sb.String()
 }

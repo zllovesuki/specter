@@ -1,0 +1,13 @@
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+message Stream {
+    enum Type {
+        UNKNOWN = 0;
+        RPC = 1;
+        TUNNEL = 2;
+    }
+    Type type = 1;
+}

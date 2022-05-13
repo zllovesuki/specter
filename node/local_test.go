@@ -2,7 +2,10 @@ package node
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
+	"specter/chord"
+	"specter/spec/protocol"
 	"testing"
 	"time"
 
@@ -15,7 +18,10 @@ func DevConfig(as *assert.Assertions) NodeConfig {
 	as.NoError(err)
 
 	return NodeConfig{
-		Logger:                   logger,
+		Logger: logger,
+		Identity: &protocol.Node{
+			Id: rand.Uint64() % (1 << chord.MaxFingerEntries),
+		},
 		StablizeInterval:         time.Millisecond * 50,
 		FixFingerInterval:        time.Millisecond * 50,
 		PredecessorCheckInterval: time.Millisecond * 50,
@@ -31,7 +37,7 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 		as.NotNil(node.successor)
 	}
 
-	fmt.Printf("Ring: %s", nodes[0].RingTrace())
+	fmt.Printf("Ring: %s\n", nodes[0].RingTrace())
 
 	if len(nodes) == 1 {
 		as.Equal(nodes[0].ID(), nodes[0].predecessor.ID())
@@ -55,9 +61,8 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 
 func TestCreate(t *testing.T) {
 	as := assert.New(t)
-	conf := DevConfig(as)
 
-	n1 := NewLocalNode(conf)
+	n1 := NewLocalNode(DevConfig(as))
 	n1.Create()
 
 	<-time.After(time.Millisecond * 500)
@@ -69,12 +74,11 @@ func TestCreate(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	as := assert.New(t)
-	conf := DevConfig(as)
 
-	n2 := NewLocalNode(conf)
+	n2 := NewLocalNode(DevConfig(as))
 	n2.Create()
 
-	n1 := NewLocalNode(conf)
+	n1 := NewLocalNode(DevConfig(as))
 	as.Nil(n1.Join(n2))
 
 	<-time.After(time.Millisecond * 500)
@@ -90,12 +94,11 @@ func TestJoin(t *testing.T) {
 
 func TestRandomNodes(t *testing.T) {
 	as := assert.New(t)
-	conf := DevConfig(as)
 
 	num := 20
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
-		node := NewLocalNode(conf)
+		node := NewLocalNode(DevConfig(as))
 		nodes[i] = node
 	}
 
@@ -114,7 +117,7 @@ func TestRandomNodes(t *testing.T) {
 	}
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].successor.ID(), nodes[i].fingers[0].ID())
+		as.Equal(nodes[i].successor.ID(), nodes[i].fingers[0].n.ID())
 		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
 	}
 }

@@ -10,6 +10,12 @@ message Node {
     string address = 2;
 }
 
+message IdentityRequest {}
+
+message IdentityResponse {
+    Node identity = 1;
+}
+
 message PingRequest {}
 
 message PingResponse {}
@@ -38,6 +44,7 @@ enum KVOperation {
     UNKNOWN = 0;
     PUT = 1;
     GET = 2;
+    DELETE = 3;
 }
 
 message KVRequest {

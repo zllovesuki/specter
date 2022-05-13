@@ -1,0 +1,48 @@
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+import "spec/protocol/chord.proto";
+
+message RequestReply {
+    enum Kind {
+        UNKNOWN_TYPE = 0;
+        PING = 1;
+        NOTIFY = 2;
+        FIND_SUCCESSOR = 3;
+        GET_PREDECESSOR = 4;
+        KV = 5;
+
+        IDENTITY = 10;
+    }
+
+    enum Type {
+        UNKNOWN_DIR = 0;
+        REQUEST = 1;
+        REPLY = 2;
+    }
+
+    Kind kind = 1;
+    Type type = 2;
+
+    uint64 reqNum = 5;
+
+    IdentityRequest identityRequest = 10;
+    IdentityResponse identityResponse = 11;
+
+    PingRequest pingRequest = 20;
+    PingResponse pingResponse = 21;
+
+    NotifyRequest notifyRequest = 30;
+    NotifyResponse notifyResponse = 31;
+
+    FindSuccessorRequest findSuccessorRequest = 40;
+    FindSuccessorResponse findSuccessorResponse = 41;
+    GetPredecessorRequest getPredecessorRequest = 42;
+    GetPredecessorResponse getPredecessorResponse = 43;
+
+    KVRequest kvRequest = 50;
+    KVResponse kvResponse = 51;
+
+}
