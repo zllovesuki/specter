@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -22,8 +23,9 @@ type Transport struct {
 	rpcMap map[string]*RPC
 	rpcMu  sync.RWMutex
 
-	rpcChan    chan quic.Stream
-	tunnelChan chan quic.Stream
+	peerRpcChan   chan quic.Stream
+	clientRpcChan chan quic.Stream
+	tunnelChan    chan quic.Stream
 
 	server *tls.Config
 	client *tls.Config
@@ -31,11 +33,12 @@ type Transport struct {
 
 func NewTransport(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Config) *Transport {
 	return &Transport{
-		logger:     logger,
-		qMap:       make(map[string]quic.Connection),
-		rpcMap:     make(map[string]*RPC),
-		rpcChan:    make(chan quic.Stream, 1),
-		tunnelChan: make(chan quic.Stream, 1),
+		logger:        logger,
+		qMap:          make(map[string]quic.Connection),
+		rpcMap:        make(map[string]*RPC),
+		peerRpcChan:   make(chan quic.Stream, 1),
+		clientRpcChan: make(chan quic.Stream, 1),
+		tunnelChan:    make(chan quic.Stream, 1),
 
 		server: serverTLS,
 		client: clientTLS,
@@ -52,22 +55,25 @@ func (t *Transport) getQ(ctx context.Context, addr string) (quic.Connection, err
 
 	t.logger.Debug("Creating new QUIC connection", zap.String("addr", addr))
 
-	dialCtx, dialCancel := context.WithTimeout(ctx, time.Second*3)
-	defer dialCancel()
-
 	t.qMu.Lock()
-	q, err := quic.DialAddrContext(dialCtx, addr, t.client, quicConfig)
+	defer t.qMu.Unlock()
+
+	if q, ok := t.qMap[addr]; ok {
+		return q, nil
+	}
+
+	dialCtx, dialCancel := context.WithTimeout(ctx, time.Second)
+	defer dialCancel()
+	q, err := quic.DialAddrEarlyContext(dialCtx, addr, t.client, quicConfig)
 	if err != nil {
-		t.qMu.Unlock()
 		return nil, err
 	}
 	t.qMap[addr] = q
-	t.qMu.Unlock()
 
 	return q, nil
 }
 
-func (t *Transport) getS(ctx context.Context, addr string) (stream quic.Stream, err error) {
+func (t *Transport) getS(ctx context.Context, addr string, rpcType protocol.Stream_Procedure) (stream quic.Stream, err error) {
 	defer func() {
 		if err != nil {
 			t.logger.Error("Dialing RPC stream", zap.Error(err), zap.String("addr", addr))
@@ -94,6 +100,7 @@ func (t *Transport) getS(ctx context.Context, addr string) (stream quic.Stream, 
 
 	rr := &protocol.Stream{
 		Type: protocol.Stream_RPC,
+		Rpc:  rpcType,
 	}
 	err = sendRPC(stream, rr)
 	if err != nil {
@@ -102,9 +109,11 @@ func (t *Transport) getS(ctx context.Context, addr string) (stream quic.Stream, 
 	return stream, nil
 }
 
-func (t *Transport) DialRPC(ctx context.Context, addr string, hs func(*RPC) error) (*RPC, error) {
+func (t *Transport) DialRPC(ctx context.Context, addr string, rpcType protocol.Stream_Procedure, hs func(*RPC) error) (*RPC, error) {
+	rpcMapKey := rpcType.String() + "/" + addr
+
 	t.rpcMu.RLock()
-	if r, ok := t.rpcMap[addr]; ok {
+	if r, ok := t.rpcMap[rpcMapKey]; ok {
 		t.rpcMu.RUnlock()
 		return r, nil
 	}
@@ -115,12 +124,16 @@ func (t *Transport) DialRPC(ctx context.Context, addr string, hs func(*RPC) erro
 	t.rpcMu.Lock()
 	defer t.rpcMu.Unlock()
 
-	stream, err := t.getS(ctx, addr)
+	if r, ok := t.rpcMap[rpcMapKey]; ok {
+		return r, nil
+	}
+
+	stream, err := t.getS(ctx, addr, rpcType)
 	if err != nil {
 		return nil, err
 	}
 
-	r := NewRPC(stream, nil)
+	r := NewRPC(t.logger.With(zap.String("addr", addr), zap.String("pov", "transport_dial")), stream, nil)
 	go r.Start(ctx)
 
 	if hs != nil {
@@ -130,24 +143,63 @@ func (t *Transport) DialRPC(ctx context.Context, addr string, hs func(*RPC) erro
 		}
 	}
 
-	t.rpcMap[addr] = r
+	t.rpcMap[rpcMapKey] = r
 
 	return r, nil
 }
 
-func (t *Transport) RPC() <-chan quic.Stream {
-	return t.rpcChan
+func (t *Transport) PeerRPC() <-chan quic.Stream {
+	return t.peerRpcChan
+}
+
+func (t *Transport) ClientRPC() <-chan quic.Stream {
+	return t.clientRpcChan
 }
 
 func (t *Transport) Tunnel() <-chan quic.Stream {
 	return t.tunnelChan
 }
 
+func (t *Transport) reaper(ctx context.Context) {
+	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			rL := make([]string, 0)
+			rR := make([]*RPC, 0)
+			t.rpcMu.RLock()
+			for k, v := range t.rpcMap {
+				fmt.Printf("now: %v, last %v, since: %v\n", time.Now(), v.last.Load(), time.Since((v.last.Load())))
+				if time.Since(v.last.Load()) >= quicConfig.MaxIdleTimeout {
+					rL = append(rL, k)
+					rR = append(rR, v)
+				}
+			}
+			t.rpcMu.RUnlock()
+
+			for i, v := range rR {
+				t.logger.Debug("Reaping RPC channel", zap.String("addr", rL[i]))
+				v.Close()
+				t.rpcMu.Lock()
+				t.rpcMap[rL[i]] = nil
+				t.rpcMu.Unlock()
+			}
+
+			timer.Reset(quicConfig.MaxIdleTimeout)
+		}
+	}
+}
+
 func (t *Transport) Accept(ctx context.Context, identity *protocol.Node) error {
-	l, err := quic.ListenAddr(identity.GetAddress(), t.server, quicConfig)
+	l, err := quic.ListenAddrEarly(identity.GetAddress(), t.server, quicConfig)
 	if err != nil {
 		return err
 	}
+
+	// go t.reaper(ctx)
+
 	for {
 		q, err := l.Accept(ctx)
 		if err != nil {
@@ -188,7 +240,14 @@ func (t *Transport) streamRouter(stream quic.Stream) {
 
 	switch rr.GetType() {
 	case protocol.Stream_RPC:
-		t.rpcChan <- stream
+		switch rr.GetRpc() {
+		case protocol.Stream_PEER:
+			t.peerRpcChan <- stream
+		case protocol.Stream_CLIENT:
+			t.clientRpcChan <- stream
+		default:
+			err = errors.New("wtf")
+		}
 	case protocol.Stream_TUNNEL:
 		t.tunnelChan <- stream
 	default:

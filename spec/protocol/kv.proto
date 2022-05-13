@@ -1,0 +1,24 @@
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+enum KVOperation {
+    UNKNOWN = 0;
+    PUT = 1;
+    GET = 2;
+    DELETE = 3;
+}
+
+message KVRequest {
+    KVOperation op = 1;
+
+    bytes key = 2;
+    bytes value = 3;
+}
+
+message KVResponse {
+    KVOperation op = 1;
+
+    bytes value = 2;
+}

@@ -47,3 +47,8 @@ In order to support the requirements outlined above, the following libraries are
 ## Proposed Deliverable
 
 Submitted version of the project should satisfy the requirements outlined above and be demostrated on 05/17 with the Professor.
+
+## Reference
+
+- Original Chord paper: [Chord: A Scalable Peer-to-peer Lookup Protocol for Internet Applications](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf)
+- Improvement on the original paper: [How to Make Chord Correct](https://arxiv.org/pdf/1502.06461.pdf)

@@ -1,14 +1,9 @@
-// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\rpc.proto
-
 syntax = "proto3";
 package protocol;
 
 option go_package = "specter/spec/protocol";
 
-message Node {
-    uint64 id = 1;
-    string address = 2;
-}
+import "spec/protocol/node.proto";
 
 message IdentityRequest {}
 
@@ -40,22 +35,8 @@ message GetPredecessorResponse {
     Node predecessor = 1;
 }
 
-enum KVOperation {
-    UNKNOWN = 0;
-    PUT = 1;
-    GET = 2;
-    DELETE = 3;
-}
+message GetSuccessorsRequest {}
 
-message KVRequest {
-    KVOperation op = 1;
-
-    bytes key = 2;
-    bytes value = 3;
-}
-
-message KVResponse {
-    KVOperation op = 1;
-
-    bytes value = 2;
+message GetSuccessorsResponse {
+    repeated Node successors = 1;
 }

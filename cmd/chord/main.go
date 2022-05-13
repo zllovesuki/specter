@@ -90,12 +90,14 @@ func main() {
 				return
 			case <-ticker.C:
 				p, _ := local.GetPredecessor()
+				var pID int64 = -1
 				if p != nil {
-					logger.Debug("Predecessor", zap.Uint64("Pre", p.ID()))
-
+					pID = int64(p.ID())
 				}
-				logger.Debug("Ring", zap.String("ring", local.RingTrace()))
-				logger.Debug("Finger", zap.String("table", local.FingerTrace()))
+				logger.Debug("Periodic debug log",
+					zap.Int64("predecessor", pID),
+					// zap.String("ring", local.RingTrace()),
+					zap.String("table", local.FingerTrace()))
 				local.Put([]byte("key"), []byte("value"))
 			}
 		}

@@ -12,33 +12,40 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/atomic"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
 type rrContainer struct {
 	rr *protocol.RequestReply
-	e  error
+	e  string
 }
 
-type rrChan chan *protocol.RequestReply
+type rrChan chan rrContainer
 
 type rpcHandler func(context.Context, *protocol.RequestReply) error
 
 type RPC struct {
+	logger *zap.Logger
+
 	stream quic.Stream
 	num    *atomic.Uint64
 
 	// TODO: candidate for 1.18 generics
 	rMap sync.Map
 
+	last *atomic.Time
+
 	handler rpcHandler
 }
 
-func NewRPC(stream quic.Stream, handler rpcHandler) *RPC {
+func NewRPC(logger *zap.Logger, stream quic.Stream, handler rpcHandler) *RPC {
 	return &RPC{
+		logger:  logger,
 		stream:  stream,
 		num:     atomic.NewUint64(0),
 		handler: handler,
+		last:    atomic.NewTime(time.Now()),
 	}
 }
 
@@ -46,9 +53,12 @@ func (r *RPC) Start(ctx context.Context) {
 	for {
 		rr := &protocol.RequestReply{}
 		if err := receiveRPC(r.stream, rr); err != nil {
-			r.stream.Close()
+			r.logger.Error("RPC receive error", zap.Error(err))
+			r.Close()
 			return
 		}
+		r.last.Store(time.Now())
+
 		go func(rr *protocol.RequestReply) {
 			switch rr.GetType() {
 			case protocol.RequestReply_REPLY:
@@ -56,42 +66,58 @@ func (r *RPC) Start(ctx context.Context) {
 				if !ok {
 					return
 				}
-				rC.(rrChan) <- rr
+				c := rrContainer{}
+				if rr.Errror != nil {
+					c.e = string(rr.Errror)
+				} else {
+					c.rr = rr
+				}
+				rC.(rrChan) <- c
 
 			case protocol.RequestReply_REQUEST:
 				if err := r.handler(ctx, rr); err != nil {
-					return
+					rr.Errror = []byte(err.Error())
 				}
 				if err := sendRPC(r.stream, rr); err != nil {
-					r.stream.Close()
+					r.logger.Debug("RPC receiver send error", zap.Error(err))
+					r.Close()
 				}
+				r.last.Store(time.Now())
 			default:
-				return
 			}
 		}(rr)
 	}
 }
 
 func (r *RPC) Close() error {
+	r.last.Store(time.Time{})
 	return r.stream.Close()
 }
 
 func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
+	if r.last.Load().IsZero() {
+		return nil, fmt.Errorf("RPC channel already closed")
+	}
 	rNum := r.num.Inc()
 	rC := make(rrChan)
 	rr.ReqNum = rNum
 	r.rMap.Store(rNum, rC)
 	if err := sendRPC(r.stream, rr); err != nil {
+		r.logger.Debug("RPC caller send error", zap.Error(err))
 		r.rMap.Delete(rNum)
-		r.stream.Close()
+		r.Close()
 		return nil, err
 	}
+	r.last.Store(time.Now())
 
 	select {
 	case <-time.After(time.Second):
 		return nil, fmt.Errorf("RPC Call timeout after 1 second")
 	case rs := <-rC:
-		return rs, nil
+		if rs.rr == nil {
+			return nil, fmt.Errorf("remote RPC error: %s", rs.e)
+		}
+		return rs.rr, nil
 	}
 }
 

@@ -1,0 +1,11 @@
+// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\rpc.proto
+
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+message Node {
+    uint64 id = 1;
+    string address = 2;
+}

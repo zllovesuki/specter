@@ -13,5 +13,8 @@ type VNode interface {
 	Notify(predecessor VNode) error
 
 	FindSuccessor(key uint64) (VNode, error)
+	GetSuccessors() ([]VNode, error)
 	GetPredecessor() (VNode, error)
+
+	Stop()
 }

@@ -2,11 +2,14 @@ package kv
 
 import (
 	"specter/chord"
+	"sync"
 )
 
 type HashFn func(string) uint64
 
 type MemoryMap struct {
+	mu sync.RWMutex
+
 	store  map[uint64]map[string][]byte
 	hashFn HashFn
 }
@@ -29,6 +32,9 @@ func WithHashFn(fn HashFn) *MemoryMap {
 
 func (m *MemoryMap) Put(key, value []byte) error {
 	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	if _, pOK := m.store[p]; !pOK {
@@ -40,6 +46,9 @@ func (m *MemoryMap) Put(key, value []byte) error {
 
 func (m *MemoryMap) Get(key []byte) ([]byte, error) {
 	// TODO: concurrency
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	if s, pOK := m.store[p]; pOK {
@@ -50,6 +59,9 @@ func (m *MemoryMap) Get(key []byte) ([]byte, error) {
 
 func (m *MemoryMap) Delete(key []byte) error {
 	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	if s, pOK := m.store[p]; pOK {

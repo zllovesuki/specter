@@ -21,8 +21,9 @@ type LocalNode struct {
 	predecessor chord.VNode
 	preMutex    sync.RWMutex
 
-	successor chord.VNode
-	succMutex sync.RWMutex
+	// successor  chord.VNode
+	successors []chord.VNode
+	succMutex  sync.RWMutex
 
 	fingers []struct {
 		mu sync.RWMutex
@@ -43,14 +44,15 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		panic(err)
 	}
 	n := &LocalNode{
-		conf:   conf,
-		logger: conf.Logger,
+		conf:       conf,
+		logger:     conf.Logger,
+		successors: make([]chord.VNode, chord.MaxSuccessorEntries),
+		started:    atomic.NewBool(false),
+		kv:         kv.WithChordHash(),
 		fingers: make([]struct {
 			mu sync.RWMutex
 			n  chord.VNode
 		}, chord.MaxFingerEntries),
-		started: atomic.NewBool(false),
-		kv:      kv.WithChordHash(),
 	}
 	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 
@@ -70,24 +72,49 @@ func (n *LocalNode) Ping() error {
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	n.preMutex.Lock()
-	if n.predecessor == nil || chord.Between(n.predecessor.ID(), predecessor.ID(), n.ID(), false) {
-		n.logger.Debug("Discovered new predecessor via Notify",
-			zap.Uint64("node", n.ID()),
-			zap.Uint64("new", predecessor.ID()),
-		)
+	var old chord.VNode
+	var new chord.VNode
 
+	defer func() {
+		if old == nil || (new != nil && old.ID() != new.ID()) {
+			n.logger.Debug("Discovered new predecessor via Notify",
+				zap.Uint64("node", n.ID()),
+				zap.Uint64("new", new.ID()),
+			)
+		}
+	}()
+
+	n.preMutex.Lock()
+	old = n.predecessor
+	if n.predecessor == nil {
 		n.predecessor = predecessor
+		new = predecessor
+		n.preMutex.Unlock()
+		return nil
+	}
+
+	if err := n.predecessor.Ping(); err == nil {
+		if chord.Between(n.predecessor.ID(), predecessor.ID(), n.ID(), false) {
+			n.predecessor = predecessor
+			new = predecessor
+		}
+	} else {
+		n.predecessor = predecessor
+		new = predecessor
 	}
 	n.preMutex.Unlock()
 
 	return nil
 }
 
-func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
+func (n *LocalNode) getSuccessor() chord.VNode {
 	n.succMutex.RLock()
-	succ := n.successor
-	n.succMutex.RUnlock()
+	defer n.succMutex.RUnlock()
+	return n.successors[0]
+}
+
+func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
+	succ := n.getSuccessor()
 	if succ == nil {
 		return nil, errors.New("successor not found, possibly invalid Chord ring")
 	}
@@ -135,6 +162,21 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 	return n
 }
 
+func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
+	list := make([]chord.VNode, 0, chord.MaxSuccessorEntries)
+	n.succMutex.RLock()
+	defer n.succMutex.RUnlock()
+
+	for _, s := range n.successors {
+		if s == nil {
+			continue
+		}
+		list = append(list, s)
+	}
+
+	return list, nil
+}
+
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	n.preMutex.RLock()
 	pre := n.predecessor
@@ -148,7 +190,7 @@ func (n *LocalNode) Put(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	n.conf.Logger.Debug("KV Put", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
+	// n.conf.Logger.Debug("KV Put", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
 	if succ.ID() == n.ID() {
 		return n.kv.Put(key, value)
 	}
@@ -181,7 +223,7 @@ func (n *LocalNode) Delete(key []byte) error {
 
 func (n *LocalNode) Create() error {
 	if !n.started.CAS(false, true) {
-		return errors.New("wtf")
+		return fmt.Errorf("chord node already started")
 	}
 
 	n.logger.Info("Creating new Chord ring",
@@ -193,7 +235,7 @@ func (n *LocalNode) Create() error {
 	n.preMutex.Unlock()
 
 	n.succMutex.Lock()
-	n.successor = n
+	n.successors[0] = n
 	n.succMutex.Unlock()
 
 	n.startTasks()
@@ -207,7 +249,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	}
 	proposedSucc, err := peer.FindSuccessor(n.ID())
 	if err != nil {
-		return err
+		return fmt.Errorf("querying immediate successor: %w", err)
 	}
 	if proposedSucc == nil {
 		return fmt.Errorf("peer has no successor")
@@ -222,22 +264,18 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		zap.Uint64("successor", proposedSucc.ID()),
 	)
 
-	n.succMutex.Lock()
-	n.successor = proposedSucc
-	n.succMutex.Unlock()
-
-	err = proposedSucc.Notify(n)
+	successors, err := proposedSucc.GetSuccessors()
 	if err != nil {
-		n.logger.Error("Joining existing Chord ring",
-			zap.Error(err),
-			zap.Uint64("node", n.ID()),
-			zap.Uint64("via", peer.ID()),
-		)
-		return err
+		return fmt.Errorf("querying successor list: %w", err)
 	}
 
+	n.succMutex.Lock()
+	n.successors[0] = proposedSucc
+	copy(n.successors[1:], successors)
+	n.succMutex.Unlock()
+
 	if !n.started.CAS(false, true) {
-		return errors.New("wtf")
+		return fmt.Errorf("chord node already started")
 	}
 
 	n.startTasks()

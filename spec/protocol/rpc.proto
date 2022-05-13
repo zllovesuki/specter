@@ -4,6 +4,7 @@ package protocol;
 option go_package = "specter/spec/protocol";
 
 import "spec/protocol/chord.proto";
+import "spec/protocol/kv.proto";
 
 message RequestReply {
     enum Kind {
@@ -13,6 +14,7 @@ message RequestReply {
         FIND_SUCCESSOR = 3;
         GET_PREDECESSOR = 4;
         KV = 5;
+        GET_SUCCESSORS = 6;
 
         IDENTITY = 10;
     }
@@ -25,6 +27,7 @@ message RequestReply {
 
     Kind kind = 1;
     Type type = 2;
+    bytes errror = 3;
 
     uint64 reqNum = 5;
 
@@ -41,6 +44,9 @@ message RequestReply {
     FindSuccessorResponse findSuccessorResponse = 41;
     GetPredecessorRequest getPredecessorRequest = 42;
     GetPredecessorResponse getPredecessorResponse = 43;
+
+    GetSuccessorsRequest getSuccessorsRequest = 44;
+    GetSuccessorsResponse getSuccessorsResponse = 45;
 
     KVRequest kvRequest = 50;
     KVResponse kvResponse = 51;

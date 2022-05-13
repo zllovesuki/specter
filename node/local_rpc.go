@@ -2,18 +2,20 @@ package node
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"specter/overlay"
 	"specter/spec/protocol"
+
+	"go.uber.org/zap"
 )
 
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
-		case r := <-n.conf.Transport.RPC():
-			n.logger.Debug("New incoming RPC Stream")
-			xd := overlay.NewRPC(r, n.handleRequest)
+		case r := <-n.conf.Transport.PeerRPC():
+			n.logger.Debug("New incoming peer RPC Stream")
+			xd := overlay.NewRPC(n.logger.With(zap.String("pov", "local_rpc")), r, n.handleRequest)
 			go xd.Start(n.stopCtx)
 		case <-n.stopCtx.Done():
 			return
@@ -23,10 +25,12 @@ func (n *LocalNode) HandleRPC() {
 
 func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply) error {
 	if rr.GetType() != protocol.RequestReply_REQUEST {
-		return errors.New("incoming RPC is not a Request")
+		return fmt.Errorf("incoming RPC is not a Request: %s", rr.GetType())
 	}
 
-	// n.logger.Debug("Incoming RPC Request", zap.String("kind", rr.GetKind().String()))
+	rr.Type = protocol.RequestReply_REPLY
+
+	// n.logger.Debug("Incoming RPC Request", zap.Any("rr", rr))
 
 	switch rr.GetKind() {
 	case protocol.RequestReply_IDENTITY:
@@ -59,6 +63,23 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 		rr.FindSuccessorRequest = nil
 		rr.FindSuccessorResponse = &protocol.FindSuccessorResponse{
 			Successor: vnode.Identity(),
+		}
+
+	case protocol.RequestReply_GET_SUCCESSORS:
+		vnodes, err := n.GetSuccessors()
+		if err != nil {
+			return err
+		}
+		identities := make([]*protocol.Node, 0, len(vnodes))
+		for _, vnode := range vnodes {
+			if vnode == nil {
+				continue
+			}
+			identities = append(identities, vnode.Identity())
+		}
+		rr.GetSuccessorsRequest = nil
+		rr.GetSuccessorsResponse = &protocol.GetSuccessorsResponse{
+			Successors: identities,
 		}
 
 	case protocol.RequestReply_GET_PREDECESSOR:
@@ -95,17 +116,18 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 				return err
 			}
 		default:
-			return errors.New("unknown KV Operation")
+			n.logger.Warn("Unknown KV Operation", zap.String("Op", req.GetOp().String()))
+			return fmt.Errorf("unknown KV Operation: %s", req.GetOp())
 		}
 
 		rr.KvRequest = nil
 		rr.KvResponse = resp
 	default:
-		return errors.New("unknown RPC call")
+		n.logger.Warn("Unknown RPC Call", zap.String("kind", rr.GetKind().String()))
+		return fmt.Errorf("unknown RPC call: %s", rr.GetKind())
 	}
 
-	// n.logger.Debug("Responding to RPC Request", zap.String("kind", rr.GetKind().String()))
+	// n.logger.Debug("Responding to RPC Request", zap.Any("rr", rr))
 
-	rr.Type = protocol.RequestReply_REPLY
 	return nil
 }

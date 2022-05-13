@@ -5,8 +5,10 @@ import (
 )
 
 const (
-	// Also known as M in the original paper
+	// Also known as m in the original paper
 	MaxFingerEntries = 48
+	// Also known as r in the paper
+	MaxSuccessorEntries = 3
 )
 
 func Hash(b []byte) uint64 {

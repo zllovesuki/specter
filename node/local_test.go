@@ -34,14 +34,14 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 	}
 	for _, node := range nodes {
 		as.NotNil(node.predecessor)
-		as.NotNil(node.successor)
+		as.NotNil(node.getSuccessor())
 	}
 
 	fmt.Printf("Ring: %s\n", nodes[0].RingTrace())
 
 	if len(nodes) == 1 {
 		as.Equal(nodes[0].ID(), nodes[0].predecessor.ID())
-		as.Equal(nodes[0].ID(), nodes[0].successor.ID())
+		as.Equal(nodes[0].ID(), nodes[0].getSuccessor().ID())
 		return
 	}
 	sort.SliceStable(nodes, func(i, j int) bool {
@@ -54,9 +54,9 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].predecessor.ID())
 	// clockwise
 	for i := 0; i < len(nodes)-1; i++ {
-		as.Equal(nodes[i+1].ID(), nodes[i].successor.ID())
+		as.Equal(nodes[i+1].ID(), nodes[i].getSuccessor().ID())
 	}
-	as.Equal(nodes[0].ID(), nodes[len(nodes)-1].successor.ID())
+	as.Equal(nodes[0].ID(), nodes[len(nodes)-1].getSuccessor().ID())
 }
 
 func TestCreate(t *testing.T) {
@@ -117,7 +117,7 @@ func TestRandomNodes(t *testing.T) {
 	}
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].successor.ID(), nodes[i].fingers[0].n.ID())
+		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[0].n.ID())
 		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
 	}
 }

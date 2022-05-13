@@ -23,7 +23,7 @@ func NewUnknownRemoteNode(ctx context.Context, t *overlay.Transport, addr string
 		parentCtx: ctx,
 		t:         t,
 	}
-	r, err := t.DialRPC(ctx, addr, n.handshake)
+	r, err := t.DialRPC(ctx, addr, protocol.Stream_PEER, n.handshake)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func NewKnownRemoteNode(ctx context.Context, t *overlay.Transport, peer *protoco
 		id:        peer,
 		t:         t,
 	}
-	r, err := t.DialRPC(ctx, peer.GetAddress(), nil)
+	r, err := t.DialRPC(ctx, peer.GetAddress(), protocol.Stream_PEER, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +114,29 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	return succ, nil
 }
 
+func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
+	rReq := newRR(protocol.RequestReply_GET_SUCCESSORS)
+	rReq.GetSuccessorsRequest = &protocol.GetSuccessorsRequest{}
+	rResp, err := n.rpc.Call(rReq)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := rResp.GetGetSuccessorsResponse()
+	succList := resp.GetSuccessors()
+
+	nodes := make([]chord.VNode, 0, len(succList))
+	for _, node := range succList {
+		n, err := NewKnownRemoteNode(n.parentCtx, n.t, node)
+		if err != nil {
+			continue
+		}
+		nodes = append(nodes, n)
+	}
+
+	return nodes, nil
+}
+
 func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	rReq := newRR(protocol.RequestReply_GET_PREDECESSOR)
 	rReq.GetPredecessorRequest = &protocol.GetPredecessorRequest{}
@@ -170,4 +193,8 @@ func (n *RemoteNode) Delete(key []byte) error {
 	}
 	_, err := n.rpc.Call(rReq)
 	return err
+}
+
+func (n *RemoteNode) Stop() {
+	n.rpc.Close()
 }
