@@ -91,10 +91,12 @@ func main() {
 			case <-ticker.C:
 				p, _ := local.GetPredecessor()
 				if p != nil {
-					logger.Debug("Ring trace", zap.Uint64("Pre", p.ID()))
+					logger.Debug("Predecessor", zap.Uint64("Pre", p.ID()))
 
 				}
-				logger.Debug("Ring trace", zap.String("ring", local.RingTrace()))
+				logger.Debug("Ring", zap.String("ring", local.RingTrace()))
+				logger.Debug("Finger", zap.String("table", local.FingerTrace()))
+				local.Put([]byte("key"), []byte("value"))
 			}
 		}
 	}()

@@ -13,16 +13,14 @@ func (n *LocalNode) FingerTrace() string {
 	var sb strings.Builder
 
 	ftMap := map[uint64][]int{}
-	for i := 0; i < chord.MaxFingerEntries; i++ {
-		finger := &n.fingers[i]
-		finger.mu.RLock()
-		id := finger.n.ID()
-		finger.mu.RUnlock()
+	n.fingerRange(func(i int, f chord.VNode) bool {
+		id := f.ID()
 		if _, found := ftMap[id]; !found {
 			ftMap[id] = make([]int, 0)
 		}
 		ftMap[id] = append(ftMap[id], i)
-	}
+		return true
+	})
 
 	keys := make([]uint64, 0, len(ftMap))
 	for k := range ftMap {
@@ -50,7 +48,7 @@ func (n *LocalNode) RingTrace() string {
 	var next chord.VNode = n
 
 	for {
-		next, err = n.FindSuccessor(next.ID() + 1)
+		next, err = n.FindSuccessor((next.ID() + 1) % (1 << chord.MaxFingerEntries))
 		if err != nil {
 			sb.WriteString(" -> ")
 			sb.WriteString("error")

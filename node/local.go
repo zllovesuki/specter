@@ -3,10 +3,11 @@ package node
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
-	"time"
 
 	"specter/chord"
+	"specter/kv"
 	"specter/spec/protocol"
 
 	"go.uber.org/atomic"
@@ -49,6 +50,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 			n  chord.VNode
 		}, chord.MaxFingerEntries),
 		started: atomic.NewBool(false),
+		kv:      kv.WithChordHash(),
 	}
 	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 
@@ -102,17 +104,32 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	return closest.FindSuccessor(key)
 }
 
-func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
+func (n *LocalNode) fingerRange(fn func(i int, f chord.VNode) bool) {
+	stop := false
 	for i := chord.MaxFingerEntries - 1; i >= 0; i-- {
 		finger := &n.fingers[i]
 		finger.mu.RLock()
 		if finger.n != nil {
-			if chord.Between(n.ID(), finger.n.ID(), key, false) {
-				finger.mu.RUnlock()
-				return finger.n
-			}
+			stop = !fn(i, finger.n)
 		}
 		finger.mu.RUnlock()
+		if stop {
+			break
+		}
+	}
+}
+
+func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
+	var finger chord.VNode
+	n.fingerRange(func(i int, f chord.VNode) bool {
+		if chord.Between(n.ID(), f.ID(), key, false) {
+			finger = f
+			return false
+		}
+		return true
+	})
+	if finger != nil {
+		return finger
 	}
 	// fallback to ourselves
 	return n
@@ -125,32 +142,13 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	return pre, nil
 }
 
-func (n *LocalNode) checkPredecessor() error {
-	n.preMutex.RLock()
-	pre := n.predecessor
-	n.preMutex.RUnlock()
-	if pre == nil {
-		return nil
-	}
-	err := pre.Ping()
-	if err != nil {
-		n.preMutex.Lock()
-		n.logger.Debug("Discovered dead predecessor",
-			zap.Uint64("node", n.ID()),
-			zap.Uint64("old", n.predecessor.ID()),
-		)
-		n.predecessor = nil
-		n.preMutex.Unlock()
-	}
-	return err
-}
-
 func (n *LocalNode) Put(key, value []byte) error {
 	id := chord.Hash(key)
 	succ, err := n.FindSuccessor(id)
 	if err != nil {
 		return err
 	}
+	n.conf.Logger.Debug("KV Put", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
 	if succ.ID() == n.ID() {
 		return n.kv.Put(key, value)
 	}
@@ -204,15 +202,25 @@ func (n *LocalNode) Create() error {
 }
 
 func (n *LocalNode) Join(peer chord.VNode) error {
+	if peer.ID() == n.ID() {
+		return fmt.Errorf("found duplicate node ID %d in the ring", n.ID())
+	}
 	proposedSucc, err := peer.FindSuccessor(n.ID())
+	if err != nil {
+		return err
+	}
+	if proposedSucc == nil {
+		return fmt.Errorf("peer has no successor")
+	}
+	if proposedSucc.ID() == n.ID() {
+		return fmt.Errorf("found duplicate node ID %d in the ring", n.ID())
+	}
+
 	n.logger.Info("Joining Chord ring",
 		zap.Uint64("node", n.ID()),
 		zap.Uint64("via", peer.ID()),
 		zap.Uint64("successor", proposedSucc.ID()),
 	)
-	if err != nil {
-		return err
-	}
 
 	n.succMutex.Lock()
 	n.successor = proposedSucc
@@ -222,8 +230,8 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if err != nil {
 		n.logger.Error("Joining existing Chord ring",
 			zap.Error(err),
-			zap.Uint64("local", n.ID()),
-			zap.Uint64("remote", peer.ID()),
+			zap.Uint64("node", n.ID()),
+			zap.Uint64("via", peer.ID()),
 		)
 		return err
 	}
@@ -235,93 +243,6 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	n.startTasks()
 
 	return nil
-}
-
-func (n *LocalNode) stablize() error {
-	n.succMutex.Lock()
-	defer n.succMutex.Unlock()
-
-	if n.successor == nil {
-		return errors.New("successor not found, possibly invalid Chord ring")
-	}
-
-	ss, err := n.successor.GetPredecessor()
-	if err != nil {
-		return err
-	}
-	if ss != nil && chord.Between(n.ID(), ss.ID(), n.successor.ID(), false) {
-		n.logger.Debug("Discovered new successor via Stablize",
-			zap.Uint64("node", n.ID()),
-			zap.Uint64("new", ss.ID()),
-			zap.Uint64("old", n.successor.ID()),
-		)
-		n.successor = ss
-	}
-
-	return n.successor.Notify(n)
-}
-
-func (n *LocalNode) fixFinger() error {
-	mod := uint64(1 << chord.MaxFingerEntries)
-
-	for next := 1; next <= chord.MaxFingerEntries; next++ {
-		// split (x + y) % m into (x % m + y % m) % m to avoid overflow
-		id := (n.ID()%mod + (1<<(next-1))%mod) % mod
-		f, err := n.FindSuccessor(id)
-		if err == nil {
-			finger := &n.fingers[next-1]
-			finger.mu.Lock()
-			finger.n = f
-			finger.mu.Unlock()
-		}
-	}
-	return nil
-}
-
-func (n *LocalNode) startTasks() {
-	go func() {
-		ticker := time.NewTicker(n.conf.StablizeInterval)
-		for {
-			select {
-			case <-ticker.C:
-				if err := n.stablize(); err != nil {
-					n.conf.Logger.Error("Stablize task", zap.Error(err))
-				}
-			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-
-	go func() {
-		ticker := time.NewTicker(n.conf.PredecessorCheckInterval)
-		for {
-			select {
-			case <-ticker.C:
-				n.checkPredecessor()
-			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-
-	go func() {
-		ticker := time.NewTicker(n.conf.FixFingerInterval)
-		for {
-			select {
-			case <-ticker.C:
-				n.fixFinger()
-			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 }
 
 func (n *LocalNode) Stop() {

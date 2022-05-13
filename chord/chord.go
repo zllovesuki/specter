@@ -6,7 +6,7 @@ import (
 
 const (
 	// Also known as M in the original paper
-	MaxFingerEntries = 8
+	MaxFingerEntries = 48
 )
 
 func Hash(b []byte) uint64 {

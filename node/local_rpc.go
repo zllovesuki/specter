@@ -6,8 +6,6 @@ import (
 
 	"specter/overlay"
 	"specter/spec/protocol"
-
-	"go.uber.org/zap"
 )
 
 func (n *LocalNode) HandleRPC() {
@@ -28,7 +26,7 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 		return errors.New("incoming RPC is not a Request")
 	}
 
-	n.logger.Debug("Incoming RPC Request", zap.String("kind", rr.GetKind().String()))
+	// n.logger.Debug("Incoming RPC Request", zap.String("kind", rr.GetKind().String()))
 
 	switch rr.GetKind() {
 	case protocol.RequestReply_IDENTITY:
@@ -106,7 +104,7 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 		return errors.New("unknown RPC call")
 	}
 
-	n.logger.Debug("Responding to RPC Request", zap.String("kind", rr.GetKind().String()))
+	// n.logger.Debug("Responding to RPC Request", zap.String("kind", rr.GetKind().String()))
 
 	rr.Type = protocol.RequestReply_REPLY
 	return nil
