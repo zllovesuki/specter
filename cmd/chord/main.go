@@ -71,7 +71,7 @@ func main() {
 				logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 			}
 		} else {
-			p, err := node.NewRemoteNode(ctx, t, &protocol.Node{
+			p, err := node.NewRemoteNode(ctx, t, logger, &protocol.Node{
 				Unknown: true,
 				Address: *peer,
 			})

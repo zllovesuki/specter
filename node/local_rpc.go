@@ -45,7 +45,7 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 
 	case protocol.RequestReply_NOTIFY:
 		predecessor := rr.GetNotifyRequest().GetPredecessor()
-		vnode, err := NewRemoteNode(ctx, n.conf.Transport, predecessor)
+		vnode, err := NewRemoteNode(ctx, n.conf.Transport, n.conf.Logger, predecessor)
 		if err != nil {
 			return err
 		}

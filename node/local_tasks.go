@@ -9,14 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (n *LocalNode) copySuccessors() []chord.VNode {
-	n.succMutex.RLock()
-	succList := append([]chord.VNode(nil), n.successors...)
-	n.succMutex.RUnlock()
-	return succList
-}
-
-func V2D(n []chord.VNode) []uint64 {
+func v2d(n []chord.VNode) []uint64 {
 	x := make([]uint64, 0)
 	for _, xx := range n {
 		if xx == nil {
@@ -45,6 +38,13 @@ func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 	return s
 }
 
+func (n *LocalNode) copySuccessors() []chord.VNode {
+	n.succMutex.RLock()
+	succList := append([]chord.VNode(nil), n.successors...)
+	n.succMutex.RUnlock()
+	return succList
+}
+
 func (n *LocalNode) stablize() error {
 	succList := n.copySuccessors()
 	modified := true
@@ -58,7 +58,7 @@ func (n *LocalNode) stablize() error {
 
 			n.logger.Debug("Discovered new successors via Stablize",
 				zap.Uint64("node", n.ID()),
-				zap.Uint64s("successors", V2D(succList)),
+				zap.Uint64s("successors", v2d(succList)),
 			)
 		}
 		if succ := n.getSuccessor(); succ != nil {
