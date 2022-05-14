@@ -1,4 +1,4 @@
-package overlay
+package rpc
 
 import (
 	"context"
@@ -15,6 +15,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var (
+	ErrTimeout = fmt.Errorf("RPC Call timeout")
+	ErrClosed  = fmt.Errorf("RPC channel already closed")
+)
+
 type rrContainer struct {
 	rr *protocol.RequestReply
 	e  string
@@ -22,7 +27,7 @@ type rrContainer struct {
 
 type rrChan chan rrContainer
 
-type rpcHandler func(context.Context, *protocol.RequestReply) error
+type RPCHandler func(context.Context, *protocol.RequestReply) error
 
 type RPC struct {
 	logger *zap.Logger
@@ -35,10 +40,10 @@ type RPC struct {
 
 	closed *atomic.Bool
 
-	handler rpcHandler
+	handler RPCHandler
 }
 
-func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpcHandler) *RPC {
+func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler RPCHandler) *RPC {
 	return &RPC{
 		logger:  logger,
 		stream:  stream,
@@ -51,7 +56,7 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpcHandler) *
 func (r *RPC) Start(ctx context.Context) {
 	for {
 		rr := &protocol.RequestReply{}
-		if err := receiveRPC(r.stream, rr); err != nil {
+		if err := Receive(r.stream, rr); err != nil {
 			r.logger.Error("RPC receive error", zap.Error(err))
 			r.Close()
 			return
@@ -76,8 +81,8 @@ func (r *RPC) Start(ctx context.Context) {
 				if err := r.handler(ctx, rr); err != nil {
 					rr.Errror = []byte(err.Error())
 				}
-				if err := sendRPC(r.stream, rr); err != nil {
-					r.logger.Debug("RPC receiver send error", zap.Error(err))
+				if err := Send(r.stream, rr); err != nil {
+					r.logger.Error("RPC receiver send error", zap.Error(err))
 					r.Close()
 				}
 			default:
@@ -95,7 +100,7 @@ func (r *RPC) Close() error {
 
 func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	if r.closed.Load() {
-		return nil, fmt.Errorf("RPC channel already closed")
+		return nil, ErrClosed
 	}
 
 	rNum := r.num.Inc()
@@ -104,15 +109,15 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	r.rMap.Store(rNum, rC)
 	defer r.rMap.Delete(rNum)
 
-	if err := sendRPC(r.stream, rr); err != nil {
-		r.logger.Debug("RPC caller send error", zap.Error(err))
+	if err := Send(r.stream, rr); err != nil {
+		r.logger.Error("RPC caller send error", zap.Error(err))
 		r.Close()
 		return nil, err
 	}
 
 	select {
 	case <-time.After(time.Second):
-		return nil, fmt.Errorf("RPC Call timeout after 1 second")
+		return nil, ErrTimeout
 	case rs := <-rC:
 		if rs.rr == nil {
 			return nil, fmt.Errorf("remote RPC error: %s", rs.e)
@@ -121,7 +126,7 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	}
 }
 
-func receiveRPC(stream io.Reader, rr proto.Message) error {
+func Receive(stream io.Reader, rr proto.Message) error {
 	sb := make([]byte, 8)
 	n, err := io.ReadFull(stream, sb)
 	if err != nil {
@@ -144,7 +149,7 @@ func receiveRPC(stream io.Reader, rr proto.Message) error {
 	return proto.Unmarshal(mb, rr)
 }
 
-func sendRPC(stream io.Writer, rr proto.Message) error {
+func Send(stream io.Writer, rr proto.Message) error {
 	buf, err := proto.Marshal(rr)
 	if err != nil {
 		return fmt.Errorf("encoding outbound RPC message: %w", err)

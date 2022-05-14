@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"specter/chord"
+	"specter/spec/chord"
 )
 
 func (n *LocalNode) FingerTrace() string {
@@ -49,7 +49,7 @@ func (n *LocalNode) RingTrace() string {
 	seen := make(map[uint64]bool)
 
 	for {
-		next, err = n.FindSuccessor((next.ID() + 1) % (1 << chord.MaxFingerEntries))
+		next, err = n.FindSuccessor(chord.Modulo(next.ID(), 1))
 		if err != nil {
 			sb.WriteString(" -> ")
 			sb.WriteString("error")

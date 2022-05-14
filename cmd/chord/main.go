@@ -9,15 +9,14 @@ import (
 	"encoding/pem"
 	"flag"
 	"math/big"
-	mRand "math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"specter/chord"
 	"specter/node"
 	"specter/overlay"
+	"specter/spec/chord"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -32,7 +31,7 @@ func main() {
 	flag.Parse()
 
 	identity := &protocol.Node{
-		Id:      mRand.Uint64() % (1 << chord.MaxFingerEntries),
+		Id:      chord.Random(),
 		Address: *listen,
 	}
 

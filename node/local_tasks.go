@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"specter/chord"
+	"specter/spec/chord"
 
 	"go.uber.org/zap"
 )
@@ -98,12 +98,10 @@ func (n *LocalNode) stablize() error {
 }
 
 func (n *LocalNode) fixFinger() error {
-	mod := uint64(1 << chord.MaxFingerEntries)
 	fixed := make([]uint64, 0)
 
 	for k := 1; k <= chord.MaxFingerEntries; k++ {
-		// split (x + y) % m into (x % m + y % m) % m to avoid overflow
-		next := (n.ID()%mod + (1<<(k-1))%mod) % mod
+		next := chord.Modulo(n.ID(), 1<<(k-1))
 		f, err := n.FindSuccessor(next)
 		if err != nil {
 			continue

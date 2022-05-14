@@ -3,7 +3,7 @@ package node
 import (
 	"errors"
 
-	"specter/chord"
+	"specter/spec/chord"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -74,9 +74,9 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	}
 	// find next in ring according to finger table
 	closest := n.closestPreceedingNode(key)
-	if closest.ID() == n.ID() {
-		return n, nil
-	}
+	// if closest.ID() == n.ID() {
+	// 	return n, nil
+	// }
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"specter/chord"
 	"specter/kv"
+	"specter/spec/chord"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -35,7 +35,7 @@ type LocalNode struct {
 	kv chord.KV
 }
 
-var _ chord.VNode = &LocalNode{}
+var _ chord.VNode = (*LocalNode)(nil)
 
 func NewLocalNode(conf NodeConfig) *LocalNode {
 	if err := conf.Validate(); err != nil {

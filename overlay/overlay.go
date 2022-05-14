@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"specter/rpc"
 	"specter/spec/protocol"
 
 	"github.com/lucas-clemente/quic-go"
@@ -16,7 +17,7 @@ type nodeConnection struct {
 	quic quic.Connection
 }
 
-type RPCHandshakeFunc func(*RPC) error
+type RPCHandshakeFunc func(*rpc.RPC) error
 
 type Stream struct {
 	Connection quic.Stream
@@ -29,7 +30,7 @@ type Transport struct {
 	qMap map[string]*nodeConnection
 	qMu  sync.RWMutex
 
-	rpcMap map[string]*RPC
+	rpcMap map[string]*rpc.RPC
 	rpcMu  sync.RWMutex
 
 	peerRpcChan   chan Stream

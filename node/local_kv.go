@@ -1,6 +1,6 @@
 package node
 
-import "specter/chord"
+import "specter/spec/chord"
 
 func (n *LocalNode) Put(key, value []byte) error {
 	id := chord.Hash(key)

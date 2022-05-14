@@ -2,6 +2,7 @@ package chord
 
 import (
 	"hash/fnv"
+	"math/rand"
 )
 
 const (
@@ -9,6 +10,8 @@ const (
 	MaxFingerEntries = 48
 	// Also known as L in the second paper
 	ExtendedSuccessorEntries = 3
+
+	mod = (1 << MaxFingerEntries)
 )
 
 func Hash(b []byte) uint64 {
@@ -19,6 +22,15 @@ func Hash(b []byte) uint64 {
 
 func HashString(key string) uint64 {
 	return Hash([]byte(key))
+}
+
+func Modulo(x, y uint64) uint64 {
+	// split (x + y) % m into (x % m + y % m) % m to avoid overflow
+	return (x%mod + y%mod) % mod
+}
+
+func Random() uint64 {
+	return rand.Uint64() % (1 << MaxFingerEntries)
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {

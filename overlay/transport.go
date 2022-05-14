@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"specter/rpc"
 	"specter/spec/protocol"
 
 	"github.com/lucas-clemente/quic-go"
@@ -18,7 +19,7 @@ func NewTransport(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Conf
 	return &Transport{
 		logger:        logger,
 		qMap:          make(map[string]*nodeConnection),
-		rpcMap:        make(map[string]*RPC),
+		rpcMap:        make(map[string]*rpc.RPC),
 		peerRpcChan:   make(chan Stream, 1),
 		clientRpcChan: make(chan Stream, 1),
 		tunnelChan:    make(chan Stream, 1),
@@ -48,14 +49,14 @@ func (t *Transport) getQ(ctx context.Context, peer *protocol.Node) (quic.Connect
 	}
 	t.qMu.RUnlock()
 
-	t.logger.Debug("Creating new QUIC connection", zap.String("addr", peer.GetAddress()))
-
 	t.qMu.Lock()
 	defer t.qMu.Unlock()
 
 	if q, ok := t.qMap[qMapKey]; ok {
 		return q.quic, nil
 	}
+
+	t.logger.Debug("Creating new QUIC connection", zap.String("addr", peer.GetAddress()))
 
 	dialCtx, dialCancel := context.WithTimeout(ctx, time.Second)
 	defer dialCancel()
@@ -100,14 +101,14 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, rpcType proto
 		Type: protocol.Stream_RPC,
 		Rpc:  rpcType,
 	}
-	err = sendRPC(stream, rr)
+	err = rpc.Send(stream, rr)
 	if err != nil {
 		return
 	}
 	return stream, nil
 }
 
-func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure, hs RPCHandshakeFunc) (*RPC, error) {
+func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure, hs RPCHandshakeFunc) (*rpc.RPC, error) {
 	rpcMapKey := peer.GetAddress() + "/" + rpcType.String()
 
 	t.rpcMu.RLock()
@@ -117,8 +118,6 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType pr
 	}
 	t.rpcMu.RUnlock()
 
-	t.logger.Debug("Creating new RPC Stream", zap.String("addr", peer.GetAddress()))
-
 	t.rpcMu.Lock()
 	defer t.rpcMu.Unlock()
 
@@ -126,12 +125,14 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType pr
 		return r, nil
 	}
 
+	t.logger.Debug("Creating new RPC Stream", zap.String("addr", peer.GetAddress()))
+
 	stream, err := t.getS(ctx, peer, rpcType)
 	if err != nil {
 		return nil, err
 	}
 
-	r := NewRPC(t.logger.With(zap.String("addr", peer.GetAddress()), zap.String("pov", "transport_dial")), stream, nil)
+	r := rpc.NewRPC(t.logger.With(zap.String("addr", peer.GetAddress()), zap.String("pov", "transport_dial")), stream, nil)
 	go r.Start(ctx)
 
 	if hs != nil {
@@ -217,7 +218,7 @@ func (t *Transport) streamRouter(q quic.Connection, stream quic.Stream) {
 	stream.SetDeadline(time.Now().Add(time.Second))
 
 	rr := &protocol.Stream{}
-	err = receiveRPC(stream, rr)
+	err = rpc.Receive(stream, rr)
 	if err != nil {
 		return
 	}

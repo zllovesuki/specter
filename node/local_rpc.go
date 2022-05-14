@@ -4,18 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"specter/overlay"
+	"specter/rpc"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
 )
+
+var _ rpc.RPCHandler = (*LocalNode)(nil).rpcHandler
 
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
 		case s := <-n.conf.Transport.PeerRPC():
 			n.logger.Debug("New incoming peer RPC Stream", zap.String("remote", s.Remote.String()))
-			xd := overlay.NewRPC(n.logger.With(zap.String("addr", s.Remote.String()), zap.String("pov", "local_rpc")), s.Connection, n.handleRequest)
+			xd := rpc.NewRPC(n.logger.With(zap.String("addr", s.Remote.String()), zap.String("pov", "local_rpc")), s.Connection, n.rpcHandler)
 			go xd.Start(n.stopCtx)
 		case <-n.stopCtx.Done():
 			return
@@ -23,7 +25,7 @@ func (n *LocalNode) HandleRPC() {
 	}
 }
 
-func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply) error {
+func (n *LocalNode) rpcHandler(ctx context.Context, rr *protocol.RequestReply) error {
 	if rr.GetType() != protocol.RequestReply_REQUEST {
 		return fmt.Errorf("incoming RPC is not a Request: %s", rr.GetType())
 	}

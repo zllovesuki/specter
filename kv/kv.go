@@ -1,8 +1,9 @@
 package kv
 
 import (
-	"specter/chord"
 	"sync"
+
+	"specter/spec/chord"
 )
 
 type HashFn func(string) uint64

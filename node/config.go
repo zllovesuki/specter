@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"specter/chord"
 	"specter/overlay"
+	"specter/spec/chord"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"

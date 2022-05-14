@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"specter/rpc"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -16,7 +17,7 @@ func randomTimeRange(t time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
 }
 
-func rpcPrefixSearch(m map[string]*RPC, prefix string) []string {
+func rpcPrefixSearch(m map[string]*rpc.RPC, prefix string) []string {
 	r := make([]string, 0)
 	for k := range m {
 		if strings.HasPrefix(k, prefix) {

@@ -3,8 +3,9 @@ package node
 import (
 	"context"
 
-	"specter/chord"
 	"specter/overlay"
+	"specter/rpc"
+	"specter/spec/chord"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -16,11 +17,11 @@ type RemoteNode struct {
 	logger *zap.Logger
 
 	id  *protocol.Node
-	rpc *overlay.RPC
+	rpc *rpc.RPC
 	t   *overlay.Transport
 }
 
-var _ chord.VNode = &RemoteNode{}
+var _ chord.VNode = (*RemoteNode)(nil)
 
 func NewRemoteNode(ctx context.Context, t *overlay.Transport, logger *zap.Logger, peer *protocol.Node) (*RemoteNode, error) {
 	n := &RemoteNode{
@@ -41,7 +42,7 @@ func NewRemoteNode(ctx context.Context, t *overlay.Transport, logger *zap.Logger
 	return n, nil
 }
 
-func (n *RemoteNode) handshake(r *overlay.RPC) error {
+func (n *RemoteNode) handshake(r *rpc.RPC) error {
 	rReq := newRR(protocol.RequestReply_IDENTITY)
 	rResp, err := r.Call(rReq)
 	if err != nil {
