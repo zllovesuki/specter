@@ -103,9 +103,10 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	rC := make(rrChan)
 	rr.ReqNum = rNum
 	r.rMap.Store(rNum, rC)
+	defer r.rMap.Delete(rNum)
+
 	if err := sendRPC(r.stream, rr); err != nil {
 		r.logger.Debug("RPC caller send error", zap.Error(err))
-		r.rMap.Delete(rNum)
 		r.Close()
 		return nil, err
 	}

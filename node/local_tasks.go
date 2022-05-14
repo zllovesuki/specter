@@ -47,9 +47,10 @@ func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 
 func (n *LocalNode) stablize() error {
 	succList := n.copySuccessors()
+	modified := true
 
 	defer func() {
-		if n.succXOR.Load() != n.xor(succList) {
+		if modified && n.succXOR.Load() != n.xor(succList) {
 			n.succMutex.Lock()
 			copy(n.successors, succList)
 			n.succXOR.Store(n.xor(n.successors))
@@ -75,12 +76,15 @@ func (n *LocalNode) stablize() error {
 		if spErr == nil && nsErr == nil {
 			// n.logger.Debug("replace", zap.String("where", "head"), zap.Int("len", len(nextSuccList)))
 			succList = makeList(head, nextSuccList)
+			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), n.getSuccessor().ID(), false) {
 				nextSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
 					// n.logger.Debug("replace", zap.String("where", "newSucc"), zap.Int("len", len(nextSuccList)))
 					succList = makeList(newSucc, nextSuccList)
+					modified = true
+
 					return nil
 				}
 			}
