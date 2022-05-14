@@ -16,16 +16,16 @@ func (n *LocalNode) copySuccessors() []chord.VNode {
 	return succList
 }
 
-// func V2D(n []chord.VNode) []uint64 {
-// 	x := make([]uint64, 0)
-// 	for _, xx := range n {
-// 		if xx == nil {
-// 			continue
-// 		}
-// 		x = append(x, xx.ID())
-// 	}
-// 	return x
-// }
+func V2D(n []chord.VNode) []uint64 {
+	x := make([]uint64, 0)
+	for _, xx := range n {
+		if xx == nil {
+			continue
+		}
+		x = append(x, xx.ID())
+	}
+	return x
+}
 
 func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 	list := make([]chord.VNode, chord.ExtendedSuccessorEntries+1)
@@ -34,16 +34,31 @@ func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 	return list
 }
 
+func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
+	s := n.ID()
+	for _, n := range nodes {
+		if n == nil {
+			continue
+		}
+		s ^= n.ID()
+	}
+	return s
+}
+
 func (n *LocalNode) stablize() error {
 	succList := n.copySuccessors()
-	modified := false
 
 	defer func() {
-		if modified {
+		if n.succXOR.Load() != n.xor(succList) {
 			n.succMutex.Lock()
 			copy(n.successors, succList)
-			// n.logger.Debug("Current view", zap.Uint64s("successors", V2D(n.successors)))
+			n.succXOR.Store(n.xor(n.successors))
 			n.succMutex.Unlock()
+
+			n.logger.Debug("Discovered new successors via Stablize",
+				zap.Uint64("node", n.ID()),
+				zap.Uint64s("successors", V2D(succList)),
+			)
 		}
 		if succ := n.getSuccessor(); succ != nil {
 			succ.Notify(n)
@@ -60,19 +75,12 @@ func (n *LocalNode) stablize() error {
 		if spErr == nil && nsErr == nil {
 			// n.logger.Debug("replace", zap.String("where", "head"), zap.Int("len", len(nextSuccList)))
 			succList = makeList(head, nextSuccList)
-			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), n.getSuccessor().ID(), false) {
 				nextSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
 					// n.logger.Debug("replace", zap.String("where", "newSucc"), zap.Int("len", len(nextSuccList)))
 					succList = makeList(newSucc, nextSuccList)
-					modified = true
-
-					n.logger.Debug("Discovered new successors via Stablize",
-						zap.Uint64("node", n.ID()),
-						zap.Uint64("new", newSucc.ID()),
-					)
 					return nil
 				}
 			}

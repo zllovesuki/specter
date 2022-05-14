@@ -18,12 +18,12 @@ type LocalNode struct {
 	logger *zap.Logger
 	conf   NodeConfig
 
-	predecessor chord.VNode
 	preMutex    sync.RWMutex
+	predecessor chord.VNode
 
-	// successor  chord.VNode
-	successors []chord.VNode
 	succMutex  sync.RWMutex
+	succXOR    *atomic.Uint64
+	successors []chord.VNode
 
 	fingers []struct {
 		mu sync.RWMutex
@@ -46,6 +46,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	n := &LocalNode{
 		conf:       conf,
 		logger:     conf.Logger,
+		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
 		successors: make([]chord.VNode, chord.ExtendedSuccessorEntries+1),
 		started:    atomic.NewBool(false),
 		kv:         kv.WithChordHash(),
@@ -236,6 +237,7 @@ func (n *LocalNode) Create() error {
 
 	n.succMutex.Lock()
 	n.successors[0] = n
+	n.succXOR.Store(n.xor(n.successors))
 	n.succMutex.Unlock()
 
 	n.startTasks()
@@ -272,6 +274,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	n.succMutex.Lock()
 	n.successors[0] = proposedSucc
 	copy(n.successors[1:], successors)
+	n.succXOR.Store(n.xor(n.successors))
 	n.succMutex.Unlock()
 
 	if !n.started.CAS(false, true) {
