@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"specter/rpc"
+	"specter/spec"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
 )
 
-var _ rpc.RPCHandler = (*LocalNode)(nil).rpcHandler
+var _ spec.RPCHandler = (*LocalNode)(nil).rpcHandler
 
 func (n *LocalNode) HandleRPC() {
 	for {

@@ -1,6 +1,7 @@
 syntax = "proto3";
 package protocol;
 
+option optimize_for = SPEED;
 option go_package = "specter/spec/protocol";
 
 enum KVOperation {
@@ -8,6 +9,8 @@ enum KVOperation {
     PUT = 1;
     GET = 2;
     DELETE = 3;
+
+    FIND_KEYS = 4;
 }
 
 message KVRequest {
@@ -15,10 +18,14 @@ message KVRequest {
 
     bytes key = 2;
     bytes value = 3;
+
+    uint64 find_start = 4;
 }
 
 message KVResponse {
     KVOperation op = 1;
 
     bytes value = 2;
+
+    repeated bytes keys = 3;
 }

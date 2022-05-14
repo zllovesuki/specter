@@ -70,3 +70,7 @@ func (m *MemoryMap) Delete(key []byte) error {
 	}
 	return nil
 }
+
+func (m *MemoryMap) FindKeys(start uint64) ([][]byte, error) {
+	return nil, nil
+}

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
+	"specter/spec"
 	"specter/spec/protocol"
 
 	"go.uber.org/atomic"
@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	ErrTimeout = fmt.Errorf("RPC Call timeout")
-	ErrClosed  = fmt.Errorf("RPC channel already closed")
+	ErrClosed = fmt.Errorf("RPC channel already closed")
 )
+
+var _ spec.RPC = (*RPC)(nil)
 
 type rrContainer struct {
 	rr *protocol.RequestReply
@@ -26,8 +27,6 @@ type rrContainer struct {
 }
 
 type rrChan chan rrContainer
-
-type RPCHandler func(context.Context, *protocol.RequestReply) error
 
 type RPC struct {
 	logger *zap.Logger
@@ -40,10 +39,10 @@ type RPC struct {
 
 	closed *atomic.Bool
 
-	handler RPCHandler
+	handler spec.RPCHandler
 }
 
-func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler RPCHandler) *RPC {
+func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler spec.RPCHandler) *RPC {
 	return &RPC{
 		logger:  logger,
 		stream:  stream,
@@ -98,7 +97,7 @@ func (r *RPC) Close() error {
 	return r.stream.Close()
 }
 
-func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
+func (r *RPC) Call(ctx context.Context, rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	if r.closed.Load() {
 		return nil, ErrClosed
 	}
@@ -116,8 +115,8 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	}
 
 	select {
-	case <-time.After(time.Second):
-		return nil, ErrTimeout
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	case rs := <-rC:
 		if rs.rr == nil {
 			return nil, fmt.Errorf("remote RPC error: %s", rs.e)

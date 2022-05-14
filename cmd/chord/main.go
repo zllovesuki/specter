@@ -46,7 +46,7 @@ func main() {
 		NextProtos:         []string{"quic-echo-example"},
 	}
 
-	t := overlay.NewTransport(logger, serverTLS, clientTLS)
+	t := overlay.NewQUIC(logger, serverTLS, clientTLS)
 
 	local := node.NewLocalNode(node.NodeConfig{
 		Logger:                   logger,

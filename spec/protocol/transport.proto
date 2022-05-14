@@ -1,6 +1,7 @@
 syntax = "proto3";
 package protocol;
 
+option optimize_for = SPEED;
 option go_package = "specter/spec/protocol";
 
 message Stream {

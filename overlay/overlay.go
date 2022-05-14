@@ -2,11 +2,11 @@ package overlay
 
 import (
 	"crypto/tls"
-	"net"
 	"sync"
 
-	"specter/rpc"
+	"specter/spec"
 	"specter/spec/protocol"
+	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/zap"
@@ -17,24 +17,17 @@ type nodeConnection struct {
 	quic quic.Connection
 }
 
-type RPCHandshakeFunc func(*rpc.RPC) error
-
-type Stream struct {
-	Connection quic.Stream
-	Remote     net.Addr
-}
-
-type Transport struct {
+type QUIC struct {
 	logger *zap.Logger
 
 	qMap map[string]*nodeConnection
 	qMu  sync.RWMutex
 
-	rpcMap map[string]*rpc.RPC
+	rpcMap map[string]spec.RPC
 	rpcMu  sync.RWMutex
 
-	rpcChan    chan Stream
-	tunnelChan chan Stream
+	rpcChan    chan transport.Stream
+	directChan chan transport.Stream
 
 	server *tls.Config
 	client *tls.Config

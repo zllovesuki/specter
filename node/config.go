@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"specter/overlay"
 	"specter/spec/chord"
 	"specter/spec/protocol"
+	"specter/spec/transport"
 
 	"go.uber.org/zap"
 )
@@ -14,7 +14,7 @@ import (
 type NodeConfig struct {
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
-	Transport                *overlay.Transport
+	Transport                transport.Transport
 	StablizeInterval         time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration

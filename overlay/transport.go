@@ -4,24 +4,29 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"net"
 	"strconv"
 	"time"
 
 	"specter/rpc"
+	"specter/spec"
 	"specter/spec/protocol"
+	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
-func NewTransport(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Config) *Transport {
-	return &Transport{
+var _ transport.Transport = (*QUIC)(nil)
+
+func NewQUIC(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Config) *QUIC {
+	return &QUIC{
 		logger:     logger,
 		qMap:       make(map[string]*nodeConnection),
-		rpcMap:     make(map[string]*rpc.RPC),
-		rpcChan:    make(chan Stream, 1),
-		tunnelChan: make(chan Stream, 1),
+		rpcMap:     make(map[string]spec.RPC),
+		rpcChan:    make(chan transport.Stream, 1),
+		directChan: make(chan transport.Stream, 1),
 
 		server: serverTLS,
 		client: clientTLS,
@@ -38,7 +43,7 @@ func makeKey(peer *protocol.Node) string {
 	return qMapKey
 }
 
-func (t *Transport) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, error) {
+func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, error) {
 	qMapKey := makeKey(peer)
 
 	t.qMu.RLock()
@@ -71,7 +76,7 @@ func (t *Transport) getQ(ctx context.Context, peer *protocol.Node) (quic.Connect
 	return q, nil
 }
 
-func (t *Transport) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (stream quic.Stream, err error) {
+func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (q quic.Connection, stream quic.Stream, err error) {
 	defer func() {
 		if err != nil {
 			t.logger.Error("Dialing new stream", zap.Error(err), zap.String("type", sType.String()), zap.String("addr", peer.GetAddress()))
@@ -80,11 +85,10 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, sType protoco
 			stream.SetDeadline(time.Time{})
 		}
 	}()
-	var q quic.Connection
 
 	q, err = t.getQ(ctx, peer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
@@ -92,7 +96,7 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, sType protoco
 
 	stream, err = q.OpenStreamSync(openCtx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stream.SetDeadline(time.Now().Add(time.Second))
 
@@ -103,10 +107,10 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, sType protoco
 	if err != nil {
 		return
 	}
-	return stream, nil
+	return q, stream, nil
 }
 
-func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, hs RPCHandshakeFunc) (*rpc.RPC, error) {
+func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs spec.RPCHandshakeFunc) (spec.RPC, error) {
 	rpcMapKey := peer.GetAddress()
 
 	t.rpcMu.RLock()
@@ -125,7 +129,7 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, hs RPCHand
 
 	t.logger.Debug("Creating new RPC Stream", zap.String("addr", peer.GetAddress()))
 
-	stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
+	_, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
 		return nil, err
 	}
@@ -145,26 +149,26 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, hs RPCHand
 	return r, nil
 }
 
-func (t *Transport) DialTunnel(ctx context.Context, peer *protocol.Node) (quic.Stream, error) {
+func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error) {
 	t.logger.Debug("Creating new Tunnel Stream", zap.String("addr", peer.GetAddress()))
 
-	stream, err := t.getS(ctx, peer, protocol.Stream_TUNNEL)
+	q, stream, err := t.getS(ctx, peer, protocol.Stream_TUNNEL)
 	if err != nil {
 		return nil, err
 	}
 
-	return stream, nil
+	return w(q, stream), nil
 }
 
-func (t *Transport) RPC() <-chan Stream {
+func (t *QUIC) RPC() <-chan transport.Stream {
 	return t.rpcChan
 }
 
-func (t *Transport) Tunnel() <-chan Stream {
-	return t.tunnelChan
+func (t *QUIC) Direct() <-chan transport.Stream {
+	return t.directChan
 }
 
-func (t *Transport) Accept(ctx context.Context, identity *protocol.Node) error {
+func (t *QUIC) Accept(ctx context.Context, identity *protocol.Node) error {
 	l, err := quic.ListenAddr(identity.GetAddress(), t.server, quicConfig)
 	if err != nil {
 		return err
@@ -182,7 +186,7 @@ func (t *Transport) Accept(ctx context.Context, identity *protocol.Node) error {
 	}
 }
 
-func (t *Transport) handleDatagram(ctx context.Context, q quic.Connection) {
+func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection) {
 	logger := t.logger.With(zap.String("endpoint", q.RemoteAddr().String()))
 	for {
 		b, err := q.ReceiveMessage()
@@ -198,7 +202,7 @@ func (t *Transport) handleDatagram(ctx context.Context, q quic.Connection) {
 	}
 }
 
-func (t *Transport) handleConnection(ctx context.Context, q quic.Connection) {
+func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection) {
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
@@ -209,7 +213,7 @@ func (t *Transport) handleConnection(ctx context.Context, q quic.Connection) {
 	}
 }
 
-func (t *Transport) streamRouter(q quic.Connection, stream quic.Stream) {
+func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream) {
 	var err error
 	defer func() {
 		if err != nil {
@@ -230,16 +234,23 @@ func (t *Transport) streamRouter(q quic.Connection, stream quic.Stream) {
 
 	switch rr.GetType() {
 	case protocol.Stream_RPC:
-		t.rpcChan <- Stream{
-			Connection: stream,
+		t.rpcChan <- transport.Stream{
+			Connection: w(q, stream),
 			Remote:     q.RemoteAddr(),
 		}
 	case protocol.Stream_TUNNEL:
-		t.tunnelChan <- Stream{
-			Connection: stream,
+		t.directChan <- transport.Stream{
+			Connection: w(q, stream),
 			Remote:     q.RemoteAddr(),
 		}
 	default:
 		err = errors.New("wtf")
+	}
+}
+
+func w(q quic.Connection, s quic.Stream) *quicConn {
+	return &quicConn{
+		Stream: s,
+		q:      q,
 	}
 }

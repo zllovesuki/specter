@@ -15,7 +15,7 @@ func randomTimeRange(t time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
 }
 
-func (t *Transport) reaper(ctx context.Context) {
+func (t *QUIC) reaper(ctx context.Context) {
 	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
 
 	alive, err := proto.Marshal(&protocol.Datagram{

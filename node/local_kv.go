@@ -38,3 +38,7 @@ func (n *LocalNode) Delete(key []byte) error {
 	}
 	return succ.Delete(key)
 }
+
+func (*LocalNode) FindKeys(start uint64) ([][]byte, error) {
+	return nil, nil
+}
