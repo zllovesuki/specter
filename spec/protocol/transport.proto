@@ -9,12 +9,6 @@ message Stream {
         RPC = 1;
         TUNNEL = 2;
     }
-    enum Procedure {
-        UNKNOWN_RPC = 0;
-        PEER = 1;
-        CLIENT = 2; 
-    }
 
     Type type = 1;
-    Procedure rpc = 2;
 }

@@ -33,9 +33,8 @@ type Transport struct {
 	rpcMap map[string]*rpc.RPC
 	rpcMu  sync.RWMutex
 
-	peerRpcChan   chan Stream
-	clientRpcChan chan Stream
-	tunnelChan    chan Stream
+	rpcChan    chan Stream
+	tunnelChan chan Stream
 
 	server *tls.Config
 	client *tls.Config

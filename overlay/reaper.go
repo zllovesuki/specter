@@ -3,10 +3,8 @@ package overlay
 import (
 	"context"
 	"math/rand"
-	"strings"
 	"time"
 
-	"specter/rpc"
 	"specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -15,16 +13,6 @@ import (
 
 func randomTimeRange(t time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
-}
-
-func rpcPrefixSearch(m map[string]*rpc.RPC, prefix string) []string {
-	r := make([]string, 0)
-	for k := range m {
-		if strings.HasPrefix(k, prefix) {
-			r = append(r, k)
-		}
-	}
-	return r
 }
 
 func (t *Transport) reaper(ctx context.Context) {
@@ -68,12 +56,10 @@ func (t *Transport) reaper(ctx context.Context) {
 
 				t.rpcMu.Lock()
 				for _, c := range candidate {
-					p := rpcPrefixSearch(t.rpcMap, c.peer.GetAddress())
-					t.logger.Debug("reaping cached RPC channels to peer", zap.Strings("key", p))
-					for _, r := range p {
-						t.rpcMap[r].Close()
-						delete(t.rpcMap, r)
-					}
+					k := c.peer.GetAddress()
+					t.logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
+					t.rpcMap[k].Close()
+					delete(t.rpcMap, k)
 				}
 				t.rpcMu.Unlock()
 			}

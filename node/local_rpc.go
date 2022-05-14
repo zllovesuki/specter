@@ -15,7 +15,7 @@ var _ rpc.RPCHandler = (*LocalNode)(nil).rpcHandler
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
-		case s := <-n.conf.Transport.PeerRPC():
+		case s := <-n.conf.Transport.RPC():
 			n.logger.Debug("New incoming peer RPC Stream", zap.String("remote", s.Remote.String()))
 			xd := rpc.NewRPC(n.logger.With(zap.String("addr", s.Remote.String()), zap.String("pov", "local_rpc")), s.Connection, n.rpcHandler)
 			go xd.Start(n.stopCtx)

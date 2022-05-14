@@ -34,7 +34,7 @@ func NewRemoteNode(ctx context.Context, t *overlay.Transport, logger *zap.Logger
 	if peer.GetUnknown() {
 		hs = n.handshake
 	}
-	r, err := t.DialRPC(ctx, peer, protocol.Stream_PEER, hs)
+	r, err := t.DialRPC(ctx, peer, hs)
 	if err != nil {
 		return nil, err
 	}

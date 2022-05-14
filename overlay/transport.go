@@ -17,12 +17,11 @@ import (
 
 func NewTransport(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Config) *Transport {
 	return &Transport{
-		logger:        logger,
-		qMap:          make(map[string]*nodeConnection),
-		rpcMap:        make(map[string]*rpc.RPC),
-		peerRpcChan:   make(chan Stream, 1),
-		clientRpcChan: make(chan Stream, 1),
-		tunnelChan:    make(chan Stream, 1),
+		logger:     logger,
+		qMap:       make(map[string]*nodeConnection),
+		rpcMap:     make(map[string]*rpc.RPC),
+		rpcChan:    make(chan Stream, 1),
+		tunnelChan: make(chan Stream, 1),
 
 		server: serverTLS,
 		client: clientTLS,
@@ -60,7 +59,7 @@ func (t *Transport) getQ(ctx context.Context, peer *protocol.Node) (quic.Connect
 
 	dialCtx, dialCancel := context.WithTimeout(ctx, time.Second)
 	defer dialCancel()
-	q, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.client, quicConfig)
+	q, err := quic.DialAddrContext(dialCtx, peer.GetAddress(), t.client, quicConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -72,10 +71,10 @@ func (t *Transport) getQ(ctx context.Context, peer *protocol.Node) (quic.Connect
 	return q, nil
 }
 
-func (t *Transport) getS(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure) (stream quic.Stream, err error) {
+func (t *Transport) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (stream quic.Stream, err error) {
 	defer func() {
 		if err != nil {
-			t.logger.Error("Dialing RPC stream", zap.Error(err), zap.String("addr", peer.GetAddress()))
+			t.logger.Error("Dialing new stream", zap.Error(err), zap.String("type", sType.String()), zap.String("addr", peer.GetAddress()))
 		}
 		if stream != nil {
 			stream.SetDeadline(time.Time{})
@@ -98,8 +97,7 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, rpcType proto
 	stream.SetDeadline(time.Now().Add(time.Second))
 
 	rr := &protocol.Stream{
-		Type: protocol.Stream_RPC,
-		Rpc:  rpcType,
+		Type: sType,
 	}
 	err = rpc.Send(stream, rr)
 	if err != nil {
@@ -108,8 +106,8 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, rpcType proto
 	return stream, nil
 }
 
-func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure, hs RPCHandshakeFunc) (*rpc.RPC, error) {
-	rpcMapKey := peer.GetAddress() + "/" + rpcType.String()
+func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, hs RPCHandshakeFunc) (*rpc.RPC, error) {
+	rpcMapKey := peer.GetAddress()
 
 	t.rpcMu.RLock()
 	if r, ok := t.rpcMap[rpcMapKey]; ok {
@@ -127,7 +125,7 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType pr
 
 	t.logger.Debug("Creating new RPC Stream", zap.String("addr", peer.GetAddress()))
 
-	stream, err := t.getS(ctx, peer, rpcType)
+	stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
 		return nil, err
 	}
@@ -147,12 +145,19 @@ func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType pr
 	return r, nil
 }
 
-func (t *Transport) PeerRPC() <-chan Stream {
-	return t.peerRpcChan
+func (t *Transport) DialTunnel(ctx context.Context, peer *protocol.Node) (quic.Stream, error) {
+	t.logger.Debug("Creating new Tunnel Stream", zap.String("addr", peer.GetAddress()))
+
+	stream, err := t.getS(ctx, peer, protocol.Stream_TUNNEL)
+	if err != nil {
+		return nil, err
+	}
+
+	return stream, nil
 }
 
-func (t *Transport) ClientRPC() <-chan Stream {
-	return t.clientRpcChan
+func (t *Transport) RPC() <-chan Stream {
+	return t.rpcChan
 }
 
 func (t *Transport) Tunnel() <-chan Stream {
@@ -160,7 +165,7 @@ func (t *Transport) Tunnel() <-chan Stream {
 }
 
 func (t *Transport) Accept(ctx context.Context, identity *protocol.Node) error {
-	l, err := quic.ListenAddrEarly(identity.GetAddress(), t.server, quicConfig)
+	l, err := quic.ListenAddr(identity.GetAddress(), t.server, quicConfig)
 	if err != nil {
 		return err
 	}
@@ -225,19 +230,9 @@ func (t *Transport) streamRouter(q quic.Connection, stream quic.Stream) {
 
 	switch rr.GetType() {
 	case protocol.Stream_RPC:
-		switch rr.GetRpc() {
-		case protocol.Stream_PEER:
-			t.peerRpcChan <- Stream{
-				Connection: stream,
-				Remote:     q.RemoteAddr(),
-			}
-		case protocol.Stream_CLIENT:
-			t.clientRpcChan <- Stream{
-				Connection: stream,
-				Remote:     q.RemoteAddr(),
-			}
-		default:
-			err = errors.New("wtf")
+		t.rpcChan <- Stream{
+			Connection: stream,
+			Remote:     q.RemoteAddr(),
 		}
 	case protocol.Stream_TUNNEL:
 		t.tunnelChan <- Stream{
