@@ -8,4 +8,6 @@ option go_package = "specter/spec/protocol";
 message Node {
     uint64 id = 1;
     string address = 2;
+
+    bool unknown = 3;
 }

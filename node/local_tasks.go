@@ -16,19 +16,19 @@ func (n *LocalNode) copySuccessors() []chord.VNode {
 	return succList
 }
 
-func V2D(n []chord.VNode) []uint64 {
-	x := make([]uint64, 0)
-	for _, xx := range n {
-		if xx == nil {
-			continue
-		}
-		x = append(x, xx.ID())
-	}
-	return x
-}
+// func V2D(n []chord.VNode) []uint64 {
+// 	x := make([]uint64, 0)
+// 	for _, xx := range n {
+// 		if xx == nil {
+// 			continue
+// 		}
+// 		x = append(x, xx.ID())
+// 	}
+// 	return x
+// }
 
 func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
-	list := make([]chord.VNode, chord.MaxSuccessorEntries)
+	list := make([]chord.VNode, chord.ExtendedSuccessorEntries+1)
 	list[0] = immediate
 	copy(list[1:], successors)
 	return list
@@ -42,7 +42,7 @@ func (n *LocalNode) stablize() error {
 		if modified {
 			n.succMutex.Lock()
 			copy(n.successors, succList)
-			n.logger.Debug("Current view", zap.Uint64s("successors", V2D(n.successors)))
+			// n.logger.Debug("Current view", zap.Uint64s("successors", V2D(n.successors)))
 			n.succMutex.Unlock()
 		}
 		if succ := n.getSuccessor(); succ != nil {

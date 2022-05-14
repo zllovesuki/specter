@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"specter/chord"
-	"specter/spec/protocol"
 	"testing"
 	"time"
+
+	"specter/chord"
+	"specter/spec/protocol"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"

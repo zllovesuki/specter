@@ -71,7 +71,10 @@ func main() {
 				logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 			}
 		} else {
-			p, err := node.NewUnknownRemoteNode(ctx, t, *peer)
+			p, err := node.NewRemoteNode(ctx, t, &protocol.Node{
+				Unknown: true,
+				Address: *peer,
+			})
 			if err != nil {
 				logger.Fatal("Creating RemoteNode", zap.Error(err))
 			}
@@ -96,7 +99,7 @@ func main() {
 				}
 				logger.Debug("Periodic debug log",
 					zap.Int64("predecessor", pID),
-					// zap.String("ring", local.RingTrace()),
+					zap.String("ring", local.RingTrace()),
 					zap.String("table", local.FingerTrace()))
 				local.Put([]byte("key"), []byte("value"))
 			}

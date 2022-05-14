@@ -46,7 +46,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	n := &LocalNode{
 		conf:       conf,
 		logger:     conf.Logger,
-		successors: make([]chord.VNode, chord.MaxSuccessorEntries),
+		successors: make([]chord.VNode, chord.ExtendedSuccessorEntries+1),
 		started:    atomic.NewBool(false),
 		kv:         kv.WithChordHash(),
 		fingers: make([]struct {
@@ -163,7 +163,7 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
-	list := make([]chord.VNode, 0, chord.MaxSuccessorEntries)
+	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries+1)
 	n.succMutex.RLock()
 	defer n.succMutex.RUnlock()
 
@@ -260,7 +260,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 
 	n.logger.Info("Joining Chord ring",
 		zap.Uint64("node", n.ID()),
-		zap.Uint64("via", peer.ID()),
+		zap.String("via", peer.Identity().GetAddress()),
 		zap.Uint64("successor", proposedSucc.ID()),
 	)
 

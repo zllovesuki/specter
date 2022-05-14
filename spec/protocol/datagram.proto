@@ -1,0 +1,13 @@
+syntax = "proto3";
+package protocol;
+
+option go_package = "specter/spec/protocol";
+
+message Datagram {
+    enum Type {
+        UNKNOWN = 0;
+        ALIVE = 1;
+    }
+
+    Type type = 1;
+}

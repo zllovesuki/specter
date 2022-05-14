@@ -18,26 +18,13 @@ type RemoteNode struct {
 
 var _ chord.VNode = &RemoteNode{}
 
-func NewUnknownRemoteNode(ctx context.Context, t *overlay.Transport, addr string) (*RemoteNode, error) {
-	n := &RemoteNode{
-		parentCtx: ctx,
-		t:         t,
-	}
-	r, err := t.DialRPC(ctx, addr, protocol.Stream_PEER, n.handshake)
-	if err != nil {
-		return nil, err
-	}
-	n.rpc = r
-	return n, nil
-}
-
-func NewKnownRemoteNode(ctx context.Context, t *overlay.Transport, peer *protocol.Node) (*RemoteNode, error) {
+func NewRemoteNode(ctx context.Context, t *overlay.Transport, peer *protocol.Node) (*RemoteNode, error) {
 	n := &RemoteNode{
 		parentCtx: ctx,
 		id:        peer,
 		t:         t,
 	}
-	r, err := t.DialRPC(ctx, peer.GetAddress(), protocol.Stream_PEER, nil)
+	r, err := t.DialRPC(ctx, peer, protocol.Stream_PEER, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +93,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return n, nil
 	}
 
-	succ, err := NewKnownRemoteNode(n.parentCtx, n.t, resp.GetSuccessor())
+	succ, err := NewRemoteNode(n.parentCtx, n.t, resp.GetSuccessor())
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +114,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, node := range succList {
-		n, err := NewKnownRemoteNode(n.parentCtx, n.t, node)
+		n, err := NewRemoteNode(n.parentCtx, n.t, node)
 		if err != nil {
 			continue
 		}
@@ -153,7 +140,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 		return n, nil
 	}
 
-	pre, err := NewKnownRemoteNode(n.parentCtx, n.t, resp.GetPredecessor())
+	pre, err := NewRemoteNode(n.parentCtx, n.t, resp.GetPredecessor())
 	if err != nil {
 		return nil, err
 	}

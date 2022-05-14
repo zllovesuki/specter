@@ -13,9 +13,9 @@ import (
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
-		case r := <-n.conf.Transport.PeerRPC():
-			n.logger.Debug("New incoming peer RPC Stream")
-			xd := overlay.NewRPC(n.logger.With(zap.String("pov", "local_rpc")), r, n.handleRequest)
+		case s := <-n.conf.Transport.PeerRPC():
+			n.logger.Debug("New incoming peer RPC Stream", zap.String("remote", s.Remote.String()))
+			xd := overlay.NewRPC(n.logger.With(zap.String("addr", s.Remote.String()), zap.String("pov", "local_rpc")), s.Connection, n.handleRequest)
 			go xd.Start(n.stopCtx)
 		case <-n.stopCtx.Done():
 			return
@@ -45,7 +45,7 @@ func (n *LocalNode) handleRequest(ctx context.Context, rr *protocol.RequestReply
 
 	case protocol.RequestReply_NOTIFY:
 		predecessor := rr.GetNotifyRequest().GetPredecessor()
-		vnode, err := NewKnownRemoteNode(ctx, n.conf.Transport, predecessor)
+		vnode, err := NewRemoteNode(ctx, n.conf.Transport, predecessor)
 		if err != nil {
 			return err
 		}

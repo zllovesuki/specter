@@ -34,7 +34,7 @@ type RPC struct {
 	// TODO: candidate for 1.18 generics
 	rMap sync.Map
 
-	last *atomic.Time
+	closed *atomic.Bool
 
 	handler rpcHandler
 }
@@ -45,7 +45,7 @@ func NewRPC(logger *zap.Logger, stream quic.Stream, handler rpcHandler) *RPC {
 		stream:  stream,
 		num:     atomic.NewUint64(0),
 		handler: handler,
-		last:    atomic.NewTime(time.Now()),
+		closed:  atomic.NewBool(false),
 	}
 }
 
@@ -57,7 +57,6 @@ func (r *RPC) Start(ctx context.Context) {
 			r.Close()
 			return
 		}
-		r.last.Store(time.Now())
 
 		go func(rr *protocol.RequestReply) {
 			switch rr.GetType() {
@@ -82,7 +81,6 @@ func (r *RPC) Start(ctx context.Context) {
 					r.logger.Debug("RPC receiver send error", zap.Error(err))
 					r.Close()
 				}
-				r.last.Store(time.Now())
 			default:
 			}
 		}(rr)
@@ -90,14 +88,17 @@ func (r *RPC) Start(ctx context.Context) {
 }
 
 func (r *RPC) Close() error {
-	r.last.Store(time.Time{})
+	if !r.closed.CAS(false, true) {
+		return nil
+	}
 	return r.stream.Close()
 }
 
 func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
-	if r.last.Load().IsZero() {
+	if r.closed.Load() {
 		return nil, fmt.Errorf("RPC channel already closed")
 	}
+
 	rNum := r.num.Inc()
 	rC := make(rrChan)
 	rr.ReqNum = rNum
@@ -108,7 +109,6 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 		r.Close()
 		return nil, err
 	}
-	r.last.Store(time.Now())
 
 	select {
 	case <-time.After(time.Second):

@@ -46,6 +46,7 @@ func (n *LocalNode) RingTrace() string {
 
 	var err error
 	var next chord.VNode = n
+	seen := make(map[uint64]bool)
 
 	for {
 		next, err = n.FindSuccessor((next.ID() + 1) % (1 << chord.MaxFingerEntries))
@@ -62,8 +63,12 @@ func (n *LocalNode) RingTrace() string {
 			sb.WriteString(strconv.FormatUint(n.ID(), 10))
 			break
 		}
+		if seen[next.ID()] {
+			return "unstable"
+		}
 		sb.WriteString(" -> ")
 		sb.WriteString(strconv.FormatUint(next.ID(), 10))
+		seen[next.ID()] = true
 	}
 
 	return sb.String()
