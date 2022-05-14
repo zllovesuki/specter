@@ -8,9 +8,9 @@ import (
 
 type RPCHandshakeFunc func(RPC) error
 
-type RPCHandler func(context.Context, *protocol.RequestReply) error
+type RPCHandler func(context.Context, *protocol.RPC_Request) (*protocol.RPC_Response, error)
 
 type RPC interface {
-	Call(context.Context, *protocol.RequestReply) (*protocol.RequestReply, error)
+	Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error)
 	Close() error
 }

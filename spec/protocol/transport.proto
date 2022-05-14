@@ -8,7 +8,7 @@ message Stream {
     enum Type {
         UNKNOWN_TYPE = 0;
         RPC = 1;
-        TUNNEL = 2;
+        DIRECT = 2;
     }
 
     Type type = 1;

@@ -7,7 +7,13 @@ option go_package = "specter/spec/protocol";
 import "spec/protocol/chord.proto";
 import "spec/protocol/kv.proto";
 
-message RequestReply {
+message RPC {
+    enum Type {
+        UNKNOWN_DIR = 0;
+        REQUEST = 1;
+        REPLY = 2;
+    }
+
     enum Kind {
         UNKNOWN_TYPE = 0;
         PING = 1;
@@ -20,36 +26,42 @@ message RequestReply {
         IDENTITY = 10;
     }
 
-    enum Type {
-        UNKNOWN_DIR = 0;
-        REQUEST = 1;
-        REPLY = 2;
+    Type type = 1;
+    uint64 reqNum = 2;
+
+    message Request {
+        Kind kind = 1;
+
+        IdentityRequest identityRequest = 5;
+
+        PingRequest pingRequest = 10;
+        NotifyRequest notifyRequest = 11;
+
+        FindSuccessorRequest findSuccessorRequest = 20;
+        GetPredecessorRequest getPredecessorRequest = 21;
+
+        GetSuccessorsRequest getSuccessorsRequest = 30;
+
+        KVRequest kvRequest = 41;
     }
 
-    Kind kind = 1;
-    Type type = 2;
-    bytes errror = 3;
+    message Response {
+        bytes error = 1;
 
-    uint64 reqNum = 5;
+        IdentityResponse identityResponse = 5;
 
-    IdentityRequest identityRequest = 10;
-    IdentityResponse identityResponse = 11;
+        PingResponse pingResponse = 10;
+        NotifyResponse notifyResponse = 11;
 
-    PingRequest pingRequest = 20;
-    PingResponse pingResponse = 21;
+        FindSuccessorResponse findSuccessorResponse = 20;
+        GetPredecessorResponse getPredecessorResponse = 21;
 
-    NotifyRequest notifyRequest = 30;
-    NotifyResponse notifyResponse = 31;
+        GetSuccessorsResponse getSuccessorsResponse = 30;
 
-    FindSuccessorRequest findSuccessorRequest = 40;
-    FindSuccessorResponse findSuccessorResponse = 41;
-    GetPredecessorRequest getPredecessorRequest = 42;
-    GetPredecessorResponse getPredecessorResponse = 43;
+        KVResponse kvResponse = 41;
+    }
 
-    GetSuccessorsRequest getSuccessorsRequest = 44;
-    GetSuccessorsResponse getSuccessorsResponse = 45;
-
-    KVRequest kvRequest = 50;
-    KVResponse kvResponse = 51;
+    Request request = 10;
+    Response response = 11;
 
 }

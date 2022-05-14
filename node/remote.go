@@ -47,7 +47,7 @@ func (n *RemoteNode) handshake(r spec.RPC) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_IDENTITY)
+	rReq := newReq(protocol.RPC_IDENTITY)
 	rResp, err := r.Call(ctx, rReq)
 	if err != nil {
 		n.logger.Error("remote Identity RPC", zap.String("node", n.Identity().String()), zap.Error(err))
@@ -66,10 +66,9 @@ func (n *RemoteNode) Identity() *protocol.Node {
 	return n.id
 }
 
-func newRR(t protocol.RequestReply_Kind) *protocol.RequestReply {
-	return &protocol.RequestReply{
+func newReq(t protocol.RPC_Kind) *protocol.RPC_Request {
+	return &protocol.RPC_Request{
 		Kind: t,
-		Type: protocol.RequestReply_REQUEST,
 	}
 }
 
@@ -77,7 +76,7 @@ func (n *RemoteNode) Ping() error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_PING)
+	rReq := newReq(protocol.RPC_PING)
 	rReq.PingRequest = &protocol.PingRequest{}
 	_, err := n.rpc.Call(ctx, rReq)
 	if err != nil {
@@ -90,7 +89,7 @@ func (n *RemoteNode) Notify(predecessor chord.VNode) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_NOTIFY)
+	rReq := newReq(protocol.RPC_NOTIFY)
 	rReq.NotifyRequest = &protocol.NotifyRequest{
 		Predecessor: predecessor.Identity(),
 	}
@@ -105,7 +104,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_FIND_SUCCESSOR)
+	rReq := newReq(protocol.RPC_FIND_SUCCESSOR)
 	rReq.FindSuccessorRequest = &protocol.FindSuccessorRequest{
 		Key: key,
 	}
@@ -137,7 +136,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_GET_SUCCESSORS)
+	rReq := newReq(protocol.RPC_GET_SUCCESSORS)
 	rReq.GetSuccessorsRequest = &protocol.GetSuccessorsRequest{}
 	rResp, err := n.rpc.Call(ctx, rReq)
 	if err != nil {
@@ -164,7 +163,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_GET_PREDECESSOR)
+	rReq := newReq(protocol.RPC_GET_PREDECESSOR)
 	rReq.GetPredecessorRequest = &protocol.GetPredecessorRequest{}
 	rResp, err := n.rpc.Call(ctx, rReq)
 	if err != nil {
@@ -193,7 +192,7 @@ func (n *RemoteNode) Put(key, value []byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_KV)
+	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:    protocol.KVOperation_PUT,
 		Key:   key,
@@ -210,7 +209,7 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_KV)
+	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_GET,
 		Key: key,
@@ -227,7 +226,7 @@ func (n *RemoteNode) Delete(key []byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_KV)
+	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_DELETE,
 		Key: key,
@@ -243,7 +242,7 @@ func (n *RemoteNode) FindKeys(low, high uint64) ([][]byte, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
-	rReq := newRR(protocol.RequestReply_KV)
+	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:      protocol.KVOperation_FIND_KEYS,
 		LowKey:  low,

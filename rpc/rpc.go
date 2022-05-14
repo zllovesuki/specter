@@ -16,13 +16,14 @@ import (
 )
 
 var (
-	ErrClosed = fmt.Errorf("RPC channel already closed")
+	ErrClosed    = fmt.Errorf("RPC channel already closed")
+	ErrNoHandler = fmt.Errorf("RPC channel has no request handler")
 )
 
 var _ spec.RPC = (*RPC)(nil)
 
 type rrContainer struct {
-	rr *protocol.RequestReply
+	rr *protocol.RPC_Response
 	e  string
 }
 
@@ -42,7 +43,14 @@ type RPC struct {
 	handler spec.RPCHandler
 }
 
+func defaultHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+	return nil, ErrNoHandler
+}
+
 func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler spec.RPCHandler) *RPC {
+	if handler == nil {
+		handler = defaultHandler
+	}
 	return &RPC{
 		logger:  logger,
 		stream:  stream,
@@ -54,32 +62,40 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler spec.RPCHandl
 
 func (r *RPC) Start(ctx context.Context) {
 	for {
-		rr := &protocol.RequestReply{}
+		rr := &protocol.RPC{}
 		if err := Receive(r.stream, rr); err != nil {
-			r.logger.Error("RPC receive error", zap.Error(err))
+			r.logger.Error("RPC receive read error", zap.Error(err))
 			r.Close()
 			return
 		}
 
-		go func(rr *protocol.RequestReply) {
+		go func(rr *protocol.RPC) {
 			switch rr.GetType() {
-			case protocol.RequestReply_REPLY:
+			case protocol.RPC_REPLY:
 				rC, ok := r.rMap.LoadAndDelete(rr.GetReqNum())
 				if !ok {
 					return
 				}
 				c := rrContainer{}
-				if rr.Errror != nil {
-					c.e = string(rr.Errror)
+				if rr.GetResponse().GetError() != nil {
+					c.e = string(rr.GetResponse().GetError())
 				} else {
-					c.rr = rr
+					c.rr = rr.GetResponse()
 				}
 				rC.(rrChan) <- c
 
-			case protocol.RequestReply_REQUEST:
-				if err := r.handler(ctx, rr); err != nil {
-					rr.Errror = []byte(err.Error())
+			case protocol.RPC_REQUEST:
+				if resp, err := r.handler(ctx, rr.GetRequest()); err != nil {
+					rr.Response = &protocol.RPC_Response{
+						Error: []byte(err.Error()),
+					}
+				} else {
+					rr.Response = resp
 				}
+
+				rr.Request = nil
+				rr.Type = protocol.RPC_REPLY
+
 				if err := Send(r.stream, rr); err != nil {
 					r.logger.Error("RPC receiver send error", zap.Error(err))
 					r.Close()
@@ -94,22 +110,28 @@ func (r *RPC) Close() error {
 	if !r.closed.CAS(false, true) {
 		return nil
 	}
+	r.logger.Debug("Closing RPC channel")
 	return r.stream.Close()
 }
 
-func (r *RPC) Call(ctx context.Context, rr *protocol.RequestReply) (*protocol.RequestReply, error) {
+func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	if r.closed.Load() {
 		return nil, ErrClosed
 	}
 
 	rNum := r.num.Inc()
 	rC := make(rrChan)
-	rr.ReqNum = rNum
+
+	rr := &protocol.RPC{
+		ReqNum:  rNum,
+		Type:    protocol.RPC_REQUEST,
+		Request: req,
+	}
+
 	r.rMap.Store(rNum, rC)
 	defer r.rMap.Delete(rNum)
 
 	if err := Send(r.stream, rr); err != nil {
-		r.logger.Error("RPC caller send error", zap.Error(err))
 		r.Close()
 		return nil, err
 	}
