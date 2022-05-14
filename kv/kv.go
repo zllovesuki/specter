@@ -71,6 +71,19 @@ func (m *MemoryMap) Delete(key []byte) error {
 	return nil
 }
 
-func (m *MemoryMap) FindKeys(start uint64) ([][]byte, error) {
-	return nil, nil
+func (m *MemoryMap) FindKeys(low, high uint64) ([][]byte, error) {
+	// TODO: concurrency
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	keys := make([][]byte, 0)
+	for id := range m.store {
+		if chord.Between(low, id, high, true) {
+			for k := range m.store[id] {
+				keys = append(keys, []byte(k))
+			}
+		}
+	}
+
+	return keys, nil
 }

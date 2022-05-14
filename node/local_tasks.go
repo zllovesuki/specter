@@ -98,6 +98,10 @@ func (n *LocalNode) stablize() error {
 }
 
 func (n *LocalNode) fixFinger() error {
+	if n.getSuccessor() != nil && n.getSuccessor().ID() == n.ID() {
+		return nil
+	}
+
 	fixed := make([]uint64, 0)
 
 	for k := 1; k <= chord.MaxFingerEntries; k++ {
@@ -130,6 +134,10 @@ func (n *LocalNode) checkPredecessor() error {
 	if pre == nil {
 		return nil
 	}
+	if pre.ID() == n.ID() {
+		return nil
+	}
+
 	err := pre.Ping()
 	if err != nil {
 		n.logger.Debug("Discovered dead predecessor",

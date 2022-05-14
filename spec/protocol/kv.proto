@@ -19,7 +19,8 @@ message KVRequest {
     bytes key = 2;
     bytes value = 3;
 
-    uint64 find_start = 4;
+    uint64 low_key = 4;
+    uint64 high_key = 5;
 }
 
 message KVResponse {

@@ -5,5 +5,5 @@ type KV interface {
 	Get(key []byte) (value []byte, err error)
 	Delete(key []byte) error
 
-	FindKeys(start uint64) ([][]byte, error)
+	FindKeys(low, high uint64) ([][]byte, error)
 }

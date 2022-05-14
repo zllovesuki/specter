@@ -118,6 +118,12 @@ func (n *LocalNode) rpcHandler(ctx context.Context, rr *protocol.RequestReply) e
 			if err := n.Delete(req.GetKey()); err != nil {
 				return err
 			}
+		case protocol.KVOperation_FIND_KEYS:
+			keys, err := n.FindKeys(req.GetLowKey(), req.GetHighKey())
+			if err != nil {
+				return err
+			}
+			resp.Keys = keys
 		default:
 			n.logger.Warn("Unknown KV Operation", zap.String("Op", req.GetOp().String()))
 			return fmt.Errorf("unknown KV Operation: %s", req.GetOp())

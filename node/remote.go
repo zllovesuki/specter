@@ -239,8 +239,22 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (*RemoteNode) FindKeys(start uint64) ([][]byte, error) {
-	return nil, nil
+func (n *RemoteNode) FindKeys(low, high uint64) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	defer cancel()
+
+	rReq := newRR(protocol.RequestReply_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:      protocol.KVOperation_FIND_KEYS,
+		LowKey:  low,
+		HighKey: high,
+	}
+	rResp, err := n.rpc.Call(ctx, rReq)
+	if err != nil {
+		n.logger.Error("remote KV FindKeys RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		return nil, err
+	}
+	return rResp.GetKvResponse().GetKeys(), nil
 }
 
 func (n *RemoteNode) Stop() {

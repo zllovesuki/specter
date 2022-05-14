@@ -29,7 +29,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		if old == nil || (new != nil && old.ID() != new.ID()) {
 			n.logger.Debug("Discovered new predecessor via Notify",
 				zap.Uint64("node", n.ID()),
-				zap.Uint64("new", new.ID()),
+				zap.Uint64("predecessor", new.ID()),
 			)
 		}
 	}()

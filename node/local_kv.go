@@ -39,6 +39,6 @@ func (n *LocalNode) Delete(key []byte) error {
 	return succ.Delete(key)
 }
 
-func (*LocalNode) FindKeys(start uint64) ([][]byte, error) {
-	return nil, nil
+func (n *LocalNode) FindKeys(low, high uint64) ([][]byte, error) {
+	return n.kv.FindKeys(low, high)
 }
