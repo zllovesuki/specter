@@ -97,18 +97,18 @@ func (n *LocalNode) fixFinger() error {
 	mod := uint64(1 << chord.MaxFingerEntries)
 	fixed := make([]uint64, 0)
 
-	for next := 1; next <= chord.MaxFingerEntries; next++ {
+	for k := 1; k <= chord.MaxFingerEntries; k++ {
 		// split (x + y) % m into (x % m + y % m) % m to avoid overflow
-		id := (n.ID()%mod + (1<<next)%mod) % mod
-		f, err := n.FindSuccessor(id)
+		next := (n.ID()%mod + (1<<(k-1))%mod) % mod
+		f, err := n.FindSuccessor(next)
 		if err != nil {
 			continue
 		}
 		if err == nil {
-			finger := &n.fingers[next-1]
+			finger := &n.fingers[k]
 			finger.mu.Lock()
 			if finger.n != nil && finger.n.ID() != f.ID() {
-				fixed = append(fixed, uint64(next))
+				fixed = append(fixed, uint64(k))
 			}
 			finger.n = f
 			finger.mu.Unlock()

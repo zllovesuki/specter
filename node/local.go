@@ -53,7 +53,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		fingers: make([]struct {
 			mu sync.RWMutex
 			n  chord.VNode
-		}, chord.MaxFingerEntries),
+		}, chord.MaxFingerEntries+1),
 	}
 	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 
@@ -134,7 +134,7 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 func (n *LocalNode) fingerRange(fn func(i int, f chord.VNode) bool) {
 	stop := false
-	for i := chord.MaxFingerEntries - 1; i >= 0; i-- {
+	for i := chord.MaxFingerEntries; i >= 1; i-- {
 		finger := &n.fingers[i]
 		finger.mu.RLock()
 		if finger.n != nil {
