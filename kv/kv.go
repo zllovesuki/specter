@@ -66,7 +66,7 @@ func (m *MemoryMap) Delete(key []byte) error {
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	if s, pOK := m.store[p]; pOK {
-		s[sKey] = nil
+		delete(s, sKey)
 	}
 	return nil
 }
