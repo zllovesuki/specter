@@ -16,6 +16,8 @@ type nodeConnection struct {
 	quic quic.Connection
 }
 
+type RPCHandshakeFunc func(*RPC) error
+
 type Stream struct {
 	Connection quic.Stream
 	Remote     net.Addr

@@ -24,7 +24,11 @@ func NewRemoteNode(ctx context.Context, t *overlay.Transport, peer *protocol.Nod
 		id:        peer,
 		t:         t,
 	}
-	r, err := t.DialRPC(ctx, peer, protocol.Stream_PEER, nil)
+	var hs overlay.RPCHandshakeFunc
+	if peer.GetUnknown() {
+		hs = n.handshake
+	}
+	r, err := t.DialRPC(ctx, peer, protocol.Stream_PEER, hs)
 	if err != nil {
 		return nil, err
 	}

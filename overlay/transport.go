@@ -107,7 +107,7 @@ func (t *Transport) getS(ctx context.Context, peer *protocol.Node, rpcType proto
 	return stream, nil
 }
 
-func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure, hs func(*RPC) error) (*RPC, error) {
+func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, rpcType protocol.Stream_Procedure, hs RPCHandshakeFunc) (*RPC, error) {
 	rpcMapKey := peer.GetAddress() + "/" + rpcType.String()
 
 	t.rpcMu.RLock()
