@@ -10,7 +10,6 @@ import (
 
 	"specter/spec/protocol"
 
-	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -28,7 +27,7 @@ type rpcHandler func(context.Context, *protocol.RequestReply) error
 type RPC struct {
 	logger *zap.Logger
 
-	stream quic.Stream
+	stream io.ReadWriteCloser
 	num    *atomic.Uint64
 
 	// TODO: candidate for 1.18 generics
@@ -39,7 +38,7 @@ type RPC struct {
 	handler rpcHandler
 }
 
-func NewRPC(logger *zap.Logger, stream quic.Stream, handler rpcHandler) *RPC {
+func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpcHandler) *RPC {
 	return &RPC{
 		logger:  logger,
 		stream:  stream,
@@ -122,7 +121,7 @@ func (r *RPC) Call(rr *protocol.RequestReply) (*protocol.RequestReply, error) {
 	}
 }
 
-func receiveRPC(stream quic.Stream, rr proto.Message) error {
+func receiveRPC(stream io.Reader, rr proto.Message) error {
 	sb := make([]byte, 8)
 	n, err := io.ReadFull(stream, sb)
 	if err != nil {
@@ -145,7 +144,7 @@ func receiveRPC(stream quic.Stream, rr proto.Message) error {
 	return proto.Unmarshal(mb, rr)
 }
 
-func sendRPC(stream quic.Stream, rr proto.Message) error {
+func sendRPC(stream io.Writer, rr proto.Message) error {
 	buf, err := proto.Marshal(rr)
 	if err != nil {
 		return fmt.Errorf("encoding outbound RPC message: %w", err)
