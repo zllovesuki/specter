@@ -98,10 +98,6 @@ func (n *LocalNode) stablize() error {
 }
 
 func (n *LocalNode) fixFinger() error {
-	if n.getSuccessor() != nil && n.getSuccessor().ID() == n.ID() {
-		return nil
-	}
-
 	fixed := make([]uint64, 0)
 
 	for k := 1; k <= chord.MaxFingerEntries; k++ {
