@@ -13,9 +13,7 @@ message Tunnel {
     string hostname = 10;
 }
 
-message GetNodesRequest {
-    uint64 num = 1;
-}
+message GetNodesRequest {}
 
 message GetNodesResponse {
     repeated Node nodes = 1;
@@ -24,8 +22,8 @@ message GetNodesResponse {
 message PublishTunnelRequest {
     Node client = 1;
     repeated Node servers = 2;
-
-    string hostname = 10;
 }
 
-message PublishTunnelResponse {}
+message PublishTunnelResponse {
+    string hostname = 1;
+}

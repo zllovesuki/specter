@@ -96,7 +96,7 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 }
 
 func (s *Server) Gateway(ctx context.Context, hostname string, visitor net.Conn) error {
-	for k := int64(1); k < 3; k++ {
+	for k := int64(1); k < tun.NumRedundantLinks; k++ {
 		key := hostname + "/" + strconv.FormatInt(k, 10)
 		val, err := s.chord.Get([]byte(key))
 		if err != nil {
