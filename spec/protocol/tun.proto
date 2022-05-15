@@ -5,6 +5,7 @@ option optimize_for = SPEED;
 option go_package = "specter/spec/protocol";
 
 import "spec/protocol/node.proto";
+import "google/protobuf/descriptor.proto";
 
 message Tunnel {
     Node client = 1;
@@ -26,4 +27,20 @@ message PublishTunnelRequest {
 
 message PublishTunnelResponse {
     string hostname = 1;
+}
+
+extend google.protobuf.EnumValueOptions {
+  string alpn_name = 54242;
+}
+
+message Link {
+    enum ALPN {
+        UNKNOWN = 0;
+        SPECTER = 1 [(alpn_name) = "specter/1"];
+
+        HTTP = 10 [(alpn_name) = "http/1.1"];
+        TCP = 11 [(alpn_name) = "tcp"];
+    }
+
+    ALPN alpn = 1;
 }

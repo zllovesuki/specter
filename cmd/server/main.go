@@ -56,14 +56,17 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	chordTransport := overlay.NewQUIC(logger, chordIdentity, serverTLS, clientTLS)
+	chordLogger := logger.With(zap.String("component", "chord"))
+	tunLogger := logger.With(zap.String("component", "tun"))
+
+	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, serverTLS, clientTLS)
 	defer chordTransport.Stop()
 
-	clientTransport := overlay.NewQUIC(logger, serverIdentity, serverTLS, clientTLS)
+	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, serverTLS, clientTLS)
 	defer clientTransport.Stop()
 
 	chordNode := node.NewLocalNode(node.NodeConfig{
-		Logger:                   logger,
+		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
 		KVProvider:               kv.WithChordHash(),
@@ -73,7 +76,7 @@ func main() {
 	})
 	defer chordNode.Stop()
 
-	tunServer := server.New(logger, chordNode, clientTransport, chordTransport)
+	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport)
 
 	go chordTransport.Accept(ctx)
 	go chordNode.HandleRPC()
@@ -83,7 +86,7 @@ func main() {
 			logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 		}
 	} else {
-		p, err := node.NewRemoteNode(ctx, chordTransport, logger, &protocol.Node{
+		p, err := node.NewRemoteNode(ctx, chordTransport, chordLogger, &protocol.Node{
 			Unknown: true,
 			Address: *peer,
 		})
