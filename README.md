@@ -22,7 +22,7 @@ Specter aims to create a distributed network of nodes that forms an overlay netw
 In order to support the requirements outlined above, the following libraries are proposed to be used in the project:
 
 1. [quic-go](https://github.com/lucas-clemente/quic-go) as the supporting library to faciliate communication between nodes, and between node and the client.
-2. [memberlist](https://github.com/hashicorp/memberlist) as the supporting library to maintain membership of the nodes (not client) in the network.
+2. ~~[memberlist](https://github.com/hashicorp/memberlist) as the supporting library to maintain membership of the nodes (not client) in the network.~~ (Chord already handles that)
 3. [ristretto](https://github.com/dgraph-io/ristretto) as the caching library to support potentially caching of routing information.
 
 ## Draft Implementations
