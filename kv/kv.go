@@ -31,17 +31,38 @@ func WithHashFn(fn HashFn) *MemoryMap {
 	}
 }
 
-func (m *MemoryMap) Put(key, value []byte) error {
-	// TODO: concurrency
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
+func (m *MemoryMap) put(key, value []byte) {
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	if _, pOK := m.store[p]; !pOK {
 		m.store[p] = make(map[string][]byte)
 	}
 	m.store[p][sKey] = value
+}
+
+func (m *MemoryMap) get(key []byte) []byte {
+	sKey := string(key)
+	p := m.hashFn(sKey)
+	if s, pOK := m.store[p]; pOK {
+		return s[sKey]
+	}
+	return nil
+}
+
+func (m *MemoryMap) delete(key []byte) {
+	sKey := string(key)
+	p := m.hashFn(sKey)
+	if s, pOK := m.store[p]; pOK {
+		delete(s, sKey)
+	}
+}
+
+func (m *MemoryMap) Put(key, value []byte) error {
+	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.put(key, value)
 	return nil
 }
 
@@ -50,12 +71,7 @@ func (m *MemoryMap) Get(key []byte) ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	sKey := string(key)
-	p := m.hashFn(sKey)
-	if s, pOK := m.store[p]; pOK {
-		return s[sKey], nil
-	}
-	return nil, nil
+	return m.get(key), nil
 }
 
 func (m *MemoryMap) Delete(key []byte) error {
@@ -63,15 +79,11 @@ func (m *MemoryMap) Delete(key []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	sKey := string(key)
-	p := m.hashFn(sKey)
-	if s, pOK := m.store[p]; pOK {
-		delete(s, sKey)
-	}
+	m.delete(key)
 	return nil
 }
 
-func (m *MemoryMap) FindKeys(low, high uint64) ([][]byte, error) {
+func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
 	// TODO: concurrency
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -86,4 +98,38 @@ func (m *MemoryMap) FindKeys(low, high uint64) ([][]byte, error) {
 	}
 
 	return keys, nil
+}
+
+func (m *MemoryMap) LocalPuts(keys, values [][]byte) error {
+	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, key := range keys {
+		m.put(key, values[i])
+	}
+	return nil
+}
+
+func (m *MemoryMap) LocalGets(keys [][]byte) ([][]byte, error) {
+	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	vals := make([][]byte, len(keys))
+	for i, key := range keys {
+		vals[i] = m.get(key)
+	}
+	return vals, nil
+}
+
+func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
+	// TODO: concurrency
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, key := range keys {
+		m.delete(key)
+	}
+	return nil
 }

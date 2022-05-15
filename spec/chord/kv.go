@@ -5,5 +5,8 @@ type KV interface {
 	Get(key []byte) (value []byte, err error)
 	Delete(key []byte) error
 
-	FindKeys(low, high uint64) ([][]byte, error)
+	LocalKeys(low, high uint64) ([][]byte, error)
+	LocalPuts(keys, values [][]byte) error
+	LocalGets(keys [][]byte) ([][]byte, error)
+	LocalDeletes(keys [][]byte) error
 }

@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"specter/spec/chord"
 	"specter/spec/protocol"
@@ -10,11 +11,11 @@ import (
 )
 
 func (n *LocalNode) ID() uint64 {
-	return n.conf.Identity.GetId()
+	return n.NodeConfig.Identity.GetId()
 }
 
 func (n *LocalNode) Identity() *protocol.Node {
-	return n.conf.Identity
+	return n.NodeConfig.Identity
 }
 
 func (n *LocalNode) Ping() error {
@@ -27,7 +28,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 
 	defer func() {
 		if old == nil || (new != nil && old.ID() != new.ID()) {
-			n.logger.Debug("Discovered new predecessor via Notify",
+			n.Logger.Debug("Discovered new predecessor via Notify",
 				zap.Uint64("node", n.ID()),
 				zap.Uint64("predecessor", new.ID()),
 			)
@@ -133,4 +134,80 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	pre := n.predecessor
 	n.preMutex.RUnlock()
 	return pre, nil
+}
+
+func (n *LocalNode) transferKeysIn() error {
+	// find low index (predecessor)
+	// find high index (this node)
+	// get keys between (low, high] from successor
+	// copy keys from successor
+	// remove keys from successor
+
+	pre, _ := n.GetPredecessor()
+	if pre == nil {
+		return fmt.Errorf("node has no predecessor")
+	}
+
+	succ := n.getSuccessor()
+	if succ == nil {
+		return fmt.Errorf("node has no successor")
+	}
+
+	keys, err := succ.LocalKeys(pre.ID(), n.ID())
+	if err != nil {
+		return fmt.Errorf("getting keys for transfer from successor: %w", err)
+	}
+
+	if len(keys) == 0 {
+		return nil
+	}
+
+	// TODO: split into batches
+	values, err := succ.LocalGets(keys)
+	if err != nil {
+		return fmt.Errorf("fetching values from successor: %w", err)
+	}
+
+	if err := n.LocalPuts(keys, values); err != nil {
+		return fmt.Errorf("storing KV locally: %w", err)
+	}
+
+	if err := succ.LocalDeletes(keys); err != nil {
+		return fmt.Errorf("removing keys from successor: %w", err)
+	}
+
+	return nil
+}
+
+func (n *LocalNode) transKeysOut() error {
+	// dump all keys from local node
+	// move all keys to successor
+
+	keys, err := n.LocalKeys(0, 0)
+	if err != nil {
+		return fmt.Errorf("fetching all keys locally: %w", err)
+	}
+
+	n.Logger.Debug("Transfering keys to successor", zap.Int("num_keys", len(keys)))
+
+	if len(keys) == 0 {
+		return nil
+	}
+
+	values, err := n.LocalGets(keys)
+	if err != nil {
+		return fmt.Errorf("fetching all values locally: %w", err)
+	}
+
+	succ := n.getSuccessor()
+	if succ == nil {
+		return fmt.Errorf("node has no successor")
+	}
+
+	// TODO: split into batches
+	if err := succ.LocalPuts(keys, values); err != nil {
+		return fmt.Errorf("storing KV to successor: %w", err)
+	}
+
+	return nil
 }

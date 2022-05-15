@@ -5,27 +5,29 @@ import (
 	"fmt"
 
 	"specter/rpc"
-	"specter/spec"
+	"specter/spec/chord"
 	"specter/spec/protocol"
+	rpcSpec "specter/spec/rpc"
 
 	"go.uber.org/zap"
 )
 
-var _ spec.RPCHandler = (*LocalNode)(nil).rpcHandler
+var _ rpcSpec.RPCHandler = (*LocalNode)(nil).rpcHandler
 
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
-		case s := <-n.conf.Transport.RPC():
-			n.logger.Debug("New incoming peer RPC Stream", zap.String("remote", s.RemoteAddr().String()), zap.String("local", s.LocalAddr().String()))
-			xd := rpc.NewRPC(
-				n.logger.With(
+		case s := <-n.Transport.RPC():
+			n.Logger.Debug("New incoming RPC Stream", zap.String("remote", s.RemoteAddr().String()), zap.String("local", s.LocalAddr().String()))
+			r := rpc.NewRPC(
+				n.Logger.With(
 					zap.String("remote", s.RemoteAddr().String()),
 					zap.String("local", s.LocalAddr().String()),
 					zap.String("pov", "local_rpc")),
 				s,
 				n.rpcHandler)
-			go xd.Start(n.stopCtx)
+			go r.Start(n.stopCtx)
+
 		case <-n.stopCtx.Done():
 			return
 		}
@@ -34,6 +36,12 @@ func (n *LocalNode) HandleRPC() {
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	resp := &protocol.RPC_Response{}
+	var vnode chord.VNode
+	var err error
+
+	if !n.started.Load() {
+		return nil, fmt.Errorf("node is not part of the chord ring")
+	}
 
 	switch req.GetKind() {
 	case protocol.RPC_IDENTITY:
@@ -45,21 +53,22 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		resp.PingResponse = &protocol.PingResponse{}
 
 	case protocol.RPC_NOTIFY:
+		resp.NotifyResponse = &protocol.NotifyResponse{}
 		predecessor := req.GetNotifyRequest().GetPredecessor()
-		vnode, err := NewRemoteNode(ctx, n.conf.Transport, n.conf.Logger, predecessor)
+
+		vnode, err = createRPC(ctx, n, n.Transport, n.Logger, predecessor)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := n.Notify(vnode); err != nil {
+		err = n.Notify(vnode)
+		if err != nil {
 			return nil, err
 		}
 
-		resp.NotifyResponse = &protocol.NotifyResponse{}
-
 	case protocol.RPC_FIND_SUCCESSOR:
 		key := req.GetFindSuccessorRequest().GetKey()
-		vnode, err := n.FindSuccessor(key)
+		vnode, err = n.FindSuccessor(key)
 		if err != nil {
 			return nil, err
 		}
@@ -68,10 +77,13 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		}
 
 	case protocol.RPC_GET_SUCCESSORS:
-		vnodes, err := n.GetSuccessors()
+		var vnodes []chord.VNode
+
+		vnodes, err = n.GetSuccessors()
 		if err != nil {
 			return nil, err
 		}
+
 		identities := make([]*protocol.Node, 0, len(vnodes))
 		for _, vnode := range vnodes {
 			if vnode == nil {
@@ -84,7 +96,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		}
 
 	case protocol.RPC_GET_PREDECESSOR:
-		vnode, err := n.GetPredecessor()
+		vnode, err = n.GetPredecessor()
 		if err != nil {
 			return nil, err
 		}
@@ -115,20 +127,35 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			if err := n.Delete(kvReq.GetKey()); err != nil {
 				return nil, err
 			}
-		case protocol.KVOperation_FIND_KEYS:
-			keys, err := n.FindKeys(kvReq.GetLowKey(), kvReq.GetHighKey())
+
+		case protocol.KVOperation_LOCAL_KEYS:
+			keys, err := n.LocalKeys(kvReq.GetLowKey(), kvReq.GetHighKey())
 			if err != nil {
 				return nil, err
 			}
 			kvResp.Keys = keys
+		case protocol.KVOperation_LOCAL_PUTS:
+			if err := n.LocalPuts(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
+				return nil, err
+			}
+		case protocol.KVOperation_LOCAL_GETS:
+			vals, err := n.LocalGets(kvReq.GetKeys())
+			if err != nil {
+				return nil, err
+			}
+			kvResp.Values = vals
+		case protocol.KVOperation_LOCAL_DELETES:
+			if err := n.LocalDeletes(kvReq.GetKeys()); err != nil {
+				return nil, err
+			}
 		default:
-			n.logger.Warn("Unknown KV Operation", zap.String("Op", kvReq.GetOp().String()))
+			n.Logger.Warn("Unknown KV Operation", zap.String("Op", kvReq.GetOp().String()))
 			return nil, fmt.Errorf("unknown KV Operation: %s", kvReq.GetOp())
 		}
 
 		resp.KvResponse = kvResp
 	default:
-		n.logger.Warn("Unknown RPC Call", zap.String("kind", req.GetKind().String()))
+		n.Logger.Warn("Unknown RPC Call", zap.String("kind", req.GetKind().String()))
 		return nil, fmt.Errorf("unknown RPC call: %s", req.GetKind())
 	}
 

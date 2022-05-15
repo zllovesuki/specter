@@ -39,6 +39,18 @@ func (n *LocalNode) Delete(key []byte) error {
 	return succ.Delete(key)
 }
 
-func (n *LocalNode) FindKeys(low, high uint64) ([][]byte, error) {
-	return n.kv.FindKeys(low, high)
+func (n *LocalNode) LocalKeys(low, high uint64) ([][]byte, error) {
+	return n.kv.LocalKeys(low, high)
+}
+
+func (n *LocalNode) LocalPuts(keys, values [][]byte) error {
+	return n.kv.LocalPuts(keys, values)
+}
+
+func (n *LocalNode) LocalGets(keys [][]byte) ([][]byte, error) {
+	return n.kv.LocalGets(keys)
+}
+
+func (n *LocalNode) LocalDeletes(keys [][]byte) error {
+	return n.kv.LocalDeletes(keys)
 }

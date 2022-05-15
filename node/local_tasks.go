@@ -50,13 +50,14 @@ func (n *LocalNode) stablize() error {
 	modified := true
 
 	defer func() {
-		if modified && n.succXOR.Load() != n.xor(succList) {
+		xor := n.xor(succList)
+		if modified && n.succXOR.Load() != xor {
 			n.succMutex.Lock()
 			copy(n.successors, succList)
-			n.succXOR.Store(n.xor(n.successors))
+			n.succXOR.Store(xor)
 			n.succMutex.Unlock()
 
-			n.logger.Debug("Discovered new successors via Stablize",
+			n.Logger.Debug("Discovered new successors via Stablize",
 				zap.Uint64("node", n.ID()),
 				zap.Uint64s("successors", v2d(succList)),
 			)
@@ -90,7 +91,7 @@ func (n *LocalNode) stablize() error {
 			}
 			break
 		}
-		n.logger.Debug("Skipping over successor", zap.Uint64("peer", head.ID()))
+		n.Logger.Debug("Skipping over successor", zap.Uint64("peer", head.ID()))
 		succList = succList[1:]
 	}
 
@@ -117,7 +118,7 @@ func (n *LocalNode) fixFinger() error {
 		}
 	}
 	if len(fixed) > 0 {
-		n.conf.Logger.Debug("FingerTable entries updated", zap.Uint64s("fixed", fixed))
+		n.Logger.Debug("FingerTable entries updated", zap.Uint64s("fixed", fixed))
 	}
 	return nil
 }
@@ -136,7 +137,7 @@ func (n *LocalNode) checkPredecessor() error {
 
 	err := pre.Ping()
 	if err != nil {
-		n.logger.Debug("Discovered dead predecessor",
+		n.Logger.Debug("Discovered dead predecessor",
 			zap.Uint64("node", n.ID()),
 			zap.Uint64("old", n.predecessor.ID()),
 		)
@@ -147,16 +148,16 @@ func (n *LocalNode) checkPredecessor() error {
 
 func (n *LocalNode) startTasks() {
 	go func() {
-		timer := time.NewTimer(n.conf.StablizeInterval)
+		timer := time.NewTimer(n.NodeConfig.StablizeInterval)
 		for {
 			select {
 			case <-timer.C:
 				if err := n.stablize(); err != nil {
-					n.conf.Logger.Error("Stablize task", zap.Error(err))
+					n.Logger.Error("Stablize task", zap.Error(err))
 				}
-				timer.Reset(n.conf.StablizeInterval)
+				timer.Reset(n.NodeConfig.StablizeInterval)
 			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
+				n.Logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return
 			}
@@ -164,14 +165,14 @@ func (n *LocalNode) startTasks() {
 	}()
 
 	go func() {
-		timer := time.NewTimer(n.conf.PredecessorCheckInterval)
+		timer := time.NewTimer(n.NodeConfig.PredecessorCheckInterval)
 		for {
 			select {
 			case <-timer.C:
 				n.checkPredecessor()
-				timer.Reset(n.conf.PredecessorCheckInterval)
+				timer.Reset(n.NodeConfig.PredecessorCheckInterval)
 			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
+				n.Logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return
 			}
@@ -179,14 +180,14 @@ func (n *LocalNode) startTasks() {
 	}()
 
 	go func() {
-		timer := time.NewTimer(n.conf.FixFingerInterval)
+		timer := time.NewTimer(n.NodeConfig.FixFingerInterval)
 		for {
 			select {
 			case <-timer.C:
 				n.fixFinger()
-				timer.Reset(n.conf.FixFingerInterval)
+				timer.Reset(n.NodeConfig.FixFingerInterval)
 			case <-n.stopCtx.Done():
-				n.logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
+				n.Logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return
 			}

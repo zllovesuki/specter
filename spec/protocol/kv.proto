@@ -10,7 +10,10 @@ enum KVOperation {
     GET = 2;
     DELETE = 3;
 
-    FIND_KEYS = 4;
+    LOCAL_KEYS = 10;
+    LOCAL_PUTS = 11;
+    LOCAL_GETS = 12;
+    LOCAL_DELETES = 13;
 }
 
 message KVRequest {
@@ -21,6 +24,9 @@ message KVRequest {
 
     uint64 low_key = 4;
     uint64 high_key = 5;
+
+    repeated bytes keys = 10;
+    repeated bytes values = 11;
 }
 
 message KVResponse {
@@ -28,5 +34,6 @@ message KVResponse {
 
     bytes value = 2;
 
-    repeated bytes keys = 3;
+    repeated bytes keys = 10;
+    repeated bytes values = 11;
 }

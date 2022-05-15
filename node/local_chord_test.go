@@ -2,11 +2,11 @@ package node
 
 import (
 	"fmt"
-	"math/rand"
 	"sort"
 	"testing"
 	"time"
 
+	"specter/kv"
 	"specter/spec/chord"
 	"specter/spec/protocol"
 
@@ -21,8 +21,10 @@ func DevConfig(as *assert.Assertions) NodeConfig {
 	return NodeConfig{
 		Logger: logger,
 		Identity: &protocol.Node{
-			Id: rand.Uint64() % (1 << chord.MaxFingerEntries),
+			Id: chord.Random(),
 		},
+		Transport:                &mockTransport{},
+		KVProvider:               kv.WithChordHash(),
 		StablizeInterval:         time.Millisecond * 50,
 		FixFingerInterval:        time.Millisecond * 50,
 		PredecessorCheckInterval: time.Millisecond * 50,
@@ -70,6 +72,8 @@ func TestCreate(t *testing.T) {
 
 	n1.Stop()
 
+	<-time.After(time.Millisecond * 100)
+
 	RingCheck(as, []*LocalNode{n1})
 }
 
@@ -86,6 +90,8 @@ func TestJoin(t *testing.T) {
 
 	n1.Stop()
 	n2.Stop()
+
+	<-time.After(time.Millisecond * 100)
 
 	RingCheck(as, []*LocalNode{
 		n1,

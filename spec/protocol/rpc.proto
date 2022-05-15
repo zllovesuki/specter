@@ -28,6 +28,7 @@ message RPC {
 
     Type type = 1;
     uint64 reqNum = 2;
+    uint64 ring = 3;
 
     message Request {
         Kind kind = 1;

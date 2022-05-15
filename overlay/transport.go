@@ -9,13 +9,18 @@ import (
 	"time"
 
 	"specter/rpc"
-	"specter/spec"
 	"specter/spec/protocol"
+	rpcSpec "specter/spec/rpc"
 	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+)
+
+var (
+	ErrClosed = fmt.Errorf("transport is already closed")
 )
 
 var _ transport.Transport = (*QUIC)(nil)
@@ -24,12 +29,14 @@ func NewQUIC(logger *zap.Logger, serverTLS *tls.Config, clientTLS *tls.Config) *
 	return &QUIC{
 		logger:     logger,
 		qMap:       make(map[string]*nodeConnection),
-		rpcMap:     make(map[string]spec.RPC),
+		rpcMap:     make(map[string]rpcSpec.RPC),
 		rpcChan:    make(chan net.Conn, 1),
 		directChan: make(chan net.Conn, 1),
 
 		server: serverTLS,
 		client: clientTLS,
+
+		closed: atomic.NewBool(false),
 	}
 }
 
@@ -109,7 +116,11 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 	return q, stream, nil
 }
 
-func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs spec.RPCHandshakeFunc) (spec.RPC, error) {
+func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCHandshakeFunc) (rpcSpec.RPC, error) {
+	if t.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	rpcMapKey := peer.GetAddress()
 
 	t.rpcMu.RLock()
@@ -157,6 +168,10 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs spec.RPCHand
 }
 
 func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error) {
+	if t.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_DIRECT)
 	if err != nil {
 		return nil, err
@@ -247,6 +262,12 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream) {
 		t.directChan <- w(q, stream)
 	default:
 		err = fmt.Errorf("unknown stream type: %s", rr.GetType())
+	}
+}
+
+func (t *QUIC) Stop() {
+	if !t.closed.CAS(false, true) {
+		return
 	}
 }
 

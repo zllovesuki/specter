@@ -7,20 +7,27 @@ import (
 	"io"
 	"sync"
 
-	"specter/spec"
+	"specter/spec/chord"
 	"specter/spec/protocol"
+	"specter/spec/rpc"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
-var (
-	ErrClosed    = fmt.Errorf("RPC channel already closed")
-	ErrNoHandler = fmt.Errorf("RPC channel has no request handler")
+const (
+	// uint64
+	lengthSize = 8
 )
 
-var _ spec.RPC = (*RPC)(nil)
+var (
+	ErrClosed      = fmt.Errorf("RPC channel already closed")
+	ErrNoHandler   = fmt.Errorf("RPC channel has no request handler")
+	ErrInvalidRing = fmt.Errorf("RPC calls to an invalid ring, expected m = %d", chord.MaxFingerEntries)
+)
+
+var _ rpc.RPC = (*RPC)(nil)
 
 type rrContainer struct {
 	rr *protocol.RPC_Response
@@ -40,14 +47,15 @@ type RPC struct {
 
 	closed *atomic.Bool
 
-	handler spec.RPCHandler
+	handler rpc.RPCHandler
 }
 
 func defaultHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	return nil, ErrNoHandler
 }
 
-func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler spec.RPCHandler) *RPC {
+func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandler) *RPC {
+	logger.Debug("Creating new RPC handler")
 	if handler == nil {
 		handler = defaultHandler
 	}
@@ -69,6 +77,13 @@ func (r *RPC) Start(ctx context.Context) {
 			return
 		}
 
+		select {
+		case <-ctx.Done():
+			r.Close()
+			return
+		default:
+		}
+
 		go func(rr *protocol.RPC) {
 			switch rr.GetType() {
 			case protocol.RPC_REPLY:
@@ -85,6 +100,12 @@ func (r *RPC) Start(ctx context.Context) {
 				rC.(rrChan) <- c
 
 			case protocol.RPC_REQUEST:
+				if rr.GetRing() != chord.MaxFingerEntries {
+					rr.Response = &protocol.RPC_Response{
+						Error: []byte(ErrInvalidRing.Error()),
+					}
+					goto RESPOND
+				}
 				if resp, err := r.handler(ctx, rr.GetRequest()); err != nil {
 					rr.Response = &protocol.RPC_Response{
 						Error: []byte(err.Error()),
@@ -92,7 +113,7 @@ func (r *RPC) Start(ctx context.Context) {
 				} else {
 					rr.Response = resp
 				}
-
+			RESPOND:
 				rr.Request = nil
 				rr.Type = protocol.RPC_REPLY
 
@@ -123,8 +144,9 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	rC := make(rrChan)
 
 	rr := &protocol.RPC{
-		ReqNum:  rNum,
 		Type:    protocol.RPC_REQUEST,
+		ReqNum:  rNum,
+		Ring:    chord.MaxFingerEntries,
 		Request: req,
 	}
 
@@ -148,13 +170,13 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 }
 
 func Receive(stream io.Reader, rr proto.Message) error {
-	sb := make([]byte, 8)
+	sb := make([]byte, lengthSize)
 	n, err := io.ReadFull(stream, sb)
 	if err != nil {
 		return fmt.Errorf("reading RPC message buffer size: %w", err)
 	}
-	if n != 8 {
-		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", 8, n)
+	if n != lengthSize {
+		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", lengthSize, n)
 	}
 
 	ms := binary.BigEndian.Uint64(sb)
@@ -177,9 +199,9 @@ func Send(stream io.Writer, rr proto.Message) error {
 	}
 
 	l := len(buf)
-	mb := make([]byte, 8+l)
-	binary.BigEndian.PutUint64(mb[0:8], uint64(l))
-	copy(mb[8:], buf)
+	mb := make([]byte, lengthSize+l)
+	binary.BigEndian.PutUint64(mb[0:lengthSize], uint64(l))
+	copy(mb[lengthSize:], buf)
 
 	n, err := stream.Write(mb)
 	if err != nil {

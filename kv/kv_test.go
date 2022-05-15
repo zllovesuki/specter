@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"crypto/rand"
 	"hash/fnv"
 	"strconv"
 	"strings"
@@ -85,4 +86,24 @@ func TestCollisionDelete(t *testing.T) {
 		as.Nil(err)
 		as.Nil(val)
 	}
+}
+
+func TestAllKeys(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithChordHash()
+
+	key := make([]byte, 64)
+	value := make([]byte, 8)
+
+	num := 10000
+	for i := 0; i < num; i++ {
+		rand.Read(key)
+		rand.Read(value)
+		kv.Put(key, value)
+	}
+
+	keys, err := kv.LocalKeys(0, 0)
+	as.Nil(err)
+	as.Len(keys, num)
 }

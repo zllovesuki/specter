@@ -5,10 +5,11 @@ import (
 	"net"
 	"sync"
 
-	"specter/spec"
 	"specter/spec/protocol"
+	"specter/spec/rpc"
 
 	"github.com/lucas-clemente/quic-go"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ type QUIC struct {
 	qMap map[string]*nodeConnection
 	qMu  sync.RWMutex
 
-	rpcMap map[string]spec.RPC
+	rpcMap map[string]rpc.RPC
 	rpcMu  sync.RWMutex
 
 	rpcChan    chan net.Conn
@@ -31,4 +32,6 @@ type QUIC struct {
 
 	server *tls.Config
 	client *tls.Config
+
+	closed *atomic.Bool
 }

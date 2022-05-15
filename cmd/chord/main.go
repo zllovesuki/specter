@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"specter/kv"
 	"specter/node"
 	"specter/overlay"
 	"specter/spec/chord"
@@ -46,20 +47,22 @@ func main() {
 		NextProtos:         []string{"quic-echo-example"},
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	t := overlay.NewQUIC(logger, serverTLS, clientTLS)
+	defer t.Stop()
 
 	local := node.NewLocalNode(node.NodeConfig{
 		Logger:                   logger,
 		Identity:                 identity,
 		Transport:                t,
+		KVProvider:               kv.WithChordHash(),
 		StablizeInterval:         time.Second * 3,
 		FixFingerInterval:        time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
 	})
 	defer local.Stop()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	go t.Accept(ctx, identity)
 	go local.HandleRPC()
@@ -100,7 +103,7 @@ func main() {
 					zap.Int64("predecessor", pID),
 					zap.String("ring", local.RingTrace()),
 					zap.String("table", local.FingerTrace()))
-				local.Put([]byte("key"), []byte("value"))
+				// local.Put([]byte("key"), []byte("value"))
 			}
 		}
 	}()

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"specter/spec"
 	"specter/spec/chord"
 	"specter/spec/protocol"
+	"specter/spec/rpc"
 	"specter/spec/transport"
 
 	"go.uber.org/zap"
@@ -18,7 +18,7 @@ type RemoteNode struct {
 	logger *zap.Logger
 
 	id  *protocol.Node
-	rpc spec.RPC
+	rpc rpc.RPC
 	t   transport.Transport
 }
 
@@ -31,7 +31,7 @@ func NewRemoteNode(ctx context.Context, t transport.Transport, logger *zap.Logge
 		t:         t,
 		logger:    logger,
 	}
-	var hs spec.RPCHandshakeFunc
+	var hs rpc.RPCHandshakeFunc
 	if peer.GetUnknown() {
 		hs = n.handshake
 	}
@@ -43,7 +43,7 @@ func NewRemoteNode(ctx context.Context, t transport.Transport, logger *zap.Logge
 	return n, nil
 }
 
-func (n *RemoteNode) handshake(r spec.RPC) error {
+func (n *RemoteNode) handshake(r rpc.RPC) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
@@ -123,7 +123,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return n, nil
 	}
 
-	succ, err := NewRemoteNode(n.parentCtx, n.t, n.logger, resp.GetSuccessor())
+	succ, err := createRPC(n.parentCtx, n, n.t, n.logger, resp.GetSuccessor())
 	if err != nil {
 		n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetSuccessor().String()), zap.Error(err))
 		return nil, err
@@ -149,7 +149,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, node := range succList {
-		n, err := NewRemoteNode(n.parentCtx, n.t, n.logger, node)
+		n, err := createRPC(n.parentCtx, n, n.t, n.logger, node)
 		if err != nil {
 			continue
 		}
@@ -179,7 +179,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 		return n, nil
 	}
 
-	pre, err := NewRemoteNode(n.parentCtx, n.t, n.logger, resp.GetPredecessor())
+	pre, err := createRPC(n.parentCtx, n, n.t, n.logger, resp.GetPredecessor())
 	if err != nil {
 		n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetPredecessor().String()), zap.Error(err))
 		return nil, err
@@ -238,22 +238,72 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (n *RemoteNode) FindKeys(low, high uint64) ([][]byte, error) {
+func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:      protocol.KVOperation_FIND_KEYS,
+		Op:      protocol.KVOperation_LOCAL_KEYS,
 		LowKey:  low,
 		HighKey: high,
 	}
 	rResp, err := n.rpc.Call(ctx, rReq)
 	if err != nil {
-		n.logger.Error("remote KV FindKeys RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		n.logger.Error("remote KV LocalKeys RPC", zap.String("node", n.Identity().String()), zap.Error(err))
 		return nil, err
 	}
 	return rResp.GetKvResponse().GetKeys(), nil
+}
+
+func (n *RemoteNode) LocalPuts(keys, values [][]byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:     protocol.KVOperation_LOCAL_PUTS,
+		Keys:   keys,
+		Values: values,
+	}
+	_, err := n.rpc.Call(ctx, rReq)
+	if err != nil {
+		n.logger.Error("remote KV LocalPuts RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
+func (n *RemoteNode) LocalGets(keys [][]byte) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:   protocol.KVOperation_LOCAL_GETS,
+		Keys: keys,
+	}
+	rResp, err := n.rpc.Call(ctx, rReq)
+	if err != nil {
+		n.logger.Error("remote KV LocalGets RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		return nil, err
+	}
+	return rResp.GetKvResponse().GetValues(), nil
+}
+
+func (n *RemoteNode) LocalDeletes(keys [][]byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:   protocol.KVOperation_LOCAL_DELETES,
+		Keys: keys,
+	}
+	_, err := n.rpc.Call(ctx, rReq)
+	if err != nil {
+		n.logger.Error("remote KV LocalDeletes RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+	}
+	return err
 }
 
 func (n *RemoteNode) Stop() {

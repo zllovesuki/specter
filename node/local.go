@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
-	"specter/kv"
 	"specter/spec/chord"
 
 	"go.uber.org/atomic"
@@ -13,8 +13,7 @@ import (
 )
 
 type LocalNode struct {
-	logger *zap.Logger
-	conf   NodeConfig
+	NodeConfig
 
 	preMutex    sync.RWMutex
 	predecessor chord.VNode
@@ -42,12 +41,11 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		panic(err)
 	}
 	n := &LocalNode{
-		conf:       conf,
-		logger:     conf.Logger,
+		NodeConfig: conf,
 		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
 		successors: make([]chord.VNode, chord.ExtendedSuccessorEntries+1),
 		started:    atomic.NewBool(false),
-		kv:         kv.WithChordHash(),
+		kv:         conf.KVProvider,
 		fingers: make([]struct {
 			mu sync.RWMutex
 			n  chord.VNode
@@ -63,7 +61,7 @@ func (n *LocalNode) Create() error {
 		return fmt.Errorf("chord node already started")
 	}
 
-	n.logger.Info("Creating new Chord ring",
+	n.Logger.Info("Creating new Chord ring",
 		zap.Uint64("node", n.ID()),
 	)
 
@@ -96,7 +94,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		return fmt.Errorf("found duplicate node ID %d in the ring", n.ID())
 	}
 
-	n.logger.Info("Joining Chord ring",
+	n.Logger.Info("Joining Chord ring",
 		zap.Uint64("node", n.ID()),
 		zap.String("via", peer.Identity().GetAddress()),
 		zap.Uint64("successor", proposedSucc.ID()),
@@ -126,5 +124,34 @@ func (n *LocalNode) Stop() {
 	if !n.started.CAS(true, false) {
 		return
 	}
+
+	// remove ourself from the ring
 	n.cancelFunc()
+	<-time.After(time.Second)
+
+	// then notify our successor about our predecessor
+	pre, _ := n.GetPredecessor()
+	succ := n.getSuccessor()
+
+	if pre == nil {
+		return
+	}
+	if pre.ID() == n.ID() {
+		return
+	}
+	if succ == nil {
+		return
+	}
+	if succ.ID() == n.ID() {
+		return
+	}
+
+	if err := succ.Notify(pre); err != nil {
+		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
+	}
+
+	// then relinquish control of our keys
+	if err := n.transKeysOut(); err != nil {
+		n.Logger.Error("transfering KV to successor", zap.Error(err))
+	}
 }
