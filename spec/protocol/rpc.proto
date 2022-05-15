@@ -6,6 +6,7 @@ option go_package = "specter/spec/protocol";
 
 import "spec/protocol/chord.proto";
 import "spec/protocol/kv.proto";
+import "spec/protocol/tun.proto";
 
 message RPC {
     enum Type {
@@ -16,6 +17,9 @@ message RPC {
 
     enum Kind {
         UNKNOWN_TYPE = 0;
+
+        // chord
+
         PING = 1;
         NOTIFY = 2;
         FIND_SUCCESSOR = 3;
@@ -24,6 +28,10 @@ message RPC {
         GET_SUCCESSORS = 6;
 
         IDENTITY = 10;
+
+        // tunnel
+        GET_NODES = 100;
+        PUBLISH_TUNNEL = 101;
     }
 
     Type type = 1;
@@ -44,6 +52,9 @@ message RPC {
         GetSuccessorsRequest getSuccessorsRequest = 30;
 
         KVRequest kvRequest = 41;
+
+        GetNodesRequest getNodesRequest = 100;
+        PublishTunnelRequest publishTunnelRequest = 101;
     }
 
     message Response {
@@ -60,6 +71,9 @@ message RPC {
         GetSuccessorsResponse getSuccessorsResponse = 30;
 
         KVResponse kvResponse = 41;
+
+        GetNodesResponse getNodesResponse = 100;
+        PublishTunnelResponse publishTunnelResponse = 101;
     }
 
     Request request = 10;

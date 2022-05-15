@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	ErrClosed = fmt.Errorf("transport is already closed")
+	ErrClosed   = fmt.Errorf("transport is already closed")
+	ErrNoDirect = fmt.Errorf("cannot open direct quic connection without address")
 )
 
 var _ transport.Transport = (*QUIC)(nil)
@@ -57,6 +58,10 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 	if ok {
 		t.logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
 		return sQ.(*nodeConnection).quic, nil
+	}
+
+	if peer.GetAddress() == "" {
+		return nil, ErrNoDirect
 	}
 
 	t.logger.Debug("Creating new QUIC connection", zap.Any("peer", peer))
@@ -107,6 +112,10 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 	stream.SetDeadline(time.Time{})
 
 	return q, stream, nil
+}
+
+func (t *QUIC) Identity() *protocol.Node {
+	return t.self
 }
 
 func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCHandshakeFunc) (rpcSpec.RPC, error) {
@@ -287,6 +296,8 @@ func (t *QUIC) Accept(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	t.logger.Info("Accepting connections", zap.String("listen", t.self.GetAddress()))
 
 	go t.reaper(ctx)
 

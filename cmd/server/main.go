@@ -19,21 +19,27 @@ import (
 	"specter/overlay"
 	"specter/spec/chord"
 	"specter/spec/protocol"
+	"specter/tun/server"
 
 	"go.uber.org/zap"
 )
 
 var (
-	listen = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
-	peer   = flag.String("peer", "local", "known peer")
+	listenChord  = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
+	listenClient = flag.String("client", "127.0.0.1:1235", "client transport listener")
+	peer         = flag.String("peer", "local", "known chord peer")
 )
 
 func main() {
 	flag.Parse()
 
-	identity := &protocol.Node{
+	chordIdentity := &protocol.Node{
 		Id:      chord.Random(),
-		Address: *listen,
+		Address: *listenChord,
+	}
+	serverIdentity := &protocol.Node{
+		Id:      chord.Random(),
+		Address: *listenClient,
 	}
 
 	logger, err := zap.NewDevelopment()
@@ -50,64 +56,47 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t := overlay.NewQUIC(logger, identity, serverTLS, clientTLS)
-	defer t.Stop()
+	chordTransport := overlay.NewQUIC(logger, chordIdentity, serverTLS, clientTLS)
+	defer chordTransport.Stop()
 
-	local := node.NewLocalNode(node.NodeConfig{
+	clientTransport := overlay.NewQUIC(logger, serverIdentity, serverTLS, clientTLS)
+	defer clientTransport.Stop()
+
+	chordNode := node.NewLocalNode(node.NodeConfig{
 		Logger:                   logger,
-		Identity:                 identity,
-		Transport:                t,
+		Identity:                 chordIdentity,
+		Transport:                chordTransport,
 		KVProvider:               kv.WithChordHash(),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
 	})
-	defer local.Stop()
+	defer chordNode.Stop()
 
-	go t.Accept(ctx)
-	go local.HandleRPC()
+	tunServer := server.New(logger, chordNode, clientTransport, chordTransport)
 
-	go func() {
-		if *peer == "local" {
-			if err := local.Create(); err != nil {
-				logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
-			}
-		} else {
-			p, err := node.NewRemoteNode(ctx, t, logger, &protocol.Node{
-				Unknown: true,
-				Address: *peer,
-			})
-			if err != nil {
-				logger.Fatal("Creating RemoteNode", zap.Error(err))
-			}
-			if err := local.Join(p); err != nil {
-				logger.Fatal("Start LocalNode with existing Chord Ring", zap.Error(err))
-			}
+	go chordTransport.Accept(ctx)
+	go chordNode.HandleRPC()
+
+	if *peer == "local" {
+		if err := chordNode.Create(); err != nil {
+			logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 		}
-	}()
-
-	go func() {
-		ticker := time.NewTicker(time.Second * 5)
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				p, _ := local.GetPredecessor()
-				var pID int64 = -1
-				if p != nil {
-					pID = int64(p.ID())
-				}
-				logger.Debug("Debug Log",
-					zap.Uint64("node", local.ID()),
-					zap.Int64("predecessor", pID),
-					// zap.String("ring", local.RingTrace()),
-					zap.String("table", local.FingerTrace()))
-				// local.Put([]byte("key"), []byte("value"))
-			}
+	} else {
+		p, err := node.NewRemoteNode(ctx, chordTransport, logger, &protocol.Node{
+			Unknown: true,
+			Address: *peer,
+		})
+		if err != nil {
+			logger.Fatal("Creating RemoteNode", zap.Error(err))
 		}
-	}()
+		if err := chordNode.Join(p); err != nil {
+			logger.Fatal("Start LocalNode with existing Chord Ring", zap.Error(err))
+		}
+	}
+
+	go tunServer.Accept(ctx)
+	go clientTransport.Accept(ctx)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
