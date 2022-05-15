@@ -30,7 +30,6 @@ func NewQUIC(logger *zap.Logger, self *protocol.Node, serverTLS *tls.Config, cli
 	return &QUIC{
 		logger:     logger,
 		self:       self,
-		rpcMap:     make(map[string]rpcSpec.RPC),
 		rpcChan:    make(chan *transport.Delegate, 1),
 		directChan: make(chan *transport.Delegate, 1),
 
@@ -54,11 +53,13 @@ func makeKey(peer *protocol.Node) string {
 func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, error) {
 	qKey := makeKey(peer)
 
-	sQ, ok := t.reuseMap.Load(qKey)
-	if ok {
+	rUnlock := t.qMu.RLock(qKey)
+	if sQ, ok := t.qMap.Load(qKey); ok {
+		rUnlock()
 		t.logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
 		return sQ.(*nodeConnection).quic, nil
 	}
+	rUnlock()
 
 	if peer.GetAddress() == "" {
 		return nil, ErrNoDirect
@@ -125,20 +126,20 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 	rpcMapKey := peer.GetAddress()
 
-	t.rpcMu.RLock()
-	if r, ok := t.rpcMap[rpcMapKey]; ok {
-		t.rpcMu.RUnlock()
-		return r, nil
+	rUnlock := t.rpcMu.RLock(rpcMapKey)
+	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
+		rUnlock()
+		return r.(rpcSpec.RPC), nil
 	}
-	t.rpcMu.RUnlock()
+	rUnlock()
 
 	t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeKey(peer)))
 
-	t.rpcMu.Lock()
-	defer t.rpcMu.Unlock()
+	unlock := t.rpcMu.Lock(rpcMapKey)
+	defer unlock()
 
-	if r, ok := t.rpcMap[rpcMapKey]; ok {
-		return r, nil
+	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
+		return r.(rpcSpec.RPC), nil
 	}
 
 	t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeKey(peer)))
@@ -172,7 +173,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 	t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeKey(peer)))
 
-	t.rpcMap[rpcMapKey] = r
+	t.rpcMap.Store(rpcMapKey, r)
 
 	return r, nil
 }
@@ -229,7 +230,10 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 		quic: q,
 	}
 
-	sQ, loaded := t.reuseMap.LoadOrStore(rKey, cached)
+	unlock := t.qMu.Lock(rKey)
+	defer unlock()
+
+	sQ, loaded := t.qMap.LoadOrStore(rKey, cached)
 	if loaded {
 		t.logger.Debug("reusing quic connection", zap.String("direction", dir), zap.String("key", rKey))
 		q.CloseWithError(0, "A previous connection was reused")

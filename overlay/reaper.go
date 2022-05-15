@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"specter/spec/protocol"
+	"specter/spec/rpc"
 
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -17,7 +18,7 @@ func randomTimeRange(t time.Duration) time.Duration {
 
 func (t *QUIC) printCached() {
 	ep := make([]string, 0)
-	t.reuseMap.Range(func(key, value interface{}) bool {
+	t.qMap.Range(func(key, value interface{}) bool {
 		addr := key.(string)
 		ep = append(ep, addr)
 		return true
@@ -44,7 +45,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 		case <-timer.C:
 			// t.printCached()
 			candidate := make([]*nodeConnection, 0)
-			t.reuseMap.Range(func(key, value interface{}) bool {
+			t.qMap.Range(func(key, value interface{}) bool {
 				v := value.(*nodeConnection)
 				if err := v.quic.SendMessage(alive); err != nil {
 					candidate = append(candidate, v)
@@ -56,20 +57,17 @@ func (t *QUIC) reaper(ctx context.Context) {
 				for _, c := range candidate {
 					k := makeKey(c.peer)
 					t.logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
-					t.reuseMap.Delete(k)
+					t.qMap.Delete(k)
 					c.quic.CloseWithError(401, "Gone")
 				}
 
-				t.rpcMu.Lock()
 				for _, c := range candidate {
 					k := c.peer.GetAddress()
 					t.logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
-					if r, ok := t.rpcMap[k]; ok {
-						r.Close()
-						delete(t.rpcMap, k)
+					if r, ok := t.rpcMap.LoadAndDelete(k); ok {
+						r.(rpc.RPC).Close()
 					}
 				}
-				t.rpcMu.Unlock()
 			}
 
 			timer.Reset(randomTimeRange(quicConfig.MaxIdleTimeout / 2))

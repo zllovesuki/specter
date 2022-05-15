@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"sync"
 
+	"specter/spec/concurrent"
 	"specter/spec/protocol"
-	"specter/spec/rpc"
 	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
@@ -23,13 +23,14 @@ type QUIC struct {
 
 	self *protocol.Node
 
-	rpcMap map[string]rpc.RPC
-	rpcMu  sync.RWMutex
+	rpcMap sync.Map
+	rpcMu  concurrent.KeyedRWMutex
+
+	qMap sync.Map
+	qMu  concurrent.KeyedRWMutex
 
 	rpcChan    chan *transport.Delegate
 	directChan chan *transport.Delegate
-
-	reuseMap sync.Map
 
 	server *tls.Config
 	client *tls.Config

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"specter/spec/protocol"
 
 	"google.golang.org/protobuf/proto"
