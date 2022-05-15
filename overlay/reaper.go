@@ -15,6 +15,16 @@ func randomTimeRange(t time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
 }
 
+func (t *QUIC) printCached() {
+	ep := make([]string, 0)
+	t.reuseMap.Range(func(key, value interface{}) bool {
+		addr := key.(string)
+		ep = append(ep, addr)
+		return true
+	})
+	t.logger.Debug("Cached QUIC endpoints", zap.Strings("keys", ep))
+}
+
 func (t *QUIC) reaper(ctx context.Context) {
 	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
 
@@ -32,34 +42,32 @@ func (t *QUIC) reaper(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
+			// t.printCached()
 			candidate := make([]*nodeConnection, 0)
-			ep := make([]string, 0)
-			t.qMu.RLock()
-			for addr, v := range t.qMap {
-				ep = append(ep, addr)
+			t.reuseMap.Range(func(key, value interface{}) bool {
+				v := value.(*nodeConnection)
 				if err := v.quic.SendMessage(alive); err != nil {
 					candidate = append(candidate, v)
 				}
-			}
-			t.qMu.RUnlock()
-			t.logger.Debug("cached QUIC endpoints", zap.Strings("keys", ep))
+				return true
+			})
 
 			if len(candidate) > 0 {
-				t.qMu.Lock()
 				for _, c := range candidate {
 					k := makeKey(c.peer)
 					t.logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
-					delete(t.qMap, k)
+					t.reuseMap.Delete(k)
 					c.quic.CloseWithError(401, "Gone")
 				}
-				t.qMu.Unlock()
 
 				t.rpcMu.Lock()
 				for _, c := range candidate {
 					k := c.peer.GetAddress()
 					t.logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
-					t.rpcMap[k].Close()
-					delete(t.rpcMap, k)
+					if r, ok := t.rpcMap[k]; ok {
+						r.Close()
+						delete(t.rpcMap, k)
+					}
 				}
 				t.rpcMu.Unlock()
 			}

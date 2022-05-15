@@ -4,6 +4,8 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "specter/spec/protocol";
 
+import "spec/protocol/node.proto";
+
 message Stream {
     enum Type {
         UNKNOWN_TYPE = 0;
@@ -12,4 +14,8 @@ message Stream {
     }
 
     Type type = 1;
+}
+
+message Connection {
+    Node identity = 1;
 }

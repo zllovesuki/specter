@@ -2,11 +2,11 @@ package overlay
 
 import (
 	"crypto/tls"
-	"net"
 	"sync"
 
 	"specter/spec/protocol"
 	"specter/spec/rpc"
+	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/atomic"
@@ -21,14 +21,15 @@ type nodeConnection struct {
 type QUIC struct {
 	logger *zap.Logger
 
-	qMap map[string]*nodeConnection
-	qMu  sync.RWMutex
+	self *protocol.Node
 
 	rpcMap map[string]rpc.RPC
 	rpcMu  sync.RWMutex
 
-	rpcChan    chan net.Conn
-	directChan chan net.Conn
+	rpcChan    chan *transport.Delegate
+	directChan chan *transport.Delegate
+
+	reuseMap sync.Map
 
 	server *tls.Config
 	client *tls.Config

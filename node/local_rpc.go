@@ -17,10 +17,15 @@ var _ rpcSpec.RPCHandler = (*LocalNode)(nil).rpcHandler
 func (n *LocalNode) HandleRPC() {
 	for {
 		select {
-		case s := <-n.Transport.RPC():
-			n.Logger.Debug("New incoming RPC Stream", zap.String("remote", s.RemoteAddr().String()), zap.String("local", s.LocalAddr().String()))
+		case delegate := <-n.Transport.RPC():
+			s := delegate.Connection
+			n.Logger.Debug("New incoming RPC Stream",
+				zap.Any("peer", delegate.Identity),
+				zap.String("remote", s.RemoteAddr().String()),
+				zap.String("local", s.LocalAddr().String()))
 			r := rpc.NewRPC(
 				n.Logger.With(
+					zap.Any("peer", delegate.Identity),
 					zap.String("remote", s.RemoteAddr().String()),
 					zap.String("local", s.LocalAddr().String()),
 					zap.String("pov", "local_rpc")),
@@ -35,13 +40,18 @@ func (n *LocalNode) HandleRPC() {
 }
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	resp := &protocol.RPC_Response{}
-	var vnode chord.VNode
-	var err error
-
 	if !n.started.Load() {
 		return nil, fmt.Errorf("node is not part of the chord ring")
 	}
+	select {
+	case <-n.stopCtx.Done():
+		return nil, fmt.Errorf("node is not part of the chord ring")
+	default:
+	}
+
+	resp := &protocol.RPC_Response{}
+	var vnode chord.VNode
+	var err error
 
 	switch req.GetKind() {
 	case protocol.RPC_IDENTITY:

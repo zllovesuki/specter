@@ -8,14 +8,19 @@ import (
 	"specter/spec/rpc"
 )
 
+type Delegate struct {
+	Connection net.Conn
+	Identity   *protocol.Node
+}
+
 type Transport interface {
 	DialRPC(ctx context.Context, peer *protocol.Node, hs rpc.RPCHandshakeFunc) (rpc.RPC, error)
 	DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error)
 
-	RPC() <-chan net.Conn
-	Direct() <-chan net.Conn
+	RPC() <-chan *Delegate
+	Direct() <-chan *Delegate
 
-	Accept(ctx context.Context, identity *protocol.Node) error
+	Accept(ctx context.Context) error
 
 	Stop()
 }

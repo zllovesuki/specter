@@ -9,6 +9,20 @@ import (
 	"specter/spec/chord"
 )
 
+func minmax(nums []int) (min, max int) {
+	min = nums[0]
+	max = nums[0]
+	for _, num := range nums {
+		if num > max {
+			max = num
+		}
+		if num < min {
+			min = num
+		}
+	}
+	return
+}
+
 func (n *LocalNode) FingerTrace() string {
 	var sb strings.Builder
 
@@ -32,8 +46,9 @@ func (n *LocalNode) FingerTrace() string {
 
 	for _, k := range keys {
 		sb.WriteString(strconv.FormatUint(k, 10))
-		sb.WriteString(":")
-		sb.WriteString(fmt.Sprint(ftMap[k]))
+		sb.WriteString(": ")
+		min, max := minmax(ftMap[k])
+		sb.WriteString(fmt.Sprintf("%d/%d", min, max))
 		sb.WriteString(", ")
 	}
 

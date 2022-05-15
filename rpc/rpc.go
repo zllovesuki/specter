@@ -77,13 +77,6 @@ func (r *RPC) Start(ctx context.Context) {
 			return
 		}
 
-		select {
-		case <-ctx.Done():
-			r.Close()
-			return
-		default:
-		}
-
 		go func(rr *protocol.RPC) {
 			switch rr.GetType() {
 			case protocol.RPC_REPLY:

@@ -127,7 +127,9 @@ func (n *LocalNode) Stop() {
 
 	// remove ourself from the ring
 	n.cancelFunc()
-	<-time.After(time.Second)
+
+	n.Logger.Debug("waiting for chord ring to notice our departure")
+	<-time.After(n.StablizeInterval * 2)
 
 	// then notify our successor about our predecessor
 	pre, _ := n.GetPredecessor()
@@ -136,22 +138,20 @@ func (n *LocalNode) Stop() {
 	if pre == nil {
 		return
 	}
-	if pre.ID() == n.ID() {
-		return
-	}
 	if succ == nil {
 		return
 	}
-	if succ.ID() == n.ID() {
+	if pre.ID() == n.ID() || succ.ID() == n.ID() {
 		return
 	}
 
-	if err := succ.Notify(pre); err != nil {
-		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
-	}
-
-	// then relinquish control of our keys
+	// relinquish control of our keys
 	if err := n.transKeysOut(); err != nil {
 		n.Logger.Error("transfering KV to successor", zap.Error(err))
+	}
+
+	// then notify, otherwise precedessor may not get all the keys
+	if err := succ.Notify(pre); err != nil {
+		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
 	}
 }

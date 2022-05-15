@@ -50,7 +50,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t := overlay.NewQUIC(logger, serverTLS, clientTLS)
+	t := overlay.NewQUIC(logger, identity, serverTLS, clientTLS)
 	defer t.Stop()
 
 	local := node.NewLocalNode(node.NodeConfig{
@@ -58,13 +58,13 @@ func main() {
 		Identity:                 identity,
 		Transport:                t,
 		KVProvider:               kv.WithChordHash(),
-		StablizeInterval:         time.Second * 3,
-		FixFingerInterval:        time.Second * 5,
+		FixFingerInterval:        time.Second * 3,
+		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
 	})
 	defer local.Stop()
 
-	go t.Accept(ctx, identity)
+	go t.Accept(ctx)
 	go local.HandleRPC()
 
 	go func() {
@@ -99,9 +99,10 @@ func main() {
 				if p != nil {
 					pID = int64(p.ID())
 				}
-				logger.Debug("Periodic debug log",
+				logger.Debug("Debug Log",
+					zap.Uint64("node", local.ID()),
 					zap.Int64("predecessor", pID),
-					zap.String("ring", local.RingTrace()),
+					// zap.String("ring", local.RingTrace()),
 					zap.String("table", local.FingerTrace()))
 				// local.Put([]byte("key"), []byte("value"))
 			}

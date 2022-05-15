@@ -32,6 +32,11 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 				zap.Uint64("node", n.ID()),
 				zap.Uint64("predecessor", new.ID()),
 			)
+			go func() {
+				if err := n.transferKeysIn(); err != nil {
+					n.Logger.Error("transfer keys from successor upon notify", zap.Error(err))
+				}
+			}()
 		}
 	}()
 
@@ -153,10 +158,16 @@ func (n *LocalNode) transferKeysIn() error {
 		return fmt.Errorf("node has no successor")
 	}
 
+	if pre.ID() == n.ID() || succ.ID() == n.ID() {
+		return nil
+	}
+
 	keys, err := succ.LocalKeys(pre.ID(), n.ID())
 	if err != nil {
 		return fmt.Errorf("getting keys for transfer from successor: %w", err)
 	}
+
+	n.Logger.Debug("Transfering keys from successor", zap.Int("num_keys", len(keys)), zap.Uint64("low", pre.ID()), zap.Uint64("high", succ.ID()))
 
 	if len(keys) == 0 {
 		return nil
