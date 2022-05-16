@@ -55,8 +55,8 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode, counter bool) {
 		for i := 0; i < len(nodes)-1; i++ {
 			as.Equal(nodes[i].ID(), nodes[i+1].getPredecessor().ID())
 		}
+		as.Equal(nodes[len(nodes)-1].ID(), nodes[0].getPredecessor().ID())
 	}
-	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].getPredecessor().ID())
 	// clockwise
 	for i := 0; i < len(nodes)-1; i++ {
 		as.Equal(nodes[i+1].ID(), nodes[i].getSuccessor().ID())
