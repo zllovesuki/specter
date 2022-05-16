@@ -2,7 +2,12 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"time"
 
 	"specter/spec/protocol"
@@ -44,17 +49,6 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, s
 	return c, nil
 }
 
-func (c *Client) Accept(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case delegate := <-c.serverTransport.Direct():
-			go c.forward(ctx, delegate.Connection)
-		}
-	}
-}
-
 func (c *Client) forward(ctx context.Context, remote net.Conn) {
 	dialer := &net.Dialer{
 		Timeout: time.Second * 3,
@@ -66,4 +60,75 @@ func (c *Client) forward(ctx context.Context, remote net.Conn) {
 		return
 	}
 	tun.Pipe(remote, local)
+}
+
+func (c *Client) registerTunnel() {
+	req := &protocol.RPC_Request{
+		Kind:            protocol.RPC_GET_NODES,
+		GetNodesRequest: &protocol.GetNodesRequest{},
+	}
+	resp, err := c.rpc.Call(context.TODO(), req)
+	if err != nil {
+		panic(err)
+	}
+	for _, node := range resp.GetNodesResponse.GetNodes() {
+		c.logger.Debug("get nodes", zap.String("node", node.String()))
+	}
+}
+
+func (c *Client) Tunnel() {
+	overwrite := false
+	u, err := url.Parse("http://127.0.0.1:8080")
+	if err != nil {
+		c.logger.Fatal("parsing forwarding target", zap.Error(err))
+	}
+	switch u.Scheme {
+	case "http", "https", "tcp":
+	default:
+		c.logger.Fatal("unsupported scheme. valid schemes: http, https, tcp", zap.String("scheme", u.Scheme))
+	}
+
+	hostname := "example.example.com"
+
+	tunnelURL, _ := url.Parse(hostname)
+	hostHeader := u.Host
+	if overwrite {
+		hostHeader = tunnelURL.Host
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(u)
+	d := proxy.Director
+	// https://stackoverflow.com/a/53007606
+	// need to overwrite Host field
+	proxy.Director = func(r *http.Request) {
+		d(r)
+		r.Host = hostHeader
+	}
+	proxy.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
+		c.logger.Error("forwarding http/https request", zap.Error(e))
+		rw.WriteHeader(http.StatusBadGateway)
+		fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
+	}
+	proxy.ErrorLog = zap.NewStdLog(c.logger)
+
+	connCh := make(chan net.Conn, 32)
+	accepter := &tun.HTTPAcceptor{
+		Conn: connCh,
+	}
+	forwarder := &http.Server{
+		Handler:  proxy,
+		ErrorLog: zap.NewStdLog(c.logger),
+	}
+	go func() {
+		forwarder.Serve(accepter)
+	}()
+
+	for delegation := range c.serverTransport.Direct() {
+		connCh <- delegation.Connection
+	}
 }

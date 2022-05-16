@@ -25,7 +25,7 @@ type GatewayConfig struct {
 
 type Gateway struct {
 	GatewayConfig
-	httpTunnelAcceptor *httpAccepter
+	httpTunnelAcceptor *tunSpec.HTTPAcceptor
 }
 
 func New(conf GatewayConfig) (*Gateway, error) {
@@ -34,9 +34,9 @@ func New(conf GatewayConfig) (*Gateway, error) {
 	}
 	return &Gateway{
 		GatewayConfig: conf,
-		httpTunnelAcceptor: &httpAccepter{
-			parent: conf.Listener,
-			ch:     make(chan net.Conn, 16),
+		httpTunnelAcceptor: &tunSpec.HTTPAcceptor{
+			Parent: conf.Listener,
+			Conn:   make(chan net.Conn, 16),
 		},
 	}, nil
 }
@@ -67,7 +67,7 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 		switch cs.NegotiatedProtocol {
 		case tunSpec.ALPN(protocol.Link_UNKNOWN), tunSpec.ALPN(protocol.Link_HTTP):
 			g.Logger.Debug("forward http connection")
-			g.httpTunnelAcceptor.ch <- conn
+			g.httpTunnelAcceptor.Conn <- conn
 
 		case tunSpec.ALPN(protocol.Link_TCP):
 			g.Logger.Debug("forward raw connection")
