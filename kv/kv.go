@@ -54,6 +54,9 @@ func (m *MemoryMap) delete(key []byte) {
 	p := m.hashFn(sKey)
 	if s, pOK := m.store[p]; pOK {
 		delete(s, sKey)
+		if len(m.store[p]) == 0 {
+			delete(m.store, p)
+		}
 	}
 }
 
@@ -132,4 +135,17 @@ func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
 		m.delete(key)
 	}
 	return nil
+}
+
+func (m *MemoryMap) Fsck(low, self uint64) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for id := range m.store {
+		if !chord.Between(low, id, self, true) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/rand"
 	mathRand "math/rand"
+	"specter/kv"
 	"testing"
 	"time"
 
@@ -96,7 +97,7 @@ func TestKVOperation(t *testing.T) {
 func TestKeyTransferOut(t *testing.T) {
 	as := assert.New(t)
 
-	numNodes := 15
+	numNodes := 7
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
@@ -111,6 +112,7 @@ func TestKeyTransferOut(t *testing.T) {
 
 	successor := randomNode.getSuccessor()
 	predecessor := randomNode.getPredecessor()
+	t.Logf("precedessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
 
 	leavingKeys, err := randomNode.kv.LocalKeys(0, 0)
 	as.Nil(err)
@@ -118,8 +120,17 @@ func TestKeyTransferOut(t *testing.T) {
 	randomNode.Stop()
 	<-time.After(time.Millisecond * 500)
 
+	for _, node := range nodes {
+		if node == randomNode {
+			continue
+		}
+		pre := node.getPredecessor()
+		as.True(node.kv.(*kv.MemoryMap).Fsck(pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
+	}
+
 	succVals, err := successor.LocalGets(leavingKeys)
 	as.Nil(err)
+	as.Len(succVals, len(leavingKeys))
 
 	indicies := make([]int, 0)
 	for _, k := range leavingKeys {
@@ -131,11 +142,34 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 	as.Len(indicies, len(leavingKeys))
 
-	for i := range succVals {
-		as.EqualValues(succVals[i], succVals[i])
+	for i, v := range succVals {
+		as.EqualValues(values[indicies[i]], v)
 	}
 
 	preVals, err := predecessor.LocalGets(leavingKeys)
 	as.Nil(err)
-	as.Len(preVals, 0)
+	for _, v := range preVals {
+		as.Nil(v)
+	}
+}
+
+func TestKeyTransferIn(t *testing.T) {
+	as := assert.New(t)
+
+	numNodes := 2
+	nodes, done := makeRing(as, numNodes)
+	defer done()
+
+	keys, values := makeKV(1000, 48)
+
+	for i := range keys {
+		as.Nil(nodes[0].Put(keys[i], values[i]))
+	}
+
+	newNode := NewLocalNode(DevConfig(as))
+	newNode.Join(nodes[0])
+
+	<-time.After(time.Millisecond * 500)
+
+	t.Logf("yeet")
 }
