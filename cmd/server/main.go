@@ -19,15 +19,18 @@ import (
 	"specter/overlay"
 	"specter/spec/chord"
 	"specter/spec/protocol"
+	"specter/spec/tun"
+	"specter/tun/gateway"
 	"specter/tun/server"
 
 	"go.uber.org/zap"
 )
 
 var (
-	listenChord  = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
-	listenClient = flag.String("client", "127.0.0.1:1235", "client transport listener")
-	peer         = flag.String("peer", "local", "known chord peer")
+	listenGateway = flag.String("gw", "127.0.0.1:1233", "gateway listener")
+	listenChord   = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
+	listenClient  = flag.String("client", "127.0.0.1:1235", "client transport listener")
+	peer          = flag.String("peer", "local", "known chord peer")
 )
 
 func main() {
@@ -47,17 +50,33 @@ func main() {
 		panic(err)
 	}
 
+	// ========== TODO: THESE TLS CONFIGS ARE FOR DEVELOPMENT ONLY ==========
+
 	serverTLS := generateTLSConfig()
 	clientTLS := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"quic-echo-example"},
 	}
 
+	gwTLSConf := generateTLSConfig()
+	gwTLSConf.NextProtos = []string{
+		tun.ALPN(protocol.Link_HTTP),
+		tun.ALPN(protocol.Link_TCP),
+		tun.ALPN(protocol.Link_UNKNOWN),
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	gwListener, err := tls.Listen("tcp", *listenGateway, gwTLSConf)
+	if err != nil {
+		logger.Fatal("gateway listener", zap.Error(err))
+	}
+	defer gwListener.Close()
+
 	chordLogger := logger.With(zap.String("component", "chord"))
 	tunLogger := logger.With(zap.String("component", "tun"))
+	gwLogger := logger.With(zap.String("component", "gateway"))
 
 	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, serverTLS, clientTLS)
 	defer chordTransport.Stop()
@@ -77,6 +96,17 @@ func main() {
 	defer chordNode.Stop()
 
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport)
+
+	gw, err := gateway.New(gateway.GatewayConfig{
+		Logger:      gwLogger,
+		Tun:         tunServer,
+		Listener:    gwListener,
+		RootDomain:  "example.com",
+		GatewayPort: 6969,
+	})
+	if err != nil {
+		logger.Fatal("gateway", zap.Error(err))
+	}
 
 	go chordTransport.Accept(ctx)
 	go chordNode.HandleRPC()
@@ -98,6 +128,7 @@ func main() {
 		}
 	}
 
+	go gw.Start(ctx)
 	go tunServer.Accept(ctx)
 	go clientTransport.Accept(ctx)
 
@@ -108,7 +139,7 @@ func main() {
 }
 
 func generateTLSConfig() *tls.Config {
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
 	}

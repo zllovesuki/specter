@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
 
 	"specter/rpc"
 	"specter/spec/chord"
@@ -25,6 +24,10 @@ import (
 // otherwise, DialDirect to that server to get a tunnel Stream
 // in either case, pipe the gateway connection to (direct|indirect) Stream
 // tunnel is now established
+
+var (
+	ErrDestinationNotFound = fmt.Errorf("tunnel not found on chord")
+)
 
 type Server struct {
 	logger          *zap.Logger
@@ -95,11 +98,13 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	}
 }
 
-func (s *Server) Gateway(ctx context.Context, hostname string, visitor net.Conn) error {
-	for k := int64(1); k < tun.NumRedundantLinks; k++ {
-		key := hostname + "/" + strconv.FormatInt(k, 10)
+func (s *Server) Dial(ctx context.Context, alpn protocol.Link_ALPN, hostname string) (net.Conn, error) {
+	for k := 1; k <= tun.NumRedundantLinks; k++ {
+		key := tun.Key(hostname, k)
+		s.logger.Debug("gateway lookup", zap.String("key", key))
 		val, err := s.chord.Get([]byte(key))
 		if err != nil {
+			s.logger.Error("key lookup error", zap.String("key", key), zap.Error(err))
 			continue
 		}
 		if val == nil {
@@ -109,18 +114,14 @@ func (s *Server) Gateway(ctx context.Context, hostname string, visitor net.Conn)
 		if err := proto.Unmarshal(val, bundle); err != nil {
 			continue
 		}
-		if bundle.GetHostname() != hostname {
-			return fmt.Errorf("hostname mismatch")
-		}
 		clientConn, err := s.getConn(ctx, bundle)
 		if err != nil {
-			return fmt.Errorf("cannot get connection to client")
+			s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
+			continue
 		}
-
 		// TODO: optionally cache the routing information
-		go tun.Pipe(visitor, clientConn)
-
-		return nil
+		return clientConn, nil
 	}
-	return fmt.Errorf("tunnel not found")
+
+	return nil, ErrDestinationNotFound
 }

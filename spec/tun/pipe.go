@@ -1,7 +1,10 @@
 package tun
 
 import (
+	"context"
+	"errors"
 	"io"
+	"net"
 	"sync"
 
 	pool "github.com/libp2p/go-buffer-pool"
@@ -10,6 +13,17 @@ import (
 const (
 	BufferSize = 4096
 )
+
+func IsTimeout(err error) bool {
+	t := errors.Is(err, context.DeadlineExceeded)
+	if t {
+		return t
+	}
+	if e, ok := err.(net.Error); ok {
+		return e.Timeout()
+	}
+	return false
+}
 
 func Pipe(src, dst io.ReadWriteCloser) <-chan error {
 	err := make(chan error, 2)

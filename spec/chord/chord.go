@@ -3,7 +3,12 @@ package chord
 import (
 	"hash/fnv"
 	"math/rand"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 const (
 	// Also known as m in the original paper

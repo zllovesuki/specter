@@ -1,0 +1,70 @@
+package gateway
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"specter/spec/protocol"
+	"specter/spec/tun"
+	"specter/tun/server"
+	"strings"
+	"time"
+
+	"go.uber.org/zap"
+)
+
+func (g *Gateway) httpHandler() http.Handler {
+	return &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = "http"
+			req.URL.Host = req.TLS.ServerName
+		},
+		Transport: &http.Transport{
+			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
+				parts := strings.SplitN(addr, ".", 2)
+				return g.Tun.Dial(c, protocol.Link_HTTP, parts[0])
+			},
+			MaxConnsPerHost:       15,
+			MaxIdleConnsPerHost:   3,
+			IdleConnTimeout:       time.Minute,
+			ResponseHeaderTimeout: time.Second * 30,
+			ExpectContinueTimeout: time.Second * 3,
+		},
+		BufferPool:   newBufferPool(),
+		ErrorHandler: g.errorHandler,
+		ModifyResponse: func(r *http.Response) error {
+			// since visitor and client shares the same port, proxied target may have
+			// alt-svc set in their response, which will either break peer quic,
+			// or the visitor won't be able to visit
+			r.Header.Del("alt-svc")
+			// profiler.GatewayRequests.WithLabelValues("success", "forward").Add(1)
+			return nil
+		},
+		ErrorLog: zap.NewStdLog(g.Logger),
+	}
+}
+
+func (g *Gateway) errorHandler(rw http.ResponseWriter, r *http.Request, e error) {
+	if errors.Is(e, server.ErrDestinationNotFound) {
+		rw.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(rw, "Destination %s not found on the Chord network.", r.URL.Hostname())
+		return
+	}
+
+	g.Logger.Debug("forwarding http/https request", zap.Error(e))
+
+	if tun.IsTimeout(e) {
+		rw.WriteHeader(http.StatusGatewayTimeout)
+		fmt.Fprintf(rw, "Destination %s is taking too long to respond.", r.URL.Hostname())
+		return
+	}
+	if errors.Is(e, context.Canceled) {
+		// this is expected
+		return
+	}
+	rw.WriteHeader(http.StatusServiceUnavailable)
+	fmt.Fprint(rw, "An unexpected error has occurred while attempting to forward to destination.")
+}
