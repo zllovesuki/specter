@@ -9,7 +9,8 @@ import "google/protobuf/descriptor.proto";
 
 message Tunnel {
     Node client = 1;
-    Node server = 2;
+    Node chord = 2;
+    Node tun = 3;
 
     string hostname = 10;
 }
@@ -22,6 +23,7 @@ message GetNodesResponse {
 
 message PublishTunnelRequest {
     Node client = 1;
+    // servers are tun identities
     repeated Node servers = 2;
 }
 
@@ -43,4 +45,10 @@ message Link {
     }
 
     ALPN alpn = 1;
+    string hostname = 2;
+}
+
+message IdentitiesPair {
+    Node chord = 1;
+    Node tun = 2;
 }
