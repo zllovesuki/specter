@@ -3,13 +3,12 @@ package node
 import (
 	"context"
 	"fmt"
-	"sync"
-	sAtomic "sync/atomic"
+	"sync/atomic"
 	"time"
 
 	"specter/spec/chord"
 
-	"go.uber.org/atomic"
+	zapAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -29,20 +28,21 @@ type LocalNode struct {
 	NodeConfig
 
 	_           [64]byte
-	predecessor sAtomic.Value // *atomicVNode
+	predecessor atomic.Value // *atomicVNode
 	_           [64]byte
 
 	_          [64]byte
-	successors sAtomic.Value // *atomicVNodeList
+	successors atomic.Value // *atomicVNodeList
 	_          [64]byte
-	succXOR    *atomic.Uint64
+	succXOR    *zapAtomic.Uint64
 
 	fingers []struct {
-		mu sync.RWMutex
-		n  chord.VNode
+		_ [64]byte
+		n atomic.Value // *atomicVNode
+		_ [64]byte
 	}
 
-	started    *atomic.Bool
+	started    *zapAtomic.Bool
 	stopCtx    context.Context
 	cancelFunc context.CancelFunc
 
@@ -57,13 +57,17 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	}
 	n := &LocalNode{
 		NodeConfig: conf,
-		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
-		started:    atomic.NewBool(false),
+		succXOR:    zapAtomic.NewUint64(conf.Identity.GetId()),
+		started:    zapAtomic.NewBool(false),
 		kv:         conf.KVProvider,
 		fingers: make([]struct {
-			mu sync.RWMutex
-			n  chord.VNode
+			_ [64]byte
+			n atomic.Value
+			_ [64]byte
 		}, chord.MaxFingerEntries+1),
+	}
+	for i := range n.fingers {
+		n.fingers[i].n.Store(&atomicVNode{})
 	}
 	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 

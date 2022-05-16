@@ -126,7 +126,7 @@ func TestRandomNodes(t *testing.T) {
 	<-time.After(time.Millisecond * 100)
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.ID())
+		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())
 		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
 	}
 }

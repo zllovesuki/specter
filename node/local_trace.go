@@ -45,10 +45,10 @@ func (n *LocalNode) FingerTrace() string {
 	})
 
 	for _, k := range keys {
-		sb.WriteString(strconv.FormatUint(k, 10))
-		sb.WriteString(": ")
 		min, max := minmax(ftMap[k])
 		sb.WriteString(fmt.Sprintf("%d/%d", min, max))
+		sb.WriteString(": ")
+		sb.WriteString(strconv.FormatUint(k, 10))
 		sb.WriteString(", ")
 	}
 

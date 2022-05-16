@@ -94,12 +94,10 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 func (n *LocalNode) fingerRange(fn func(i int, f chord.VNode) bool) {
 	stop := false
 	for i := chord.MaxFingerEntries; i >= 1; i-- {
-		finger := &n.fingers[i]
-		finger.mu.RLock()
-		if finger.n != nil {
-			stop = !fn(i, finger.n)
+		finger := n.fingers[i].n.Load().(*atomicVNode).Node
+		if finger != nil {
+			stop = !fn(i, finger)
 		}
-		finger.mu.RUnlock()
 		if stop {
 			break
 		}

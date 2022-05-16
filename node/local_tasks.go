@@ -97,13 +97,11 @@ func (n *LocalNode) fixFinger() error {
 			continue
 		}
 		if err == nil {
-			finger := &n.fingers[k]
-			finger.mu.Lock()
-			if finger.n != nil && finger.n.ID() != f.ID() {
+			oldA := n.fingers[k].n.Swap(&atomicVNode{Node: f})
+			old := oldA.(*atomicVNode).Node
+			if old != nil && old.ID() != f.ID() {
 				fixed = append(fixed, uint64(k))
 			}
-			finger.n = f
-			finger.mu.Unlock()
 		}
 	}
 	if len(fixed) > 0 {
