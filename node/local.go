@@ -148,7 +148,7 @@ func (n *LocalNode) Stop() {
 	// remove ourself from the ring
 	n.cancelFunc()
 
-	n.Logger.Debug("waiting for chord ring to notice our departure")
+	n.Logger.Info("waiting for chord ring to notice our departure")
 	<-time.After(n.StablizeInterval * 2)
 
 	// then notify our successor about our predecessor

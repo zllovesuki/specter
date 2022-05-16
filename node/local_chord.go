@@ -182,7 +182,7 @@ func (n *LocalNode) transferKeysIn(pre chord.VNode) (err error) {
 		return
 	}
 
-	n.Logger.Debug("Transfering keys from successor", zap.Int("num_keys", len(keys)), zap.Uint64("low", pre.ID()), zap.Uint64("high", succ.ID()))
+	n.Logger.Info("Transfering keys from successor", zap.Int("num_keys", len(keys)), zap.Uint64("low", pre.ID()), zap.Uint64("high", succ.ID()))
 
 	if len(keys) == 0 {
 		return
@@ -232,7 +232,7 @@ func (n *LocalNode) transKeysOut() error {
 		return fmt.Errorf("node has no successor")
 	}
 
-	n.Logger.Debug("Transfering keys to successor", zap.Int("num_keys", len(keys)), zap.Uint64("successor", succ.ID()))
+	n.Logger.Info("Transfering keys to successor", zap.Int("num_keys", len(keys)), zap.Uint64("successor", succ.ID()))
 
 	// TODO: split into batches
 	if err := succ.LocalPuts(keys, values); err != nil {
