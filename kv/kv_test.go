@@ -3,6 +3,7 @@ package kv
 import (
 	"crypto/rand"
 	"hash/fnv"
+	"specter/spec/chord"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,7 +40,7 @@ func TestCollisionPutGet(t *testing.T) {
 		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
-	as.LessOrEqual(collisionRing, len(kv.store))
+	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := 1; i < collisionRing*2; i++ {
 		val, err := kv.Get(ks(keyPrefix, i))
@@ -57,7 +58,7 @@ func TestCollisionNil(t *testing.T) {
 		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
-	as.LessOrEqual(collisionRing, len(kv.store))
+	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := collisionRing * 2; i < collisionRing*4; i++ {
 		val, err := kv.Get(ks(keyPrefix, i))
@@ -75,7 +76,7 @@ func TestCollisionDelete(t *testing.T) {
 		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
-	as.LessOrEqual(collisionRing, len(kv.store))
+	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := 1; i < collisionRing*2; i++ {
 		as.Nil(kv.Delete(ks(keyPrefix, i)))
@@ -106,4 +107,30 @@ func TestAllKeys(t *testing.T) {
 	keys, err := kv.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Len(keys, num)
+}
+
+func TestOrderedKeys(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithChordHash()
+
+	key := make([]byte, 64)
+	value := make([]byte, 8)
+
+	num := 10000
+	for i := 0; i < num; i++ {
+		rand.Read(key)
+		rand.Read(value)
+		kv.Put(key, value)
+	}
+
+	keys, err := kv.LocalKeys(0, 0)
+	as.Nil(err)
+
+	var prev uint64 = 0
+	for _, key := range keys {
+		id := chord.Hash(key)
+		as.LessOrEqual(prev, id)
+		prev = id
+	}
 }
