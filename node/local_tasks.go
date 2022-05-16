@@ -75,14 +75,12 @@ func (n *LocalNode) stablize() error {
 		newSucc, spErr := head.GetPredecessor()
 		nextSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			// n.logger.Debug("replace", zap.String("where", "head"), zap.Int("len", len(nextSuccList)))
 			succList = makeList(head, nextSuccList)
 			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), n.getSuccessor().ID(), false) {
 				nextSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					// n.logger.Debug("replace", zap.String("where", "newSucc"), zap.Int("len", len(nextSuccList)))
 					succList = makeList(newSucc, nextSuccList)
 					modified = true
 
@@ -124,10 +122,12 @@ func (n *LocalNode) fixFinger() error {
 }
 
 func (n *LocalNode) checkPredecessor() error {
-	n.preMutex.Lock()
-	defer n.preMutex.Unlock()
+	oldA := n.predecessor.Load()
+	if oldA == nil {
+		return nil
+	}
 
-	pre := n.predecessor
+	pre := oldA.(*atomicVNode).Node
 	if pre == nil {
 		return nil
 	}
@@ -136,12 +136,11 @@ func (n *LocalNode) checkPredecessor() error {
 	}
 
 	err := pre.Ping()
-	if err != nil {
+	if err != nil && n.predecessor.CompareAndSwap(oldA, nilNode) {
 		n.Logger.Debug("Discovered dead predecessor",
 			zap.Uint64("node", n.ID()),
-			zap.Uint64("old", n.predecessor.ID()),
+			zap.Uint64("old", pre.ID()),
 		)
-		n.predecessor = nil
 	}
 	return err
 }

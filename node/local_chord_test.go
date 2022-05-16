@@ -36,14 +36,14 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 		return
 	}
 	for _, node := range nodes {
-		as.NotNil(node.predecessor)
+		as.NotNil(node.getPredecessor())
 		as.NotNil(node.getSuccessor())
 	}
 
 	fmt.Printf("Ring: %s\n", nodes[0].RingTrace())
 
 	if len(nodes) == 1 {
-		as.Equal(nodes[0].ID(), nodes[0].predecessor.ID())
+		as.Equal(nodes[0].ID(), nodes[0].getPredecessor().ID())
 		as.Equal(nodes[0].ID(), nodes[0].getSuccessor().ID())
 		return
 	}
@@ -52,9 +52,9 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 	})
 	// counter clockwise
 	for i := 0; i < len(nodes)-1; i++ {
-		as.Equal(nodes[i].ID(), nodes[i+1].predecessor.ID())
+		as.Equal(nodes[i].ID(), nodes[i+1].getPredecessor().ID())
 	}
-	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].predecessor.ID())
+	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].getPredecessor().ID())
 	// clockwise
 	for i := 0; i < len(nodes)-1; i++ {
 		as.Equal(nodes[i+1].ID(), nodes[i].getSuccessor().ID())

@@ -23,13 +23,15 @@ func (n *LocalNode) Ping() error {
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	var old chord.VNode
 	var new chord.VNode
+	var old chord.VNode
+	var oldA *atomicVNode
 
 	defer func() {
-		if old == nil || (new != nil && old.ID() != new.ID()) {
+		if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
 			n.Logger.Debug("Discovered new predecessor via Notify",
 				zap.Uint64("node", n.ID()),
+				zap.Uint64("previous", old.ID()),
 				zap.Uint64("predecessor", new.ID()),
 			)
 			go func() {
@@ -40,25 +42,24 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		}
 	}()
 
-	n.preMutex.Lock()
-	old = n.predecessor
-	if n.predecessor == nil {
-		n.predecessor = predecessor
-		new = predecessor
-		n.preMutex.Unlock()
+	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
+		n.Logger.Debug("Discovered new predecessor via Notify",
+			zap.Uint64("node", n.ID()),
+			zap.String("previous", "nil"),
+			zap.Uint64("predecessor", predecessor.ID()),
+		)
 		return nil
 	}
 
-	if err := n.predecessor.Ping(); err == nil {
-		if chord.Between(n.predecessor.ID(), predecessor.ID(), n.ID(), false) {
-			n.predecessor = predecessor
+	oldA = n.predecessor.Load().(*atomicVNode)
+	old = oldA.Node
+	if err := old.Ping(); err == nil {
+		if chord.Between(old.ID(), predecessor.ID(), n.ID(), false) {
 			new = predecessor
 		}
 	} else {
-		n.predecessor = predecessor
 		new = predecessor
 	}
-	n.preMutex.Unlock()
 
 	return nil
 }
@@ -134,11 +135,16 @@ func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
 	return list, nil
 }
 
+func (n *LocalNode) getPredecessor() chord.VNode {
+	a := n.predecessor.Load()
+	if a == nil {
+		return nil
+	}
+	return a.(*atomicVNode).Node
+}
+
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
-	n.preMutex.RLock()
-	pre := n.predecessor
-	n.preMutex.RUnlock()
-	return pre, nil
+	return n.getPredecessor(), nil
 }
 
 func (n *LocalNode) transferKeysIn() error {

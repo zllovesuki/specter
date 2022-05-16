@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	sAtomic "sync/atomic"
 	"time"
 
 	"specter/spec/chord"
@@ -12,11 +13,18 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	nilNode = &atomicVNode{Node: nil}
+)
+
+type atomicVNode struct {
+	Node chord.VNode
+}
+
 type LocalNode struct {
 	NodeConfig
 
-	preMutex    sync.RWMutex
-	predecessor chord.VNode
+	predecessor sAtomic.Value // *AtomicVNode
 
 	succMutex  sync.RWMutex
 	succXOR    *atomic.Uint64
@@ -65,9 +73,7 @@ func (n *LocalNode) Create() error {
 		zap.Uint64("node", n.ID()),
 	)
 
-	n.preMutex.Lock()
-	n.predecessor = nil
-	n.preMutex.Unlock()
+	n.predecessor.Store(nilNode)
 
 	n.succMutex.Lock()
 	n.successors[0] = n
@@ -83,6 +89,9 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if peer.ID() == n.ID() {
 		return fmt.Errorf("found duplicate node ID %d in the ring", n.ID())
 	}
+
+	n.predecessor.Store(nilNode)
+
 	proposedSucc, err := peer.FindSuccessor(n.ID())
 	if err != nil {
 		return fmt.Errorf("querying immediate successor: %w", err)
