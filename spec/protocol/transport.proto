@@ -16,6 +16,17 @@ message Stream {
     Type type = 1;
 }
 
+message Datagram {
+    enum Type {
+        UNKNOWN = 0;
+        ALIVE = 1;
+        DATA = 2;
+    }
+
+    Type type = 1;
+    bytes data = 2;
+}
+
 message Connection {
     Node identity = 1;
 }

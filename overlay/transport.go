@@ -28,10 +28,12 @@ var _ transport.Transport = (*QUIC)(nil)
 
 func NewQUIC(logger *zap.Logger, self *protocol.Node, serverTLS *tls.Config, clientTLS *tls.Config) *QUIC {
 	return &QUIC{
-		logger:     logger,
-		self:       self,
+		logger: logger,
+		self:   self,
+
 		rpcChan:    make(chan *transport.Delegate, 1),
 		directChan: make(chan *transport.Delegate, 1),
+		dgramChan:  make(chan *transport.DatagramDelegate, 32),
 
 		server: serverTLS,
 		client: clientTLS,
@@ -203,6 +205,30 @@ func (t *QUIC) Direct() <-chan *transport.Delegate {
 	return t.directChan
 }
 
+func (t *QUIC) SupportDatagram() bool {
+	return quicConfig.EnableDatagrams
+}
+
+func (t *QUIC) ReceiveDatagram() <-chan *transport.DatagramDelegate {
+	return t.dgramChan
+}
+
+func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
+	qKey := makeKey(peer)
+	if r, ok := t.qMap.Load(qKey); ok {
+		data := &protocol.Datagram{
+			Type: protocol.Datagram_DATA,
+			Data: buf,
+		}
+		b, err := proto.Marshal(data)
+		if err != nil {
+			return err
+		}
+		return r.(*nodeConnection).quic.SendMessage(b)
+	}
+	return fmt.Errorf("peer %s is not registered in transport", qKey)
+}
+
 func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.Stream, dir string) (quic.Connection, *protocol.Node, bool, error) {
 	rr := &protocol.Connection{
 		Identity: t.self,
@@ -249,7 +275,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
-	stream, err := q.AcceptStream(openCtx)
+	stream, err := q.OpenStreamSync(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +297,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
-	stream, err := q.OpenStreamSync(openCtx)
+	stream, err := q.AcceptStream(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +318,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 func (t *QUIC) handlePeer(ctx context.Context, q quic.Connection, peer *protocol.Node, dir string) {
 	t.logger.Debug("Starting goroutines to handle incoming streams and datagrams", zap.String("direction", dir), zap.String("key", makeKey(peer)))
 	go t.handleConnection(ctx, q, peer)
-	go t.handleDatagram(ctx, q)
+	go t.handleDatagram(ctx, q, peer)
 }
 
 func (t *QUIC) Accept(ctx context.Context) error {
@@ -318,7 +344,7 @@ func (t *QUIC) Accept(ctx context.Context) error {
 	}
 }
 
-func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection) {
+func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
 	logger := t.logger.With(zap.String("endpoint", q.RemoteAddr().String()))
 	for {
 		b, err := q.ReceiveMessage()
@@ -330,7 +356,17 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection) {
 		if err := proto.Unmarshal(b, data); err != nil {
 			logger.Error("decoding datagram to proto", zap.Error(err))
 		}
-		// logger.Debug("received datagram", zap.String("data", data.String()))
+		switch data.GetType() {
+		case protocol.Datagram_ALIVE:
+		case protocol.Datagram_DATA:
+			select {
+			case t.dgramChan <- &transport.DatagramDelegate{Buffer: data.GetData(), Identity: peer}:
+			default:
+				logger.Warn("datagram data buffer full, dropping datagram")
+			}
+		default:
+			logger.Warn("unknown datagram type: %s", zap.String("type", data.GetType().String()))
+		}
 	}
 }
 

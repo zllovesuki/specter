@@ -13,6 +13,11 @@ type Delegate struct {
 	Identity   *protocol.Node
 }
 
+type DatagramDelegate struct {
+	Buffer   []byte
+	Identity *protocol.Node
+}
+
 type Transport interface {
 	Identity() *protocol.Node
 
@@ -21,6 +26,10 @@ type Transport interface {
 
 	RPC() <-chan *Delegate
 	Direct() <-chan *Delegate
+
+	SupportDatagram() bool
+	ReceiveDatagram() <-chan *DatagramDelegate
+	SendDatagram(*protocol.Node, []byte) error
 
 	Accept(ctx context.Context) error
 

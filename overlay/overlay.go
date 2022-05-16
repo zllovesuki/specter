@@ -31,6 +31,7 @@ type QUIC struct {
 
 	rpcChan    chan *transport.Delegate
 	directChan chan *transport.Delegate
+	dgramChan  chan *transport.DatagramDelegate
 
 	server *tls.Config
 	client *tls.Config
