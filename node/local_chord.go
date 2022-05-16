@@ -65,9 +65,11 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 }
 
 func (n *LocalNode) getSuccessor() chord.VNode {
-	n.succMutex.RLock()
-	defer n.succMutex.RUnlock()
-	return n.successors[0]
+	s := n.successors.Load()
+	if s == nil {
+		return nil
+	}
+	return s.(*atomicVNodeList).Nodes[0]
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
@@ -121,11 +123,15 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
-	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries+1)
-	n.succMutex.RLock()
-	defer n.succMutex.RUnlock()
+	s := n.successors.Load()
+	if s == nil {
+		return []chord.VNode{}, nil
+	}
 
-	for _, s := range n.successors {
+	succ := s.(*atomicVNodeList).Nodes
+	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries+1)
+
+	for _, s := range succ {
 		if s == nil {
 			continue
 		}

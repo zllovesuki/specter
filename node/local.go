@@ -21,14 +21,21 @@ type atomicVNode struct {
 	Node chord.VNode
 }
 
+type atomicVNodeList struct {
+	Nodes []chord.VNode
+}
+
 type LocalNode struct {
 	NodeConfig
 
-	predecessor sAtomic.Value // *AtomicVNode
+	_           [64]byte
+	predecessor sAtomic.Value // *atomicVNode
+	_           [64]byte
 
-	succMutex  sync.RWMutex
+	_          [64]byte
+	successors sAtomic.Value // *atomicVNodeList
+	_          [64]byte
 	succXOR    *atomic.Uint64
-	successors []chord.VNode
 
 	fingers []struct {
 		mu sync.RWMutex
@@ -51,7 +58,6 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	n := &LocalNode{
 		NodeConfig: conf,
 		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
-		successors: make([]chord.VNode, chord.ExtendedSuccessorEntries+1),
 		started:    atomic.NewBool(false),
 		kv:         conf.KVProvider,
 		fingers: make([]struct {
@@ -75,10 +81,11 @@ func (n *LocalNode) Create() error {
 
 	n.predecessor.Store(nilNode)
 
-	n.succMutex.Lock()
-	n.successors[0] = n
-	n.succXOR.Store(n.xor(n.successors))
-	n.succMutex.Unlock()
+	s := &atomicVNodeList{
+		Nodes: makeList(n, []chord.VNode{}),
+	}
+	n.succXOR.Store(n.xor(s.Nodes))
+	n.successors.Store(s)
 
 	n.startTasks()
 
@@ -89,8 +96,6 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if peer.ID() == n.ID() {
 		return fmt.Errorf("found duplicate node ID %d in the ring", n.ID())
 	}
-
-	n.predecessor.Store(nilNode)
 
 	proposedSucc, err := peer.FindSuccessor(n.ID())
 	if err != nil {
@@ -114,15 +119,17 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		return fmt.Errorf("querying successor list: %w", err)
 	}
 
-	n.succMutex.Lock()
-	n.successors[0] = proposedSucc
-	copy(n.successors[1:], successors)
-	n.succXOR.Store(n.xor(n.successors))
-	n.succMutex.Unlock()
-
 	if !n.started.CAS(false, true) {
 		return fmt.Errorf("chord node already started")
 	}
+
+	n.predecessor.Store(nilNode)
+
+	s := &atomicVNodeList{
+		Nodes: makeList(proposedSucc, successors),
+	}
+	n.succXOR.Store(n.xor(s.Nodes))
+	n.successors.Store(s)
 
 	n.startTasks()
 

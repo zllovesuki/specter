@@ -38,24 +38,15 @@ func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 	return s
 }
 
-func (n *LocalNode) copySuccessors() []chord.VNode {
-	n.succMutex.RLock()
-	succList := append([]chord.VNode(nil), n.successors...)
-	n.succMutex.RUnlock()
-	return succList
-}
-
 func (n *LocalNode) stablize() error {
-	succList := n.copySuccessors()
+	succList, _ := n.GetSuccessors()
 	modified := true
 
 	defer func() {
 		xor := n.xor(succList)
 		if modified && n.succXOR.Load() != xor {
-			n.succMutex.Lock()
-			copy(n.successors, succList)
 			n.succXOR.Store(xor)
-			n.succMutex.Unlock()
+			n.successors.Store(&atomicVNodeList{Nodes: succList})
 
 			n.Logger.Debug("Discovered new successors via Stablize",
 				zap.Uint64("node", n.ID()),
