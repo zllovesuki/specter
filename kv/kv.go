@@ -56,6 +56,7 @@ func (m *MemoryMap) delete(key []byte) {
 	p := m.hashFn(sKey)
 
 	if kMap, ok := m.s.Load(p); ok {
+		// not safe to delete the entire submap because atomic
 		kMap.(*skipmap.StringMap).Delete(sKey)
 	}
 }
@@ -115,7 +116,8 @@ func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
 func (m *MemoryMap) Fsck(low, self uint64) bool {
 	valid := true
 	m.s.Range(func(key uint64, value interface{}) bool {
-		if !chord.Between(low, key, self, true) {
+		kMap := value.(*skipmap.StringMap)
+		if !chord.Between(low, key, self, true) && kMap.Len() > 0 {
 			valid = false
 			return false
 		}
