@@ -66,6 +66,8 @@ func TestKVOperation(t *testing.T) {
 		err := local.Put(key, value)
 		as.Nil(err)
 
+		fsck(as, nodes)
+
 		// Get
 		for _, remote := range nodes {
 			r, err := remote.Get(key)

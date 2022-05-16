@@ -13,7 +13,7 @@ func (n *LocalNode) Put(key, value []byte) error {
 		return err
 	}
 	if succ.ID() == n.ID() {
-		n.Logger.Debug("KV Put", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
+		n.Logger.Debug("KV Put", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
 		return n.kv.Put(key, value)
 	}
 	return succ.Put(key, value)
@@ -26,7 +26,7 @@ func (n *LocalNode) Get(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	if succ.ID() == n.ID() {
-		n.Logger.Debug("KV Get", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
+		n.Logger.Debug("KV Get", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
 		return n.kv.Get(key)
 	}
 	return succ.Get(key)
@@ -39,7 +39,7 @@ func (n *LocalNode) Delete(key []byte) error {
 		return err
 	}
 	if succ.ID() == n.ID() {
-		n.Logger.Debug("KV Delete", zap.Binary("key", key), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
+		n.Logger.Debug("KV Delete", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
 		return n.kv.Delete(key)
 	}
 	return succ.Delete(key)
