@@ -42,7 +42,7 @@ func NewQUIC(logger *zap.Logger, self *protocol.Node, serverTLS *tls.Config, cli
 	}
 }
 
-func makeKey(peer *protocol.Node) string {
+func makeQKey(peer *protocol.Node) string {
 	qMapKey := peer.GetAddress() + "/"
 	if peer.GetUnknown() {
 		qMapKey = qMapKey + "-1"
@@ -52,8 +52,16 @@ func makeKey(peer *protocol.Node) string {
 	return qMapKey
 }
 
+func makeSKey(peer *protocol.Node) string {
+	if peer.GetAddress() == "" {
+		return "/" + strconv.FormatUint(peer.GetId(), 10)
+	} else {
+		return "/" + peer.GetAddress()
+	}
+}
+
 func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, error) {
-	qKey := makeKey(peer)
+	qKey := makeQKey(peer)
 
 	rUnlock := t.qMu.RLock(qKey)
 	if sQ, ok := t.qMap.Load(qKey); ok {
@@ -126,7 +134,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		return nil, ErrClosed
 	}
 
-	rpcMapKey := peer.GetAddress()
+	rpcMapKey := makeSKey(peer)
 
 	rUnlock := t.rpcMu.RLock(rpcMapKey)
 	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
@@ -135,7 +143,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 	}
 	rUnlock()
 
-	t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeKey(peer)))
+	t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
 
 	unlock := t.rpcMu.Lock(rpcMapKey)
 	defer unlock()
@@ -144,7 +152,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		return r.(rpcSpec.RPC), nil
 	}
 
-	t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeKey(peer)))
+	t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
@@ -173,7 +181,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		}
 	}
 
-	t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeKey(peer)))
+	t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeQKey(peer)))
 
 	t.rpcMap.Store(rpcMapKey, r)
 
@@ -214,7 +222,7 @@ func (t *QUIC) ReceiveDatagram() <-chan *transport.DatagramDelegate {
 }
 
 func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
-	qKey := makeKey(peer)
+	qKey := makeQKey(peer)
 	if r, ok := t.qMap.Load(qKey); ok {
 		data := &protocol.Datagram{
 			Type: protocol.Datagram_DATA,
@@ -250,7 +258,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 		return q, t.self, false, nil
 	}
 
-	rKey := makeKey(rr.GetIdentity())
+	rKey := makeQKey(rr.GetIdentity())
 	cached := &nodeConnection{
 		peer: rr.GetIdentity(),
 		quic: q,
@@ -316,7 +324,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 }
 
 func (t *QUIC) handlePeer(ctx context.Context, q quic.Connection, peer *protocol.Node, dir string) {
-	t.logger.Debug("Starting goroutines to handle incoming streams and datagrams", zap.String("direction", dir), zap.String("key", makeKey(peer)))
+	t.logger.Debug("Starting goroutines to handle incoming streams and datagrams", zap.String("direction", dir), zap.String("key", makeQKey(peer)))
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
 }

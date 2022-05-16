@@ -55,14 +55,14 @@ func (t *QUIC) reaper(ctx context.Context) {
 
 			if len(candidate) > 0 {
 				for _, c := range candidate {
-					k := makeKey(c.peer)
+					k := makeQKey(c.peer)
 					t.logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
 					t.qMap.Delete(k)
 					c.quic.CloseWithError(401, "Gone")
 				}
 
 				for _, c := range candidate {
-					k := c.peer.GetAddress()
+					k := makeSKey(c.peer)
 					t.logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
 					if r, ok := t.rpcMap.LoadAndDelete(k); ok {
 						r.(rpc.RPC).Close()
