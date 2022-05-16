@@ -64,7 +64,7 @@ func main() {
 
 	logger.Debug("tunnel published", zap.String("hostname", hostname))
 
-	c.Tunnel(hostname)
+	c.Tunnel(ctx, hostname)
 }
 
 func generateTLSConfig() *tls.Config {

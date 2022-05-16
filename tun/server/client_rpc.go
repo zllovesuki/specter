@@ -19,6 +19,21 @@ var _ rpc.RPCHandler = (*Server)(nil).handleRPC
 
 var generator, _ = diceware.NewGenerator(nil)
 
+func uniqueVNodes(nodes []chord.VNode) []chord.VNode {
+	u := make([]chord.VNode, 0)
+	m := make(map[uint64]bool)
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if _, ok := m[node.ID()]; !ok {
+			m[node.ID()] = true
+			u = append(u, node)
+		}
+	}
+	return u
+}
+
 func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	select {
 	case <-ctx.Done():
@@ -36,17 +51,13 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 		copy(vnodes[1:], successors)
 
 		servers := make([]*protocol.Node, 0)
-		for _, chord := range vnodes {
-			if chord == nil {
-				continue
-			}
-			tunId, err := s.lookupIdentitiesByChord(chord.Identity())
+		for _, chord := range uniqueVNodes(vnodes) {
+			identities, err := s.lookupIdentities(tun.IdentitiesChordKey(chord.Identity()))
 			if err != nil {
 				continue
 			}
-			servers = append(servers, tunId.GetTun())
+			servers = append(servers, identities.GetTun())
 		}
-
 		resp.GetNodesResponse = &protocol.GetNodesResponse{
 			Nodes: servers,
 		}
@@ -55,7 +66,7 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 		hostname := strings.Join(generator.MustGenerate(6), "-")
 
 		for k, server := range req.GetPublishTunnelRequest().GetServers() {
-			identities, err := s.lookupIdentitiesByTun(server)
+			identities, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
 			if err != nil {
 				return nil, err
 			}
@@ -75,7 +86,7 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 			}
 		}
 		resp.PublishTunnelResponse = &protocol.PublishTunnelResponse{
-			Hostname: hostname,
+			Hostname: strings.Join([]string{hostname, s.rootDomain}, "."),
 		}
 
 	default:

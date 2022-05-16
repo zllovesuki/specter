@@ -17,7 +17,7 @@ func newValFunc() interface{} {
 	return skipmap.NewString()
 }
 
-var _ chord.KV = &MemoryMap{}
+var _ chord.KV = (*MemoryMap)(nil)
 
 func WithChordHash() *MemoryMap {
 	return &MemoryMap{

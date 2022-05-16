@@ -18,8 +18,6 @@ func newBufferPool() *bufferPool {
 	return &bufferPool{}
 }
 
-var _ httputil.BufferPool = &bufferPool{}
-
 func (b *bufferPool) Get() []byte {
 	return pool.Get(bufferSize)
 }

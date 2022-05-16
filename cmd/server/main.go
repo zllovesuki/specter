@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"math/big"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -78,6 +79,9 @@ func main() {
 	}
 	defer gwListener.Close()
 
+	gwPort := gwListener.Addr().(*net.TCPAddr).Port
+	rootDomain := "example.com"
+
 	chordLogger := logger.With(zap.String("component", "chord"))
 	tunLogger := logger.With(zap.String("component", "tun"))
 	gwLogger := logger.With(zap.String("component", "gateway"))
@@ -99,14 +103,14 @@ func main() {
 	})
 	defer chordNode.Stop()
 
-	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport)
+	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
 		Tun:         tunServer,
 		Listener:    gwListener,
-		RootDomain:  "example.com",
-		GatewayPort: 6969,
+		RootDomain:  rootDomain,
+		GatewayPort: gwPort,
 	})
 	if err != nil {
 		logger.Fatal("gateway", zap.Error(err))
@@ -132,9 +136,9 @@ func main() {
 		}
 	}
 
-	go gw.Start(ctx)
-	go tunServer.Accept(ctx)
 	go clientTransport.Accept(ctx)
+	go tunServer.Accept(ctx)
+	go gw.Start(ctx)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

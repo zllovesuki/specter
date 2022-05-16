@@ -90,8 +90,7 @@ func (c *Client) PublishTunnel(ctx context.Context, servers []*protocol.Node) (s
 	return resp.GetPublishTunnelResponse().GetHostname(), nil
 }
 
-func (c *Client) Tunnel(hostname string) {
-	hostname = hostname + ".exmaple.com"
+func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	overwrite := false
 	u, err := url.Parse("http://127.0.0.1:8080")
 	if err != nil {
@@ -153,7 +152,7 @@ func (c *Client) Tunnel(hostname string) {
 			case protocol.Link_HTTP:
 				httpCh <- delegation.Connection
 			case protocol.Link_TCP:
-				c.forward(context.TODO(), delegation.Connection)
+				c.forward(ctx, delegation.Connection)
 			default:
 				c.logger.Error("unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
 				delegation.Connection.Close()

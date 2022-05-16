@@ -35,14 +35,16 @@ type Server struct {
 	chord           chord.VNode
 	clientTransport transport.Transport
 	chordTransport  transport.Transport
+	rootDomain      string
 }
 
-func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport, chordTrans transport.Transport) *Server {
+func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport, chordTrans transport.Transport, rootDomain string) *Server {
 	return &Server{
 		logger:          logger,
 		chord:           local,
 		clientTransport: clientTrans,
 		chordTransport:  chordTrans,
+		rootDomain:      rootDomain,
 	}
 }
 
@@ -70,31 +72,14 @@ func (s *Server) publishIdentities() error {
 	return nil
 }
 
-func (s *Server) lookupIdentitiesByChord(chord *protocol.Node) (*protocol.IdentitiesPair, error) {
+func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
 	identities := &protocol.IdentitiesPair{}
-	key := tun.IdentitiesChordKey(chord)
 	buf, err := s.chord.Get([]byte(key))
 	if err != nil {
 		return nil, err
 	}
 	if len(buf) == 0 {
-		return nil, fmt.Errorf("no identities pair found with chord key: %s/%d", chord.GetAddress(), chord.GetId())
-	}
-	if err := proto.Unmarshal(buf, identities); err != nil {
-		return nil, fmt.Errorf("identities decode failure: %w", err)
-	}
-	return identities, nil
-}
-
-func (s *Server) lookupIdentitiesByTun(tunnel *protocol.Node) (*protocol.IdentitiesPair, error) {
-	identities := &protocol.IdentitiesPair{}
-	key := tun.IdentitiesTunKey(tunnel)
-	buf, err := s.chord.Get([]byte(key))
-	if err != nil {
-		return nil, err
-	}
-	if len(buf) == 0 {
-		return nil, fmt.Errorf("no identities pair found with tun key: %s/%d", tunnel.GetAddress(), tunnel.GetId())
+		return nil, fmt.Errorf("no identities pair found with key: %s", key)
 	}
 	if err := proto.Unmarshal(buf, identities); err != nil {
 		return nil, fmt.Errorf("identities decode failure: %w", err)
@@ -119,7 +104,7 @@ func (s *Server) Accept(ctx context.Context) {
 			return
 
 		case delegate := <-s.chordTransport.Direct():
-			go s.handleConn(ctx, delegate.Connection)
+			go s.handleConn(ctx, delegate)
 
 		case delegate := <-s.clientTransport.Direct():
 			// TODO: kill the entire connection because the client
@@ -135,22 +120,29 @@ func (s *Server) Accept(ctx context.Context) {
 	}
 }
 
-func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
+func (s *Server) handleConn(ctx context.Context, delegation *transport.Delegate) {
 	var err error
 	var clientConn net.Conn
 
 	defer func() {
 		if err != nil {
-			conn.Close()
+			delegation.Connection.Close()
 		}
 	}()
 
 	bundle := &protocol.Tunnel{}
-	err = rpc.Receive(conn, bundle)
+	err = rpc.Receive(delegation.Connection, bundle)
 	if err != nil {
 		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
+	s.logger.Debug("received proxy stream from remote node",
+		zap.String("hostname", bundle.GetHostname()),
+		zap.Uint64("remote_chord", delegation.Identity.GetId()),
+		zap.Uint64("client", bundle.GetClient().GetId()),
+		zap.Uint64("chord", bundle.GetChord().GetId()),
+		zap.Uint64("tun", bundle.GetTun().GetId()))
+
 	if bundle.GetTun().GetId() != s.clientTransport.Identity().GetId() {
 		s.logger.Error("received remote connection for the wrong server",
 			zap.Uint64("expected", s.clientTransport.Identity().GetId()),
@@ -169,13 +161,23 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	tun.Pipe(conn, clientConn)
+	tun.Pipe(delegation.Connection, clientConn)
 }
 
 func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn, error) {
 	if bundle.GetTun().GetId() == s.clientTransport.Identity().GetId() {
+		s.logger.Debug("client is connected to us, opening direct stream",
+			zap.String("hostname", bundle.GetHostname()),
+			zap.Uint64("client", bundle.GetClient().GetId()))
+
 		return s.clientTransport.DialDirect(ctx, bundle.GetClient())
 	} else {
+		s.logger.Debug("client is connected to remote node, opening proxy stream",
+			zap.String("hostname", bundle.GetHostname()),
+			zap.Uint64("client", bundle.GetClient().GetId()),
+			zap.Uint64("chord", bundle.GetChord().GetId()),
+			zap.Uint64("tun", bundle.GetTun().GetId()))
+
 		conn, err := s.chordTransport.DialDirect(ctx, bundle.GetChord())
 		if err != nil {
 			return nil, err
