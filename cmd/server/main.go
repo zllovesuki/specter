@@ -64,6 +64,10 @@ func main() {
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
 	}
+	tunTLSConf := generateTLSConfig()
+	tunTLSConf.NextProtos = []string{
+		tun.ALPN(protocol.Link_SPECTER),
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -81,7 +85,7 @@ func main() {
 	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, serverTLS, clientTLS)
 	defer chordTransport.Stop()
 
-	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, serverTLS, clientTLS)
+	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, tunTLSConf, clientTLS)
 	defer clientTransport.Stop()
 
 	chordNode := node.NewLocalNode(node.NodeConfig{
@@ -143,7 +147,9 @@ func generateTLSConfig() *tls.Config {
 	if err != nil {
 		panic(err)
 	}
-	template := x509.Certificate{SerialNumber: big.NewInt(1)}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+	}
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	if err != nil {
 		panic(err)
@@ -156,7 +162,8 @@ func generateTLSConfig() *tls.Config {
 		panic(err)
 	}
 	return &tls.Config{
-		Certificates: []tls.Certificate{tlsCert},
-		NextProtos:   []string{"quic-echo-example"},
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{tlsCert},
+		NextProtos:         []string{"quic-echo-example"},
 	}
 }
