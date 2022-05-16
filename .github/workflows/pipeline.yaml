@@ -1,0 +1,38 @@
+name: Pipeline
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  testing:
+    name: Unit Tests with Race Detector
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        go: ["1.17.8", "1.18.2"]
+    env:
+      OS: ${{ matrix.os }}
+
+    steps: 
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Test with Coverage and Race Detector
+        run: go test -v -race ./... -covermode=atomic -coverprofile="coverage.out"
