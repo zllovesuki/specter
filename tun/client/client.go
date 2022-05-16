@@ -10,8 +10,9 @@ import (
 	"net/url"
 	"time"
 
+	"specter/rpc"
 	"specter/spec/protocol"
-	"specter/spec/rpc"
+	rpcSpec "specter/spec/rpc"
 	"specter/spec/transport"
 	"specter/spec/tun"
 
@@ -32,7 +33,7 @@ import (
 type Client struct {
 	logger          *zap.Logger
 	serverTransport transport.Transport
-	rpc             rpc.RPC
+	rpc             rpcSpec.RPC
 }
 
 func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, server *protocol.Node) (*Client, error) {
@@ -62,21 +63,35 @@ func (c *Client) forward(ctx context.Context, remote net.Conn) {
 	tun.Pipe(remote, local)
 }
 
-func (c *Client) registerTunnel() {
+func (c *Client) GetCandidates(ctx context.Context) ([]*protocol.Node, error) {
 	req := &protocol.RPC_Request{
 		Kind:            protocol.RPC_GET_NODES,
 		GetNodesRequest: &protocol.GetNodesRequest{},
 	}
-	resp, err := c.rpc.Call(context.TODO(), req)
+	resp, err := c.rpc.Call(ctx, req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	for _, node := range resp.GetNodesResponse.GetNodes() {
-		c.logger.Debug("get nodes", zap.String("node", node.String()))
-	}
+	return resp.GetGetNodesResponse().GetNodes(), nil
 }
 
-func (c *Client) Tunnel() {
+func (c *Client) PublishTunnel(ctx context.Context, servers []*protocol.Node) (string, error) {
+	req := &protocol.RPC_Request{
+		Kind: protocol.RPC_PUBLISH_TUNNEL,
+		PublishTunnelRequest: &protocol.PublishTunnelRequest{
+			Client:  c.serverTransport.Identity(),
+			Servers: servers,
+		},
+	}
+	resp, err := c.rpc.Call(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	return resp.GetPublishTunnelResponse().GetHostname(), nil
+}
+
+func (c *Client) Tunnel(hostname string) {
+	hostname = hostname + ".exmaple.com"
 	overwrite := false
 	u, err := url.Parse("http://127.0.0.1:8080")
 	if err != nil {
@@ -88,12 +103,10 @@ func (c *Client) Tunnel() {
 		c.logger.Fatal("unsupported scheme. valid schemes: http, https, tcp", zap.String("scheme", u.Scheme))
 	}
 
-	hostname := "example.example.com"
-
 	tunnelURL, _ := url.Parse(hostname)
 	hostHeader := u.Host
 	if overwrite {
-		hostHeader = tunnelURL.Host
+		hostHeader = tunnelURL.Hostname()
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(u)
@@ -116,9 +129,9 @@ func (c *Client) Tunnel() {
 	}
 	proxy.ErrorLog = zap.NewStdLog(c.logger)
 
-	connCh := make(chan net.Conn, 32)
+	httpCh := make(chan net.Conn, 32)
 	accepter := &tun.HTTPAcceptor{
-		Conn: connCh,
+		Conn: httpCh,
 	}
 	forwarder := &http.Server{
 		Handler:  proxy,
@@ -129,6 +142,22 @@ func (c *Client) Tunnel() {
 	}()
 
 	for delegation := range c.serverTransport.Direct() {
-		connCh <- delegation.Connection
+		go func(delegation *transport.Delegate) {
+			link := &protocol.Link{}
+			if err := rpc.Receive(delegation.Connection, link); err != nil {
+				c.logger.Error("receiving link information from gateway", zap.Error(err))
+				delegation.Connection.Close()
+				return
+			}
+			switch link.GetAlpn() {
+			case protocol.Link_HTTP:
+				httpCh <- delegation.Connection
+			case protocol.Link_TCP:
+				c.forward(context.TODO(), delegation.Connection)
+			default:
+				c.logger.Error("unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
+				delegation.Connection.Close()
+			}
+		}(delegation)
 	}
 }

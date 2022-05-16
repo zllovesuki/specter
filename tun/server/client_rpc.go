@@ -3,20 +3,29 @@ package server
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"specter/spec/chord"
 	"specter/spec/protocol"
 	"specter/spec/rpc"
 	"specter/spec/tun"
 
+	"github.com/sethvargo/go-diceware/diceware"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
 var _ rpc.RPCHandler = (*Server)(nil).handleRPC
 
+var generator, _ = diceware.NewGenerator(nil)
+
 func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("server has shutdown")
+	default:
+	}
+
 	resp := &protocol.RPC_Response{}
 
 	switch req.GetKind() {
@@ -26,25 +35,37 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 		successors, _ := s.chord.GetSuccessors()
 		copy(vnodes[1:], successors)
 
-		servers := make([]*protocol.Node, len(vnodes))
-		for i, vnode := range vnodes {
-			if vnode == nil {
+		servers := make([]*protocol.Node, 0)
+		for _, chord := range vnodes {
+			if chord == nil {
 				continue
 			}
-			servers[i] = vnode.Identity()
+			tunId, err := s.lookupIdentitiesByChord(chord.Identity())
+			if err != nil {
+				continue
+			}
+			servers = append(servers, tunId.GetTun())
 		}
+
 		resp.GetNodesResponse = &protocol.GetNodesResponse{
 			Nodes: servers,
 		}
 
 	case protocol.RPC_PUBLISH_TUNNEL:
-		hostname := "TODO: hostname generation"
+		hostname := strings.Join(generator.MustGenerate(6), "-")
+
 		for k, server := range req.GetPublishTunnelRequest().GetServers() {
-			bundle := &protocol.Tunnel{
-				Client: req.GetPublishTunnelRequest().GetClient(),
-				Server: server,
+			identities, err := s.lookupIdentitiesByTun(server)
+			if err != nil {
+				return nil, err
 			}
-			key := hostname + "/" + strconv.FormatInt(int64(k), 10)
+			bundle := &protocol.Tunnel{
+				Client:   req.GetPublishTunnelRequest().GetClient(),
+				Chord:    identities.GetChord(),
+				Tun:      identities.GetTun(),
+				Hostname: hostname,
+			}
+			key := tun.BundleKey(hostname, k+1)
 			val, err := proto.Marshal(bundle)
 			if err != nil {
 				return nil, err

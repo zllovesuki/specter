@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"specter/rpc"
 	"specter/spec/chord"
@@ -45,8 +46,73 @@ func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport,
 	}
 }
 
+func (s *Server) publishIdentities() error {
+	identities := &protocol.IdentitiesPair{
+		Chord: s.chordTransport.Identity(),
+		Tun:   s.clientTransport.Identity(),
+	}
+	buf, err := proto.Marshal(identities)
+	if err != nil {
+		return err
+	}
+
+	keys := []string{
+		tun.IdentitiesChordKey(s.chordTransport.Identity()),
+		tun.IdentitiesTunKey(s.clientTransport.Identity()),
+	}
+	for _, key := range keys {
+		err := s.chord.Put([]byte(key), buf)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) lookupIdentitiesByChord(chord *protocol.Node) (*protocol.IdentitiesPair, error) {
+	identities := &protocol.IdentitiesPair{}
+	key := tun.IdentitiesChordKey(chord)
+	buf, err := s.chord.Get([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+	if len(buf) == 0 {
+		return nil, fmt.Errorf("no identities pair found with chord key: %s/%d", chord.GetAddress(), chord.GetId())
+	}
+	if err := proto.Unmarshal(buf, identities); err != nil {
+		return nil, fmt.Errorf("identities decode failure: %w", err)
+	}
+	return identities, nil
+}
+
+func (s *Server) lookupIdentitiesByTun(tunnel *protocol.Node) (*protocol.IdentitiesPair, error) {
+	identities := &protocol.IdentitiesPair{}
+	key := tun.IdentitiesTunKey(tunnel)
+	buf, err := s.chord.Get([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+	if len(buf) == 0 {
+		return nil, fmt.Errorf("no identities pair found with tun key: %s/%d", tunnel.GetAddress(), tunnel.GetId())
+	}
+	if err := proto.Unmarshal(buf, identities); err != nil {
+		return nil, fmt.Errorf("identities decode failure: %w", err)
+	}
+	return identities, nil
+}
+
 func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("specter server started", zap.Uint64("server", s.clientTransport.Identity().GetId()))
+
+	go func() {
+		s.logger.Info("waiting 10 seconds before publishing identities to chord")
+		<-time.After(time.Second * 10)
+		if err := s.publishIdentities(); err != nil {
+			s.logger.Fatal("publishing identities pair", zap.Error(err))
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -58,6 +124,7 @@ func (s *Server) Accept(ctx context.Context) {
 		case delegate := <-s.clientTransport.Direct():
 			// TODO: kill the entire connection because the client
 			// should not be opening connection to us
+			s.logger.Warn("client attempted to open direct stream")
 			delegate.Connection.Close()
 
 		case delegate := <-s.clientTransport.RPC():
@@ -69,38 +136,61 @@ func (s *Server) Accept(ctx context.Context) {
 }
 
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
+	var err error
+	var clientConn net.Conn
+
+	defer func() {
+		if err != nil {
+			conn.Close()
+		}
+	}()
+
 	bundle := &protocol.Tunnel{}
-	if err := rpc.Receive(conn, bundle); err != nil {
-		return
-	}
-	if bundle.GetServer().GetId() != s.clientTransport.Identity().GetId() {
-		return
-	}
-	clientConn, err := s.clientTransport.DialDirect(ctx, bundle.GetClient())
+	err = rpc.Receive(conn, bundle)
 	if err != nil {
+		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
+	if bundle.GetTun().GetId() != s.clientTransport.Identity().GetId() {
+		s.logger.Error("received remote connection for the wrong server",
+			zap.Uint64("expected", s.clientTransport.Identity().GetId()),
+			zap.Uint64("got", bundle.GetTun().GetId()),
+			zap.String("hostname", bundle.GetHostname()),
+		)
+		err = ErrDestinationNotFound
+		return
+	}
+	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
+	if err != nil {
+		s.logger.Error("dialing connection to connected client",
+			zap.Uint64("client", bundle.GetClient().GetId()),
+			zap.String("hostname", bundle.GetHostname()),
+		)
+		return
+	}
+
 	tun.Pipe(conn, clientConn)
 }
 
 func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn, error) {
-	if bundle.GetServer().GetId() == s.clientTransport.Identity().GetId() {
+	if bundle.GetTun().GetId() == s.clientTransport.Identity().GetId() {
 		return s.clientTransport.DialDirect(ctx, bundle.GetClient())
 	} else {
-		conn, err := s.chordTransport.DialDirect(ctx, bundle.GetServer())
+		conn, err := s.chordTransport.DialDirect(ctx, bundle.GetChord())
 		if err != nil {
 			return nil, err
 		}
 		if err := rpc.Send(conn, bundle); err != nil {
+			s.logger.Error("sending remote tunnel negotiation", zap.Error(err))
 			return nil, err
 		}
 		return conn, nil
 	}
 }
 
-func (s *Server) Dial(ctx context.Context, alpn protocol.Link_ALPN, hostname string) (net.Conn, error) {
+func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
-		key := tun.Key(hostname, k)
+		key := tun.BundleKey(link.GetHostname(), k)
 		s.logger.Debug("gateway lookup", zap.String("key", key))
 		val, err := s.chord.Get([]byte(key))
 		if err != nil {
@@ -117,6 +207,11 @@ func (s *Server) Dial(ctx context.Context, alpn protocol.Link_ALPN, hostname str
 		clientConn, err := s.getConn(ctx, bundle)
 		if err != nil {
 			s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
+			continue
+		}
+		if err := rpc.Send(clientConn, link); err != nil {
+			s.logger.Error("sending link information to client", zap.Error(err))
+			clientConn.Close()
 			continue
 		}
 		// TODO: optionally cache the routing information

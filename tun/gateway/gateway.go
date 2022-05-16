@@ -72,7 +72,10 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 		case tunSpec.ALPN(protocol.Link_TCP):
 			g.Logger.Debug("forward raw connection")
 			parts := strings.SplitN(cs.ServerName, ".", 2)
-			c, err := g.Tun.Dial(ctx, protocol.Link_TCP, parts[0])
+			c, err := g.Tun.Dial(ctx, &protocol.Link{
+				Alpn:     protocol.Link_TCP,
+				Hostname: parts[0],
+			})
 			if err != nil {
 				g.Logger.Error("establish raw link error", zap.Error(err))
 				conn.Close()
