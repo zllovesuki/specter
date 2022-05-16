@@ -323,7 +323,7 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection) {
 	for {
 		b, err := q.ReceiveMessage()
 		if err != nil {
-			logger.Error("receiving datagram", zap.Error(err))
+			// logger.Error("receiving datagram", zap.Error(err))
 			return
 		}
 		data := &protocol.Datagram{}
@@ -338,7 +338,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			t.logger.Error("accepting new stream", zap.Error(err), zap.String("remote", q.RemoteAddr().String()))
+			// t.logger.Error("accepting new stream", zap.Error(err), zap.String("remote", q.RemoteAddr().String()))
 			return
 		}
 		go t.streamRouter(q, stream, peer)
