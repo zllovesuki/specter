@@ -39,11 +39,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 				zap.Uint64("previous", old.ID()),
 				zap.Uint64("predecessor", new.ID()),
 			)
-			go func() {
-				if err := n.transferKeysIn(); err != nil {
-					n.Logger.Error("transfer keys from successor upon notify", zap.Error(err))
-				}
-			}()
+			go n.transferKeysIn(new)
 		}
 	}()
 
@@ -53,6 +49,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
+		go n.transferKeysIn(predecessor)
 		return nil
 	}
 
@@ -156,53 +153,60 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	return n.getPredecessor(), nil
 }
 
-func (n *LocalNode) transferKeysIn() error {
+func (n *LocalNode) transferKeysIn(pre chord.VNode) (err error) {
 	// find low index (predecessor)
 	// find high index (this node)
 	// get keys between (low, high] from successor
 	// copy keys from successor
 	// remove keys from successor
-
-	pre, _ := n.GetPredecessor()
-	if pre == nil {
-		return fmt.Errorf("node has no predecessor")
-	}
+	defer func() {
+		if err != nil {
+			n.Logger.Error("transfer keys from successor", zap.Uint64("predecessor", pre.ID()), zap.Error(err))
+		}
+	}()
 
 	succ := n.getSuccessor()
 	if succ == nil {
-		return fmt.Errorf("node has no successor")
+		err = fmt.Errorf("node has no successor")
+		return
 	}
 
 	if pre.ID() == n.ID() || succ.ID() == n.ID() {
 		return nil
 	}
 
-	keys, err := succ.LocalKeys(pre.ID(), n.ID())
+	var keys [][]byte
+	keys, err = succ.LocalKeys(pre.ID(), n.ID())
 	if err != nil {
-		return fmt.Errorf("getting keys for transfer from successor: %w", err)
+		err = fmt.Errorf("getting keys for transfer from successor: %w", err)
+		return
 	}
 
 	n.Logger.Debug("Transfering keys from successor", zap.Int("num_keys", len(keys)), zap.Uint64("low", pre.ID()), zap.Uint64("high", succ.ID()))
 
 	if len(keys) == 0 {
-		return nil
+		return
 	}
 
 	// TODO: split into batches
-	values, err := succ.LocalGets(keys)
+	var values [][]byte
+	values, err = succ.LocalGets(keys)
 	if err != nil {
-		return fmt.Errorf("fetching values from successor: %w", err)
+		err = fmt.Errorf("fetching values from successor: %w", err)
+		return
 	}
 
-	if err := n.LocalPuts(keys, values); err != nil {
-		return fmt.Errorf("storing KV locally: %w", err)
+	if err = n.LocalPuts(keys, values); err != nil {
+		err = fmt.Errorf("storing KV locally: %w", err)
+		return
 	}
 
-	if err := succ.LocalDeletes(keys); err != nil {
-		return fmt.Errorf("removing keys from successor: %w", err)
+	if err = succ.LocalDeletes(keys); err != nil {
+		err = fmt.Errorf("removing keys from successor: %w", err)
+		return
 	}
 
-	return nil
+	return
 }
 
 func (n *LocalNode) transKeysOut() error {

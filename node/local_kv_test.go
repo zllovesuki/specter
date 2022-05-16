@@ -94,6 +94,13 @@ func TestKVOperation(t *testing.T) {
 	}
 }
 
+func fsck(as *assert.Assertions, nodes []*LocalNode) {
+	for _, node := range nodes {
+		pre := node.getPredecessor()
+		as.True(node.kv.(*kv.MemoryMap).Fsck(pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
+	}
+}
+
 func TestKeyTransferOut(t *testing.T) {
 	as := assert.New(t)
 
@@ -120,13 +127,14 @@ func TestKeyTransferOut(t *testing.T) {
 	randomNode.Stop()
 	<-time.After(time.Millisecond * 500)
 
+	c := make([]*LocalNode, 0)
 	for _, node := range nodes {
 		if node == randomNode {
 			continue
 		}
-		pre := node.getPredecessor()
-		as.True(node.kv.(*kv.MemoryMap).Fsck(pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
+		c = append(c, node)
 	}
+	fsck(as, c)
 
 	succVals, err := successor.LocalGets(leavingKeys)
 	as.Nil(err)
@@ -156,11 +164,11 @@ func TestKeyTransferOut(t *testing.T) {
 func TestKeyTransferIn(t *testing.T) {
 	as := assert.New(t)
 
-	numNodes := 2
+	numNodes := 1
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(1000, 48)
+	keys, values := makeKV(200, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(keys[i], values[i]))
@@ -168,8 +176,13 @@ func TestKeyTransferIn(t *testing.T) {
 
 	newNode := NewLocalNode(DevConfig(as))
 	newNode.Join(nodes[0])
+	defer newNode.Stop()
 
 	<-time.After(time.Millisecond * 500)
 
-	t.Logf("yeet")
+	keys, err := newNode.kv.LocalKeys(0, 0)
+	as.Nil(err)
+	as.Greater(len(keys), 0)
+
+	fsck(as, []*LocalNode{newNode, nodes[0]})
 }
