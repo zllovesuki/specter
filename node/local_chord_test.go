@@ -31,7 +31,7 @@ func DevConfig(as *assert.Assertions) NodeConfig {
 	}
 }
 
-func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
+func RingCheck(as *assert.Assertions, nodes []*LocalNode, counter bool) {
 	if len(nodes) == 0 {
 		return
 	}
@@ -50,9 +50,11 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode) {
 	sort.SliceStable(nodes, func(i, j int) bool {
 		return nodes[i].ID() < nodes[j].ID()
 	})
-	// counter clockwise
-	for i := 0; i < len(nodes)-1; i++ {
-		as.Equal(nodes[i].ID(), nodes[i+1].getPredecessor().ID())
+	if counter {
+		// counter clockwise
+		for i := 0; i < len(nodes)-1; i++ {
+			as.Equal(nodes[i].ID(), nodes[i+1].getPredecessor().ID())
+		}
 	}
 	as.Equal(nodes[len(nodes)-1].ID(), nodes[0].getPredecessor().ID())
 	// clockwise
@@ -74,7 +76,7 @@ func TestCreate(t *testing.T) {
 
 	<-time.After(time.Millisecond * 100)
 
-	RingCheck(as, []*LocalNode{n1})
+	RingCheck(as, []*LocalNode{n1}, true)
 }
 
 func TestJoin(t *testing.T) {
@@ -93,10 +95,11 @@ func TestJoin(t *testing.T) {
 
 	<-time.After(time.Millisecond * 100)
 
+	// skip counter clockwise check because we stopped first
 	RingCheck(as, []*LocalNode{
 		n1,
 		n2,
-	})
+	}, false)
 }
 
 func TestRandomNodes(t *testing.T) {
@@ -117,7 +120,7 @@ func TestRandomNodes(t *testing.T) {
 
 	<-time.After(time.Millisecond * 500)
 
-	RingCheck(as, nodes)
+	RingCheck(as, nodes, true)
 
 	for i := 0; i < num; i++ {
 		nodes[i].Stop()

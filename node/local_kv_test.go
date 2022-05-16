@@ -2,11 +2,25 @@ package node
 
 import (
 	"crypto/rand"
+	mathRand "math/rand"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
+	keys = make([][]byte, num)
+	values = make([][]byte, num)
+
+	for i := range keys {
+		keys[i] = make([]byte, length)
+		values[i] = make([]byte, length)
+		rand.Read(keys[i])
+		rand.Read(values[i])
+	}
+	return
+}
 
 func makeRing(as *assert.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
@@ -23,7 +37,7 @@ func makeRing(as *assert.Assertions, num int) ([]*LocalNode, func()) {
 
 	<-time.After(time.Millisecond * 1000)
 
-	RingCheck(as, nodes)
+	RingCheck(as, nodes, true)
 
 	return nodes, func() {
 		for i := 0; i < num; i++ {
@@ -77,4 +91,51 @@ func TestKVOperation(t *testing.T) {
 			as.Nil(r)
 		}
 	}
+}
+
+func TestKeyTransferOut(t *testing.T) {
+	as := assert.New(t)
+
+	numNodes := 15
+	nodes, done := makeRing(as, numNodes)
+	defer done()
+
+	keys, values := makeKV(200, 32)
+
+	for i := range keys {
+		as.Nil(nodes[0].Put(keys[i], values[i]))
+	}
+
+	mathRand.Seed(time.Now().UnixNano())
+	randomNode := nodes[mathRand.Intn(numNodes)]
+
+	successor := randomNode.getSuccessor()
+	predecessor := randomNode.getPredecessor()
+
+	leavingKeys, err := randomNode.kv.LocalKeys(0, 0)
+	as.Nil(err)
+
+	randomNode.Stop()
+	<-time.After(time.Millisecond * 500)
+
+	succVals, err := successor.LocalGets(leavingKeys)
+	as.Nil(err)
+
+	indicies := make([]int, 0)
+	for _, k := range leavingKeys {
+		for i := range keys {
+			if string(keys[i]) == string(k) {
+				indicies = append(indicies, i)
+			}
+		}
+	}
+	as.Len(indicies, len(leavingKeys))
+
+	for i := range succVals {
+		as.EqualValues(succVals[i], succVals[i])
+	}
+
+	preVals, err := predecessor.LocalGets(leavingKeys)
+	as.Nil(err)
+	as.Len(preVals, 0)
 }

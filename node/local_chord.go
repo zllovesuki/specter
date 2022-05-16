@@ -19,7 +19,12 @@ func (n *LocalNode) Identity() *protocol.Node {
 }
 
 func (n *LocalNode) Ping() error {
-	return nil
+	select {
+	case <-n.stopCtx.Done():
+		return ErrLeft
+	default:
+		return nil
+	}
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
@@ -209,8 +214,6 @@ func (n *LocalNode) transKeysOut() error {
 		return fmt.Errorf("fetching all keys locally: %w", err)
 	}
 
-	n.Logger.Debug("Transfering keys to successor", zap.Int("num_keys", len(keys)))
-
 	if len(keys) == 0 {
 		return nil
 	}
@@ -224,6 +227,8 @@ func (n *LocalNode) transKeysOut() error {
 	if succ == nil {
 		return fmt.Errorf("node has no successor")
 	}
+
+	n.Logger.Debug("Transfering keys to successor", zap.Int("num_keys", len(keys)), zap.Uint64("successor", succ.ID()))
 
 	// TODO: split into batches
 	if err := succ.LocalPuts(keys, values); err != nil {

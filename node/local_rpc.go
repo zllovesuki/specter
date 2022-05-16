@@ -41,11 +41,11 @@ func (n *LocalNode) HandleRPC() {
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	if !n.started.Load() {
-		return nil, fmt.Errorf("node is not part of the chord ring")
+		return nil, ErrLeft
 	}
 	select {
 	case <-n.stopCtx.Done():
-		return nil, fmt.Errorf("node is not part of the chord ring")
+		return nil, ErrLeft
 	default:
 	}
 
