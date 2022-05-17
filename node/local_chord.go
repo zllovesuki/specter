@@ -39,7 +39,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
-		go n.transferKeysIn(predecessor)
+		go n.transferKeysIn(nil, predecessor)
 		return nil
 	}
 
@@ -58,7 +58,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
-		go n.transferKeysIn(new)
+		go n.transferKeysIn(old, new)
 	}
 
 	return nil
@@ -149,11 +149,22 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	return n.getPredecessor(), nil
 }
 
-func (n *LocalNode) transferKeysIn(predecessor chord.VNode) error {
-	if predecessor.ID() == n.ID() {
+func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) (err error) {
+	var keys [][]byte
+	var values [][]byte
+	var low uint64
+
+	if newPredecessor.ID() == n.ID() {
 		return nil
 	}
-	keys, err := n.kv.LocalKeys(n.ID(), predecessor.ID())
+
+	if prevPredecessor == nil {
+		low = n.ID()
+	} else {
+		low = prevPredecessor.ID()
+	}
+
+	keys, err = n.kv.LocalKeys(low, newPredecessor.ID())
 	if err != nil {
 		return err
 	}
@@ -161,16 +172,20 @@ func (n *LocalNode) transferKeysIn(predecessor chord.VNode) error {
 		return nil
 	}
 
-	n.Logger.Info("Transfering keys to predecessor", zap.Int("num_keys", len(keys)))
+	n.Logger.Info("Transfering keys to predecessor", zap.Int("num_keys", len(keys)), zap.Uint64("predecessor", newPredecessor.ID()))
 
-	vals, err := n.kv.LocalGets(keys)
+	values, err = n.kv.LocalGets(keys)
 	if err != nil {
-		return err
+		return
 	}
-	if err := predecessor.LocalPuts(keys, vals); err != nil {
-		return err
+
+	err = newPredecessor.LocalPuts(keys, values)
+	if err != nil {
+		return
 	}
-	return n.kv.LocalDeletes(keys)
+
+	err = n.kv.LocalDeletes(keys)
+	return
 }
 
 func (n *LocalNode) transKeysOut(successor chord.VNode) error {
