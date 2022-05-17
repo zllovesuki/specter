@@ -14,7 +14,7 @@ import (
 
 var _ rpcSpec.RPCHandler = (*LocalNode)(nil).rpcHandler
 
-func (n *LocalNode) HandleRPC() {
+func (n *LocalNode) HandleRPC(ctx context.Context) {
 	for {
 		select {
 		case delegate := <-n.Transport.RPC():
@@ -28,9 +28,9 @@ func (n *LocalNode) HandleRPC() {
 				l.With(zap.String("pov", "local_rpc")),
 				s,
 				n.rpcHandler)
-			go r.Start(n.stopCtx)
+			go r.Start(ctx)
 
-		case <-n.stopCtx.Done():
+		case <-n.stopCh:
 			return
 		}
 	}
@@ -41,7 +41,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		return nil, ErrLeft
 	}
 	select {
-	case <-n.stopCtx.Done():
+	case <-n.stopCh:
 		return nil, ErrLeft
 	default:
 	}

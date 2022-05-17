@@ -91,10 +91,20 @@ func main() {
 	tunLogger := logger.With(zap.String("component", "tun"))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 
-	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, chordTLS, chordClientTLS)
+	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
+		Logger:    chordLogger,
+		Endpoint:  chordIdentity,
+		ServerTLS: chordTLS,
+		ClientTLS: chordClientTLS,
+	})
 	defer chordTransport.Stop()
 
-	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, tunTLSConf, nil)
+	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
+		Logger:    tunLogger,
+		Endpoint:  serverIdentity,
+		ServerTLS: tunTLSConf,
+		ClientTLS: nil,
+	})
 	defer clientTransport.Stop()
 
 	chordNode := node.NewLocalNode(node.NodeConfig{
@@ -109,6 +119,7 @@ func main() {
 	defer chordNode.Stop()
 
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
+	defer tunServer.Stop()
 
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
@@ -122,7 +133,7 @@ func main() {
 	}
 
 	go chordTransport.Accept(ctx)
-	go chordNode.HandleRPC()
+	go chordNode.HandleRPC(ctx)
 
 	if *peer == "local" {
 		if err := chordNode.Create(); err != nil {

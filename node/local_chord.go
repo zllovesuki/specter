@@ -20,7 +20,7 @@ func (n *LocalNode) Identity() *protocol.Node {
 
 func (n *LocalNode) Ping() error {
 	select {
-	case <-n.stopCtx.Done():
+	case <-n.stopCh:
 		return ErrLeft
 	default:
 		return nil
@@ -82,22 +82,20 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	// find next in ring according to finger table
 	closest := n.closestPreceedingNode(key)
 	// small optimization
-	// if closest.ID() == n.ID() {
-	// 	return n, nil
-	// }
+	if closest.ID() == n.ID() {
+		return n, nil
+	}
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }
 
-func (n *LocalNode) fingerRange(fn func(i int, f chord.VNode) bool) {
-	stop := false
-	for i := chord.MaxFingerEntries; i >= 1; i-- {
-		finger := n.fingers[i].n.Load().(*atomicVNode).Node
+func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
+	for k := chord.MaxFingerEntries; k >= 1; k-- {
+		finger := n.fingers[k].n.Load().(*atomicVNode).Node
 		if finger != nil {
-			stop = !fn(i, finger)
-		}
-		if stop {
-			break
+			if !fn(k, finger) {
+				break
+			}
 		}
 	}
 }
@@ -165,12 +163,6 @@ func (n *LocalNode) transferKeysIn(successor chord.VNode) (err error) {
 	// remove keys from successor
 	var keys [][]byte
 
-	defer func() {
-		if err != nil {
-			n.Logger.Error("transfer keys from successor", zap.Uint64("successor", successor.ID()), zap.Error(err))
-		}
-	}()
-
 	if successor.ID() == n.ID() {
 		return nil
 	}
@@ -208,7 +200,7 @@ func (n *LocalNode) transferKeysIn(successor chord.VNode) (err error) {
 	return
 }
 
-func (n *LocalNode) transKeysOut() error {
+func (n *LocalNode) transKeysOut(succ chord.VNode) error {
 	// dump all keys from local node
 	// move all keys to successor
 
@@ -224,11 +216,6 @@ func (n *LocalNode) transKeysOut() error {
 	values, err := n.LocalGets(keys)
 	if err != nil {
 		return fmt.Errorf("fetching all values locally: %w", err)
-	}
-
-	succ := n.getSuccessor()
-	if succ == nil {
-		return fmt.Errorf("node has no successor")
 	}
 
 	n.Logger.Info("Transfering keys to successor", zap.Int("num_keys", len(keys)), zap.Uint64("successor", succ.ID()))

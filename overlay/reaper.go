@@ -22,7 +22,7 @@ func (t *QUIC) printCached() {
 		ep = append(ep, key)
 		return true
 	})
-	t.logger.Debug("Cached QUIC endpoints", zap.Strings("keys", ep))
+	t.Logger.Debug("Cached QUIC endpoints", zap.Strings("keys", ep))
 }
 
 func (t *QUIC) reaper(ctx context.Context) {
@@ -55,14 +55,15 @@ func (t *QUIC) reaper(ctx context.Context) {
 			if len(candidate) > 0 {
 				for _, c := range candidate {
 					k := makeQKey(c.peer)
-					t.logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
+					t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
 					t.qMap.Delete(k)
 					c.quic.CloseWithError(401, "Gone")
+					go t.Delegate.Removed(c.peer)
 				}
 
 				for _, c := range candidate {
 					k := makeSKey(c.peer)
-					t.logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
+					t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
 					if r, ok := t.rpcMap.LoadAndDelete(k); ok {
 						r.(rpc.RPC).Close()
 					}

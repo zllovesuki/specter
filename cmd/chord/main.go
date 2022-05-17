@@ -50,7 +50,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t := overlay.NewQUIC(logger, identity, serverTLS, clientTLS)
+	t := overlay.NewQUIC(overlay.TransportConfig{
+		Logger:    logger,
+		Endpoint:  identity,
+		ServerTLS: serverTLS,
+		ClientTLS: clientTLS,
+	})
 	defer t.Stop()
 
 	local := node.NewLocalNode(node.NodeConfig{
@@ -65,7 +70,7 @@ func main() {
 	defer local.Stop()
 
 	go t.Accept(ctx)
-	go local.HandleRPC()
+	go local.HandleRPC(ctx)
 
 	go func() {
 		if *peer == "local" {

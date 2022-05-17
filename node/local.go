@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -42,11 +41,11 @@ type LocalNode struct {
 		_ [64]byte
 	}
 
+	stopCh chan struct{}
+
 	lastStabilized *zapAtomic.Time
 
-	started    *zapAtomic.Bool
-	stopCtx    context.Context
-	cancelFunc context.CancelFunc
+	started *zapAtomic.Bool
 
 	kv chord.KV
 }
@@ -68,11 +67,11 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 			_ [64]byte
 		}, chord.MaxFingerEntries+1),
 		lastStabilized: zapAtomic.NewTime(time.Time{}),
+		stopCh:         make(chan struct{}),
 	}
 	for i := range n.fingers {
 		n.fingers[i].n.Store(&atomicVNode{})
 	}
-	n.stopCtx, n.cancelFunc = context.WithCancel(context.Background())
 
 	return n
 }
@@ -152,15 +151,11 @@ func (n *LocalNode) Stop() {
 		return
 	}
 
-	// remove ourself from the ring
-	n.cancelFunc()
-
-	n.Logger.Info("waiting for chord ring to notice our departure")
-	<-time.After(n.StablizeInterval * 2)
-
-	// then notify our successor about our predecessor
 	pre, _ := n.GetPredecessor()
 	succ := n.getSuccessor()
+
+	// remove ourself from the ring
+	close(n.stopCh)
 
 	if pre == nil {
 		return
@@ -172,13 +167,14 @@ func (n *LocalNode) Stop() {
 		return
 	}
 
-	// relinquish control of our keys
-	if err := n.transKeysOut(); err != nil {
-		n.Logger.Error("transfering KV to successor", zap.Error(err))
-	}
+	n.Logger.Info("waiting for chord ring to notice our departure")
+	<-time.After(n.StablizeInterval)
 
-	// then notify, otherwise precedessor may not get all the keys
 	if err := succ.Notify(pre); err != nil {
 		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
+	}
+
+	if err := n.transKeysOut(succ); err != nil {
+		n.Logger.Error("transfering KV to successor", zap.Error(err))
 	}
 }

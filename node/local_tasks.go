@@ -92,8 +92,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 	if err != nil {
 		return
 	}
-	oldA := n.fingers[k].n.Swap(&atomicVNode{Node: f})
-	old := oldA.(*atomicVNode).Node
+	old := n.fingers[k].n.Swap(&atomicVNode{Node: f}).(*atomicVNode).Node
 	if old == nil || old.ID() != f.ID() {
 		updated = true
 	}
@@ -151,7 +150,7 @@ func (n *LocalNode) startTasks() {
 					n.Logger.Error("Stablize task", zap.Error(err))
 				}
 				timer.Reset(n.NodeConfig.StablizeInterval)
-			case <-n.stopCtx.Done():
+			case <-n.stopCh:
 				n.Logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return
@@ -166,7 +165,7 @@ func (n *LocalNode) startTasks() {
 			case <-timer.C:
 				n.checkPredecessor()
 				timer.Reset(n.NodeConfig.PredecessorCheckInterval)
-			case <-n.stopCtx.Done():
+			case <-n.stopCh:
 				n.Logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return
@@ -181,7 +180,7 @@ func (n *LocalNode) startTasks() {
 			case <-timer.C:
 				n.fixFinger()
 				timer.Reset(n.NodeConfig.FixFingerInterval)
-			case <-n.stopCtx.Done():
+			case <-n.stopCh:
 				n.Logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
 				timer.Stop()
 				return

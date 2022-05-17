@@ -48,49 +48,6 @@ func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport,
 	}
 }
 
-func (s *Server) publishIdentities() error {
-	identities := &protocol.IdentitiesPair{
-		Chord: s.chordTransport.Identity(),
-		Tun:   s.clientTransport.Identity(),
-	}
-	buf, err := proto.Marshal(identities)
-	if err != nil {
-		return err
-	}
-
-	keys := []string{
-		tun.IdentitiesChordKey(s.chordTransport.Identity()),
-		tun.IdentitiesTunKey(s.clientTransport.Identity()),
-	}
-	for _, key := range keys {
-		err := s.chord.Put([]byte(key), buf)
-		if err != nil {
-			return err
-		}
-	}
-
-	s.logger.Info("identities published on chord",
-		zap.String("chord", keys[0]),
-		zap.String("tun", keys[1]))
-
-	return nil
-}
-
-func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
-	identities := &protocol.IdentitiesPair{}
-	buf, err := s.chord.Get([]byte(key))
-	if err != nil {
-		return nil, err
-	}
-	if len(buf) == 0 {
-		return nil, fmt.Errorf("no identities pair found with key: %s", key)
-	}
-	if err := proto.Unmarshal(buf, identities); err != nil {
-		return nil, fmt.Errorf("identities decode failure: %w", err)
-	}
-	return identities, nil
-}
-
 func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("specter server started", zap.Uint64("server", s.clientTransport.Identity().GetId()))
 
@@ -229,4 +186,8 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 	}
 
 	return nil, ErrDestinationNotFound
+}
+
+func (s *Server) Stop() {
+	s.unpublishIdentities()
 }

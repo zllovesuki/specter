@@ -54,7 +54,7 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 		for _, chord := range uniqueVNodes(vnodes) {
 			identities, err := s.lookupIdentities(tun.IdentitiesChordKey(chord.Identity()))
 			if err != nil {
-				continue
+				return nil, err
 			}
 			servers = append(servers, identities.GetTun())
 		}

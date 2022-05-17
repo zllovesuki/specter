@@ -40,7 +40,12 @@ func main() {
 	clientTLSConf.NextProtos = []string{
 		tun.ALPN(protocol.Link_SPECTER_TUN),
 	}
-	transport := overlay.NewQUIC(logger, self, nil, clientTLSConf)
+	transport := overlay.NewQUIC(overlay.TransportConfig{
+		Logger:    logger,
+		Endpoint:  self,
+		ServerTLS: nil,
+		ClientTLS: clientTLSConf,
+	})
 	defer transport.Stop()
 
 	c, err := client.NewClient(ctx, logger, transport, seed)

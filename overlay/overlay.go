@@ -18,10 +18,16 @@ type nodeConnection struct {
 	quic quic.Connection
 }
 
-type QUIC struct {
-	logger *zap.Logger
+type TransportConfig struct {
+	Logger    *zap.Logger
+	Endpoint  *protocol.Node
+	ServerTLS *tls.Config
+	ClientTLS *tls.Config
+	Delegate  transport.EventDelegate
+}
 
-	self *protocol.Node
+type QUIC struct {
+	TransportConfig
 
 	rpcMap *skipmap.StringMap
 	rpcMu  *concurrent.KeyedRWMutex
@@ -33,8 +39,13 @@ type QUIC struct {
 	directChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
 
-	server *tls.Config
-	client *tls.Config
-
-	closed *atomic.Bool
+	started *atomic.Bool
+	closed  *atomic.Bool
 }
+
+type defaultDelegate struct{}
+
+var _ transport.EventDelegate = (*defaultDelegate)(nil)
+
+func (*defaultDelegate) Created(n *protocol.Node) {}
+func (*defaultDelegate) Removed(n *protocol.Node) {}
