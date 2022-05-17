@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"sync"
 
 	"specter/spec/chord"
 	"specter/spec/protocol"
 	"specter/spec/rpc"
 
+	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -42,8 +42,7 @@ type RPC struct {
 	stream io.ReadWriteCloser
 	num    *atomic.Uint64
 
-	// TODO: candidate for 1.18 generics
-	rMap sync.Map
+	rMap *skipmap.Uint64Map
 
 	closed *atomic.Bool
 
@@ -63,6 +62,7 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandle
 		logger:  logger,
 		stream:  stream,
 		num:     atomic.NewUint64(0),
+		rMap:    skipmap.NewUint64(),
 		handler: handler,
 		closed:  atomic.NewBool(false),
 	}
