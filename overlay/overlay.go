@@ -2,13 +2,13 @@ package overlay
 
 import (
 	"crypto/tls"
-	"sync"
 
 	"specter/spec/concurrent"
 	"specter/spec/protocol"
 	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -23,11 +23,11 @@ type QUIC struct {
 
 	self *protocol.Node
 
-	rpcMap sync.Map
-	rpcMu  concurrent.KeyedRWMutex
+	rpcMap *skipmap.StringMap
+	rpcMu  *concurrent.KeyedRWMutex
 
-	qMap sync.Map
-	qMu  concurrent.KeyedRWMutex
+	qMap *skipmap.StringMap
+	qMu  *concurrent.KeyedRWMutex
 
 	rpcChan    chan *transport.Delegate
 	directChan chan *transport.Delegate

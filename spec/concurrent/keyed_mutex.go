@@ -1,27 +1,27 @@
 package concurrent
 
-import "sync"
+import (
+	"sync"
 
-var (
-	lockCache = sync.Pool{
-		New: func() interface{} {
-			return &sync.RWMutex{}
-		},
-	}
+	"github.com/zhangyunhao116/skipmap"
 )
 
 type KeyedRWMutex struct {
 	noCopy
 
-	mutexes sync.Map // Zero value is empty and ready for use
+	mutexes *skipmap.StringMap
+}
+
+func NewKeyedRWMutex() *KeyedRWMutex {
+	return &KeyedRWMutex{
+		mutexes: skipmap.NewString(),
+	}
 }
 
 func (m *KeyedRWMutex) obtain(key string) *sync.RWMutex {
-	n := lockCache.Get().(*sync.RWMutex)
-	value, loaded := m.mutexes.LoadOrStore(key, n)
-	if loaded {
-		lockCache.Put(n)
-	}
+	value, _ := m.mutexes.LoadOrStoreLazy(key, func() interface{} {
+		return &sync.RWMutex{}
+	})
 	return value.(*sync.RWMutex)
 }
 

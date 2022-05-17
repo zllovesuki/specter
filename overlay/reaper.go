@@ -18,9 +18,8 @@ func randomTimeRange(t time.Duration) time.Duration {
 
 func (t *QUIC) printCached() {
 	ep := make([]string, 0)
-	t.qMap.Range(func(key, value interface{}) bool {
-		addr := key.(string)
-		ep = append(ep, addr)
+	t.qMap.Range(func(key string, value interface{}) bool {
+		ep = append(ep, key)
 		return true
 	})
 	t.logger.Debug("Cached QUIC endpoints", zap.Strings("keys", ep))
@@ -45,7 +44,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 		case <-timer.C:
 			// t.printCached()
 			candidate := make([]*nodeConnection, 0)
-			t.qMap.Range(func(key, value interface{}) bool {
+			t.qMap.Range(func(key string, value interface{}) bool {
 				v := value.(*nodeConnection)
 				if err := v.quic.SendMessage(alive); err != nil {
 					candidate = append(candidate, v)

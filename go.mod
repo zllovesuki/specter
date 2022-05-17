@@ -6,6 +6,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/libp2p/go-buffer-pool v0.0.2
 	github.com/lucas-clemente/quic-go v0.27.0
+	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.7.1
 	github.com/zhangyunhao116/skipmap v0.7.0
 	go.uber.org/atomic v1.9.0
@@ -24,7 +25,6 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sethvargo/go-diceware v0.3.0 // indirect
 	github.com/zhangyunhao116/fastrand v0.1.0 // indirect
 	github.com/zhangyunhao116/sbconv v0.2.1 // indirect
 	github.com/zhangyunhao116/wyhash v0.3.2 // indirect

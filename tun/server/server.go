@@ -69,6 +69,10 @@ func (s *Server) publishIdentities() error {
 		}
 	}
 
+	s.logger.Info("identities published on chord",
+		zap.String("chord", keys[0]),
+		zap.String("tun", keys[1]))
+
 	return nil
 }
 

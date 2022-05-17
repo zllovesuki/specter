@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"specter/rpc"
+	"specter/spec/concurrent"
 	"specter/spec/protocol"
 	rpcSpec "specter/spec/rpc"
 	"specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -30,6 +32,11 @@ func NewQUIC(logger *zap.Logger, self *protocol.Node, serverTLS *tls.Config, cli
 	return &QUIC{
 		logger: logger,
 		self:   self,
+
+		qMap:   skipmap.NewString(),
+		qMu:    concurrent.NewKeyedRWMutex(),
+		rpcMap: skipmap.NewString(),
+		rpcMu:  concurrent.NewKeyedRWMutex(),
 
 		rpcChan:    make(chan *transport.Delegate, 1),
 		directChan: make(chan *transport.Delegate, 1),
@@ -259,15 +266,16 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	}
 
 	rKey := makeQKey(rr.GetIdentity())
-	cached := &nodeConnection{
-		peer: rr.GetIdentity(),
-		quic: q,
-	}
 
 	unlock := t.qMu.Lock(rKey)
 	defer unlock()
 
-	sQ, loaded := t.qMap.LoadOrStore(rKey, cached)
+	sQ, loaded := t.qMap.LoadOrStoreLazy(rKey, func() interface{} {
+		return &nodeConnection{
+			peer: rr.GetIdentity(),
+			quic: q,
+		}
+	})
 	if loaded {
 		t.logger.Debug("reusing quic connection", zap.String("direction", dir), zap.String("key", rKey))
 		q.CloseWithError(0, "A previous connection was reused")
