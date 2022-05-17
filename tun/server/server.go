@@ -111,9 +111,8 @@ func (s *Server) Accept(ctx context.Context) {
 			go s.handleConn(ctx, delegate)
 
 		case delegate := <-s.clientTransport.Direct():
-			// TODO: kill the entire connection because the client
-			// should not be opening connection to us
-			s.logger.Warn("client attempted to open direct stream")
+			// client uses this to register connection
+			// but it is a no-op on the server side
 			delegate.Connection.Close()
 
 		case delegate := <-s.clientTransport.RPC():
@@ -148,28 +147,26 @@ func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDel
 		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
-	s.logger.Debug("received proxy stream from remote node",
+	l := s.logger.With(
 		zap.String("hostname", bundle.GetHostname()),
-		zap.Uint64("remote_chord", delegation.Identity.GetId()),
 		zap.Uint64("client", bundle.GetClient().GetId()),
+	)
+	l.Debug("received proxy stream from remote node",
+		zap.Uint64("remote_chord", delegation.Identity.GetId()),
 		zap.Uint64("chord", bundle.GetChord().GetId()),
 		zap.Uint64("tun", bundle.GetTun().GetId()))
 
 	if bundle.GetTun().GetId() != s.clientTransport.Identity().GetId() {
-		s.logger.Error("received remote connection for the wrong server",
+		l.Warn("received remote connection for the wrong server",
 			zap.Uint64("expected", s.clientTransport.Identity().GetId()),
 			zap.Uint64("got", bundle.GetTun().GetId()),
-			zap.String("hostname", bundle.GetHostname()),
 		)
 		err = ErrDestinationNotFound
 		return
 	}
 	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
 	if err != nil {
-		s.logger.Error("dialing connection to connected client",
-			zap.Uint64("client", bundle.GetClient().GetId()),
-			zap.String("hostname", bundle.GetHostname()),
-		)
+		l.Error("dialing connection to connected client")
 		return
 	}
 
@@ -177,16 +174,16 @@ func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDel
 }
 
 func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn, error) {
+	l := s.logger.With(
+		zap.String("hostname", bundle.GetHostname()),
+		zap.Uint64("client", bundle.GetClient().GetId()),
+	)
 	if bundle.GetTun().GetId() == s.clientTransport.Identity().GetId() {
-		s.logger.Debug("client is connected to us, opening direct stream",
-			zap.String("hostname", bundle.GetHostname()),
-			zap.Uint64("client", bundle.GetClient().GetId()))
+		l.Debug("client is connected to us, opening direct stream")
 
 		return s.clientTransport.DialDirect(ctx, bundle.GetClient())
 	} else {
-		s.logger.Debug("client is connected to remote node, opening proxy stream",
-			zap.String("hostname", bundle.GetHostname()),
-			zap.Uint64("client", bundle.GetClient().GetId()),
+		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Uint64("chord", bundle.GetChord().GetId()),
 			zap.Uint64("tun", bundle.GetTun().GetId()))
 
@@ -205,7 +202,6 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.BundleKey(link.GetHostname(), k)
-		s.logger.Debug("gateway lookup", zap.String("key", key))
 		val, err := s.chord.Get([]byte(key))
 		if err != nil {
 			s.logger.Error("key lookup error", zap.String("key", key), zap.Error(err))

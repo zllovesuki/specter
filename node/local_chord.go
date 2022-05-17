@@ -32,20 +32,10 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	var old chord.VNode
 	var oldA *atomicVNode
 
-	defer func() {
-		if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
-			n.Logger.Debug("Discovered new predecessor via Notify",
-				zap.Uint64("node", n.ID()),
-				zap.Uint64("previous", old.ID()),
-				zap.Uint64("predecessor", new.ID()),
-			)
-			go n.transferKeysIn(new)
-		}
-	}()
+	l := n.Logger.With(zap.Uint64("node", n.ID()))
 
 	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
-		n.Logger.Debug("Discovered new predecessor via Notify",
-			zap.Uint64("node", n.ID()),
+		l.Debug("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
@@ -61,6 +51,14 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		}
 	} else {
 		new = predecessor
+	}
+
+	if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
+		l.Debug("Discovered new predecessor via Notify",
+			zap.Uint64("previous", old.ID()),
+			zap.Uint64("predecessor", new.ID()),
+		)
+		go n.transferKeysIn(new)
 	}
 
 	return nil

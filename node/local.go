@@ -42,6 +42,8 @@ type LocalNode struct {
 		_ [64]byte
 	}
 
+	lastStabilized *zapAtomic.Time
+
 	started    *zapAtomic.Bool
 	stopCtx    context.Context
 	cancelFunc context.CancelFunc
@@ -65,6 +67,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 			n atomic.Value
 			_ [64]byte
 		}, chord.MaxFingerEntries+1),
+		lastStabilized: zapAtomic.NewTime(time.Time{}),
 	}
 	for i := range n.fingers {
 		n.fingers[i].n.Store(&atomicVNode{})

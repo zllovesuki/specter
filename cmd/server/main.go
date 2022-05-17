@@ -53,10 +53,15 @@ func main() {
 
 	// ========== TODO: THESE TLS CONFIGS ARE FOR DEVELOPMENT ONLY ==========
 
-	serverTLS := generateTLSConfig()
-	clientTLS := &tls.Config{
+	chordTLS := generateTLSConfig()
+	chordTLS.NextProtos = []string{
+		tun.ALPN(protocol.Link_SPECTER_CHORD),
+	}
+	chordClientTLS := &tls.Config{
 		InsecureSkipVerify: true,
-		NextProtos:         []string{"quic-echo-example"},
+		NextProtos: []string{
+			tun.ALPN(protocol.Link_SPECTER_CHORD),
+		},
 	}
 
 	gwTLSConf := generateTLSConfig()
@@ -67,7 +72,7 @@ func main() {
 	}
 	tunTLSConf := generateTLSConfig()
 	tunTLSConf.NextProtos = []string{
-		tun.ALPN(protocol.Link_SPECTER),
+		tun.ALPN(protocol.Link_SPECTER_TUN),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -86,10 +91,10 @@ func main() {
 	tunLogger := logger.With(zap.String("component", "tun"))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 
-	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, serverTLS, clientTLS)
+	chordTransport := overlay.NewQUIC(chordLogger, chordIdentity, chordTLS, chordClientTLS)
 	defer chordTransport.Stop()
 
-	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, tunTLSConf, clientTLS)
+	clientTransport := overlay.NewQUIC(tunLogger, serverIdentity, tunTLSConf, nil)
 	defer clientTransport.Stop()
 
 	chordNode := node.NewLocalNode(node.NodeConfig{
@@ -139,6 +144,29 @@ func main() {
 	go clientTransport.Accept(ctx)
 	go tunServer.Accept(ctx)
 	go gw.Start(ctx)
+
+	go func() {
+		ticker := time.NewTicker(time.Second * 5)
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				p, _ := chordNode.GetPredecessor()
+				var pID int64 = -1
+				if p != nil {
+					pID = int64(p.ID())
+				}
+				logger.Debug("Debug Log",
+					zap.Uint64("node", chordNode.ID()),
+					zap.Int64("predecessor", pID),
+					// zap.String("ring", local.RingTrace()),
+					zap.String("table", chordNode.FingerTrace()))
+				// local.Put([]byte("key"), []byte("value"))
+			}
+		}
+	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

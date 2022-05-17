@@ -38,25 +38,9 @@ func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 	return s
 }
 
-func (n *LocalNode) stablize() error {
+func (n *LocalNode) stabilize() error {
 	succList, _ := n.GetSuccessors()
 	modified := true
-
-	defer func() {
-		xor := n.xor(succList)
-		if modified && n.succXOR.Load() != xor {
-			n.succXOR.Store(xor)
-			n.successors.Store(&atomicVNodeList{Nodes: succList})
-
-			n.Logger.Debug("Discovered new successors via Stablize",
-				zap.Uint64("node", n.ID()),
-				zap.Uint64s("successors", v2d(succList)),
-			)
-		}
-		if succ := n.getSuccessor(); succ != nil {
-			succ.Notify(n)
-		}
-	}()
 
 	for len(succList) > 0 {
 		head := succList[0]
@@ -64,18 +48,16 @@ func (n *LocalNode) stablize() error {
 			return fmt.Errorf("no more successors for candidate, node is potentially partitioned")
 		}
 		newSucc, spErr := head.GetPredecessor()
-		nextSuccList, nsErr := head.GetSuccessors()
+		newSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			succList = makeList(head, nextSuccList)
+			succList = makeList(head, newSuccList)
 			modified = true
 
-			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), n.getSuccessor().ID(), false) {
-				nextSuccList, nsErr = newSucc.GetSuccessors()
+			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
+				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					succList = makeList(newSucc, nextSuccList)
+					succList = makeList(newSucc, newSuccList)
 					modified = true
-
-					return nil
 				}
 			}
 			break
@@ -84,28 +66,53 @@ func (n *LocalNode) stablize() error {
 		succList = succList[1:]
 	}
 
+	n.lastStabilized.Store(time.Now())
+
+	xor := n.xor(succList)
+	if modified && n.succXOR.Load() != xor {
+		n.succXOR.Store(xor)
+		n.successors.Store(&atomicVNodeList{Nodes: succList})
+
+		n.Logger.Debug("Discovered new successors via Stablize",
+			zap.Uint64("node", n.ID()),
+			zap.Uint64s("successors", v2d(succList)),
+		)
+	}
+	if succ := n.getSuccessor(); succ != nil {
+		go succ.Notify(n)
+	}
+
 	return nil
 }
 
-func (n *LocalNode) fixFinger() error {
-	fixed := make([]uint64, 0)
+func (n *LocalNode) fixK(k int) (updated bool, err error) {
+	var f chord.VNode
+	next := chord.Modulo(n.ID(), 1<<(k-1))
+	f, err = n.FindSuccessor(next)
+	if err != nil {
+		return
+	}
+	oldA := n.fingers[k].n.Swap(&atomicVNode{Node: f})
+	old := oldA.(*atomicVNode).Node
+	if old == nil || old.ID() != f.ID() {
+		updated = true
+	}
+	return
+}
 
+func (n *LocalNode) fixFinger() error {
+	fixed := make([]int, 0)
 	for k := 1; k <= chord.MaxFingerEntries; k++ {
-		next := chord.Modulo(n.ID(), 1<<(k-1))
-		f, err := n.FindSuccessor(next)
+		changed, err := n.fixK(k)
 		if err != nil {
 			continue
 		}
-		if err == nil {
-			oldA := n.fingers[k].n.Swap(&atomicVNode{Node: f})
-			old := oldA.(*atomicVNode).Node
-			if old != nil && old.ID() != f.ID() {
-				fixed = append(fixed, uint64(k))
-			}
+		if changed {
+			fixed = append(fixed, k)
 		}
 	}
 	if len(fixed) > 0 {
-		n.Logger.Debug("FingerTable entries updated", zap.Uint64s("fixed", fixed))
+		n.Logger.Debug("FingerTable entries updated", zap.Ints("fixed", fixed))
 	}
 	return nil
 }
@@ -140,7 +147,7 @@ func (n *LocalNode) startTasks() {
 		for {
 			select {
 			case <-timer.C:
-				if err := n.stablize(); err != nil {
+				if err := n.stabilize(); err != nil {
 					n.Logger.Error("Stablize task", zap.Error(err))
 				}
 				timer.Reset(n.NodeConfig.StablizeInterval)

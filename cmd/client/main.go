@@ -38,7 +38,7 @@ func main() {
 
 	clientTLSConf := generateTLSConfig()
 	clientTLSConf.NextProtos = []string{
-		tun.ALPN(protocol.Link_SPECTER),
+		tun.ALPN(protocol.Link_SPECTER_TUN),
 	}
 	transport := overlay.NewQUIC(logger, self, nil, clientTLSConf)
 	defer transport.Stop()
@@ -57,7 +57,11 @@ func main() {
 		fmt.Printf("%+v\n", node)
 	}
 
-	hostname, err := c.PublishTunnel(ctx, []*protocol.Node{nodes[0]})
+	for _, node := range nodes[1:] {
+		transport.DialDirect(ctx, node)
+	}
+
+	hostname, err := c.PublishTunnel(ctx, nodes)
 	if err != nil {
 		logger.Fatal("publishing tunnel", zap.Error(err))
 	}

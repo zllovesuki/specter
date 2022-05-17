@@ -186,6 +186,11 @@ func TestKeyTransferIn(t *testing.T) {
 	keys, err := newNode.kv.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Greater(len(keys), 0)
+	vals, err := newNode.kv.LocalGets(keys)
+	as.Nil(err)
+	for _, val := range vals {
+		as.Greater(len(val), 0)
+	}
 
 	fsck(as, []*LocalNode{newNode, nodes[0]})
 }
