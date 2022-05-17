@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/zllovesuki/specter/rpc"
 	"github.com/zllovesuki/specter/spec/chord"
@@ -52,8 +51,7 @@ func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("specter server started", zap.Uint64("server", s.clientTransport.Identity().GetId()))
 
 	go func() {
-		s.logger.Info("waiting 10 seconds before publishing identities to chord")
-		<-time.After(time.Second * 10)
+		s.logger.Info("publishing identities to chord")
 		if err := s.publishIdentities(); err != nil {
 			s.logger.Fatal("publishing identities pair", zap.Error(err))
 		}

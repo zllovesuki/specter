@@ -16,7 +16,5 @@ type VNode interface {
 	GetSuccessors() ([]VNode, error)
 	GetPredecessor() (VNode, error)
 
-	RequestKeysForTransfer(mid uint64) ([][]byte, error)
-
 	Stop()
 }

@@ -287,7 +287,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 		t.Logger.Debug("saving quic connection for reuse", zap.String("direction", dir), zap.String("key", rKey))
 	}
 
-	go t.Delegate.Created(rr.GetIdentity())
+	go t.Delegate.TransportEstablished(rr.GetIdentity())
 
 	return q, rr.GetIdentity(), false, nil
 }

@@ -19,8 +19,8 @@ type DatagramDelegate struct {
 }
 
 type EventDelegate interface {
-	Created(*protocol.Node)
-	Removed(*protocol.Node)
+	TransportEstablished(*protocol.Node)
+	TransportDestroyed(*protocol.Node)
 }
 
 type Transport interface {

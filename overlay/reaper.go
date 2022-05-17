@@ -58,7 +58,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 					t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
 					t.qMap.Delete(k)
 					c.quic.CloseWithError(401, "Gone")
-					go t.Delegate.Removed(c.peer)
+					go t.Delegate.TransportDestroyed(c.peer)
 				}
 
 				for _, c := range candidate {

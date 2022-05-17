@@ -107,11 +107,11 @@ func fsck(as *assert.Assertions, nodes []*LocalNode) {
 func TestKeyTransferOut(t *testing.T) {
 	as := assert.New(t)
 
-	numNodes := 7
+	numNodes := 3
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(200, 32)
+	keys, values := makeKV(30, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(keys[i], values[i]))
@@ -171,7 +171,7 @@ func TestKeyTransferIn(t *testing.T) {
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(200, 8)
+	keys, values := makeKV(10, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(keys[i], values[i]))

@@ -135,13 +135,6 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 				return nil, err
 			}
 
-		case protocol.KVOperation_REQUEST_KEYS:
-			keys, err := n.RequestKeysForTransfer(kvReq.GetMidKey())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Keys = keys
-
 		case protocol.KVOperation_LOCAL_KEYS:
 			keys, err := n.LocalKeys(kvReq.GetLowKey(), kvReq.GetHighKey())
 			if err != nil {

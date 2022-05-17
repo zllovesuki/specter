@@ -47,5 +47,5 @@ type defaultDelegate struct{}
 
 var _ transport.EventDelegate = (*defaultDelegate)(nil)
 
-func (*defaultDelegate) Created(n *protocol.Node) {}
-func (*defaultDelegate) Removed(n *protocol.Node) {}
+func (*defaultDelegate) TransportEstablished(n *protocol.Node) {}
+func (*defaultDelegate) TransportDestroyed(n *protocol.Node)   {}
