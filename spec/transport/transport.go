@@ -8,7 +8,7 @@ import (
 	"specter/spec/rpc"
 )
 
-type Delegate struct {
+type StreamDelegate struct {
 	Connection net.Conn
 	Identity   *protocol.Node
 }
@@ -18,14 +18,19 @@ type DatagramDelegate struct {
 	Identity *protocol.Node
 }
 
+type EventDelegate interface {
+	Created(*protocol.Node)
+	Removed(*protocol.Node)
+}
+
 type Transport interface {
 	Identity() *protocol.Node
 
 	DialRPC(ctx context.Context, peer *protocol.Node, hs rpc.RPCHandshakeFunc) (rpc.RPC, error)
 	DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error)
 
-	RPC() <-chan *Delegate
-	Direct() <-chan *Delegate
+	RPC() <-chan *StreamDelegate
+	Direct() <-chan *StreamDelegate
 
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate

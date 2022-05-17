@@ -118,13 +118,21 @@ func (s *Server) Accept(ctx context.Context) {
 
 		case delegate := <-s.clientTransport.RPC():
 			conn := delegate.Connection
-			r := rpc.NewRPC(s.logger, conn, s.handleRPC)
+			l := s.logger.With(
+				zap.Any("peer", delegate.Identity),
+				zap.String("remote", conn.RemoteAddr().String()),
+				zap.String("local", conn.LocalAddr().String()))
+			l.Debug("New incoming RPC Stream")
+			r := rpc.NewRPC(
+				l.With(zap.String("pov", "client_rpc")),
+				conn,
+				s.handleRPC)
 			go r.Start(ctx)
 		}
 	}
 }
 
-func (s *Server) handleConn(ctx context.Context, delegation *transport.Delegate) {
+func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDelegate) {
 	var err error
 	var clientConn net.Conn
 

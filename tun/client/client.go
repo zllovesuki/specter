@@ -141,7 +141,7 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	}()
 
 	for delegation := range c.serverTransport.Direct() {
-		go func(delegation *transport.Delegate) {
+		go func(delegation *transport.StreamDelegate) {
 			link := &protocol.Link{}
 			if err := rpc.Receive(delegation.Connection, link); err != nil {
 				c.logger.Error("receiving link information from gateway", zap.Error(err))

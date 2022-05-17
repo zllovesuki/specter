@@ -39,11 +39,7 @@ func (g *Gateway) httpHandler() http.Handler {
 		BufferPool:   newBufferPool(),
 		ErrorHandler: g.errorHandler,
 		ModifyResponse: func(r *http.Response) error {
-			// since visitor and client shares the same port, proxied target may have
-			// alt-svc set in their response, which will either break peer quic,
-			// or the visitor won't be able to visit
 			r.Header.Del("alt-svc")
-			// profiler.GatewayRequests.WithLabelValues("success", "forward").Add(1)
 			return nil
 		},
 		ErrorLog: zap.NewStdLog(g.Logger),

@@ -19,16 +19,13 @@ func (n *LocalNode) HandleRPC() {
 		select {
 		case delegate := <-n.Transport.RPC():
 			s := delegate.Connection
-			n.Logger.Debug("New incoming RPC Stream",
+			l := n.Logger.With(
 				zap.Any("peer", delegate.Identity),
 				zap.String("remote", s.RemoteAddr().String()),
 				zap.String("local", s.LocalAddr().String()))
+			l.Debug("New incoming RPC Stream")
 			r := rpc.NewRPC(
-				n.Logger.With(
-					zap.Any("peer", delegate.Identity),
-					zap.String("remote", s.RemoteAddr().String()),
-					zap.String("local", s.LocalAddr().String()),
-					zap.String("pov", "local_rpc")),
+				l.With(zap.String("pov", "local_rpc")),
 				s,
 				n.rpcHandler)
 			go r.Start(n.stopCtx)

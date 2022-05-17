@@ -38,8 +38,8 @@ func NewQUIC(logger *zap.Logger, self *protocol.Node, serverTLS *tls.Config, cli
 		rpcMap: skipmap.NewString(),
 		rpcMu:  concurrent.NewKeyedRWMutex(),
 
-		rpcChan:    make(chan *transport.Delegate, 1),
-		directChan: make(chan *transport.Delegate, 1),
+		rpcChan:    make(chan *transport.StreamDelegate),
+		directChan: make(chan *transport.StreamDelegate),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
 
 		server: serverTLS,
@@ -212,11 +212,11 @@ func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, e
 	return w(q, stream), nil
 }
 
-func (t *QUIC) RPC() <-chan *transport.Delegate {
+func (t *QUIC) RPC() <-chan *transport.StreamDelegate {
 	return t.rpcChan
 }
 
-func (t *QUIC) Direct() <-chan *transport.Delegate {
+func (t *QUIC) Direct() <-chan *transport.StreamDelegate {
 	return t.directChan
 }
 
@@ -417,12 +417,12 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 
 	switch rr.GetType() {
 	case protocol.Stream_RPC:
-		t.rpcChan <- &transport.Delegate{
+		t.rpcChan <- &transport.StreamDelegate{
 			Connection: w(q, stream),
 			Identity:   peer,
 		}
 	case protocol.Stream_DIRECT:
-		t.directChan <- &transport.Delegate{
+		t.directChan <- &transport.StreamDelegate{
 			Connection: w(q, stream),
 			Identity:   peer,
 		}

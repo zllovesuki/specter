@@ -66,11 +66,11 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tunSpec.ALPN(protocol.Link_UNKNOWN), tunSpec.ALPN(protocol.Link_HTTP):
-			g.Logger.Debug("forward http connection")
+			g.Logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.httpTunnelAcceptor.Conn <- conn
 
 		case tunSpec.ALPN(protocol.Link_TCP):
-			g.Logger.Debug("forward raw connection")
+			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
 			parts := strings.SplitN(cs.ServerName, ".", 2)
 			c, err := g.Tun.Dial(ctx, &protocol.Link{
 				Alpn:     protocol.Link_TCP,

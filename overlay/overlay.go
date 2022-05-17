@@ -29,8 +29,8 @@ type QUIC struct {
 	qMap *skipmap.StringMap
 	qMu  *concurrent.KeyedRWMutex
 
-	rpcChan    chan *transport.Delegate
-	directChan chan *transport.Delegate
+	rpcChan    chan *transport.StreamDelegate
+	directChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
 
 	server *tls.Config
