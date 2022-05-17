@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 
-	"specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/protocol"
 )
 
 type RPCHandshakeFunc func(RPC) error

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/chord"
 
 	"go.uber.org/zap"
 )

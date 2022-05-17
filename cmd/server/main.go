@@ -15,14 +15,14 @@ import (
 	"syscall"
 	"time"
 
-	"specter/kv"
-	"specter/node"
-	"specter/overlay"
-	"specter/spec/chord"
-	"specter/spec/protocol"
-	"specter/spec/tun"
-	"specter/tun/gateway"
-	"specter/tun/server"
+	"github.com/zllovesuki/specter/kv"
+	"github.com/zllovesuki/specter/node"
+	"github.com/zllovesuki/specter/overlay"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/tun"
+	"github.com/zllovesuki/specter/tun/gateway"
+	"github.com/zllovesuki/specter/tun/server"
 
 	"go.uber.org/zap"
 )

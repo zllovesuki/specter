@@ -3,9 +3,10 @@ package rpc
 import (
 	"context"
 	"io"
-	"specter/spec/protocol"
 	"testing"
 	"time"
+
+	"github.com/zllovesuki/specter/spec/protocol"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"

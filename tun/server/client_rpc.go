@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"specter/spec/chord"
-	"specter/spec/protocol"
-	"specter/spec/rpc"
-	"specter/spec/tun"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/rpc"
+	"github.com/zllovesuki/specter/spec/tun"
 
 	"github.com/sethvargo/go-diceware/diceware"
 	"go.uber.org/zap"

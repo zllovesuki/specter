@@ -1,7 +1,7 @@
 package node
 
 import (
-	"specter/spec/transport"
+	"github.com/zllovesuki/specter/spec/transport"
 )
 
 type mockTransport struct {

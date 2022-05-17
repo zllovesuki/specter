@@ -1,4 +1,4 @@
-module specter
+module github.com/zllovesuki/specter
 
 go 1.17
 

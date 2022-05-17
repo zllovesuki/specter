@@ -1,7 +1,7 @@
 package node
 
 import (
-	"specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/chord"
 
 	"go.uber.org/zap"
 )

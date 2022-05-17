@@ -7,11 +7,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"specter/spec/protocol"
-	"specter/spec/tun"
-	"specter/tun/server"
 	"strings"
 	"time"
+
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/tun"
+	"github.com/zllovesuki/specter/tun/server"
 
 	"go.uber.org/zap"
 )

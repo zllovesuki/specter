@@ -3,10 +3,11 @@ package kv
 import (
 	"crypto/rand"
 	"hash/fnv"
-	"specter/spec/chord"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/zllovesuki/specter/spec/chord"
 
 	"github.com/stretchr/testify/assert"
 )

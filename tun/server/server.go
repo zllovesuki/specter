@@ -6,11 +6,11 @@ import (
 	"net"
 	"time"
 
-	"specter/rpc"
-	"specter/spec/chord"
-	"specter/spec/protocol"
-	"specter/spec/transport"
-	"specter/spec/tun"
+	"github.com/zllovesuki/specter/rpc"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/transport"
+	"github.com/zllovesuki/specter/spec/tun"
 
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"

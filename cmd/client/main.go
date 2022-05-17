@@ -11,10 +11,10 @@ import (
 	"math/big"
 	mathRand "math/rand"
 
-	"specter/overlay"
-	"specter/spec/protocol"
-	"specter/spec/tun"
-	"specter/tun/client"
+	"github.com/zllovesuki/specter/overlay"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/tun"
+	"github.com/zllovesuki/specter/tun/client"
 
 	"go.uber.org/zap"
 )

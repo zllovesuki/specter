@@ -1,6 +1,6 @@
 package chord
 
-import "specter/spec/protocol"
+import "github.com/zllovesuki/specter/spec/protocol"
 
 type VNode interface {
 	KV

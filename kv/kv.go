@@ -1,7 +1,7 @@
 package kv
 
 import (
-	"specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/chord"
 
 	"github.com/zhangyunhao116/skipmap"
 )

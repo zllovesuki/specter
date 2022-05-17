@@ -4,8 +4,8 @@ import (
 	"context"
 	"net"
 
-	"specter/spec/protocol"
-	"specter/spec/rpc"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/rpc"
 )
 
 type StreamDelegate struct {

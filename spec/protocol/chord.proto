@@ -2,7 +2,7 @@ syntax = "proto3";
 package protocol;
 
 option optimize_for = SPEED;
-option go_package = "specter/spec/protocol";
+option go_package = "github.com/zllovesuki/specter/spec/protocol";
 
 import "spec/protocol/node.proto";
 

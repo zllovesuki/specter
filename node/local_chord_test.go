@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"specter/kv"
-	"specter/spec/chord"
-	"specter/spec/protocol"
+	"github.com/zllovesuki/specter/kv"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"

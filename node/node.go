@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"specter/spec/chord"
-	"specter/spec/protocol"
-	"specter/spec/transport"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/transport"
 
 	"go.uber.org/zap"
 )

@@ -3,9 +3,9 @@ package overlay
 import (
 	"crypto/tls"
 
-	"specter/spec/concurrent"
-	"specter/spec/protocol"
-	"specter/spec/transport"
+	"github.com/zllovesuki/specter/spec/concurrent"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/zhangyunhao116/skipmap"

@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"specter/spec/protocol"
-	tunSpec "specter/spec/tun"
-	"specter/tun/server"
+	"github.com/zllovesuki/specter/spec/protocol"
+	tunSpec "github.com/zllovesuki/specter/spec/tun"
+	"github.com/zllovesuki/specter/tun/server"
 
 	"go.uber.org/zap"
 )

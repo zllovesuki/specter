@@ -3,7 +3,7 @@ package tun
 import (
 	"strconv"
 
-	"specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/protocol"
 )
 
 func BundleKey(hostname string, num int) string {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"specter/spec/chord"
-	"specter/spec/protocol"
-	"specter/spec/rpc"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/rpc"
 
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"

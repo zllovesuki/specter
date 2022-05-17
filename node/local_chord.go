@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"specter/spec/chord"
-	"specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )

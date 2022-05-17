@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/chord"
 
 	zapAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"

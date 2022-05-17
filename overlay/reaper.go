@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"specter/spec/protocol"
-	"specter/spec/rpc"
+	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/rpc"
 
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"

@@ -3,9 +3,10 @@ package node
 import (
 	"crypto/rand"
 	mathRand "math/rand"
-	"specter/kv"
 	"testing"
 	"time"
+
+	"github.com/zllovesuki/specter/kv"
 
 	"github.com/stretchr/testify/assert"
 )
