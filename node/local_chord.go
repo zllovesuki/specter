@@ -39,7 +39,6 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
-		go n.transferKeysIn(predecessor)
 		return nil
 	}
 
@@ -58,7 +57,6 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
-		go n.transferKeysIn(new)
 	}
 
 	return nil
@@ -84,9 +82,9 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	// find next in ring according to finger table
 	closest := n.closestPreceedingNode(key)
 	// small optimization
-	if closest.ID() == n.ID() {
-		return n, nil
-	}
+	// if closest.ID() == n.ID() {
+	// 	return n, nil
+	// }
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }
@@ -151,44 +149,47 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 	return n.getPredecessor(), nil
 }
 
-func (n *LocalNode) transferKeysIn(pre chord.VNode) (err error) {
+func (n *LocalNode) RequestKeysForTransfer(mid uint64) ([][]byte, error) {
+	pre := n.getPredecessor()
+	if pre == nil {
+		return nil, fmt.Errorf("node currently has no predecessor")
+	}
+	return n.kv.LocalKeys(pre.ID(), mid)
+}
+
+func (n *LocalNode) transferKeysIn(successor chord.VNode) (err error) {
 	// find low index (predecessor)
 	// find high index (this node)
 	// get keys between (low, high] from successor
 	// copy keys from successor
 	// remove keys from successor
+	var keys [][]byte
+
 	defer func() {
 		if err != nil {
-			n.Logger.Error("transfer keys from successor", zap.Uint64("predecessor", pre.ID()), zap.Error(err))
+			n.Logger.Error("transfer keys from successor", zap.Uint64("successor", successor.ID()), zap.Error(err))
 		}
 	}()
 
-	succ := n.getSuccessor()
-	if succ == nil {
-		err = fmt.Errorf("node has no successor")
-		return
-	}
-
-	if pre.ID() == n.ID() || succ.ID() == n.ID() {
+	if successor.ID() == n.ID() {
 		return nil
 	}
 
-	var keys [][]byte
-	keys, err = succ.LocalKeys(pre.ID(), n.ID())
+	keys, err = successor.RequestKeysForTransfer(n.ID())
 	if err != nil {
 		err = fmt.Errorf("getting keys for transfer from successor: %w", err)
 		return
 	}
 
-	n.Logger.Info("Transfering keys from successor", zap.Int("num_keys", len(keys)), zap.Uint64("low", pre.ID()), zap.Uint64("high", succ.ID()))
-
 	if len(keys) == 0 {
 		return
 	}
 
+	n.Logger.Info("Transfering keys from successor", zap.Int("num_keys", len(keys)))
+
 	// TODO: split into batches
 	var values [][]byte
-	values, err = succ.LocalGets(keys)
+	values, err = successor.LocalGets(keys)
 	if err != nil {
 		err = fmt.Errorf("fetching values from successor: %w", err)
 		return
@@ -199,7 +200,7 @@ func (n *LocalNode) transferKeysIn(pre chord.VNode) (err error) {
 		return
 	}
 
-	if err = succ.LocalDeletes(keys); err != nil {
+	if err = successor.LocalDeletes(keys); err != nil {
 		err = fmt.Errorf("removing keys from successor: %w", err)
 		return
 	}

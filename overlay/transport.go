@@ -150,7 +150,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 	}
 	rUnlock()
 
-	t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
+	// t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
 
 	unlock := t.rpcMu.Lock(rpcMapKey)
 	defer unlock()
@@ -159,7 +159,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		return r.(rpcSpec.RPC), nil
 	}
 
-	t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
+	// t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
@@ -188,7 +188,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		}
 	}
 
-	t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeQKey(peer)))
+	// t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeQKey(peer)))
 
 	t.rpcMap.Store(rpcMapKey, r)
 

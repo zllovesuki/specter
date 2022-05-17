@@ -145,29 +145,6 @@ func main() {
 	go tunServer.Accept(ctx)
 	go gw.Start(ctx)
 
-	go func() {
-		ticker := time.NewTicker(time.Second * 5)
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				p, _ := chordNode.GetPredecessor()
-				var pID int64 = -1
-				if p != nil {
-					pID = int64(p.ID())
-				}
-				logger.Debug("Debug Log",
-					zap.Uint64("node", chordNode.ID()),
-					zap.Int64("predecessor", pID),
-					// zap.String("ring", local.RingTrace()),
-					zap.String("table", chordNode.FingerTrace()))
-				// local.Put([]byte("key"), []byte("value"))
-			}
-		}
-	}()
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 

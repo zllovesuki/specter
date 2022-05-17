@@ -188,6 +188,24 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	return pre, nil
 }
 
+func (n *RemoteNode) RequestKeysForTransfer(mid uint64) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:     protocol.KVOperation_REQUEST_KEYS,
+		MidKey: mid,
+	}
+	rResp, err := n.rpc.Call(ctx, rReq)
+	if err != nil {
+		n.logger.Error("remote RequestKeysForTransfer RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		return nil, err
+	}
+
+	return rResp.KvResponse.GetKeys(), nil
+}
+
 func (n *RemoteNode) Put(key, value []byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
 	defer cancel()

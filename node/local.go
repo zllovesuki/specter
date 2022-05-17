@@ -140,6 +140,10 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 
 	n.startTasks()
 
+	if err := n.transferKeysIn(proposedSucc); err != nil {
+		n.Logger.Error("trasnfer keys from successor upon joining", zap.Error(err))
+	}
+
 	return nil
 }
 
