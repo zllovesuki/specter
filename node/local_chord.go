@@ -158,10 +158,17 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return nil
 	}
 
+	l := n.Logger.With(zap.Uint64("node", n.ID()))
+
 	if prevPredecessor == nil {
 		low = n.ID()
 	} else {
 		low = prevPredecessor.ID()
+	}
+
+	if !chord.Between(low, newPredecessor.ID(), n.ID(), false) {
+		l.Debug("skip transferring keys to predecessor because predecessor left", zap.Uint64("predecessor", newPredecessor.ID()))
+		return
 	}
 
 	keys, err = n.kv.LocalKeys(low, newPredecessor.ID())
@@ -172,7 +179,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return nil
 	}
 
-	n.Logger.Info("Transfering keys to predecessor", zap.Int("num_keys", len(keys)), zap.Uint64("predecessor", newPredecessor.ID()))
+	l.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
 	values, err = n.kv.LocalGets(keys)
 	if err != nil {
@@ -203,7 +210,7 @@ func (n *LocalNode) transKeysOut(successor chord.VNode) error {
 		return fmt.Errorf("fetching all values locally: %w", err)
 	}
 
-	n.Logger.Info("Transfering keys to successor", zap.Int("num_keys", len(keys)), zap.Uint64("successor", successor.ID()))
+	n.Logger.Info("Transfering keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 
 	// TODO: split into batches
 	if err := successor.LocalPuts(keys, values); err != nil {
