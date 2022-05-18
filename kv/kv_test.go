@@ -135,3 +135,33 @@ func TestOrderedKeys(t *testing.T) {
 		prev = id
 	}
 }
+
+func TestLocalOperations(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithChordHash()
+
+	num := 32
+	length := 8
+	keys := make([][]byte, num)
+	values := make([][]byte, num)
+
+	for i := range keys {
+		keys[i] = make([]byte, length)
+		values[i] = make([]byte, length)
+		rand.Read(keys[i])
+		rand.Read(values[i])
+	}
+
+	as.Nil(kv.LocalPuts(keys, values))
+
+	ret, err := kv.LocalGets(keys)
+	as.Nil(err)
+	as.EqualValues(values, ret)
+
+	as.Nil(kv.LocalDeletes(keys))
+
+	ret, err = kv.LocalGets(keys)
+	as.Nil(err)
+	as.NotEqualValues(values, ret)
+}

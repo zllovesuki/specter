@@ -196,7 +196,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 }
 
 func (n *LocalNode) transKeysOut(successor chord.VNode) error {
-	keys, err := n.LocalKeys(0, 0)
+	keys, err := n.kv.LocalKeys(0, 0)
 	if err != nil {
 		return fmt.Errorf("fetching all keys locally: %w", err)
 	}
@@ -205,7 +205,7 @@ func (n *LocalNode) transKeysOut(successor chord.VNode) error {
 		return nil
 	}
 
-	values, err := n.LocalGets(keys)
+	values, err := n.kv.LocalGets(keys)
 	if err != nil {
 		return fmt.Errorf("fetching all values locally: %w", err)
 	}

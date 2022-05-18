@@ -355,6 +355,8 @@ func (t *QUIC) Accept(ctx context.Context) error {
 		return err
 	}
 
+	t.background(ctx)
+
 	t.Logger.Info("Accepting connections", zap.String("listen", t.Endpoint.GetAddress()))
 
 	for {

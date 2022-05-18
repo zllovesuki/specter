@@ -26,19 +26,18 @@ type atomicVNodeList struct {
 type LocalNode struct {
 	NodeConfig
 
-	_           [64]byte
+	_           [48]byte
 	predecessor atomic.Value // *atomicVNode
-	_           [64]byte
-
-	_          [64]byte
-	successors atomic.Value // *atomicVNodeList
-	_          [64]byte
-	succXOR    *zapAtomic.Uint64
+	_           [48]byte
+	successors  atomic.Value // *atomicVNodeList
+	_           [48]byte
+	succXOR     *zapAtomic.Uint64
+	_           [48]byte
 
 	fingers []struct {
-		_ [64]byte
+		_ [48]byte
 		n atomic.Value // *atomicVNode
-		_ [64]byte
+		_ [48]byte
 	}
 
 	stopCh chan struct{}
@@ -62,9 +61,9 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		started:    zapAtomic.NewBool(false),
 		kv:         conf.KVProvider,
 		fingers: make([]struct {
-			_ [64]byte
+			_ [48]byte
 			n atomic.Value
-			_ [64]byte
+			_ [48]byte
 		}, chord.MaxFingerEntries+1),
 		lastStabilized: zapAtomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
@@ -166,11 +165,11 @@ func (n *LocalNode) Stop() {
 	n.Logger.Info("waiting for chord ring to notice our departure")
 	<-time.After(n.StablizeInterval)
 
-	if err := succ.Notify(pre); err != nil {
-		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
-	}
-
 	if err := n.transKeysOut(succ); err != nil {
 		n.Logger.Error("transfering KV to successor", zap.Error(err))
+	}
+
+	if err := succ.Notify(pre); err != nil {
+		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
 	}
 }

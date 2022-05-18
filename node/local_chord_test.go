@@ -74,7 +74,7 @@ func TestCreate(t *testing.T) {
 
 	n1.Stop()
 
-	<-time.After(time.Millisecond * 100)
+	<-time.After(time.Millisecond * 500)
 
 	RingCheck(as, []*LocalNode{n1}, true)
 }
@@ -93,7 +93,7 @@ func TestJoin(t *testing.T) {
 	n1.Stop()
 	n2.Stop()
 
-	<-time.After(time.Millisecond * 100)
+	<-time.After(time.Millisecond * 500)
 
 	// skip counter clockwise check because we stopped first
 	RingCheck(as, []*LocalNode{
@@ -126,7 +126,7 @@ func TestRandomNodes(t *testing.T) {
 		nodes[i].Stop()
 	}
 
-	<-time.After(time.Millisecond * 100)
+	<-time.After(time.Millisecond * 500)
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())

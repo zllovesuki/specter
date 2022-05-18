@@ -171,26 +171,43 @@ func TestKeyTransferIn(t *testing.T) {
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(10, 8)
+	keys, values := makeKV(200, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(keys[i], values[i]))
 	}
 
-	newNode := NewLocalNode(DevConfig(as))
-	newNode.Join(nodes[0])
-	defer newNode.Stop()
+	n1 := NewLocalNode(DevConfig(as))
+	n1.Join(nodes[0])
+	defer n1.Stop()
 
 	<-time.After(time.Millisecond * 500)
 
-	keys, err := newNode.kv.LocalKeys(0, 0)
+	keys, err := n1.kv.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Greater(len(keys), 0)
-	vals, err := newNode.kv.LocalGets(keys)
+	vals, err := n1.kv.LocalGets(keys)
 	as.Nil(err)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
 	}
 
-	fsck(as, []*LocalNode{newNode, nodes[0]})
+	fsck(as, []*LocalNode{n1, nodes[0]})
+
+	n2 := NewLocalNode(DevConfig(as))
+	n2.Join(nodes[0])
+	defer n2.Stop()
+
+	<-time.After(time.Millisecond * 500)
+
+	keys, err = n2.kv.LocalKeys(0, 0)
+	as.Nil(err)
+	as.Greater(len(keys), 0)
+	vals, err = n2.kv.LocalGets(keys)
+	as.Nil(err)
+	for _, val := range vals {
+		as.Greater(len(val), 0)
+	}
+
+	fsck(as, []*LocalNode{n2, n1, nodes[0]})
 }
