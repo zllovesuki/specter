@@ -21,7 +21,10 @@ func (h *HTTPAcceptor) Accept() (net.Conn, error) {
 }
 
 func (h *HTTPAcceptor) Close() error {
-	return nil
+	if h.Parent == nil {
+		return nil
+	}
+	return h.Parent.Close()
 }
 
 func (h *HTTPAcceptor) Addr() net.Addr {

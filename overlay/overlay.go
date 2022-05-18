@@ -23,7 +23,6 @@ type TransportConfig struct {
 	Endpoint  *protocol.Node
 	ServerTLS *tls.Config
 	ClientTLS *tls.Config
-	Delegate  transport.EventDelegate
 }
 
 type QUIC struct {
@@ -39,13 +38,9 @@ type QUIC struct {
 	directChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
 
+	estChan chan *protocol.Node
+	desChan chan *protocol.Node
+
 	started *atomic.Bool
 	closed  *atomic.Bool
 }
-
-type defaultDelegate struct{}
-
-var _ transport.EventDelegate = (*defaultDelegate)(nil)
-
-func (*defaultDelegate) TransportEstablished(n *protocol.Node) {}
-func (*defaultDelegate) TransportDestroyed(n *protocol.Node)   {}

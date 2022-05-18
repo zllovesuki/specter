@@ -18,11 +18,6 @@ type DatagramDelegate struct {
 	Identity *protocol.Node
 }
 
-type EventDelegate interface {
-	TransportEstablished(*protocol.Node)
-	TransportDestroyed(*protocol.Node)
-}
-
 type Transport interface {
 	Identity() *protocol.Node
 
@@ -35,6 +30,9 @@ type Transport interface {
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate
 	SendDatagram(*protocol.Node, []byte) error
+
+	TransportEstablished() <-chan *protocol.Node
+	TransportDestroyed() <-chan *protocol.Node
 
 	Accept(ctx context.Context) error
 

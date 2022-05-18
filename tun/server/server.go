@@ -69,19 +69,6 @@ func (s *Server) Accept(ctx context.Context) {
 			// client uses this to register connection
 			// but it is a no-op on the server side
 			delegate.Connection.Close()
-
-		case delegate := <-s.clientTransport.RPC():
-			conn := delegate.Connection
-			l := s.logger.With(
-				zap.Any("peer", delegate.Identity),
-				zap.String("remote", conn.RemoteAddr().String()),
-				zap.String("local", conn.LocalAddr().String()))
-			l.Debug("New incoming RPC Stream")
-			r := rpc.NewRPC(
-				l.With(zap.String("pov", "client_rpc")),
-				conn,
-				s.handleRPC)
-			go r.Start(ctx)
 		}
 	}
 }

@@ -153,6 +153,7 @@ func main() {
 	}
 
 	go clientTransport.Accept(ctx)
+	go tunServer.HandleRPC(ctx)
 	go tunServer.Accept(ctx)
 	go gw.Start(ctx)
 

@@ -28,9 +28,6 @@ var (
 var _ transport.Transport = (*QUIC)(nil)
 
 func NewQUIC(conf TransportConfig) *QUIC {
-	if conf.Delegate == nil {
-		conf.Delegate = &defaultDelegate{}
-	}
 	return &QUIC{
 		TransportConfig: conf,
 
@@ -42,6 +39,9 @@ func NewQUIC(conf TransportConfig) *QUIC {
 		rpcChan:    make(chan *transport.StreamDelegate),
 		directChan: make(chan *transport.StreamDelegate),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
+
+		estChan: make(chan *protocol.Node),
+		desChan: make(chan *protocol.Node),
 
 		started: atomic.NewBool(false),
 		closed:  atomic.NewBool(false),
@@ -95,6 +95,9 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 	if err != nil {
 		return nil, err
 	}
+
+	t.background(ctx)
+
 	return q, nil
 }
 
@@ -140,8 +143,6 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		return nil, ErrClosed
 	}
 
-	t.background(ctx)
-
 	rpcMapKey := makeSKey(peer)
 
 	rUnlock := t.rpcMu.RLock(rpcMapKey)
@@ -167,17 +168,15 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 		return nil, err
 	}
 
-	t.Logger.Debug("Created new RPC Stream",
+	l := t.Logger.With(
 		zap.Any("peer", peer),
 		zap.String("remote", q.RemoteAddr().String()),
 		zap.String("local", q.LocalAddr().String()))
 
+	l.Debug("Created new RPC Stream")
+
 	r := rpc.NewRPC(
-		t.Logger.With(
-			zap.Any("peer", peer),
-			zap.String("remote", q.RemoteAddr().String()),
-			zap.String("local", q.LocalAddr().String()),
-			zap.String("pov", "transport_dial")),
+		l.With(zap.String("pov", "transport_dial")),
 		stream,
 		nil)
 	go r.Start(ctx)
@@ -201,8 +200,6 @@ func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, e
 		return nil, ErrClosed
 	}
 
-	t.background(ctx)
-
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_DIRECT)
 	if err != nil {
 		return nil, err
@@ -221,6 +218,14 @@ func (t *QUIC) RPC() <-chan *transport.StreamDelegate {
 
 func (t *QUIC) Direct() <-chan *transport.StreamDelegate {
 	return t.directChan
+}
+
+func (t *QUIC) TransportEstablished() <-chan *protocol.Node {
+	return t.estChan
+}
+
+func (t *QUIC) TransportDestroyed() <-chan *protocol.Node {
+	return t.desChan
 }
 
 func (t *QUIC) SupportDatagram() bool {
@@ -287,8 +292,6 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 		t.Logger.Debug("saving quic connection for reuse", zap.String("direction", dir), zap.String("key", rKey))
 	}
 
-	go t.Delegate.TransportEstablished(rr.GetIdentity())
-
 	return q, rr.GetIdentity(), false, nil
 }
 
@@ -309,6 +312,10 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 
 	if !reused {
 		t.handlePeer(ctx, newQ, peer, "incoming")
+		select {
+		case t.estChan <- peer:
+		default:
+		}
 	}
 
 	return newQ, nil
@@ -331,6 +338,10 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 
 	if !reused && peer.GetId() != t.Endpoint.GetId() {
 		t.handlePeer(ctx, newQ, peer, "outgoing")
+		select {
+		case t.estChan <- peer:
+		default:
+		}
 	}
 
 	return newQ, nil
@@ -448,6 +459,11 @@ func (t *QUIC) Stop() {
 		return
 	}
 	t.started.Store(false)
+	t.qMap.Range(func(key string, value interface{}) bool {
+		n := value.(*nodeConnection)
+		n.quic.CloseWithError(0, "Transport closed")
+		return true
+	})
 }
 
 func w(q quic.Connection, s quic.Stream) *quicConn {

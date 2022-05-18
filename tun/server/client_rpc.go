@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zllovesuki/specter/rpc"
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/rpc"
+	rpcSpec "github.com/zllovesuki/specter/spec/rpc"
 	"github.com/zllovesuki/specter/spec/tun"
 
 	"github.com/sethvargo/go-diceware/diceware"
@@ -15,7 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var _ rpc.RPCHandler = (*Server)(nil).handleRPC
+var _ rpcSpec.RPCHandler = (*Server)(nil).rpcHandler
 
 var generator, _ = diceware.NewGenerator(nil)
 
@@ -34,7 +35,29 @@ func uniqueVNodes(nodes []chord.VNode) []chord.VNode {
 	return u
 }
 
-func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+func (s *Server) HandleRPC(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case delegate := <-s.clientTransport.RPC():
+			conn := delegate.Connection
+			l := s.logger.With(
+				zap.Any("peer", delegate.Identity),
+				zap.String("remote", conn.RemoteAddr().String()),
+				zap.String("local", conn.LocalAddr().String()))
+			l.Debug("New incoming RPC Stream")
+			r := rpc.NewRPC(
+				l.With(zap.String("pov", "client_rpc")),
+				conn,
+				s.rpcHandler)
+			go r.Start(ctx)
+		}
+	}
+}
+
+func (s *Server) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	select {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("server has shutdown")
@@ -63,9 +86,13 @@ func (s *Server) handleRPC(ctx context.Context, req *protocol.RPC_Request) (*pro
 		}
 
 	case protocol.RPC_PUBLISH_TUNNEL:
-		hostname := strings.Join(generator.MustGenerate(6), "-")
+		requested := req.GetPublishTunnelRequest().GetServers()
+		if len(requested) > tun.NumRedundantLinks {
+			return nil, fmt.Errorf("too many requested endpoints")
+		}
 
-		for k, server := range req.GetPublishTunnelRequest().GetServers() {
+		hostname := strings.Join(generator.MustGenerate(6), "-")
+		for k, server := range requested {
 			identities, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
 			if err != nil {
 				return nil, err
