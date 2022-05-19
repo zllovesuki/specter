@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.28.0
 // 	protoc        v3.6.1
-// source: spec/protocol/chord.proto
+// source: spec/proto/chord.proto
 
 package protocol
 
@@ -29,7 +29,7 @@ type IdentityRequest struct {
 func (x *IdentityRequest) Reset() {
 	*x = IdentityRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[0]
+		mi := &file_spec_proto_chord_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -42,7 +42,7 @@ func (x *IdentityRequest) String() string {
 func (*IdentityRequest) ProtoMessage() {}
 
 func (x *IdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[0]
+	mi := &file_spec_proto_chord_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *IdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdentityRequest.ProtoReflect.Descriptor instead.
 func (*IdentityRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{0}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{0}
 }
 
 type IdentityResponse struct {
@@ -69,7 +69,7 @@ type IdentityResponse struct {
 func (x *IdentityResponse) Reset() {
 	*x = IdentityResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[1]
+		mi := &file_spec_proto_chord_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -82,7 +82,7 @@ func (x *IdentityResponse) String() string {
 func (*IdentityResponse) ProtoMessage() {}
 
 func (x *IdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[1]
+	mi := &file_spec_proto_chord_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -95,7 +95,7 @@ func (x *IdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdentityResponse.ProtoReflect.Descriptor instead.
 func (*IdentityResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{1}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *IdentityResponse) GetIdentity() *Node {
@@ -114,7 +114,7 @@ type PingRequest struct {
 func (x *PingRequest) Reset() {
 	*x = PingRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[2]
+		mi := &file_spec_proto_chord_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -127,7 +127,7 @@ func (x *PingRequest) String() string {
 func (*PingRequest) ProtoMessage() {}
 
 func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[2]
+	mi := &file_spec_proto_chord_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -140,7 +140,7 @@ func (x *PingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
 func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{2}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{2}
 }
 
 type PingResponse struct {
@@ -152,7 +152,7 @@ type PingResponse struct {
 func (x *PingResponse) Reset() {
 	*x = PingResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[3]
+		mi := &file_spec_proto_chord_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -165,7 +165,7 @@ func (x *PingResponse) String() string {
 func (*PingResponse) ProtoMessage() {}
 
 func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[3]
+	mi := &file_spec_proto_chord_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -178,7 +178,7 @@ func (x *PingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
 func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{3}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{3}
 }
 
 type NotifyRequest struct {
@@ -192,7 +192,7 @@ type NotifyRequest struct {
 func (x *NotifyRequest) Reset() {
 	*x = NotifyRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[4]
+		mi := &file_spec_proto_chord_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -205,7 +205,7 @@ func (x *NotifyRequest) String() string {
 func (*NotifyRequest) ProtoMessage() {}
 
 func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[4]
+	mi := &file_spec_proto_chord_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -218,7 +218,7 @@ func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyRequest.ProtoReflect.Descriptor instead.
 func (*NotifyRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{4}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *NotifyRequest) GetPredecessor() *Node {
@@ -237,7 +237,7 @@ type NotifyResponse struct {
 func (x *NotifyResponse) Reset() {
 	*x = NotifyResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[5]
+		mi := &file_spec_proto_chord_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -250,7 +250,7 @@ func (x *NotifyResponse) String() string {
 func (*NotifyResponse) ProtoMessage() {}
 
 func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[5]
+	mi := &file_spec_proto_chord_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +263,7 @@ func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
 func (*NotifyResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{5}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{5}
 }
 
 type FindSuccessorRequest struct {
@@ -277,7 +277,7 @@ type FindSuccessorRequest struct {
 func (x *FindSuccessorRequest) Reset() {
 	*x = FindSuccessorRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[6]
+		mi := &file_spec_proto_chord_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -290,7 +290,7 @@ func (x *FindSuccessorRequest) String() string {
 func (*FindSuccessorRequest) ProtoMessage() {}
 
 func (x *FindSuccessorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[6]
+	mi := &file_spec_proto_chord_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +303,7 @@ func (x *FindSuccessorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindSuccessorRequest.ProtoReflect.Descriptor instead.
 func (*FindSuccessorRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{6}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FindSuccessorRequest) GetKey() uint64 {
@@ -324,7 +324,7 @@ type FindSuccessorResponse struct {
 func (x *FindSuccessorResponse) Reset() {
 	*x = FindSuccessorResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[7]
+		mi := &file_spec_proto_chord_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -337,7 +337,7 @@ func (x *FindSuccessorResponse) String() string {
 func (*FindSuccessorResponse) ProtoMessage() {}
 
 func (x *FindSuccessorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[7]
+	mi := &file_spec_proto_chord_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +350,7 @@ func (x *FindSuccessorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindSuccessorResponse.ProtoReflect.Descriptor instead.
 func (*FindSuccessorResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{7}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FindSuccessorResponse) GetSuccessor() *Node {
@@ -369,7 +369,7 @@ type GetPredecessorRequest struct {
 func (x *GetPredecessorRequest) Reset() {
 	*x = GetPredecessorRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[8]
+		mi := &file_spec_proto_chord_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -382,7 +382,7 @@ func (x *GetPredecessorRequest) String() string {
 func (*GetPredecessorRequest) ProtoMessage() {}
 
 func (x *GetPredecessorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[8]
+	mi := &file_spec_proto_chord_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +395,7 @@ func (x *GetPredecessorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPredecessorRequest.ProtoReflect.Descriptor instead.
 func (*GetPredecessorRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{8}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{8}
 }
 
 type GetPredecessorResponse struct {
@@ -409,7 +409,7 @@ type GetPredecessorResponse struct {
 func (x *GetPredecessorResponse) Reset() {
 	*x = GetPredecessorResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[9]
+		mi := &file_spec_proto_chord_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -422,7 +422,7 @@ func (x *GetPredecessorResponse) String() string {
 func (*GetPredecessorResponse) ProtoMessage() {}
 
 func (x *GetPredecessorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[9]
+	mi := &file_spec_proto_chord_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +435,7 @@ func (x *GetPredecessorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPredecessorResponse.ProtoReflect.Descriptor instead.
 func (*GetPredecessorResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{9}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetPredecessorResponse) GetPredecessor() *Node {
@@ -454,7 +454,7 @@ type GetSuccessorsRequest struct {
 func (x *GetSuccessorsRequest) Reset() {
 	*x = GetSuccessorsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[10]
+		mi := &file_spec_proto_chord_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -467,7 +467,7 @@ func (x *GetSuccessorsRequest) String() string {
 func (*GetSuccessorsRequest) ProtoMessage() {}
 
 func (x *GetSuccessorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[10]
+	mi := &file_spec_proto_chord_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +480,7 @@ func (x *GetSuccessorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSuccessorsRequest.ProtoReflect.Descriptor instead.
 func (*GetSuccessorsRequest) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{10}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{10}
 }
 
 type GetSuccessorsResponse struct {
@@ -494,7 +494,7 @@ type GetSuccessorsResponse struct {
 func (x *GetSuccessorsResponse) Reset() {
 	*x = GetSuccessorsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_protocol_chord_proto_msgTypes[11]
+		mi := &file_spec_proto_chord_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -507,7 +507,7 @@ func (x *GetSuccessorsResponse) String() string {
 func (*GetSuccessorsResponse) ProtoMessage() {}
 
 func (x *GetSuccessorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_protocol_chord_proto_msgTypes[11]
+	mi := &file_spec_proto_chord_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -520,7 +520,7 @@ func (x *GetSuccessorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSuccessorsResponse.ProtoReflect.Descriptor instead.
 func (*GetSuccessorsResponse) Descriptor() ([]byte, []int) {
-	return file_spec_protocol_chord_proto_rawDescGZIP(), []int{11}
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetSuccessorsResponse) GetSuccessors() []*Node {
@@ -530,65 +530,64 @@ func (x *GetSuccessorsResponse) GetSuccessors() []*Node {
 	return nil
 }
 
-var File_spec_protocol_chord_proto protoreflect.FileDescriptor
+var File_spec_proto_chord_proto protoreflect.FileDescriptor
 
-var file_spec_protocol_chord_proto_rawDesc = []byte{
-	0x0a, 0x19, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2f,
-	0x63, 0x68, 0x6f, 0x72, 0x64, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x1a, 0x18, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x63, 0x6f, 0x6c, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22,
-	0x11, 0x0a, 0x0f, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x22, 0x3e, 0x0a, 0x10, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2a, 0x0a, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69,
-	0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69,
-	0x74, 0x79, 0x22, 0x0d, 0x0a, 0x0b, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x22, 0x0e, 0x0a, 0x0c, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x41, 0x0a, 0x0d, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x30, 0x0a, 0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f,
-	0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65,
-	0x73, 0x73, 0x6f, 0x72, 0x22, 0x10, 0x0a, 0x0e, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x28, 0x0a, 0x14, 0x46, 0x69, 0x6e, 0x64, 0x53, 0x75,
-	0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10,
-	0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6b, 0x65, 0x79,
-	0x22, 0x45, 0x0a, 0x15, 0x46, 0x69, 0x6e, 0x64, 0x53, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f,
-	0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a, 0x09, 0x73, 0x75, 0x63,
-	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x09, 0x73, 0x75,
-	0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x22, 0x17, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x50, 0x72,
-	0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x22, 0x4a, 0x0a, 0x16, 0x47, 0x65, 0x74, 0x50, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73,
-	0x6f, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x30, 0x0a, 0x0b, 0x70, 0x72,
-	0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
-	0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52,
-	0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x22, 0x16, 0x0a, 0x14,
-	0x47, 0x65, 0x74, 0x53, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x22, 0x47, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x53, 0x75, 0x63, 0x63, 0x65,
-	0x73, 0x73, 0x6f, 0x72, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2e, 0x0a,
-	0x0a, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
+var file_spec_proto_chord_proto_rawDesc = []byte{
+	0x0a, 0x16, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x63, 0x68, 0x6f,
+	0x72, 0x64, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
+	0x6f, 0x6c, 0x1a, 0x15, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x6e,
+	0x6f, 0x64, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x11, 0x0a, 0x0f, 0x49, 0x64, 0x65,
+	0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x3e, 0x0a, 0x10,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x2a, 0x0a, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f,
+	0x64, 0x65, 0x52, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x22, 0x0d, 0x0a, 0x0b,
+	0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x0e, 0x0a, 0x0c, 0x50,
+	0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x41, 0x0a, 0x0d, 0x4e,
+	0x6f, 0x74, 0x69, 0x66, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x30, 0x0a, 0x0b,
+	0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64,
-	0x65, 0x52, 0x0a, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x42, 0x2f, 0x48,
-	0x01, 0x5a, 0x2b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x7a, 0x6c,
-	0x6c, 0x6f, 0x76, 0x65, 0x73, 0x75, 0x6b, 0x69, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72,
-	0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x52, 0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x22, 0x10,
+	0x0a, 0x0e, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x28, 0x0a, 0x14, 0x46, 0x69, 0x6e, 0x64, 0x53, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f,
+	0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x22, 0x45, 0x0a, 0x15, 0x46, 0x69,
+	0x6e, 0x64, 0x53, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a, 0x09, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
+	0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x09, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f,
+	0x72, 0x22, 0x17, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x50, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73,
+	0x73, 0x6f, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4a, 0x0a, 0x16, 0x47, 0x65,
+	0x74, 0x50, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x30, 0x0a, 0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73,
+	0x73, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x0b, 0x70, 0x72, 0x65, 0x64, 0x65,
+	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x22, 0x16, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x53, 0x75, 0x63,
+	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x47,
+	0x0a, 0x15, 0x47, 0x65, 0x74, 0x53, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2e, 0x0a, 0x0a, 0x73, 0x75, 0x63, 0x63, 0x65,
+	0x73, 0x73, 0x6f, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x0a, 0x73, 0x75, 0x63,
+	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x42, 0x2f, 0x48, 0x01, 0x5a, 0x2b, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x7a, 0x6c, 0x6c, 0x6f, 0x76, 0x65, 0x73, 0x75,
+	0x6b, 0x69, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
-	file_spec_protocol_chord_proto_rawDescOnce sync.Once
-	file_spec_protocol_chord_proto_rawDescData = file_spec_protocol_chord_proto_rawDesc
+	file_spec_proto_chord_proto_rawDescOnce sync.Once
+	file_spec_proto_chord_proto_rawDescData = file_spec_proto_chord_proto_rawDesc
 )
 
-func file_spec_protocol_chord_proto_rawDescGZIP() []byte {
-	file_spec_protocol_chord_proto_rawDescOnce.Do(func() {
-		file_spec_protocol_chord_proto_rawDescData = protoimpl.X.CompressGZIP(file_spec_protocol_chord_proto_rawDescData)
+func file_spec_proto_chord_proto_rawDescGZIP() []byte {
+	file_spec_proto_chord_proto_rawDescOnce.Do(func() {
+		file_spec_proto_chord_proto_rawDescData = protoimpl.X.CompressGZIP(file_spec_proto_chord_proto_rawDescData)
 	})
-	return file_spec_protocol_chord_proto_rawDescData
+	return file_spec_proto_chord_proto_rawDescData
 }
 
-var file_spec_protocol_chord_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
-var file_spec_protocol_chord_proto_goTypes = []interface{}{
+var file_spec_proto_chord_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_spec_proto_chord_proto_goTypes = []interface{}{
 	(*IdentityRequest)(nil),        // 0: protocol.IdentityRequest
 	(*IdentityResponse)(nil),       // 1: protocol.IdentityResponse
 	(*PingRequest)(nil),            // 2: protocol.PingRequest
@@ -603,7 +602,7 @@ var file_spec_protocol_chord_proto_goTypes = []interface{}{
 	(*GetSuccessorsResponse)(nil),  // 11: protocol.GetSuccessorsResponse
 	(*Node)(nil),                   // 12: protocol.Node
 }
-var file_spec_protocol_chord_proto_depIdxs = []int32{
+var file_spec_proto_chord_proto_depIdxs = []int32{
 	12, // 0: protocol.IdentityResponse.identity:type_name -> protocol.Node
 	12, // 1: protocol.NotifyRequest.predecessor:type_name -> protocol.Node
 	12, // 2: protocol.FindSuccessorResponse.successor:type_name -> protocol.Node
@@ -616,14 +615,14 @@ var file_spec_protocol_chord_proto_depIdxs = []int32{
 	0,  // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_spec_protocol_chord_proto_init() }
-func file_spec_protocol_chord_proto_init() {
-	if File_spec_protocol_chord_proto != nil {
+func init() { file_spec_proto_chord_proto_init() }
+func file_spec_proto_chord_proto_init() {
+	if File_spec_proto_chord_proto != nil {
 		return
 	}
-	file_spec_protocol_node_proto_init()
+	file_spec_proto_node_proto_init()
 	if !protoimpl.UnsafeEnabled {
-		file_spec_protocol_chord_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IdentityRequest); i {
 			case 0:
 				return &v.state
@@ -635,7 +634,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IdentityResponse); i {
 			case 0:
 				return &v.state
@@ -647,7 +646,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*PingRequest); i {
 			case 0:
 				return &v.state
@@ -659,7 +658,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*PingResponse); i {
 			case 0:
 				return &v.state
@@ -671,7 +670,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*NotifyRequest); i {
 			case 0:
 				return &v.state
@@ -683,7 +682,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*NotifyResponse); i {
 			case 0:
 				return &v.state
@@ -695,7 +694,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*FindSuccessorRequest); i {
 			case 0:
 				return &v.state
@@ -707,7 +706,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*FindSuccessorResponse); i {
 			case 0:
 				return &v.state
@@ -719,7 +718,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetPredecessorRequest); i {
 			case 0:
 				return &v.state
@@ -731,7 +730,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetPredecessorResponse); i {
 			case 0:
 				return &v.state
@@ -743,7 +742,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetSuccessorsRequest); i {
 			case 0:
 				return &v.state
@@ -755,7 +754,7 @@ func file_spec_protocol_chord_proto_init() {
 				return nil
 			}
 		}
-		file_spec_protocol_chord_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_chord_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetSuccessorsResponse); i {
 			case 0:
 				return &v.state
@@ -772,18 +771,18 @@ func file_spec_protocol_chord_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_spec_protocol_chord_proto_rawDesc,
+			RawDescriptor: file_spec_proto_chord_proto_rawDesc,
 			NumEnums:      0,
 			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_spec_protocol_chord_proto_goTypes,
-		DependencyIndexes: file_spec_protocol_chord_proto_depIdxs,
-		MessageInfos:      file_spec_protocol_chord_proto_msgTypes,
+		GoTypes:           file_spec_proto_chord_proto_goTypes,
+		DependencyIndexes: file_spec_proto_chord_proto_depIdxs,
+		MessageInfos:      file_spec_proto_chord_proto_msgTypes,
 	}.Build()
-	File_spec_protocol_chord_proto = out.File
-	file_spec_protocol_chord_proto_rawDesc = nil
-	file_spec_protocol_chord_proto_goTypes = nil
-	file_spec_protocol_chord_proto_depIdxs = nil
+	File_spec_proto_chord_proto = out.File
+	file_spec_proto_chord_proto_rawDesc = nil
+	file_spec_proto_chord_proto_goTypes = nil
+	file_spec_proto_chord_proto_depIdxs = nil
 }

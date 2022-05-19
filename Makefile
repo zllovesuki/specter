@@ -11,13 +11,13 @@ $(PLATFORMS):
 	GOOS=$(os) GOARCH=$(arch) go build -tags 'osusergo netgo' -ldflags "-s -w -extldflags -static" -o bin/specter-client-$(os)-$(arch) ./cmd/client
 
 proto:
-	protoc --go_opt=paths=source_relative --go_out=. ./spec/protocol/*.proto
+	protoc --go_opt=module=github.com/zllovesuki/specter --go_out=. ./spec/proto/*.proto
 
 build:
 	go build -tags 'osusergo netgo' -ldflags "-s -w -extldflags -static" -a -o bin/server ./cmd/server
 	go build -tags 'osusergo netgo' -ldflags "-s -w -extldflags -static" -a -o bin/client ./cmd/client
 
 test:
-	go test -v -race -cover ./...
+	go test -v -race -cover -count=1 ./...
 
 .PHONY: release $(PLATFORMS)

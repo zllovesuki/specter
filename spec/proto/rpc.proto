@@ -4,9 +4,9 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "github.com/zllovesuki/specter/spec/protocol";
 
-import "spec/protocol/chord.proto";
-import "spec/protocol/kv.proto";
-import "spec/protocol/tun.proto";
+import "spec/proto/chord.proto";
+import "spec/proto/kv.proto";
+import "spec/proto/tun.proto";
 
 message RPC {
     enum Type {

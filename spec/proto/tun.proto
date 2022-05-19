@@ -4,7 +4,7 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "github.com/zllovesuki/specter/spec/protocol";
 
-import "spec/protocol/node.proto";
+import "spec/proto/node.proto";
 import "google/protobuf/descriptor.proto";
 
 message Tunnel {
