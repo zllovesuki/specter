@@ -28,11 +28,14 @@ func (n *LocalNode) Ping() error {
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	var oldA *atomicVNode = n.predecessor.Load().(*atomicVNode)
-	var old chord.VNode = oldA.Node
+	l := n.Logger.With(zap.Uint64("node", n.ID()))
+	var oldA *atomicVNode
+	var old chord.VNode
 	var new chord.VNode
 
-	l := n.Logger.With(zap.Uint64("node", n.ID()))
+RETRY:
+	oldA = n.predecessor.Load().(*atomicVNode)
+	old = oldA.Node
 
 	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
 		l.Info("Discovered new predecessor via Notify",
@@ -41,6 +44,11 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		)
 		go n.transferKeysIn(nil, predecessor)
 		return nil
+	}
+
+	if old == nil {
+		// CAS failure
+		goto RETRY
 	}
 
 	if err := old.Ping(); err == nil {

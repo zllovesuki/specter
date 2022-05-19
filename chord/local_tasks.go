@@ -40,7 +40,7 @@ func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 
 func (n *LocalNode) stabilize() error {
 	succList, _ := n.GetSuccessors()
-	modified := true
+	modified := false
 
 	for len(succList) > 0 {
 		head := succList[0]
