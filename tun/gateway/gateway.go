@@ -9,15 +9,14 @@ import (
 	"strings"
 
 	"github.com/zllovesuki/specter/spec/protocol"
-	tunSpec "github.com/zllovesuki/specter/spec/tun"
-	"github.com/zllovesuki/specter/tun/server"
+	"github.com/zllovesuki/specter/spec/tun"
 
 	"go.uber.org/zap"
 )
 
 type GatewayConfig struct {
 	Logger      *zap.Logger
-	Tun         *server.Server
+	Tun         tun.Server
 	Listener    net.Listener
 	RootDomain  string
 	GatewayPort int
@@ -25,7 +24,7 @@ type GatewayConfig struct {
 
 type Gateway struct {
 	GatewayConfig
-	httpTunnelAcceptor *tunSpec.HTTPAcceptor
+	httpTunnelAcceptor *tun.HTTPAcceptor
 }
 
 func New(conf GatewayConfig) (*Gateway, error) {
@@ -34,7 +33,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 	}
 	return &Gateway{
 		GatewayConfig: conf,
-		httpTunnelAcceptor: &tunSpec.HTTPAcceptor{
+		httpTunnelAcceptor: &tun.HTTPAcceptor{
 			Parent: conf.Listener,
 			Conn:   make(chan net.Conn, 16),
 		},
@@ -65,11 +64,11 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
-		case tunSpec.ALPN(protocol.Link_UNKNOWN), tunSpec.ALPN(protocol.Link_HTTP):
+		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP):
 			g.Logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.httpTunnelAcceptor.Conn <- conn
 
-		case tunSpec.ALPN(protocol.Link_TCP):
+		case tun.ALPN(protocol.Link_TCP):
 			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
 			parts := strings.SplitN(cs.ServerName, ".", 2)
 			c, err := g.Tun.Dial(ctx, &protocol.Link{
@@ -80,7 +79,7 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 				g.Logger.Error("establish raw link error", zap.Error(err))
 				conn.Close()
 			}
-			go tunSpec.Pipe(conn, c)
+			go tun.Pipe(conn, c)
 
 		default:
 			g.Logger.Warn("unknown alpn proposal", zap.String("proposal", cs.NegotiatedProtocol))

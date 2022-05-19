@@ -12,7 +12,6 @@ import (
 
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/tun"
-	"github.com/zllovesuki/specter/tun/server"
 
 	"go.uber.org/zap"
 )
@@ -48,7 +47,7 @@ func (g *Gateway) httpHandler() http.Handler {
 }
 
 func (g *Gateway) errorHandler(rw http.ResponseWriter, r *http.Request, e error) {
-	if errors.Is(e, server.ErrDestinationNotFound) {
+	if errors.Is(e, tun.ErrDestinationNotFound) {
 		rw.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(rw, "Destination %s not found on the Chord network.", r.URL.Hostname())
 		return

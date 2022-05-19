@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/zllovesuki/specter/rpc"
@@ -25,10 +24,6 @@ import (
 // in either case, pipe the gateway connection to (direct|indirect) Stream
 // tunnel is now established
 
-var (
-	ErrDestinationNotFound = fmt.Errorf("tunnel not found on chord")
-)
-
 type Server struct {
 	logger          *zap.Logger
 	chord           chord.VNode
@@ -36,6 +31,8 @@ type Server struct {
 	chordTransport  transport.Transport
 	rootDomain      string
 }
+
+var _ tun.Server = (*Server)(nil)
 
 func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport, chordTrans transport.Transport, rootDomain string) *Server {
 	return &Server{
@@ -103,7 +100,7 @@ func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDel
 			zap.Uint64("expected", s.clientTransport.Identity().GetId()),
 			zap.Uint64("got", bundle.GetTun().GetId()),
 		)
-		err = ErrDestinationNotFound
+		err = tun.ErrDestinationNotFound
 		return
 	}
 	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
@@ -170,7 +167,7 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 		return clientConn, nil
 	}
 
-	return nil, ErrDestinationNotFound
+	return nil, tun.ErrDestinationNotFound
 }
 
 func (s *Server) Stop() {
