@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/tun"
@@ -56,34 +57,50 @@ func (g *Gateway) Start(ctx context.Context) {
 }
 
 func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
+	var err error
+
+	defer func() {
+		if err != nil {
+			g.Logger.Debug("handle connection failure", zap.Error(err))
+			conn.Close()
+		}
+	}()
+
+	hsCtx, hsCancel := context.WithTimeout(ctx, time.Second)
+	defer hsCancel()
+
+	err = conn.HandshakeContext(hsCtx)
+	if err != nil {
+		return
+	}
+
 	cs := conn.ConnectionState()
+
 	switch cs.ServerName {
 	case g.RootDomain:
-		// root
-		conn.Close()
+		err = fmt.Errorf("not implemented")
+		return
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP):
-			g.Logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.httpTunnelAcceptor.Conn <- conn
 
 		case tun.ALPN(protocol.Link_TCP):
 			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
+			var c net.Conn
 			parts := strings.SplitN(cs.ServerName, ".", 2)
-			c, err := g.Tun.Dial(ctx, &protocol.Link{
+			c, err = g.Tun.Dial(ctx, &protocol.Link{
 				Alpn:     protocol.Link_TCP,
 				Hostname: parts[0],
 			})
 			if err != nil {
-				g.Logger.Error("establish raw link error", zap.Error(err))
-				conn.Close()
+				return
 			}
 			go tun.Pipe(conn, c)
 
 		default:
-			g.Logger.Warn("unknown alpn proposal", zap.String("proposal", cs.NegotiatedProtocol))
-			conn.Close()
+			err = fmt.Errorf("unknown alpn proposal: %s", cs.NegotiatedProtocol)
 		}
 	}
 }

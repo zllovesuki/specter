@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"context"
-	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -12,45 +12,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type MemoryPipe struct {
-	otherR io.ReadCloser
-	otherW io.WriteCloser
-}
-
-func (p *MemoryPipe) Read(b []byte) (int, error) {
-	return p.otherR.Read(b)
-}
-
-func (p *MemoryPipe) Write(b []byte) (int, error) {
-	return p.otherW.Write(b)
-}
-
-func (p *MemoryPipe) Close() error {
-	p.otherR.Close()
-	p.otherW.Close()
-	return nil
-}
-
-func GetPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
-	r1, w1 := io.Pipe()
-	r2, w2 := io.Pipe()
-
-	c1 := &MemoryPipe{
-		otherR: r2,
-		otherW: w1,
-	}
-
-	c2 := &MemoryPipe{
-		otherR: r1,
-		otherW: w2,
-	}
-
-	return c1, c2
-}
-
 func TestRPC(t *testing.T) {
 	as := require.New(t)
-	c1, c2 := GetPipes()
+	c1, c2 := net.Pipe()
 
 	logger, err := zap.NewDevelopment()
 	as.Nil(err)

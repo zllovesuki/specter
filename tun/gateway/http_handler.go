@@ -25,6 +25,7 @@ func (g *Gateway) httpHandler() http.Handler {
 		Transport: &http.Transport{
 			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
 				parts := strings.SplitN(addr, ".", 2)
+				g.Logger.Debug("dialing http connection", zap.String("hostname", parts[0]))
 				return g.Tun.Dial(c, &protocol.Link{
 					Alpn:     protocol.Link_HTTP,
 					Hostname: parts[0],

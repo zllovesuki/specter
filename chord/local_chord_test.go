@@ -110,7 +110,7 @@ func TestJoin(t *testing.T) {
 func TestRandomNodes(t *testing.T) {
 	as := require.New(t)
 
-	num := 20
+	num := 8
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
 		node := NewLocalNode(DevConfig(as))

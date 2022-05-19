@@ -25,6 +25,7 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/objx v0.1.0 // indirect
 	github.com/zhangyunhao116/fastrand v0.1.0 // indirect
 	github.com/zhangyunhao116/sbconv v0.2.1 // indirect
 	github.com/zhangyunhao116/wyhash v0.3.2 // indirect
