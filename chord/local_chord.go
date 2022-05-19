@@ -34,7 +34,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 
 	l := n.Logger.With(zap.Uint64("node", n.ID()))
 
-	if old == nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: predecessor}) {
+	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
 		l.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),

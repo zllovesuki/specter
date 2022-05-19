@@ -90,7 +90,10 @@ func (r *RPC) Start(ctx context.Context) {
 				} else {
 					c.rr = rr.GetResponse()
 				}
-				rC.(rrChan) <- c
+				select {
+				case rC.(rrChan) <- c:
+				default:
+				}
 
 			case protocol.RPC_REQUEST:
 				if rr.GetRing() != chord.MaxFingerEntries {
