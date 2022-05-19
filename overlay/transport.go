@@ -311,11 +311,11 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 	}
 
 	if !reused {
-		t.handlePeer(ctx, newQ, peer, "incoming")
 		select {
 		case t.estChan <- peer:
 		default:
 		}
+		t.handlePeer(ctx, newQ, peer, "incoming")
 	}
 
 	return newQ, nil
@@ -337,11 +337,11 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 	}
 
 	if !reused && peer.GetId() != t.Endpoint.GetId() {
-		t.handlePeer(ctx, newQ, peer, "outgoing")
 		select {
 		case t.estChan <- peer:
 		default:
 		}
+		t.handlePeer(ctx, newQ, peer, "outgoing")
 	}
 
 	return newQ, nil

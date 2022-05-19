@@ -54,7 +54,7 @@ func (c *Client) forward(ctx context.Context, remote net.Conn) {
 	dialer := &net.Dialer{
 		Timeout: time.Second * 3,
 	}
-	local, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:8080")
+	local, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:3000")
 	if err != nil {
 		c.logger.Error("forwarding connection", zap.Error(err))
 		remote.Close()
@@ -92,7 +92,7 @@ func (c *Client) PublishTunnel(ctx context.Context, servers []*protocol.Node) (s
 
 func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	overwrite := false
-	u, err := url.Parse("http://127.0.0.1:8080")
+	u, err := url.Parse("http://127.0.0.1:3000")
 	if err != nil {
 		c.logger.Fatal("parsing forwarding target", zap.Error(err))
 	}

@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	chord "github.com/zllovesuki/specter/chord"
 	"github.com/zllovesuki/specter/kv"
-	"github.com/zllovesuki/specter/node"
 	"github.com/zllovesuki/specter/overlay"
-	"github.com/zllovesuki/specter/spec/chord"
+	chordSpec "github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/tun"
 	"github.com/zllovesuki/specter/tun/gateway"
@@ -38,11 +38,11 @@ func main() {
 	flag.Parse()
 
 	chordIdentity := &protocol.Node{
-		Id:      chord.Random(),
+		Id:      chordSpec.Random(),
 		Address: *listenChord,
 	}
 	serverIdentity := &protocol.Node{
-		Id:      chord.Random(),
+		Id:      chordSpec.Random(),
 		Address: *listenClient,
 	}
 
@@ -107,7 +107,7 @@ func main() {
 	})
 	defer clientTransport.Stop()
 
-	chordNode := node.NewLocalNode(node.NodeConfig{
+	chordNode := chord.NewLocalNode(chord.NodeConfig{
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
@@ -140,7 +140,7 @@ func main() {
 			logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 		}
 	} else {
-		p, err := node.NewRemoteNode(ctx, chordTransport, chordLogger, &protocol.Node{
+		p, err := chord.NewRemoteNode(ctx, chordTransport, chordLogger, &protocol.Node{
 			Unknown: true,
 			Address: *peer,
 		})

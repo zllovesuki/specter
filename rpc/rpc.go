@@ -72,7 +72,7 @@ func (r *RPC) Start(ctx context.Context) {
 	for {
 		rr := &protocol.RPC{}
 		if err := Receive(r.stream, rr); err != nil {
-			r.logger.Error("RPC receive read error", zap.Error(err))
+			// r.logger.Error("RPC receive read error", zap.Error(err))
 			r.Close()
 			return
 		}
@@ -111,7 +111,7 @@ func (r *RPC) Start(ctx context.Context) {
 				rr.Type = protocol.RPC_REPLY
 
 				if err := Send(r.stream, rr); err != nil {
-					r.logger.Error("RPC receiver send error", zap.Error(err))
+					// r.logger.Error("RPC receiver send error", zap.Error(err))
 					r.Close()
 				}
 			default:

@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zllovesuki/specter/chord"
 	"github.com/zllovesuki/specter/kv"
-	"github.com/zllovesuki/specter/node"
 	"github.com/zllovesuki/specter/overlay"
-	"github.com/zllovesuki/specter/spec/chord"
+	chordSpec "github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 
 	"go.uber.org/zap"
@@ -32,7 +32,7 @@ func main() {
 	flag.Parse()
 
 	identity := &protocol.Node{
-		Id:      chord.Random(),
+		Id:      chordSpec.Random(),
 		Address: *listen,
 	}
 
@@ -58,7 +58,7 @@ func main() {
 	})
 	defer t.Stop()
 
-	local := node.NewLocalNode(node.NodeConfig{
+	local := chord.NewLocalNode(chord.NodeConfig{
 		Logger:                   logger,
 		Identity:                 identity,
 		Transport:                t,
@@ -78,7 +78,7 @@ func main() {
 				logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 			}
 		} else {
-			p, err := node.NewRemoteNode(ctx, t, logger, &protocol.Node{
+			p, err := chord.NewRemoteNode(ctx, t, logger, &protocol.Node{
 				Unknown: true,
 				Address: *peer,
 			})

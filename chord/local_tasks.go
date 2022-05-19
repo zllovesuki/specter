@@ -1,4 +1,4 @@
-package node
+package chord
 
 import (
 	"fmt"
@@ -73,7 +73,7 @@ func (n *LocalNode) stabilize() error {
 		n.succXOR.Store(xor)
 		n.successors.Store(&atomicVNodeList{Nodes: succList})
 
-		n.Logger.Debug("Discovered new successors via Stablize",
+		n.Logger.Info("Discovered new successors via Stablize",
 			zap.Uint64("node", n.ID()),
 			zap.Uint64s("successors", v2d(succList)),
 		)
@@ -111,7 +111,7 @@ func (n *LocalNode) fixFinger() error {
 		}
 	}
 	if len(fixed) > 0 {
-		n.Logger.Debug("FingerTable entries updated", zap.Ints("fixed", fixed))
+		n.Logger.Info("FingerTable entries updated", zap.Ints("fixed", fixed))
 	}
 	return nil
 }
@@ -132,7 +132,7 @@ func (n *LocalNode) checkPredecessor() error {
 
 	err := pre.Ping()
 	if err != nil && n.predecessor.CompareAndSwap(oldA, nilNode) {
-		n.Logger.Debug("Discovered dead predecessor",
+		n.Logger.Info("Discovered dead predecessor",
 			zap.Uint64("node", n.ID()),
 			zap.Uint64("old", pre.ID()),
 		)

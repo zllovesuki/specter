@@ -9,9 +9,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	mathRand "math/rand"
 
 	"github.com/zllovesuki/specter/overlay"
+	chordSpec "github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/tun"
 	"github.com/zllovesuki/specter/tun/client"
@@ -26,7 +26,7 @@ func main() {
 	}
 
 	self := &protocol.Node{
-		Id: mathRand.Uint64(),
+		Id: chordSpec.Random(),
 	}
 
 	seed := &protocol.Node{

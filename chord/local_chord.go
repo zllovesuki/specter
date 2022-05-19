@@ -1,4 +1,4 @@
-package node
+package chord
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	l := n.Logger.With(zap.Uint64("node", n.ID()))
 
 	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
-		l.Debug("Discovered new predecessor via Notify",
+		l.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
@@ -54,7 +54,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	}
 
 	if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
-		l.Debug("Discovered new predecessor via Notify",
+		l.Info("Discovered new predecessor via Notify",
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
@@ -210,7 +210,7 @@ func (n *LocalNode) transKeysOut(successor chord.VNode) error {
 		return fmt.Errorf("fetching all values locally: %w", err)
 	}
 
-	n.Logger.Info("Transfering keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
+	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 
 	// TODO: split into batches
 	if err := successor.LocalPuts(keys, values); err != nil {
