@@ -10,11 +10,16 @@ import (
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-func DevConfig(as *assert.Assertions) NodeConfig {
+const (
+	defaultInterval = time.Millisecond * 10
+	waitInterval    = defaultInterval * 5
+)
+
+func DevConfig(as *require.Assertions) NodeConfig {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
@@ -25,13 +30,13 @@ func DevConfig(as *assert.Assertions) NodeConfig {
 		},
 		Transport:                &mockTransport{},
 		KVProvider:               kv.WithChordHash(),
-		StablizeInterval:         time.Millisecond * 50,
-		FixFingerInterval:        time.Millisecond * 50,
-		PredecessorCheckInterval: time.Millisecond * 50,
+		StablizeInterval:         defaultInterval,
+		FixFingerInterval:        defaultInterval,
+		PredecessorCheckInterval: defaultInterval,
 	}
 }
 
-func RingCheck(as *assert.Assertions, nodes []*LocalNode, counter bool) {
+func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 	if len(nodes) == 0 {
 		return
 	}
@@ -65,22 +70,22 @@ func RingCheck(as *assert.Assertions, nodes []*LocalNode, counter bool) {
 }
 
 func TestCreate(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	n1 := NewLocalNode(DevConfig(as))
 	n1.Create()
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	n1.Stop()
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	RingCheck(as, []*LocalNode{n1}, true)
 }
 
 func TestJoin(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	n2 := NewLocalNode(DevConfig(as))
 	n2.Create()
@@ -88,12 +93,12 @@ func TestJoin(t *testing.T) {
 	n1 := NewLocalNode(DevConfig(as))
 	as.Nil(n1.Join(n2))
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	n1.Stop()
 	n2.Stop()
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	// skip counter clockwise check because we stopped first
 	RingCheck(as, []*LocalNode{
@@ -103,7 +108,7 @@ func TestJoin(t *testing.T) {
 }
 
 func TestRandomNodes(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	num := 20
 	nodes := make([]*LocalNode, num)
@@ -115,10 +120,10 @@ func TestRandomNodes(t *testing.T) {
 	nodes[0].Create()
 	for i := 1; i < num; i++ {
 		nodes[i].Join(nodes[0])
-		<-time.After(time.Millisecond * 200)
+		<-time.After(waitInterval)
 	}
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	RingCheck(as, nodes, true)
 
@@ -126,7 +131,7 @@ func TestRandomNodes(t *testing.T) {
 		nodes[i].Stop()
 	}
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())

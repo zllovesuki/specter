@@ -8,7 +8,7 @@ import (
 
 	"github.com/zllovesuki/specter/kv"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
@@ -24,7 +24,7 @@ func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
 	return
 }
 
-func makeRing(as *assert.Assertions, num int) ([]*LocalNode, func()) {
+func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
 		node := NewLocalNode(DevConfig(as))
@@ -34,10 +34,10 @@ func makeRing(as *assert.Assertions, num int) ([]*LocalNode, func()) {
 	nodes[0].Create()
 	for i := 1; i < num; i++ {
 		nodes[i].Join(nodes[0])
-		<-time.After(time.Millisecond * 200)
+		<-time.After(waitInterval)
 	}
 
-	<-time.After(time.Millisecond * 1000)
+	<-time.After(waitInterval)
 
 	RingCheck(as, nodes, true)
 
@@ -45,22 +45,22 @@ func makeRing(as *assert.Assertions, num int) ([]*LocalNode, func()) {
 		for i := 0; i < num; i++ {
 			nodes[i].Stop()
 		}
-		<-time.After(time.Millisecond * 100)
+		<-time.After(waitInterval)
 	}
 }
 
 func TestKVOperation(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	nodes, done := makeRing(as, 5)
 	defer done()
 
 	key := make([]byte, 16)
-	rand.Read(key)
 
 	for _, local := range nodes {
 		value := make([]byte, 16)
 
+		rand.Read(key)
 		rand.Read(value)
 
 		// Put
@@ -97,7 +97,7 @@ func TestKVOperation(t *testing.T) {
 	}
 }
 
-func fsck(as *assert.Assertions, nodes []*LocalNode) {
+func fsck(as *require.Assertions, nodes []*LocalNode) {
 	for _, node := range nodes {
 		pre := node.getPredecessor()
 		as.True(node.kv.(*kv.MemoryMap).Fsck(pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
@@ -105,7 +105,7 @@ func fsck(as *assert.Assertions, nodes []*LocalNode) {
 }
 
 func TestKeyTransferOut(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	numNodes := 3
 	nodes, done := makeRing(as, numNodes)
@@ -128,7 +128,7 @@ func TestKeyTransferOut(t *testing.T) {
 	as.Nil(err)
 
 	randomNode.Stop()
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	c := make([]*LocalNode, 0)
 	for _, node := range nodes {
@@ -165,7 +165,7 @@ func TestKeyTransferOut(t *testing.T) {
 }
 
 func TestKeyTransferIn(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 
 	numNodes := 1
 	nodes, done := makeRing(as, numNodes)
@@ -181,7 +181,7 @@ func TestKeyTransferIn(t *testing.T) {
 	n1.Join(nodes[0])
 	defer n1.Stop()
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	keys, err := n1.kv.LocalKeys(0, 0)
 	as.Nil(err)
@@ -198,7 +198,7 @@ func TestKeyTransferIn(t *testing.T) {
 	n2.Join(nodes[0])
 	defer n2.Stop()
 
-	<-time.After(time.Millisecond * 500)
+	<-time.After(waitInterval)
 
 	keys, err = n2.kv.LocalKeys(0, 0)
 	as.Nil(err)

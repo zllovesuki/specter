@@ -20,4 +20,7 @@ build:
 test:
 	go test -v -race -cover -count=1 ./...
 
+extended_test:
+	go test -race -count=5 ./...
+
 .PHONY: release $(PLATFORMS)

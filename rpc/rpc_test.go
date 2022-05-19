@@ -8,7 +8,7 @@ import (
 
 	"github.com/zllovesuki/specter/spec/protocol"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -49,7 +49,7 @@ func GetPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestRPC(t *testing.T) {
-	as := assert.New(t)
+	as := require.New(t)
 	c1, c2 := GetPipes()
 
 	logger, err := zap.NewDevelopment()
