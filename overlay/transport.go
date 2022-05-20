@@ -394,6 +394,7 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 		data := &protocol.Datagram{}
 		if err := proto.Unmarshal(b, data); err != nil {
 			logger.Error("decoding datagram to proto", zap.Error(err))
+			continue
 		}
 		switch data.GetType() {
 		case protocol.Datagram_ALIVE:

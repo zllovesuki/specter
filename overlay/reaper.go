@@ -16,15 +16,6 @@ func randomTimeRange(t time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
 }
 
-func (t *QUIC) printCached() {
-	ep := make([]string, 0)
-	t.qMap.Range(func(key string, value interface{}) bool {
-		ep = append(ep, key)
-		return true
-	})
-	t.Logger.Debug("Cached QUIC endpoints", zap.Strings("keys", ep))
-}
-
 func (t *QUIC) reaper(ctx context.Context) {
 	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
 
@@ -42,7 +33,6 @@ func (t *QUIC) reaper(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			// t.printCached()
 			candidate := make([]*nodeConnection, 0)
 			t.qMap.Range(func(key string, value interface{}) bool {
 				v := value.(*nodeConnection)

@@ -131,7 +131,7 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 			return nil, err
 		}
 		if err := rpc.Send(conn, bundle); err != nil {
-			s.logger.Error("sending remote tunnel negotiation", zap.Error(err))
+			l.Error("sending remote tunnel negotiation", zap.Error(err))
 			return nil, err
 		}
 		return conn, nil
