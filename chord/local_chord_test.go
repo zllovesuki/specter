@@ -98,8 +98,6 @@ func TestJoin(t *testing.T) {
 	n1.Stop()
 	n2.Stop()
 
-	<-time.After(waitInterval)
-
 	// skip counter clockwise check because we stopped first
 	RingCheck(as, []*LocalNode{
 		n1,
