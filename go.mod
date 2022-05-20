@@ -8,7 +8,7 @@ require (
 	github.com/lucas-clemente/quic-go v0.27.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.7.1
-	github.com/zhangyunhao116/skipmap v0.7.0
+	github.com/zhangyunhao116/skipmap v0.7.1-0.20220520083744-6d34228ee564
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.21.0
 	google.golang.org/protobuf v1.28.0

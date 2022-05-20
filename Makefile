@@ -1,4 +1,4 @@
-PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 linux/arm64 darwin/arm64 linux/arm
+PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe linux/arm64 darwin/arm64 linux/arm
 
 GOTAGS=-tags 'osusergo netgo'
 LDFLAGS=-ldflags "-s -w -extldflags -static"
