@@ -7,7 +7,6 @@ import (
 	"github.com/zllovesuki/specter/spec/tun"
 
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 func (s *Server) publishIdentities() error {
@@ -15,7 +14,7 @@ func (s *Server) publishIdentities() error {
 		Chord: s.chordTransport.Identity(),
 		Tun:   s.clientTransport.Identity(),
 	}
-	buf, err := proto.Marshal(identities)
+	buf, err := identities.MarshalVT()
 	if err != nil {
 		return err
 	}
@@ -53,7 +52,6 @@ func (s *Server) unpublishIdentities() {
 }
 
 func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
-	identities := &protocol.IdentitiesPair{}
 	buf, err := s.chord.Get([]byte(key))
 	if err != nil {
 		return nil, err
@@ -61,7 +59,8 @@ func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) 
 	if len(buf) == 0 {
 		return nil, fmt.Errorf("no identities pair found with key: %s", key)
 	}
-	if err := proto.Unmarshal(buf, identities); err != nil {
+	identities := &protocol.IdentitiesPair{}
+	if err := identities.UnmarshalVT(buf); err != nil {
 		return nil, fmt.Errorf("identities decode failure: %w", err)
 	}
 	return identities, nil

@@ -9,7 +9,6 @@ import (
 	"github.com/zllovesuki/specter/spec/rpc"
 
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 func randomTimeRange(t time.Duration) time.Duration {
@@ -19,9 +18,10 @@ func randomTimeRange(t time.Duration) time.Duration {
 func (t *QUIC) reaper(ctx context.Context) {
 	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
 
-	alive, err := proto.Marshal(&protocol.Datagram{
+	d := &protocol.Datagram{
 		Type: protocol.Datagram_ALIVE,
-	})
+	}
+	alive, err := d.MarshalVT()
 	if err != nil {
 		panic(err)
 	}

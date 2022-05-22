@@ -13,7 +13,6 @@ import (
 
 	"github.com/sethvargo/go-diceware/diceware"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ rpcSpec.RPCHandler = (*Server)(nil).rpcHandler
@@ -103,11 +102,11 @@ func (s *Server) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*pr
 				Tun:      identities.GetTun(),
 				Hostname: hostname,
 			}
-			key := tun.BundleKey(hostname, k+1)
-			val, err := proto.Marshal(bundle)
+			val, err := bundle.MarshalVT()
 			if err != nil {
 				return nil, err
 			}
+			key := tun.BundleKey(hostname, k+1)
 			if err := s.chord.Put([]byte(key), val); err != nil {
 				continue
 			}

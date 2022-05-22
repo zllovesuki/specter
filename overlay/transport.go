@@ -17,7 +17,6 @@ import (
 	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -243,7 +242,7 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 			Type: protocol.Datagram_DATA,
 			Data: buf,
 		}
-		b, err := proto.Marshal(data)
+		b, err := data.MarshalVT()
 		if err != nil {
 			return err
 		}
@@ -393,7 +392,7 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 			return
 		}
 		data := &protocol.Datagram{}
-		if err := proto.Unmarshal(b, data); err != nil {
+		if err := data.UnmarshalVT(b); err != nil {
 			logger.Error("decoding datagram to proto", zap.Error(err))
 			continue
 		}

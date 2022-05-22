@@ -28,6 +28,8 @@ import (
 )
 
 var (
+	Build = "head"
+
 	listenGateway = flag.String("gw", "127.0.0.1:1233", "gateway listener")
 	listenChord   = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
 	listenClient  = flag.String("client", "127.0.0.1:1235", "client transport listener")
@@ -37,6 +39,13 @@ var (
 func main() {
 	flag.Parse()
 
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+
+	logger.Info("specter server", zap.String("build", Build))
+
 	chordIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
 		Address: *listenChord,
@@ -44,11 +53,6 @@ func main() {
 	serverIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
 		Address: *listenClient,
-	}
-
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
 	}
 
 	// ========== TODO: THESE TLS CONFIGS ARE FOR DEVELOPMENT ONLY ==========

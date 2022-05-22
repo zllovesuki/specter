@@ -3,7 +3,7 @@ PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/a
 GOARM=7
 GOAMD64=v2
 GOTAGS=-tags 'osusergo netgo'
-LDFLAGS=-ldflags "-s -w -extldflags -static"
+LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 NDK_PATH=${ANDROID_NDK_HOME}
 BUILD=`git rev-parse --short HEAD`
 PROTOC_GO=`which protoc-gen-go`

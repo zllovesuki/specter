@@ -19,11 +19,17 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	Build = "head"
+)
+
 func main() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
+
+	logger.Info("specter client", zap.String("build", Build))
 
 	self := &protocol.Node{
 		Id: chordSpec.Random(),

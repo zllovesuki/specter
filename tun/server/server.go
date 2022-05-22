@@ -11,7 +11,6 @@ import (
 	"github.com/zllovesuki/specter/spec/tun"
 
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 // Gateway procedure:
@@ -150,7 +149,7 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 			continue
 		}
 		bundle := &protocol.Tunnel{}
-		if err := proto.Unmarshal(val, bundle); err != nil {
+		if err := bundle.UnmarshalVT(val); err != nil {
 			continue
 		}
 		clientConn, err := s.getConn(ctx, bundle)
