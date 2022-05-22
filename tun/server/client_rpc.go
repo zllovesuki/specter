@@ -91,7 +91,7 @@ func (s *Server) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*pr
 			return nil, fmt.Errorf("too many requested endpoints")
 		}
 
-		hostname := strings.Join(generator.MustGenerate(6), "-")
+		hostname := strings.Join(generator.MustGenerate(5), "-")
 		for k, server := range requested {
 			identities, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
 			if err != nil {

@@ -12,14 +12,19 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	rpcTimeout  = time.Second
+	pingTimeout = time.Millisecond * 500
+)
+
 type RemoteNode struct {
 	parentCtx context.Context
 
 	logger *zap.Logger
 
-	id  *protocol.Node
-	rpc rpc.RPC
-	t   transport.Transport
+	id        *protocol.Node
+	rpc       rpc.RPC
+	transport transport.Transport
 }
 
 var _ chord.VNode = (*RemoteNode)(nil)
@@ -28,7 +33,7 @@ func NewRemoteNode(ctx context.Context, t transport.Transport, logger *zap.Logge
 	n := &RemoteNode{
 		parentCtx: ctx,
 		id:        peer,
-		t:         t,
+		transport: t,
 		logger:    logger,
 	}
 	var hs rpc.RPCHandshakeFunc
@@ -44,7 +49,7 @@ func NewRemoteNode(ctx context.Context, t transport.Transport, logger *zap.Logge
 }
 
 func (n *RemoteNode) handshake(r rpc.RPC) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_IDENTITY)
@@ -73,7 +78,7 @@ func newReq(t protocol.RPC_Kind) *protocol.RPC_Request {
 }
 
 func (n *RemoteNode) Ping() error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, pingTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_PING)
@@ -86,7 +91,7 @@ func (n *RemoteNode) Ping() error {
 }
 
 func (n *RemoteNode) Notify(predecessor chord.VNode) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_NOTIFY)
@@ -101,7 +106,7 @@ func (n *RemoteNode) Notify(predecessor chord.VNode) error {
 }
 
 func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_FIND_SUCCESSOR)
@@ -123,7 +128,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return n, nil
 	}
 
-	succ, err := createRPC(n.parentCtx, n, n.t, n.logger, resp.GetSuccessor())
+	succ, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetSuccessor())
 	if err != nil {
 		// n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetSuccessor().String()), zap.Error(err))
 		return nil, err
@@ -133,7 +138,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 }
 
 func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_GET_SUCCESSORS)
@@ -149,7 +154,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, node := range succList {
-		n, err := createRPC(n.parentCtx, n, n.t, n.logger, node)
+		n, err := createRPC(n.parentCtx, n.transport, n.logger, node)
 		if err != nil {
 			continue
 		}
@@ -160,7 +165,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 }
 
 func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_GET_PREDECESSOR)
@@ -179,7 +184,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 		return n, nil
 	}
 
-	pre, err := createRPC(n.parentCtx, n, n.t, n.logger, resp.GetPredecessor())
+	pre, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetPredecessor())
 	if err != nil {
 		// n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetPredecessor().String()), zap.Error(err))
 		return nil, err
@@ -189,7 +194,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 }
 
 func (n *RemoteNode) Put(key, value []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -206,7 +211,7 @@ func (n *RemoteNode) Put(key, value []byte) error {
 }
 
 func (n *RemoteNode) Get(key []byte) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -223,7 +228,7 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 }
 
 func (n *RemoteNode) Delete(key []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -239,7 +244,7 @@ func (n *RemoteNode) Delete(key []byte) error {
 }
 
 func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -257,7 +262,7 @@ func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
 }
 
 func (n *RemoteNode) LocalPuts(keys, values [][]byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -274,7 +279,7 @@ func (n *RemoteNode) LocalPuts(keys, values [][]byte) error {
 }
 
 func (n *RemoteNode) LocalGets(keys [][]byte) ([][]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
@@ -291,7 +296,7 @@ func (n *RemoteNode) LocalGets(keys [][]byte) ([][]byte, error) {
 }
 
 func (n *RemoteNode) LocalDeletes(keys [][]byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, time.Second)
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)

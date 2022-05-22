@@ -63,7 +63,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		resp.NotifyResponse = &protocol.NotifyResponse{}
 		predecessor := req.GetNotifyRequest().GetPredecessor()
 
-		vnode, err = createRPC(ctx, n, n.Transport, n.Logger, predecessor)
+		vnode, err = createRPC(ctx, n.Transport, n.Logger, predecessor)
 		if err != nil {
 			return nil, err
 		}

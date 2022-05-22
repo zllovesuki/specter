@@ -1,4 +1,4 @@
-package concurrent
+package atomic
 
 type noCopy struct{}
 

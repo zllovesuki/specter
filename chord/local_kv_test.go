@@ -24,31 +24,6 @@ func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
 	return
 }
 
-func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
-	nodes := make([]*LocalNode, num)
-	for i := 0; i < num; i++ {
-		node := NewLocalNode(DevConfig(as))
-		nodes[i] = node
-	}
-
-	nodes[0].Create()
-	for i := 1; i < num; i++ {
-		nodes[i].Join(nodes[0])
-		<-time.After(waitInterval)
-	}
-
-	<-time.After(waitInterval)
-
-	RingCheck(as, nodes, true)
-
-	return nodes, func() {
-		for i := 0; i < num; i++ {
-			nodes[i].Stop()
-		}
-		<-time.After(waitInterval)
-	}
-}
-
 func TestKVOperation(t *testing.T) {
 	as := require.New(t)
 
@@ -177,7 +152,7 @@ func TestKeyTransferIn(t *testing.T) {
 		as.Nil(nodes[0].Put(keys[i], values[i]))
 	}
 
-	n1 := NewLocalNode(DevConfig(as))
+	n1 := NewLocalNode(devConfig(as))
 	n1.Join(nodes[0])
 	defer n1.Stop()
 
@@ -194,7 +169,7 @@ func TestKeyTransferIn(t *testing.T) {
 
 	fsck(as, []*LocalNode{n1, nodes[0]})
 
-	n2 := NewLocalNode(DevConfig(as))
+	n2 := NewLocalNode(devConfig(as))
 	n2.Join(nodes[0])
 	defer n2.Stop()
 

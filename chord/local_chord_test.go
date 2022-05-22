@@ -19,7 +19,7 @@ const (
 	waitInterval    = defaultInterval * 10
 )
 
-func DevConfig(as *require.Assertions) NodeConfig {
+func devConfig(as *require.Assertions) NodeConfig {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
@@ -33,6 +33,31 @@ func DevConfig(as *require.Assertions) NodeConfig {
 		StablizeInterval:         defaultInterval,
 		FixFingerInterval:        defaultInterval,
 		PredecessorCheckInterval: defaultInterval,
+	}
+}
+
+func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
+	nodes := make([]*LocalNode, num)
+	for i := 0; i < num; i++ {
+		node := NewLocalNode(devConfig(as))
+		nodes[i] = node
+	}
+
+	nodes[0].Create()
+	for i := 1; i < num; i++ {
+		nodes[i].Join(nodes[0])
+		<-time.After(waitInterval)
+	}
+
+	<-time.After(waitInterval)
+
+	RingCheck(as, nodes, true)
+
+	return nodes, func() {
+		for i := 0; i < num; i++ {
+			nodes[i].Stop()
+		}
+		<-time.After(waitInterval)
 	}
 }
 
@@ -72,7 +97,7 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 func TestCreate(t *testing.T) {
 	as := require.New(t)
 
-	n1 := NewLocalNode(DevConfig(as))
+	n1 := NewLocalNode(devConfig(as))
 	n1.Create()
 
 	<-time.After(waitInterval)
@@ -87,10 +112,10 @@ func TestCreate(t *testing.T) {
 func TestJoin(t *testing.T) {
 	as := require.New(t)
 
-	n2 := NewLocalNode(DevConfig(as))
+	n2 := NewLocalNode(devConfig(as))
 	n2.Create()
 
-	n1 := NewLocalNode(DevConfig(as))
+	n1 := NewLocalNode(devConfig(as))
 	as.Nil(n1.Join(n2))
 
 	<-time.After(waitInterval)
@@ -109,25 +134,9 @@ func TestRandomNodes(t *testing.T) {
 	as := require.New(t)
 
 	num := 8
-	nodes := make([]*LocalNode, num)
-	for i := 0; i < num; i++ {
-		node := NewLocalNode(DevConfig(as))
-		nodes[i] = node
-	}
+	nodes, done := makeRing(as, num)
 
-	nodes[0].Create()
-	for i := 1; i < num; i++ {
-		nodes[i].Join(nodes[0])
-		<-time.After(waitInterval)
-	}
-
-	<-time.After(waitInterval)
-
-	RingCheck(as, nodes, true)
-
-	for i := 0; i < num; i++ {
-		nodes[i].Stop()
-	}
+	done()
 
 	<-time.After(waitInterval)
 

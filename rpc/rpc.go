@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/zllovesuki/specter/spec"
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/rpc"
@@ -13,7 +14,6 @@ import (
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -139,12 +139,13 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	rNum := r.num.Inc()
 	rC := make(rrChan)
 
-	rr := &protocol.RPC{
-		Type:    protocol.RPC_REQUEST,
-		ReqNum:  rNum,
-		Ring:    chord.MaxFingerEntries,
-		Request: req,
-	}
+	rr := protocol.RPCFromVTPool()
+	defer rr.ReturnToVTPool()
+
+	rr.Type = protocol.RPC_REQUEST
+	rr.ReqNum = rNum
+	rr.Ring = chord.MaxFingerEntries
+	rr.Request = req
 
 	r.rMap.Store(rNum, rC)
 	defer r.rMap.Delete(rNum)
@@ -165,7 +166,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	}
 }
 
-func Receive(stream io.Reader, rr proto.Message) error {
+func Receive(stream io.Reader, rr spec.VTMarshaler) error {
 	sb := make([]byte, lengthSize)
 	n, err := io.ReadFull(stream, sb)
 	if err != nil {
@@ -185,11 +186,11 @@ func Receive(stream io.Reader, rr proto.Message) error {
 		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", ms, n)
 	}
 
-	return proto.Unmarshal(mb, rr)
+	return rr.UnmarshalVT(mb)
 }
 
-func Send(stream io.Writer, rr proto.Message) error {
-	buf, err := proto.Marshal(rr)
+func Send(stream io.Writer, rr spec.VTMarshaler) error {
+	buf, err := rr.MarshalVT()
 	if err != nil {
 		return fmt.Errorf("encoding outbound RPC message: %w", err)
 	}

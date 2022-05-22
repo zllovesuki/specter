@@ -7,16 +7,16 @@ import (
 )
 
 func BundleKey(hostname string, num int) string {
-	key := strconv.FormatInt(int64(num), 10) + "/" + hostname + "/tunnel/bundle/"
+	key := "/tunnel/bundle/" + hostname + "/" + strconv.FormatInt(int64(num), 10)
 	return key
 }
 
 func IdentitiesChordKey(chord *protocol.Node) string {
-	key := strconv.FormatUint(chord.GetId(), 10) + "/" + chord.GetAddress() + "/chord/identities/"
+	key := "/identities/chord/" + chord.GetAddress() + "/" + strconv.FormatUint(chord.GetId(), 10)
 	return key
 }
 
 func IdentitiesTunKey(tun *protocol.Node) string {
-	key := strconv.FormatUint(tun.GetId(), 10) + "/" + tun.GetAddress() + "/tun/identities/"
+	key := "/identities/tunnel/" + tun.GetAddress() + "/" + strconv.FormatUint(tun.GetId(), 10)
 	return key
 }

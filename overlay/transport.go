@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/zllovesuki/specter/rpc"
-	"github.com/zllovesuki/specter/spec/concurrent"
+	"github.com/zllovesuki/specter/spec/atomic"
 	"github.com/zllovesuki/specter/spec/protocol"
 	rpcSpec "github.com/zllovesuki/specter/spec/rpc"
 	"github.com/zllovesuki/specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/zhangyunhao116/skipmap"
-	"go.uber.org/atomic"
+	uberAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -32,9 +32,9 @@ func NewQUIC(conf TransportConfig) *QUIC {
 		TransportConfig: conf,
 
 		qMap:   skipmap.NewString(),
-		qMu:    concurrent.NewKeyedRWMutex(),
+		qMu:    atomic.NewKeyedRWMutex(),
 		rpcMap: skipmap.NewString(),
-		rpcMu:  concurrent.NewKeyedRWMutex(),
+		rpcMu:  atomic.NewKeyedRWMutex(),
 
 		rpcChan:    make(chan *transport.StreamDelegate),
 		directChan: make(chan *transport.StreamDelegate),
@@ -43,8 +43,8 @@ func NewQUIC(conf TransportConfig) *QUIC {
 		estChan: make(chan *protocol.Node),
 		desChan: make(chan *protocol.Node),
 
-		started: atomic.NewBool(false),
-		closed:  atomic.NewBool(false),
+		started: uberAtomic.NewBool(false),
+		closed:  uberAtomic.NewBool(false),
 	}
 }
 
@@ -262,6 +262,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	if err != nil {
 		return nil, nil, false, err
 	}
+	rr.Reset()
 	err = rpc.Receive(s, rr)
 	if err != nil {
 		return nil, nil, false, err

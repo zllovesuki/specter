@@ -1,9 +1,10 @@
 package chord
 
 import (
-	"hash/fnv"
 	"math/rand"
 	"time"
+
+	"github.com/zeebo/xxh3"
 )
 
 func init() {
@@ -20,13 +21,15 @@ const (
 )
 
 func Hash(b []byte) uint64 {
-	hasher := fnv.New64a()
+	hasher := xxh3.New()
 	hasher.Write(b)
-	return hasher.Sum64() % (1 << MaxFingerEntries)
+	return hasher.Sum64() % mod
 }
 
 func HashString(key string) uint64 {
-	return Hash([]byte(key))
+	hasher := xxh3.New()
+	hasher.WriteString(key)
+	return hasher.Sum64() % mod
 }
 
 func Modulo(x, y uint64) uint64 {
@@ -35,7 +38,7 @@ func Modulo(x, y uint64) uint64 {
 }
 
 func Random() uint64 {
-	return rand.Uint64() % (1 << MaxFingerEntries)
+	return rand.Uint64() % mod
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {
