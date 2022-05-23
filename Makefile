@@ -5,6 +5,7 @@ BUILD=`git rev-parse --short HEAD`
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 
+COUNT=5
 GOARM=7
 GOAMD64=v2
 GOTAGS=-tags 'osusergo netgo'
@@ -49,7 +50,7 @@ coverage:
 	-rm cover.out
 
 extended_test:
-	go test -race -count=5 ./...
+	go test -race -count=$(COUNT) ./...
 
 clean:
 	-rm bin/*
