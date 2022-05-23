@@ -1,4 +1,4 @@
-package server
+package mocks
 
 import (
 	"github.com/zllovesuki/specter/spec/chord"
@@ -7,18 +7,18 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockVNode struct {
+type VNode struct {
 	mock.Mock
 }
 
-var _ chord.VNode = (*mockVNode)(nil)
+var _ chord.VNode = (*VNode)(nil)
 
-func (n *mockVNode) Put(key []byte, value []byte) error {
+func (n *VNode) Put(key []byte, value []byte) error {
 	args := n.Called(key, value)
 	return args.Error(0)
 }
 
-func (n *mockVNode) Get(key []byte) (value []byte, err error) {
+func (n *VNode) Get(key []byte) (value []byte, err error) {
 	args := n.Called(key)
 	v := args.Get(0)
 	e := args.Error(1)
@@ -28,12 +28,12 @@ func (n *mockVNode) Get(key []byte) (value []byte, err error) {
 	return v.([]byte), e
 }
 
-func (n *mockVNode) Delete(key []byte) error {
+func (n *VNode) Delete(key []byte) error {
 	args := n.Called(key)
 	return args.Error(0)
 }
 
-func (n *mockVNode) LocalKeys(low uint64, high uint64) ([][]byte, error) {
+func (n *VNode) LocalKeys(low uint64, high uint64) ([][]byte, error) {
 	args := n.Called(low, high)
 	v := args.Get(0)
 	e := args.Error(1)
@@ -43,13 +43,13 @@ func (n *mockVNode) LocalKeys(low uint64, high uint64) ([][]byte, error) {
 	return v.([][]byte), e
 }
 
-func (n *mockVNode) LocalPuts(keys [][]byte, values [][]byte) error {
+func (n *VNode) LocalPuts(keys [][]byte, values [][]byte) error {
 	args := n.Called(keys, values)
 	e := args.Error(0)
 	return e
 }
 
-func (n *mockVNode) LocalGets(keys [][]byte) ([][]byte, error) {
+func (n *VNode) LocalGets(keys [][]byte) ([][]byte, error) {
 	args := n.Called(keys)
 	v := args.Get(0)
 	e := args.Error(1)
@@ -59,19 +59,19 @@ func (n *mockVNode) LocalGets(keys [][]byte) ([][]byte, error) {
 	return v.([][]byte), e
 }
 
-func (n *mockVNode) LocalDeletes(keys [][]byte) error {
+func (n *VNode) LocalDeletes(keys [][]byte) error {
 	args := n.Called(keys)
 	e := args.Error(0)
 	return e
 }
 
-func (n *mockVNode) ID() uint64 {
+func (n *VNode) ID() uint64 {
 	args := n.Called()
 	v := args.Get(0)
 	return v.(uint64)
 }
 
-func (n *mockVNode) Identity() *protocol.Node {
+func (n *VNode) Identity() *protocol.Node {
 	args := n.Called()
 	v := args.Get(0)
 	if v == nil {
@@ -80,18 +80,18 @@ func (n *mockVNode) Identity() *protocol.Node {
 	return v.(*protocol.Node)
 }
 
-func (n *mockVNode) Ping() error {
+func (n *VNode) Ping() error {
 	args := n.Called()
 	e := args.Error(0)
 	return e
 }
 
-func (n *mockVNode) Notify(predecessor chord.VNode) error {
+func (n *VNode) Notify(predecessor chord.VNode) error {
 	args := n.Called(predecessor)
 	return args.Error(0)
 }
 
-func (n *mockVNode) FindSuccessor(key uint64) (chord.VNode, error) {
+func (n *VNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	args := n.Called(key)
 	v := args.Get(0)
 	e := args.Error(1)
@@ -101,7 +101,7 @@ func (n *mockVNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	return v.(chord.VNode), e
 }
 
-func (n *mockVNode) GetSuccessors() ([]chord.VNode, error) {
+func (n *VNode) GetSuccessors() ([]chord.VNode, error) {
 	args := n.Called()
 	v := args.Get(0)
 	e := args.Error(1)
@@ -111,7 +111,7 @@ func (n *mockVNode) GetSuccessors() ([]chord.VNode, error) {
 	return v.([]chord.VNode), e
 }
 
-func (n *mockVNode) GetPredecessor() (chord.VNode, error) {
+func (n *VNode) GetPredecessor() (chord.VNode, error) {
 	args := n.Called()
 	v := args.Get(0)
 	e := args.Error(1)
@@ -121,6 +121,6 @@ func (n *mockVNode) GetPredecessor() (chord.VNode, error) {
 	return v.(chord.VNode), e
 }
 
-func (n *mockVNode) Stop() {
+func (n *VNode) Stop() {
 	n.Called()
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/zllovesuki/specter/kv"
 	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/mocks"
 	"github.com/zllovesuki/specter/spec/protocol"
 
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func devConfig(as *require.Assertions) NodeConfig {
 		Identity: &protocol.Node{
 			Id: chord.Random(),
 		},
-		Transport:                &mockTransport{},
+		Transport:                new(mocks.Transport),
 		KVProvider:               kv.WithChordHash(),
 		StablizeInterval:         defaultInterval,
 		FixFingerInterval:        defaultInterval,

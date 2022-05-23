@@ -10,6 +10,7 @@ import (
 
 	"github.com/zllovesuki/specter/rpc"
 	"github.com/zllovesuki/specter/spec/chord"
+	"github.com/zllovesuki/specter/spec/mocks"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/transport"
 	"github.com/zllovesuki/specter/spec/tun"
@@ -29,13 +30,13 @@ func assertBytes(got []byte, exp ...[]byte) bool {
 	return false
 }
 
-func getFixture(as *require.Assertions) (*zap.Logger, *mockVNode, *mockTransport, *mockTransport, *Server) {
+func getFixture(as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
 	logger, err := zap.NewDevelopment()
 	as.Nil(err)
 
-	n := new(mockVNode)
-	cht := new(mockTransport)
-	clt := new(mockTransport)
+	n := new(mocks.VNode)
+	cht := new(mocks.Transport)
+	clt := new(mocks.Transport)
 
 	s := New(logger, n, clt, cht, "hello")
 

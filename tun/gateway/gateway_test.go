@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zllovesuki/specter/spec/mocks"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/tun"
 
@@ -86,10 +87,10 @@ func getClient(host string, port int) *http.Client {
 	}
 }
 
-func getStuff(as *require.Assertions) (int, *mockServer, func()) {
+func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 	l, port := getListener(as)
 
-	mockS := new(mockServer)
+	mockS := new(mocks.TunServer)
 
 	logger, err := zap.NewDevelopment()
 	as.Nil(err)

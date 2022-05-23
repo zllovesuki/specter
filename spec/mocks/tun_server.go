@@ -1,4 +1,4 @@
-package gateway
+package mocks
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockServer struct {
+type TunServer struct {
 	mock.Mock
 }
 
-var _ tun.Server = (*mockServer)(nil)
+var _ tun.Server = (*TunServer)(nil)
 
-func (m *mockServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
+func (m *TunServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	args := m.Called(ctx, link)
 	c := args.Get(0)
 	e := args.Error(1)
@@ -26,10 +26,10 @@ func (m *mockServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn, e
 	return c.(net.Conn), e
 }
 
-func (m *mockServer) Accept(ctx context.Context) {
+func (m *TunServer) Accept(ctx context.Context) {
 	m.Called(ctx)
 }
 
-func (m *mockServer) Stop() {
+func (m *TunServer) Stop() {
 	m.Called()
 }
