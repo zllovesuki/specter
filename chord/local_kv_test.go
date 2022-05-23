@@ -158,10 +158,10 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval)
 
-	keys, err := n1.kv.LocalKeys(0, 0)
+	keys, err := n1.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Greater(len(keys), 0)
-	vals, err := n1.kv.LocalGets(keys)
+	vals, err := n1.LocalGets(keys)
 	as.Nil(err)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
@@ -175,10 +175,10 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval)
 
-	keys, err = n2.kv.LocalKeys(0, 0)
+	keys, err = n2.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Greater(len(keys), 0)
-	vals, err = n2.kv.LocalGets(keys)
+	vals, err = n2.LocalGets(keys)
 	as.Nil(err)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
