@@ -210,7 +210,8 @@ func TestHandleRemoteConnection(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sync := make(chan struct{})
+	syncA := make(chan struct{})
+	syncB := make(chan struct{})
 
 	chordChan := make(chan *transport.StreamDelegate)
 	chordT.On("Direct").Return(chordChan)
@@ -248,23 +249,27 @@ func TestHandleRemoteConnection(t *testing.T) {
 		err := rpc.Send(c2, bundle)
 		as.Nil(err)
 
+		close(syncA)
+
 		// now the remote gateway is sending data to us
 		_, err = c2.Write(buf)
 		as.Nil(err)
 	}()
 
 	go func() {
+		<-syncA
+
 		// we should receive data from the remote side
 		b := make([]byte, len(buf))
 		_, err := c4.Read(b)
 		as.Nil(err)
 		as.EqualValues(buf, b)
 
-		close(sync)
+		close(syncB)
 	}()
 
 	select {
-	case <-sync:
+	case <-syncB:
 	case <-time.After(time.Second):
 		as.FailNow("timeout")
 	}
