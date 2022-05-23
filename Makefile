@@ -1,13 +1,14 @@
 PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe linux/arm64 darwin/arm64 linux/arm freebsd/amd64
 
-GOARM=7
-GOAMD64=v2
-GOTAGS=-tags 'osusergo netgo'
-LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 NDK_PATH=${ANDROID_NDK_HOME}
 BUILD=`git rev-parse --short HEAD`
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
+
+GOARM=7
+GOAMD64=v2
+GOTAGS=-tags 'osusergo netgo'
+LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 
 plat_temp = $(subst /, ,$@)
 os = $(word 1, $(plat_temp))

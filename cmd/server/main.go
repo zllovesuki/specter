@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	chord "github.com/zllovesuki/specter/chord"
+	"github.com/zllovesuki/specter/chord"
 	"github.com/zllovesuki/specter/kv"
 	"github.com/zllovesuki/specter/overlay"
 	chordSpec "github.com/zllovesuki/specter/spec/chord"

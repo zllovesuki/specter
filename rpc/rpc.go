@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
-	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/zllovesuki/specter/spec"
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
 	"github.com/zllovesuki/specter/spec/rpc"
 
+	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"

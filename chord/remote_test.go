@@ -34,6 +34,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 
 	rpcCaller := new(mocks.RPC)
 	rpcCaller.On("Call", mock.Anything, mock.Anything).Return(nil, e)
+	rpcCaller.On("Close").Return(nil)
 
 	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
@@ -41,6 +42,8 @@ func TestRemoteRPCErrors(t *testing.T) {
 
 	r, err := NewRemoteNode(ctx, tp, logger, peer)
 	as.Nil(err)
+
+	defer r.Stop()
 
 	err = r.Ping()
 	as.ErrorContains(err, e.Error())
