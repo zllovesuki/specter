@@ -146,7 +146,7 @@ func TestKeyTransferIn(t *testing.T) {
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(200, 8)
+	keys, values := makeKV(300, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(keys[i], values[i]))

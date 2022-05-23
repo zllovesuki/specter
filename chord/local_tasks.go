@@ -29,11 +29,11 @@ func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 
 func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
 	s := n.ID()
-	for _, n := range nodes {
-		if n == nil {
+	for _, node := range nodes {
+		if node == nil {
 			continue
 		}
-		s ^= n.ID()
+		s ^= node.ID()
 	}
 	return s
 }
@@ -90,6 +90,10 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 	next := chord.Modulo(n.ID(), 1<<(k-1))
 	f, err = n.FindSuccessor(next)
 	if err != nil {
+		return
+	}
+	if f == nil {
+		err = fmt.Errorf("no successor found for k = %d", k)
 		return
 	}
 	old := n.fingers[k].n.Swap(&atomicVNode{Node: f}).(*atomicVNode).Node
