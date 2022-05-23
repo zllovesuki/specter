@@ -44,9 +44,12 @@ func TestLocalRPC(t *testing.T) {
 	err = node.Create()
 	as.Nil(err)
 
+	rRPC := new(mocks.RPC)
+	rRPC.On("Call", mock.Anything, mock.Anything).Return(&protocol.RPC_Response{}, nil)
+
 	rpcChan := make(chan *transport.StreamDelegate)
 	tp.On("RPC").Return(rpcChan)
-	tp.On("DialRPC", mock.Anything, mock.Anything, mock.Anything).Return(new(mocks.RPC), nil)
+	tp.On("DialRPC", mock.Anything, mock.Anything, mock.Anything).Return(rRPC, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
