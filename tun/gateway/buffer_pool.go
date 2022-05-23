@@ -6,22 +6,22 @@ import (
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
-const (
-	bufferSize = 8 * 1024
-)
-
-type bufferPool struct{}
-
-var _ httputil.BufferPool = (*bufferPool)(nil)
-
-func newBufferPool() *bufferPool {
-	return &bufferPool{}
+type BufferPool struct {
+	bufferSize int
 }
 
-func (b *bufferPool) Get() []byte {
-	return pool.Get(bufferSize)
+var _ httputil.BufferPool = (*BufferPool)(nil)
+
+func NewBufferPool(size int) *BufferPool {
+	return &BufferPool{
+		bufferSize: size,
+	}
 }
 
-func (b *bufferPool) Put(buf []byte) {
+func (b *BufferPool) Get() []byte {
+	return pool.Get(b.bufferSize)
+}
+
+func (b *BufferPool) Put(buf []byte) {
 	pool.Put(buf)
 }

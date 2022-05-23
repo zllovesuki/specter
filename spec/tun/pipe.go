@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	BufferSize = 8 * 1024
+	BufferSize = 1024 * 16
 )
 
 func IsTimeout(err error) bool {

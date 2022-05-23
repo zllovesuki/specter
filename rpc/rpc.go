@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/zllovesuki/specter/spec"
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/protocol"
@@ -70,7 +71,7 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandle
 
 func (r *RPC) Start(ctx context.Context) {
 	for {
-		rr := &protocol.RPC{}
+		rr := protocol.RPCFromVTPool()
 		if err := Receive(r.stream, rr); err != nil {
 			// r.logger.Error("RPC receive read error", zap.Error(err))
 			r.Close()
@@ -78,6 +79,8 @@ func (r *RPC) Start(ctx context.Context) {
 		}
 
 		go func(rr *protocol.RPC) {
+			defer rr.ReturnToVTPool()
+
 			switch rr.GetType() {
 			case protocol.RPC_REPLY:
 				rC, ok := r.rMap.LoadAndDelete(rr.GetReqNum())
@@ -167,7 +170,9 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 }
 
 func Receive(stream io.Reader, rr spec.VTMarshaler) error {
-	sb := make([]byte, lengthSize)
+	sb := pool.Get(lengthSize)
+	defer pool.Put(sb)
+
 	n, err := io.ReadFull(stream, sb)
 	if err != nil {
 		return fmt.Errorf("reading RPC message buffer size: %w", err)
@@ -177,7 +182,10 @@ func Receive(stream io.Reader, rr spec.VTMarshaler) error {
 	}
 
 	ms := binary.BigEndian.Uint64(sb)
-	mb := make([]byte, ms)
+
+	mb := pool.Get(int(ms))
+	defer pool.Put(mb)
+
 	n, err = io.ReadFull(stream, mb)
 	if err != nil {
 		return fmt.Errorf("reading RPC message: %w", err)
@@ -196,7 +204,10 @@ func Send(stream io.Writer, rr spec.VTMarshaler) error {
 	}
 
 	l := len(buf)
-	mb := make([]byte, lengthSize+l)
+
+	mb := pool.Get(lengthSize + l)
+	defer pool.Put(mb)
+
 	binary.BigEndian.PutUint64(mb[0:lengthSize], uint64(l))
 	copy(mb[lengthSize:], buf)
 

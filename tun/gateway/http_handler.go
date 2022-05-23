@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	bufferSize = 1024 * 16
+)
+
 func (g *Gateway) httpHandler() http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
@@ -37,7 +41,7 @@ func (g *Gateway) httpHandler() http.Handler {
 			ResponseHeaderTimeout: time.Second * 30,
 			ExpectContinueTimeout: time.Second * 3,
 		},
-		BufferPool:   newBufferPool(),
+		BufferPool:   NewBufferPool(bufferSize),
 		ErrorHandler: g.errorHandler,
 		ModifyResponse: func(r *http.Response) error {
 			r.Header.Del("alt-svc")
