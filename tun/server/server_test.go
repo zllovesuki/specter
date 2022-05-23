@@ -221,22 +221,30 @@ func TestHandleRemoteConnection(t *testing.T) {
 	clientT.On("Direct").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
-	// we really don't care about the dentities put on chord DHT for now
-	node.On("Put", mock.Anything, mock.Anything).Return(nil)
+	// on start up (Accept), identities should get published
+	node.On("Put", mock.MatchedBy(func(k []byte) bool {
+		exp := [][]byte{
+			[]byte(tun.IdentitiesChordKey(cht)),
+			[]byte(tun.IdentitiesTunKey(tn)),
+		}
+		return assertBytes(k, exp...)
+	}), mock.MatchedBy(func(v []byte) bool {
+		pair := &protocol.IdentitiesPair{
+			Chord: cht,
+			Tun:   tn,
+		}
+		buf, err := pair.MarshalVT()
+		if err != nil {
+			return false
+		}
+		return assertBytes(v, buf)
+	})).Return(nil)
 
 	go serv.Accept(ctx)
 
-	c1, c2 := net.Pipe()
-	remote := &protocol.Node{Id: chord.Random()}
-	del := &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   remote,
-	}
-
-	chordChan <- del
-
 	// since the "client" is connected to us, we should expect a DialDirect
 	// to the client
+	c1, c2 := net.Pipe()
 	c3, c4 := net.Pipe()
 	clientT.On("DialDirect", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
@@ -267,6 +275,11 @@ func TestHandleRemoteConnection(t *testing.T) {
 
 		close(syncB)
 	}()
+
+	chordChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   &protocol.Node{Id: chord.Random()},
+	}
 
 	select {
 	case <-syncB:

@@ -173,7 +173,7 @@ func TestKeyTransferIn(t *testing.T) {
 	n2.Join(nodes[0])
 	defer n2.Stop()
 
-	<-time.After(waitInterval)
+	<-time.After(waitInterval * 2)
 
 	keys, err = n2.LocalKeys(0, 0)
 	as.Nil(err)

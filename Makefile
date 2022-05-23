@@ -42,7 +42,7 @@ proto:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
 test:
-	go test -v -race -cover -count=1 ./...
+	go test -v -race -cover -count=1 -timeout 30s ./...
 
 coverage:
 	go test -race -coverprofile cover.out ./...
@@ -50,7 +50,7 @@ coverage:
 	-rm cover.out
 
 extended_test:
-	go test -race -count=$(COUNT) ./...
+	go test -race -count=$(COUNT) -timeout 120s ./...
 
 clean:
 	-rm bin/*

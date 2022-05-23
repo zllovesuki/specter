@@ -37,8 +37,8 @@ func TestRPC(t *testing.T) {
 	go r2.Start(ctx)
 	defer r2.Close()
 
-	callCtx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
+	callCtx, callCancel := context.WithTimeout(ctx, time.Second*3)
+	defer callCancel()
 
 	_, err = r2.Call(callCtx, &protocol.RPC_Request{})
 	as.Error(err)
