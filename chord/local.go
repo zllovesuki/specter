@@ -2,12 +2,11 @@ package chord
 
 import (
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/zllovesuki/specter/spec/chord"
 
-	zapAtomic "go.uber.org/atomic"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -31,7 +30,7 @@ type LocalNode struct {
 	_           [48]byte
 	successors  atomic.Value // *atomicVNodeList
 	_           [48]byte
-	succXOR     *zapAtomic.Uint64
+	succXOR     *atomic.Uint64
 	_           [48]byte
 
 	fingers []struct {
@@ -42,9 +41,9 @@ type LocalNode struct {
 
 	stopCh chan struct{}
 
-	lastStabilized *zapAtomic.Time
+	lastStabilized *atomic.Time
 
-	started *zapAtomic.Bool
+	started *atomic.Bool
 
 	kv chord.KV
 }
@@ -57,15 +56,15 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	}
 	n := &LocalNode{
 		NodeConfig: conf,
-		succXOR:    zapAtomic.NewUint64(conf.Identity.GetId()),
-		started:    zapAtomic.NewBool(false),
+		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
+		started:    atomic.NewBool(false),
 		kv:         conf.KVProvider,
 		fingers: make([]struct {
 			_ [48]byte
 			n atomic.Value
 			_ [48]byte
 		}, chord.MaxFingerEntries+1),
-		lastStabilized: zapAtomic.NewTime(time.Time{}),
+		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
 	}
 	for i := range n.fingers {
