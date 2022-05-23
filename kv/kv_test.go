@@ -108,6 +108,8 @@ func TestAllKeys(t *testing.T) {
 	keys, err := kv.LocalKeys(0, 0)
 	as.Nil(err)
 	as.Len(keys, num)
+
+	as.True(kv.Fsck(0, 0))
 }
 
 func TestOrderedKeys(t *testing.T) {
