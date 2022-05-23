@@ -249,11 +249,11 @@ func TestHandleRemoteConnection(t *testing.T) {
 		err := rpc.Send(c2, bundle)
 		as.Nil(err)
 
-		close(syncA)
-
 		// now the remote gateway is sending data to us
 		_, err = c2.Write(buf)
 		as.Nil(err)
+
+		close(syncA)
 	}()
 
 	go func() {
