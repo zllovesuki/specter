@@ -42,10 +42,16 @@ proto:
 test:
 	go test -v -race -cover -count=1 ./...
 
+coverage:
+	-rm cover.out
+	go test -race -coverprofile cover.out ./...
+	go tool cover -func cover.out
+
 extended_test:
 	go test -race -count=5 ./...
 
 clean:
-	rm bin/*
+	-rm bin/*
+	-rm cover.out
 
 .PHONY: all
