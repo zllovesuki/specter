@@ -7,9 +7,9 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var (
+	randy = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
 
 const (
 	// Also known as m in the original paper
@@ -38,7 +38,7 @@ func Modulo(x, y uint64) uint64 {
 }
 
 func Random() uint64 {
-	return rand.Uint64() % mod
+	return randy.Uint64() % mod
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {
