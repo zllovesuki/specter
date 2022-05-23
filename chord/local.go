@@ -23,29 +23,28 @@ type atomicVNodeList struct {
 }
 
 type LocalNode struct {
-	NodeConfig
-
-	_           [48]byte
+	_           [56]byte
 	predecessor atomic.Value // *atomicVNode
-	_           [48]byte
+	_           [56]byte
 	successors  atomic.Value // *atomicVNodeList
-	_           [48]byte
+	_           [56]byte
 	succXOR     *atomic.Uint64
-	_           [48]byte
+	_           [56]byte
 
 	fingers []struct {
-		_ [48]byte
 		n atomic.Value // *atomicVNode
-		_ [48]byte
+		_ [56]byte
 	}
 
-	stopCh chan struct{}
-
-	lastStabilized *atomic.Time
-
-	started *atomic.Bool
-
+	NodeConfig
 	kv chord.KV
+
+	_              [56]byte
+	lastStabilized *atomic.Time
+	_              [56]byte
+	started        *atomic.Bool
+
+	stopCh chan struct{}
 }
 
 var _ chord.VNode = (*LocalNode)(nil)
@@ -60,9 +59,8 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		started:    atomic.NewBool(false),
 		kv:         conf.KVProvider,
 		fingers: make([]struct {
-			_ [48]byte
 			n atomic.Value
-			_ [48]byte
+			_ [56]byte
 		}, chord.MaxFingerEntries+1),
 		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
