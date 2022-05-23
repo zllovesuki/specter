@@ -3,10 +3,8 @@ package chord
 import (
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
-	"github.com/zllovesuki/specter/rpc"
 	"github.com/zllovesuki/specter/spec/chord"
 	"github.com/zllovesuki/specter/spec/mocks"
 	"github.com/zllovesuki/specter/spec/protocol"
@@ -34,14 +32,8 @@ func TestRemoteRPCErrors(t *testing.T) {
 
 	e := fmt.Errorf("sup")
 
-	c1, c2 := net.Pipe()
-	rpcCaller := rpc.NewRPC(logger, c1, nil)
-	go rpcCaller.Start(ctx)
-
-	rpcHandler := rpc.NewRPC(logger, c2, func(context.Context, *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-		return nil, e
-	})
-	go rpcHandler.Start(ctx)
+	rpcCaller := new(mocks.RPC)
+	rpcCaller.On("Call", mock.Anything, mock.Anything).Return(nil, e)
 
 	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
@@ -52,6 +44,16 @@ func TestRemoteRPCErrors(t *testing.T) {
 
 	err = r.Ping()
 	as.ErrorContains(err, e.Error())
+
+	p := new(mocks.VNode)
+	p.On("Identity").Return(&protocol.Node{
+		Id: chord.Random(),
+	})
+
+	err = r.Notify(p)
+	as.ErrorContains(err, e.Error())
+
+	p.AssertExpectations(t)
 
 	_, err = r.FindSuccessor(chord.Random())
 	as.ErrorContains(err, e.Error())
