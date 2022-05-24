@@ -146,3 +146,22 @@ func TestRandomNodes(t *testing.T) {
 		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
 	}
 }
+
+func TestLotsOfNodes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping many nodes in short mode")
+	}
+	as := require.New(t)
+
+	num := 128
+	nodes, done := makeRing(as, num)
+
+	done()
+
+	<-time.After(waitInterval)
+
+	for i := 0; i < num; i++ {
+		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())
+		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
+	}
+}
