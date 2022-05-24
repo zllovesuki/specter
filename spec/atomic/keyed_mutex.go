@@ -7,9 +7,9 @@ import (
 )
 
 type KeyedRWMutex struct {
-	noCopy
-
 	mutexes *skipmap.StringMap
+
+	noCopy
 }
 
 func NewKeyedRWMutex() *KeyedRWMutex {
@@ -29,12 +29,12 @@ func (m *KeyedRWMutex) Lock(key string) func() {
 	mu := m.obtain(key)
 	mu.Lock()
 
-	return func() { mu.Unlock() }
+	return mu.Unlock
 }
 
 func (m *KeyedRWMutex) RLock(key string) func() {
 	mu := m.obtain(key)
 	mu.RLock()
 
-	return func() { mu.RUnlock() }
+	return mu.RUnlock
 }

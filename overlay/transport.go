@@ -101,11 +101,11 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 }
 
 func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (q quic.Connection, stream quic.Stream, err error) {
-	defer func() {
-		if err != nil {
-			t.Logger.Error("Dialing new stream", zap.Error(err), zap.String("type", sType.String()), zap.String("addr", peer.GetAddress()))
-		}
-	}()
+	// defer func() {
+	// 	if err != nil {
+	// 		t.Logger.Error("Dialing new stream", zap.Error(err), zap.String("type", sType.String()), zap.String("addr", peer.GetAddress()))
+	// 	}
+	// }()
 
 	q, err = t.getQ(ctx, peer)
 	if err != nil {

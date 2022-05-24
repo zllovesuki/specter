@@ -18,7 +18,7 @@ ext = $(word 3, $(plat_temp))
 
 all: proto test clean release
 
-release: $(PLATFORMS)
+release: $(PLATFORMS) android
 
 $(PLATFORMS):
 	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-server-$(os)-$(arch)$(ext) ./cmd/server

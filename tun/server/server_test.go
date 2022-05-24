@@ -287,7 +287,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 		as.FailNow("timeout")
 	}
 
-	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
 	chordT.AssertExpectations(t)
+	node.AssertExpectations(t)
 }

@@ -46,7 +46,7 @@ func (n *LocalNode) Delete(key []byte) error {
 }
 
 func (n *LocalNode) LocalKeys(low, high uint64) ([][]byte, error) {
-	n.Logger.Debug("KV LocalKeys", zap.Uint64("low", low), zap.Uint64("low", high))
+	n.Logger.Debug("KV LocalKeys", zap.Uint64("low", low), zap.Uint64("high", high))
 	return n.kv.LocalKeys(low, high)
 }
 

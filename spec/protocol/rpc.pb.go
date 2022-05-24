@@ -72,7 +72,8 @@ func (RPC_Type) EnumDescriptor() ([]byte, []int) {
 type RPC_Kind int32
 
 const (
-	RPC_UNKNOWN_TYPE    RPC_Kind = 0
+	RPC_UNKNOWN_TYPE RPC_Kind = 0
+	// chord
 	RPC_PING            RPC_Kind = 1
 	RPC_NOTIFY          RPC_Kind = 2
 	RPC_FIND_SUCCESSOR  RPC_Kind = 3

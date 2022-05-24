@@ -19,7 +19,6 @@ message RPC {
         UNKNOWN_TYPE = 0;
 
         // chord
-
         PING = 1;
         NOTIFY = 2;
         FIND_SUCCESSOR = 3;

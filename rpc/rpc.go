@@ -215,7 +215,7 @@ func Send(stream io.Writer, rr spec.VTMarshaler) error {
 	if err != nil {
 		return fmt.Errorf("sending RPC message: %w", err)
 	}
-	if n != 8+l {
+	if n != lengthSize+l {
 		return fmt.Errorf("expected %d bytes sent but %d bytes was sent", l, n)
 	}
 

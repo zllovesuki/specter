@@ -26,13 +26,14 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
-	TransportConfig
-
 	rpcMap *skipmap.StringMap
 	rpcMu  *atomic.KeyedRWMutex
 
 	qMap *skipmap.StringMap
 	qMu  *atomic.KeyedRWMutex
+
+	started *uberAtomic.Bool
+	closed  *uberAtomic.Bool
 
 	rpcChan    chan *transport.StreamDelegate
 	directChan chan *transport.StreamDelegate
@@ -41,6 +42,5 @@ type QUIC struct {
 	estChan chan *protocol.Node
 	desChan chan *protocol.Node
 
-	started *uberAtomic.Bool
-	closed  *uberAtomic.Bool
+	TransportConfig
 }

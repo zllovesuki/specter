@@ -177,7 +177,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return
 	}
 
-	keys, err = n.kv.LocalKeys(low, newPredecessor.ID())
+	keys, err = n.LocalKeys(low, newPredecessor.ID())
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 
 	l.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
-	values, err = n.kv.LocalGets(keys)
+	values, err = n.LocalGets(keys)
 	if err != nil {
 		return
 	}
@@ -197,12 +197,12 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return
 	}
 
-	err = n.kv.LocalDeletes(keys)
+	err = n.LocalDeletes(keys)
 	return
 }
 
 func (n *LocalNode) transKeysOut(successor chord.VNode) error {
-	keys, err := n.kv.LocalKeys(0, 0)
+	keys, err := n.LocalKeys(0, 0)
 	if err != nil {
 		return fmt.Errorf("fetching all keys locally: %w", err)
 	}
@@ -211,7 +211,7 @@ func (n *LocalNode) transKeysOut(successor chord.VNode) error {
 		return nil
 	}
 
-	values, err := n.kv.LocalGets(keys)
+	values, err := n.LocalGets(keys)
 	if err != nil {
 		return fmt.Errorf("fetching all values locally: %w", err)
 	}

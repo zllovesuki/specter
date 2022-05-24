@@ -25,6 +25,7 @@ import (
 	"github.com/zllovesuki/specter/tun/server"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -39,7 +40,9 @@ var (
 func main() {
 	flag.Parse()
 
-	logger, err := zap.NewDevelopment()
+	config := zap.NewDevelopmentConfig()
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	logger, err := config.Build()
 	if err != nil {
 		panic(err)
 	}
