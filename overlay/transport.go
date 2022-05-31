@@ -30,9 +30,9 @@ func NewQUIC(conf TransportConfig) *QUIC {
 	return &QUIC{
 		TransportConfig: conf,
 
-		qMap:   skipmap.NewString(),
+		qMap:   skipmap.NewString[*nodeConnection](),
 		qMu:    atomic.NewKeyedRWMutex(),
-		rpcMap: skipmap.NewString(),
+		rpcMap: skipmap.NewString[rpcSpec.RPC](),
 		rpcMu:  atomic.NewKeyedRWMutex(),
 
 		rpcChan:    make(chan *transport.StreamDelegate),
@@ -72,7 +72,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 	if sQ, ok := t.qMap.Load(qKey); ok {
 		rUnlock()
 		t.Logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
-		return sQ.(*nodeConnection).quic, nil
+		return sQ.quic, nil
 	}
 	rUnlock()
 
@@ -147,7 +147,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 	rUnlock := t.rpcMu.RLock(rpcMapKey)
 	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
 		rUnlock()
-		return r.(rpcSpec.RPC), nil
+		return r, nil
 	}
 	rUnlock()
 
@@ -157,7 +157,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 	defer unlock()
 
 	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
-		return r.(rpcSpec.RPC), nil
+		return r, nil
 	}
 
 	// t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
@@ -246,12 +246,12 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 		if err != nil {
 			return err
 		}
-		return r.(*nodeConnection).quic.SendMessage(b)
+		return r.quic.SendMessage(b)
 	}
 	return fmt.Errorf("peer %s is not registered in transport", qKey)
 }
 
-func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.Stream, dir string) (quic.Connection, *protocol.Node, bool, error) {
+func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.Stream, dir string) (*nodeConnection, bool, error) {
 	rr := &protocol.Connection{
 		Identity: t.Endpoint,
 	}
@@ -259,18 +259,21 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	s.SetDeadline(time.Now().Add(time.Second))
 	err := rpc.Send(s, rr)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 	rr.Reset()
 	err = rpc.Receive(s, rr)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 	s.SetDeadline(time.Time{})
 
 	if t.Endpoint.GetId() == rr.GetIdentity().GetId() {
 		t.Logger.Debug("connecting to ourself, skipping connection reuse", zap.String("direction", dir))
-		return q, t.Endpoint, false, nil
+		return &nodeConnection{
+			peer: t.Endpoint,
+			quic: q,
+		}, false, nil
 	}
 
 	rKey := makeQKey(rr.GetIdentity())
@@ -278,7 +281,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	unlock := t.qMu.Lock(rKey)
 	defer unlock()
 
-	sQ, loaded := t.qMap.LoadOrStoreLazy(rKey, func() interface{} {
+	sQ, loaded := t.qMap.LoadOrStoreLazy(rKey, func() *nodeConnection {
 		return &nodeConnection{
 			peer: rr.GetIdentity(),
 			quic: q,
@@ -287,12 +290,15 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	if loaded {
 		t.Logger.Debug("reusing quic connection", zap.String("direction", dir), zap.String("key", rKey))
 		q.CloseWithError(0, "A previous connection was reused")
-		return sQ.(*nodeConnection).quic, rr.GetIdentity(), true, nil
+		return sQ, true, nil
 	} else {
 		t.Logger.Debug("saving quic connection for reuse", zap.String("direction", dir), zap.String("key", rKey))
 	}
 
-	return q, rr.GetIdentity(), false, nil
+	return &nodeConnection{
+		peer: rr.GetIdentity(),
+		quic: q,
+	}, false, nil
 }
 
 func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Connection, error) {
@@ -305,20 +311,20 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 	}
 	defer stream.Close()
 
-	newQ, peer, reused, err := t.reuseConnection(ctx, q, stream, "incoming")
+	c, reused, err := t.reuseConnection(ctx, q, stream, "incoming")
 	if err != nil {
 		return nil, err
 	}
 
 	if !reused {
 		select {
-		case t.estChan <- peer:
+		case t.estChan <- c.peer:
 		default:
 		}
-		t.handlePeer(ctx, newQ, peer, "incoming")
+		t.handlePeer(ctx, c.quic, c.peer, "incoming")
 	}
 
-	return newQ, nil
+	return c.quic, nil
 }
 
 func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Connection, error) {
@@ -331,20 +337,20 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 	}
 	defer stream.Close()
 
-	newQ, peer, reused, err := t.reuseConnection(ctx, q, stream, "outgoing")
+	c, reused, err := t.reuseConnection(ctx, q, stream, "outgoing")
 	if err != nil {
 		return nil, err
 	}
 
-	if !reused && peer.GetId() != t.Endpoint.GetId() {
+	if !reused && c.peer.GetId() != t.Endpoint.GetId() {
 		select {
-		case t.estChan <- peer:
+		case t.estChan <- c.peer:
 		default:
 		}
-		t.handlePeer(ctx, newQ, peer, "outgoing")
+		t.handlePeer(ctx, c.quic, c.peer, "outgoing")
 	}
 
-	return newQ, nil
+	return c.quic, nil
 }
 
 func (t *QUIC) handlePeer(ctx context.Context, q quic.Connection, peer *protocol.Node, dir string) {
@@ -460,9 +466,8 @@ func (t *QUIC) Stop() {
 		return
 	}
 	t.started.Store(false)
-	t.qMap.Range(func(key string, value interface{}) bool {
-		n := value.(*nodeConnection)
-		n.quic.CloseWithError(0, "Transport closed")
+	t.qMap.Range(func(key string, value *nodeConnection) bool {
+		value.quic.CloseWithError(0, "Transport closed")
 		return true
 	})
 }

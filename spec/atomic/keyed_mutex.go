@@ -7,22 +7,22 @@ import (
 )
 
 type KeyedRWMutex struct {
-	mutexes *skipmap.StringMap
+	mutexes *skipmap.StringMap[*sync.RWMutex]
 
 	noCopy
 }
 
 func NewKeyedRWMutex() *KeyedRWMutex {
 	return &KeyedRWMutex{
-		mutexes: skipmap.NewString(),
+		mutexes: skipmap.NewString[*sync.RWMutex](),
 	}
 }
 
 func (m *KeyedRWMutex) obtain(key string) *sync.RWMutex {
-	value, _ := m.mutexes.LoadOrStoreLazy(key, func() interface{} {
+	value, _ := m.mutexes.LoadOrStoreLazy(key, func() *sync.RWMutex {
 		return &sync.RWMutex{}
 	})
-	return value.(*sync.RWMutex)
+	return value
 }
 
 func (m *KeyedRWMutex) Lock(key string) func() {

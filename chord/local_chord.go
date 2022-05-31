@@ -37,7 +37,7 @@ RETRY:
 	oldA = n.predecessor.Load().(*atomicVNode)
 	old = oldA.Node
 
-	if n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
+	if old == nil && n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
 		l.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),

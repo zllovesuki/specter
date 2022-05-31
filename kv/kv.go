@@ -9,26 +9,26 @@ import (
 type HashFn func(string) uint64
 
 type MemoryMap struct {
-	s      *skipmap.Uint64Map
+	s      *skipmap.Uint64Map[*skipmap.StringMap[[]byte]]
 	hashFn HashFn
 }
 
-func newValFunc() interface{} {
-	return skipmap.NewString()
+func newValFunc() *skipmap.StringMap[[]byte] {
+	return skipmap.NewString[[]byte]()
 }
 
 var _ chord.KV = (*MemoryMap)(nil)
 
 func WithChordHash() *MemoryMap {
 	return &MemoryMap{
-		s:      skipmap.NewUint64(),
+		s:      skipmap.NewUint64[*skipmap.StringMap[[]byte]](),
 		hashFn: chord.HashString,
 	}
 }
 
 func WithHashFn(fn HashFn) *MemoryMap {
 	return &MemoryMap{
-		s:      skipmap.NewUint64(),
+		s:      skipmap.NewUint64[*skipmap.StringMap[[]byte]](),
 		hashFn: fn,
 	}
 }
@@ -38,15 +38,15 @@ func (m *MemoryMap) put(key, value []byte) {
 	p := m.hashFn(sKey)
 
 	kMap, _ := m.s.LoadOrStoreLazy(p, newValFunc)
-	kMap.(*skipmap.StringMap).Store(sKey, value)
+	kMap.Store(sKey, value)
 }
 
 func (m *MemoryMap) get(key []byte) []byte {
 	sKey := string(key)
 	p := m.hashFn(sKey)
 	kMap, _ := m.s.LoadOrStoreLazy(p, newValFunc)
-	if v, ok := kMap.(*skipmap.StringMap).Load(sKey); ok {
-		return v.([]byte)
+	if v, ok := kMap.Load(sKey); ok {
+		return v
 	}
 	return nil
 }
@@ -57,7 +57,7 @@ func (m *MemoryMap) delete(key []byte) {
 
 	if kMap, ok := m.s.Load(p); ok {
 		// not safe to delete the entire submap because atomic
-		kMap.(*skipmap.StringMap).Delete(sKey)
+		kMap.Delete(sKey)
 	}
 }
 
@@ -78,9 +78,9 @@ func (m *MemoryMap) Delete(key []byte) error {
 func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
 	keys := make([][]byte, 0)
 
-	m.s.Range(func(key uint64, value interface{}) bool {
+	m.s.Range(func(key uint64, value *skipmap.StringMap[[]byte]) bool {
 		if chord.Between(low, key, high, true) {
-			value.(*skipmap.StringMap).Range(func(key string, value interface{}) bool {
+			value.Range(func(key string, value []byte) bool {
 				keys = append(keys, []byte(key))
 				return true
 			})
@@ -115,9 +115,9 @@ func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
 
 func (m *MemoryMap) Fsck(low, self uint64) bool {
 	valid := true
-	m.s.Range(func(key uint64, value interface{}) bool {
-		kMap := value.(*skipmap.StringMap)
-		if !chord.Between(low, key, self, true) && kMap.Len() > 0 {
+
+	m.s.Range(func(key uint64, value *skipmap.StringMap[[]byte]) bool {
+		if !chord.Between(low, key, self, true) && value.Len() > 0 {
 			valid = false
 			return false
 		}

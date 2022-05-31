@@ -43,7 +43,7 @@ type RPC struct {
 	stream io.ReadWriteCloser
 	num    *atomic.Uint64
 
-	rMap *skipmap.Uint64Map
+	rMap *skipmap.Uint64Map[chan rrContainer]
 
 	closed *atomic.Bool
 
@@ -63,7 +63,7 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandle
 		logger:  logger,
 		stream:  stream,
 		num:     atomic.NewUint64(0),
-		rMap:    skipmap.NewUint64(),
+		rMap:    skipmap.NewUint64[chan rrContainer](),
 		handler: handler,
 		closed:  atomic.NewBool(false),
 	}
@@ -94,7 +94,7 @@ func (r *RPC) Start(ctx context.Context) {
 					c.rr = rr.GetResponse()
 				}
 				select {
-				case rC.(rrChan) <- c:
+				case rC <- c:
 				default:
 				}
 

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/rpc"
 
 	"go.uber.org/zap"
 )
@@ -34,10 +33,9 @@ func (t *QUIC) reaper(ctx context.Context) {
 			return
 		case <-timer.C:
 			candidate := make([]*nodeConnection, 0)
-			t.qMap.Range(func(key string, value interface{}) bool {
-				v := value.(*nodeConnection)
-				if err := v.quic.SendMessage(alive); err != nil {
-					candidate = append(candidate, v)
+			t.qMap.Range(func(key string, value *nodeConnection) bool {
+				if err := value.quic.SendMessage(alive); err != nil {
+					candidate = append(candidate, value)
 				}
 				return true
 			})
@@ -54,7 +52,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 					k := makeSKey(c.peer)
 					t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
 					if r, ok := t.rpcMap.LoadAndDelete(k); ok {
-						r.(rpc.RPC).Close()
+						r.Close()
 					}
 				}
 			}

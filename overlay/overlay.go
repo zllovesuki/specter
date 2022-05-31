@@ -5,6 +5,7 @@ import (
 
 	"github.com/zllovesuki/specter/spec/atomic"
 	"github.com/zllovesuki/specter/spec/protocol"
+	"github.com/zllovesuki/specter/spec/rpc"
 	"github.com/zllovesuki/specter/spec/transport"
 
 	"github.com/lucas-clemente/quic-go"
@@ -26,10 +27,10 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
-	rpcMap *skipmap.StringMap
+	rpcMap *skipmap.StringMap[rpc.RPC]
 	rpcMu  *atomic.KeyedRWMutex
 
-	qMap *skipmap.StringMap
+	qMap *skipmap.StringMap[*nodeConnection]
 	qMu  *atomic.KeyedRWMutex
 
 	started *uberAtomic.Bool
