@@ -67,6 +67,7 @@ func TestLocalRPC(t *testing.T) {
 
 	caller := rpc.NewRPC(logger, c2, nil)
 	go caller.Start(ctx)
+	defer caller.Close()
 
 	calls := []*protocol.RPC_Request{
 		{
