@@ -9,9 +9,9 @@ import (
 
 var (
 	quicConfig = &quic.Config{
-		KeepAlive:            true,
+		KeepAlivePeriod:      time.Second * 5,
 		HandshakeIdleTimeout: time.Second * 3,
-		MaxIdleTimeout:       time.Second * 5,
+		MaxIdleTimeout:       time.Second * 10,
 		EnableDatagrams:      true,
 	}
 )
