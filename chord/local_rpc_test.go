@@ -57,6 +57,8 @@ func TestLocalRPC(t *testing.T) {
 	go node.HandleRPC(ctx)
 
 	c1, c2 := net.Pipe()
+	defer c1.Close()
+	defer c2.Close()
 
 	rpcChan <- &transport.StreamDelegate{
 		Connection: c1,
@@ -167,7 +169,9 @@ func TestLocalRPC(t *testing.T) {
 	}
 
 	for _, tc := range calls {
-		_, err := caller.Call(ctx, tc)
+		callCtx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+		_, err := caller.Call(callCtx, tc)
 		as.Nil(err)
 	}
 
