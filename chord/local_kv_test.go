@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zllovesuki/specter/kv"
+	"kon.nect.sh/specter/kv"
 
 	"github.com/stretchr/testify/require"
 )

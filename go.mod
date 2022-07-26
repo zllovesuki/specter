@@ -1,4 +1,4 @@
-module github.com/zllovesuki/specter
+module kon.nect.sh/specter
 
 go 1.18
 

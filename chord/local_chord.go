@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )
@@ -110,7 +110,7 @@ func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
 
 func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 	var finger chord.VNode
-	n.fingerRange(func(i int, f chord.VNode) bool {
+	n.fingerRange(func(_ int, f chord.VNode) bool {
 		if chord.Between(n.ID(), f.ID(), key, false) {
 			finger = f
 			return false

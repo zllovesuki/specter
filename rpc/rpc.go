@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/zllovesuki/specter/spec"
-	"github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/rpc"
+	"kon.nect.sh/specter/spec"
+	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 
 	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/zhangyunhao116/skipmap"

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zllovesuki/specter/spec/chord"
+	"kon.nect.sh/specter/spec/chord"
 )
 
 func minmax(nums []int) (min, max int) {

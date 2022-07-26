@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )

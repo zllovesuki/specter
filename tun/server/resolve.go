@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
-	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/tun"
+	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
 )

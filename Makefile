@@ -29,12 +29,12 @@ android:
 
 proto:
 	protoc \
-		--go_opt=module=github.com/zllovesuki/specter \
-		--go-vtproto_opt=module=github.com/zllovesuki/specter \
+		--go_opt=module=kon.nect.sh/specter \
+		--go-vtproto_opt=module=kon.nect.sh/specter \
 		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
 		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
 		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
-		--go-vtproto_opt=pool=github.com/zllovesuki/specter/spec/protocol.RPC \
+		--go-vtproto_opt=pool=kon.nect.sh/specter/spec/protocol.RPC \
 		./spec/proto/*.proto
 
  dep:

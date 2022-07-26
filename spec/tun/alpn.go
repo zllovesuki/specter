@@ -1,7 +1,7 @@
 package tun
 
 import (
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"google.golang.org/protobuf/proto"
 )

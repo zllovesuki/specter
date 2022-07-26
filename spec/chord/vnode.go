@@ -1,6 +1,6 @@
 package chord
 
-import "github.com/zllovesuki/specter/spec/protocol"
+import "kon.nect.sh/specter/spec/protocol"
 
 type VNode interface {
 	KV

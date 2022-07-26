@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zllovesuki/specter/spec/chord"
+	"kon.nect.sh/specter/spec/chord"
 
 	"github.com/stretchr/testify/assert"
 )

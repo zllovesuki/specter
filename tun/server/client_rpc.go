@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zllovesuki/specter/rpc"
-	"github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
-	rpcSpec "github.com/zllovesuki/specter/spec/rpc"
-	"github.com/zllovesuki/specter/spec/tun"
+	"kon.nect.sh/specter/rpc"
+	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
+	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/sethvargo/go-diceware/diceware"
 	"go.uber.org/zap"

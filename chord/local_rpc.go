@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zllovesuki/specter/rpc"
-	"github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
-	rpcSpec "github.com/zllovesuki/specter/spec/rpc"
+	"kon.nect.sh/specter/rpc"
+	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
+	rpcSpec "kon.nect.sh/specter/spec/rpc"
 
 	"go.uber.org/zap"
 )

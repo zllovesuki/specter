@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/zllovesuki/specter/rpc"
-	"github.com/zllovesuki/specter/spec/protocol"
-	rpcSpec "github.com/zllovesuki/specter/spec/rpc"
-	"github.com/zllovesuki/specter/spec/transport"
-	"github.com/zllovesuki/specter/spec/tun"
+	"kon.nect.sh/specter/rpc"
+	"kon.nect.sh/specter/spec/protocol"
+	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
 )

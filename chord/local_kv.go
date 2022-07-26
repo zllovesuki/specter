@@ -1,7 +1,7 @@
 package chord
 
 import (
-	"github.com/zllovesuki/specter/spec/chord"
+	"kon.nect.sh/specter/spec/chord"
 
 	"go.uber.org/zap"
 )

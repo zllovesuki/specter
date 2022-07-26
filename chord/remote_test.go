@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/mocks"
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/mocks"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

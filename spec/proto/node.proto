@@ -4,7 +4,7 @@ syntax = "proto3";
 package protocol;
 
 option optimize_for = SPEED;
-option go_package = "github.com/zllovesuki/specter/spec/protocol";
+option go_package = "kon.nect.sh/specter/spec/protocol";
 
 message Node {
     uint64 id = 1;

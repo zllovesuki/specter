@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/zllovesuki/specter/overlay"
-	chordSpec "github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/tun"
-	"github.com/zllovesuki/specter/tun/client"
+	"kon.nect.sh/specter/overlay"
+	chordSpec "kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/tun/client"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

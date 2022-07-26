@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/protocol"
 )
 
 var (

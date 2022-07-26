@@ -14,11 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zllovesuki/specter/chord"
-	"github.com/zllovesuki/specter/kv"
-	"github.com/zllovesuki/specter/overlay"
-	chordSpec "github.com/zllovesuki/specter/spec/chord"
-	"github.com/zllovesuki/specter/spec/protocol"
+	"kon.nect.sh/specter/chord"
+	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/overlay"
+	chordSpec "kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )

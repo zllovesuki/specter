@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zllovesuki/specter/spec/mocks"
-	"github.com/zllovesuki/specter/spec/protocol"
-	"github.com/zllovesuki/specter/spec/tun"
+	"kon.nect.sh/specter/spec/mocks"
+	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
