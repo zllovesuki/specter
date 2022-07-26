@@ -21,11 +21,11 @@ all: proto test clean release
 release: $(PLATFORMS) android
 
 $(PLATFORMS):
-	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-server-$(os)-$(arch)$(ext) ./cmd/server
-	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-client-$(os)-$(arch)$(ext) ./cmd/client
+	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-server-$(os)-$(arch)$(ext) ./cmd/specter-server
+	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-client-$(os)-$(arch)$(ext) ./cmd/specter-client
 
 android:
-	CC=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang CXX=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ CGO_ENABLED=1 GOARCH=arm64 GOOS=android go build $(GOTAGS) $(LDFLAGS) -o bin/specter-client-android-arm64 ./cmd/client
+	CC=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang CXX=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ CGO_ENABLED=1 GOARCH=arm64 GOOS=android go build $(GOTAGS) $(LDFLAGS) -o bin/specter-client-android-arm64 ./cmd/specter-client
 
 proto:
 	protoc \
@@ -37,7 +37,7 @@ proto:
 		--go-vtproto_opt=pool=kon.nect.sh/specter/spec/protocol.RPC \
 		./spec/proto/*.proto
 
- dep:
+dep:
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
