@@ -8,6 +8,7 @@ require (
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.0
+	github.com/urfave/cli/v2 v2.11.1
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
 	go.uber.org/atomic v1.9.0
@@ -17,6 +18,7 @@ require (
 
 require (
 	github.com/cheekybits/genny v1.0.0 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
@@ -28,7 +30,9 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect

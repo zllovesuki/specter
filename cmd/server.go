@@ -1,14 +1,8 @@
-package main
+package cmd
 
 import (
-	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
-	"flag"
-	"math/big"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -24,38 +18,67 @@ import (
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
-var (
-	Build = "head"
+var Server = &cli.Command{
+	Name:        "server",
+	Usage:       "start an specter server on the edge",
+	Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum. ",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "bootstrap",
+			Aliases: []string{"b"},
+			Value:   false,
+			Usage:   "bootstrap a new specter cluster with current node as the seed node. Mutually exclusive with join",
+		},
+		&cli.StringFlag{
+			Name:    "join",
+			Aliases: []string{"j"},
+			Value:   "192.168.1.1:18281",
+			Usage:   "a known specter server's listen-chord address",
+		},
+		&cli.StringFlag{
+			Name:    "listen-chord",
+			Aliases: []string{"chord"},
+			Value:   "192.168.2.1:18281",
+			Usage:   "address and port to listen for incoming specter server connections",
+		},
+		&cli.StringFlag{
+			Name:     "listen-client",
+			Aliases:  []string{"client"},
+			Value:    "192.168.2.1:18282",
+			Usage:    "address and port to listen for incoming specter client connections",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "listen-gateway",
+			Aliases:  []string{"gateway"},
+			Value:    "192.168.2.1:18283",
+			Usage:    "address and port to listen for incoming gateway connections",
+			Required: true,
+		},
+	},
+	Before: func(ctx *cli.Context) error {
+		if ctx.Bool("bootstrap") && ctx.IsSet("join") {
+			return fmt.Errorf("cannot set bootstrap and join at the same time")
+		}
+		return nil
+	},
+	Action: cmdServer,
+}
 
-	listenGateway = flag.String("gw", "127.0.0.1:1233", "gateway listener")
-	listenChord   = flag.String("chord", "127.0.0.1:1234", "chord transport listener")
-	listenClient  = flag.String("client", "127.0.0.1:1235", "client transport listener")
-	peer          = flag.String("peer", "local", "known chord peer")
-)
-
-func main() {
-	flag.Parse()
-
-	config := zap.NewDevelopmentConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	logger, err := config.Build()
-	if err != nil {
-		panic(err)
-	}
-
-	logger.Info("specter server", zap.String("build", Build))
+func cmdServer(ctx *cli.Context) error {
+	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 
 	chordIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: *listenChord,
+		Address: ctx.String("listen-chord"),
 	}
 	serverIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: *listenClient,
+		Address: ctx.String("listen-client"),
 	}
 
 	// ========== TODO: THESE TLS CONFIGS ARE FOR DEVELOPMENT ONLY ==========
@@ -82,12 +105,9 @@ func main() {
 		tun.ALPN(protocol.Link_SPECTER_TUN),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	gwListener, err := tls.Listen("tcp", *listenGateway, gwTLSConf)
+	gwListener, err := tls.Listen("tcp", ctx.String("listen-gateway"), gwTLSConf)
 	if err != nil {
-		logger.Fatal("gateway listener", zap.Error(err))
+		return fmt.Errorf("setting up gateway listener: %w", err)
 	}
 	defer gwListener.Close()
 
@@ -136,20 +156,20 @@ func main() {
 		GatewayPort: gwPort,
 	})
 	if err != nil {
-		logger.Fatal("gateway", zap.Error(err))
+		return fmt.Errorf("starting gateway server: %w", err)
 	}
 
-	go chordTransport.Accept(ctx)
-	go chordNode.HandleRPC(ctx)
+	go chordTransport.Accept(ctx.Context)
+	go chordNode.HandleRPC(ctx.Context)
 
-	if *peer == "local" {
+	if ctx.Bool("bootstrap") {
 		if err := chordNode.Create(); err != nil {
 			logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
 		}
 	} else {
-		p, err := chord.NewRemoteNode(ctx, chordTransport, chordLogger, &protocol.Node{
+		p, err := chord.NewRemoteNode(ctx.Context, chordTransport, chordLogger, &protocol.Node{
 			Unknown: true,
-			Address: *peer,
+			Address: ctx.String("join"),
 		})
 		if err != nil {
 			logger.Fatal("Creating RemoteNode", zap.Error(err))
@@ -159,39 +179,15 @@ func main() {
 		}
 	}
 
-	go clientTransport.Accept(ctx)
-	go tunServer.HandleRPC(ctx)
-	go tunServer.Accept(ctx)
-	go gw.Start(ctx)
+	go clientTransport.Accept(ctx.Context)
+	go tunServer.HandleRPC(ctx.Context)
+	go tunServer.Accept(ctx.Context)
+	go gw.Start(ctx.Context)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	logger.Info("received signal to stop", zap.String("signal", (<-sigs).String()))
-}
 
-func generateTLSConfig() *tls.Config {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		panic(err)
-	}
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-	}
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
-	if err != nil {
-		panic(err)
-	}
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-
-	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		panic(err)
-	}
-	return &tls.Config{
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{tlsCert},
-		NextProtos:         []string{"quic-echo-example"},
-	}
+	return nil
 }
