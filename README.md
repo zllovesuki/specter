@@ -1,54 +1,65 @@
-# Specter
-
-This is the specification document for the Project 4 of CS682, codename `Specter`.
+# 👻 Specter
 
 ## What is it?
 
 Specter aims to create a distributed network of nodes that forms an overlay network, allowing users to create a reverse tunnel on any publicly exposed node, then redundantly route the traffic back to the user, without having the user's machine exposed to the Internet.
 
-## Requirements
+Specter is the spiritual successor of [t](https://github.com/zllovesuki/t/), another similar reverse tunnel software written by me.
 
-1. The virtual tunnel created by the user should support TCP traffic.
-2. Communications between the nodes, and between the public node and the user shall be over UDP. More specifically, [QUIC](https://datatracker.ietf.org/doc/html/rfc9000).
-3. Virtual tunnels created by the user should be routable over multiple public nodes, for the purpose of redundancy.
-4. Failure of a public node connected to the user should not interrupt the availability of the virtual tunnel, and new traffic shall be routed via other health nodes connected to the user.
-5. Overlay network formed by the nodes should not contain a "leader" or any kind of centralized storage.
-6. Discovery of routing to the user's endpoint on the machine (possibly behind NAT) should be calculated on the fly, potentially cached, via mechanism such as Distributed Hash Table (DHT), such as [Chord](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf).
-7. All communications must be encrypted via TLS.
-8. The software (node/client) must be written in [Go 1.17](https://go.dev/)
+Specter has these improvements over t:
+1. Built-in Chord DHT for distributed KV storage for routing information;
+    - t uses a simple periodic updates via [hashicorp/memberlist](https://github.com/hashicorp/memberlist)
+    - meaning that if you have 100 nodes each with 100 clients connected, every single node has to maintain an 100*100 list about where the client is connected to
+2. Redundant connections from client to edge nodes and self-healing to maintain the tunnel;
+    - t only connects to 1 public node and can encounter downtime when a node is having an outage
+    - this has caused headache in production usage and causes assets to be unreachable
+3. Robust testing to ensure correctness (`make extended_test` and `make long_test`).
+    - t has _zero_ tests whatsoever
+    - development is difficult as I have no confidence on correctness
 
-## External libraries
+Similar to t, specter also:
+1. Uses [quic](https://github.com/lucas-clemente/quic-go) and _only_ quic for inter-nodes/node-client transport. However the transport (see `spec/transport`) is easily extensible;
+2. Supports tunneling _L7_(HTTP/S)/_L4_(TCP) traffic over a single TLS port;
+3. Manages Let's Encrypt certificate via dns01 challange for gateway hostname.
 
-In order to support the requirements outlined above, the following libraries are proposed to be used in the project:
+## Status
 
-1. [quic-go](https://github.com/lucas-clemente/quic-go) as the supporting library to faciliate communication between nodes, and between node and the client.
-2. ~~[memberlist](https://github.com/hashicorp/memberlist) as the supporting library to maintain membership of the nodes (not client) in the network.~~ (Chord already handles that)
-3. [ristretto](https://github.com/dgraph-io/ristretto) as the caching library to support potentially caching of routing information.
+| **Component**  | Status | Description                                               |
+|----------------|--------|-----------------------------------------------------------|
+| Chord DHT      | Stable | Chord implementation is stable to be used as a dependency |
+| Chord KV       | Beta   | Key transfers require more in depth testing               |
+| Tunnel Core    | Beta   | Storage format is subjected to change                     |
+| Tunnel Gateway | Alpha  |                                                           |
+| Server         | Beta   |                                                           |
+| Client         | Alpha  |                                                           |
 
-## Draft Implementations
+## Roadmap
 
-1. Each node and client will be identified by an ID, where it will be used with Chord as distributed KV storage to identify which public node(s) is connected to the user's client.
-2. To identify an unique tunnel on the public Internet, a random combination of English words is formed (tunnel name), used to generate a hash, and the same hash will be used as the ID for the client. Subdomain of the tunnel name is then used as part of the TLS handshake for the connecting node for routing purpose.
-3. The connected node(s) from the client will then publish/advertise the client on the DHT network via Chord, so other public nodes can discover the client via DHT.
-4. Upon initial connection a peer, the client will request for a subset of the peers known to the connected peer, and the client will then connect to those other peers, so the client is known to the network via at least 1 node. The same peer will also assign the ID for the tunnel, so it can be reused by the client to connect to other peers.
+*Chord DHT*
+- [ ] Implement a Dynamo-like replication scheme
+- [ ] Expose KV functionalities via HTTP/SDK
 
-![Architecture](./specter.png)
+*Tunnel Core*
+- [ ] Support multiple tunnels to a single client endpoint
+- [ ] Persistent tunnel hostnames
+- [ ] Support UDP forwarding from edge to client
 
-## Proposed Milestones
+*Tunnel Gateway*
+- [ ] Uses HTTP/3 for handling eyeball traffic
+- [ ] Support custom hostname and Let's Encrypt cert issurance
 
-05/02 - Submission of proposal
+## Contributing
 
-05/06 - Implementation of Chord
+The following should be installed on your machine:
+- Go 1.18+
+- [protoc](https://grpc.io/docs/protoc-installation)
+- [proto-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
+- [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
 
-06/09 - Implementation of overlay network via QUIC
+See `Makefile` for more details.
 
-06/13 - Completion of project
+## References
 
-## Proposed Deliverable
-
-Submitted version of the project should satisfy the requirements outlined above and be demostrated on 05/17 with the Professor.
-
-## Reference
-
+Chord:
 - Original Chord paper: [Chord: A Scalable Peer-to-peer Lookup Protocol for Internet Applications](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf)
 - Improvement on the original paper: [How to Make Chord Correct](https://arxiv.org/pdf/1502.06461.pdf)
