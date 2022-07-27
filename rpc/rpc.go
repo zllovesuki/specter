@@ -140,7 +140,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	}
 
 	rNum := r.num.Inc()
-	rC := make(rrChan)
+	rC := make(rrChan, 1)
 
 	rr := protocol.RPCFromVTPool()
 	defer rr.ReturnToVTPool()
