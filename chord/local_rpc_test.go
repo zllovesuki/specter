@@ -168,9 +168,12 @@ func TestLocalRPC(t *testing.T) {
 		},
 	}
 
+	// realistically this should take less than 1 second, but make it 3
+	// in case the CI server is busy
+	callCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	defer cancel()
+
 	for _, tc := range calls {
-		callCtx, cancel := context.WithTimeout(ctx, time.Second)
-		defer cancel()
 		_, err := caller.Call(callCtx, tc)
 		as.Nil(err)
 	}
