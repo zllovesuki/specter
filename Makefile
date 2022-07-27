@@ -8,7 +8,7 @@ PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 COUNT=5
 GOARM=7
 GOAMD64=v2
-GOTAGS=-tags 'osusergo netgo'
+GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs'
 LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 
 plat_temp = $(subst /, ,$@)
@@ -41,6 +41,7 @@ dep:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
 test:
+	go test -v -short -cover -count=1 -timeout 30s ./...
 	go test -v -short -race -cover -count=1 -timeout 30s ./...
 
 coverage:
@@ -49,6 +50,7 @@ coverage:
 	-rm cover.out
 
 extended_test:
+	go test -short -count=$(COUNT) -timeout 120s ./...
 	go test -short -race -count=$(COUNT) -timeout 120s ./...
 
 long_test:
