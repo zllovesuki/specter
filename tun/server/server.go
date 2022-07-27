@@ -46,12 +46,10 @@ func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport,
 func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("specter server started", zap.Uint64("server", s.clientTransport.Identity().GetId()))
 
-	go func() {
-		s.logger.Info("publishing identities to chord")
-		if err := s.publishIdentities(); err != nil {
-			s.logger.Fatal("publishing identities pair", zap.Error(err))
-		}
-	}()
+	s.logger.Info("publishing identities to chord")
+	if err := s.publishIdentities(); err != nil {
+		s.logger.Fatal("publishing identities pair", zap.Error(err))
+	}
 
 	for {
 		select {
