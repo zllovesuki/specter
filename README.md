@@ -49,6 +49,8 @@ Similar to t, specter also:
 *Tunnel Gateway*
 - [ ] Uses HTTP/3 for handling eyeball traffic
 - [ ] Support custom hostname and Let's Encrypt cert issurance
+    - Certificate issurance for custom hostname is unblocked by [kon.nect.sh/challenger](https://github.com/zllovesuki/challenger)
+- [ ] Implement SNI proxy to share :443 with other services
 
 ## Contributing
 
