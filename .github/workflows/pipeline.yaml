@@ -1,6 +1,8 @@
 name: Pipeline
 on:
   push:
+    branches:
+      - main
     paths-ignore:
       - '**.md'
 
@@ -15,16 +17,13 @@ jobs:
         go: ["1.18.2"]
     env:
       OS: ${{ matrix.os }}
-
     steps: 
       - name: Checkout repository code
         uses: actions/checkout@v2
-
       - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-
       - uses: actions/cache@v2
         with:
           path: |
@@ -33,6 +32,47 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-
       - name: Test with Coverage and Race Detector
         run: go test -v -short -race -timeout 120s ./...
+  coverage:
+    name: Update Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.18.2"
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Generate Test Coverage
+        run: go test -coverprofile=cover.out -covermode=count ./... 
+      - name: Bleh
+        run: |
+          set -x
+          total=`go tool cover -func=cover.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
+          if (( $(echo "$total <= 50" | bc -l) )) ; then
+            COLOR=red
+          elif (( $(echo "$total > 80" | bc -l) )); then
+            COLOR=green
+          else
+            COLOR=orange
+          fi
+          echo "COLOR=$COLOR" >> $GITHUB_ENV
+          echo "COVERAGE=$total" >> $GITHUB_ENV
+      - name: Update coverage on gist
+        uses: schneegans/dynamic-badges-action@v1.4.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 49efb3a7978bf0df7d91bfad39da7092
+          filename: specter.json
+          label: Coverage
+          message: ${{ env.COVERAGE }}
+          color: ${{ env.COLOR }}
