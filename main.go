@@ -44,9 +44,15 @@ func main() {
 			} else {
 				config = zap.NewProductionConfig()
 			}
+			// Redirect everything to stderr
+			config.OutputPaths = []string{"stderr"}
 			logger, err := config.Build()
 			if err != nil {
 				return err
+			}
+			_, err = zap.RedirectStdLogAt(logger, zapcore.InfoLevel)
+			if err != nil {
+				return fmt.Errorf("redirecting stdlog output: %w", err)
 			}
 			ctx.App.Metadata["logger"] = logger
 			return nil
