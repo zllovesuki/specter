@@ -196,9 +196,6 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("starting gateway server: %w", err)
 	}
 
-	go chordTransport.Accept(ctx.Context)
-	go chordNode.HandleRPC(ctx.Context)
-
 	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {
 			return fmt.Errorf("bootstrapping chord ring: %w", err)
@@ -216,6 +213,8 @@ func cmdServer(ctx *cli.Context) error {
 		}
 	}
 
+	go chordTransport.Accept(ctx.Context)
+	go chordNode.HandleRPC(ctx.Context)
 	go clientTransport.Accept(ctx.Context)
 	go tunServer.HandleRPC(ctx.Context)
 	go tunServer.Accept(ctx.Context)

@@ -68,7 +68,10 @@ func cmdClient(ctx *cli.Context) error {
 	}
 
 	for _, node := range nodes[1:] {
-		transport.DialDirect(ctx.Context, node)
+		_, err := transport.DialDirect(ctx.Context, node)
+		if err != nil {
+			logger.Error("connecting to specter node", zap.Error(err))
+		}
 	}
 
 	hostname, err := c.PublishTunnel(ctx.Context, nodes)
