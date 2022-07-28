@@ -1,0 +1,9 @@
+basicConstraints        =   CA:FALSE
+authorityKeyIdentifier  =   keyid, issuer
+keyUsage                =   digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage        =   serverAuth, clientAuth
+subjectAltName          =   @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
 	"os/signal"
@@ -33,13 +34,16 @@ func cmdClient(ctx *cli.Context) error {
 		Id: chordSpec.Random(),
 	}
 
+	// TODO: endpoint discovery via http
 	seed := &protocol.Node{
-		Address: "127.0.0.1:4242",
+		Address: "127.0.0.1:1112",
 	}
 
-	clientTLSConf := generateTLSConfig()
-	clientTLSConf.NextProtos = []string{
-		tun.ALPN(protocol.Link_SPECTER_TUN),
+	clientTLSConf := &tls.Config{
+		InsecureSkipVerify: ctx.Bool("debug"),
+		NextProtos: []string{
+			tun.ALPN(protocol.Link_SPECTER_TUN),
+		},
 	}
 	transport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:    logger,
@@ -72,7 +76,7 @@ func cmdClient(ctx *cli.Context) error {
 		logger.Fatal("publishing tunnel", zap.Error(err))
 	}
 
-	logger.Debug("tunnel published", zap.String("hostname", hostname))
+	logger.Info("tunnel published", zap.String("hostname", hostname))
 
 	go c.Tunnel(ctx.Context, hostname)
 

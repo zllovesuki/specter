@@ -60,4 +60,23 @@ clean:
 	-rm bin/*
 	-rm cover.out
 
+certs:
+	mkdir certs
+	# Create CA key
+	openssl ecparam -name prime256v1 -genkey -noout -out certs/ca.key
+	# Generate CA CSR
+	openssl req -new -key certs/ca.key -out certs/ca.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=ca.dev"
+	# Verify CA CSR
+	openssl req -text -in certs/ca.csr -noout -verify
+	# Generate self-signed CA
+	openssl x509 -signkey certs/ca.key -in certs/ca.csr -req -days 365 -out certs/ca.crt
+	# Generate node key
+	openssl ecparam -name prime256v1 -genkey -noout -out certs/node.key
+	# Generate node CSR
+	openssl req -new -key certs/node.key -out certs/node.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=node.ca.dev"
+	# Verify node CSR
+	openssl req -text -in certs/node.csr -noout -verify
+	# Sign and generate node certificate
+	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev-support/openssl.txt
+
 .PHONY: all

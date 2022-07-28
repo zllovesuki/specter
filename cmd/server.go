@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -13,6 +16,7 @@ import (
 	"kon.nect.sh/specter/kv"
 	"kon.nect.sh/specter/overlay"
 	chordSpec "kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway"
@@ -27,51 +31,81 @@ var Server = &cli.Command{
 	Usage:       "start an specter server on the edge",
 	Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum. ",
 	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:    "bootstrap",
-			Aliases: []string{"b"},
-			Value:   false,
-			Usage:   "bootstrap a new specter cluster with current node as the seed node. Mutually exclusive with join",
+		&cli.PathFlag{
+			Name:     "cert-dir",
+			Aliases:  []string{"cert"},
+			Usage:    "location to directory containing ca.crt, node.crt, and node.key for mutual TLS between Chord nodes",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:    "join",
 			Aliases: []string{"j"},
-			Value:   "192.168.1.1:18281",
-			Usage:   "a known specter server's listen-chord address",
+			Usage:   "a known specter server's listen-chord address. Absent of this flag will boostrap a new cluster with current node as the seed node",
 		},
 		&cli.StringFlag{
-			Name:    "listen-chord",
-			Aliases: []string{"chord"},
-			Value:   "192.168.2.1:18281",
-			Usage:   "address and port to listen for incoming specter server connections",
+			Name:        "listen-chord",
+			Aliases:     []string{"chord"},
+			DefaultText: "192.168.2.1:18281",
+			Usage:       "address and port to listen for incoming specter server connections",
+			Required:    true,
 		},
 		&cli.StringFlag{
-			Name:     "listen-client",
-			Aliases:  []string{"client"},
-			Value:    "192.168.2.1:18282",
-			Usage:    "address and port to listen for incoming specter client connections",
-			Required: true,
+			Name:        "listen-client",
+			Aliases:     []string{"client"},
+			DefaultText: "192.168.2.1:18282",
+			Usage:       "address and port to listen for incoming specter client connections",
+			Required:    true,
 		},
 		&cli.StringFlag{
-			Name:     "listen-gateway",
-			Aliases:  []string{"gateway"},
-			Value:    "192.168.2.1:18283",
-			Usage:    "address and port to listen for incoming gateway connections",
-			Required: true,
+			Name:        "listen-gateway",
+			Aliases:     []string{"gateway"},
+			DefaultText: "192.168.2.1:18283",
+			Usage:       "address and port to listen for incoming gateway connections",
+			Required:    true,
 		},
-	},
-	Before: func(ctx *cli.Context) error {
-		if ctx.Bool("bootstrap") && ctx.IsSet("join") {
-			return fmt.Errorf("cannot set bootstrap and join at the same time")
-		}
-		return nil
+		&cli.StringFlag{
+			Name:        "zone",
+			Aliases:     []string{"z"},
+			DefaultText: "example.com",
+			Usage:       "canonical domain to be used as tunnel root zone. Tunnels will be given names under *.`ZONE`",
+			Required:    true,
+		},
 	},
 	Action: cmdServer,
+}
+
+type certBundle struct {
+	ca   *x509.CertPool
+	node tls.Certificate
+}
+
+func certLoader(dir string) (*certBundle, error) {
+	files := []string{"ca.crt", "node.crt", "node.key"}
+	for i, name := range files {
+		files[i] = filepath.Join(dir, name)
+	}
+	caCert, err := ioutil.ReadFile(files[0])
+	if err != nil {
+		return nil, fmt.Errorf("reading ca bundle from file: %w", err)
+	}
+	caCertPool := x509.NewCertPool()
+	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+		return nil, fmt.Errorf("unable to use provided ca bundle")
+	}
+	nodeCert, err := tls.LoadX509KeyPair(files[1], files[2])
+	if err != nil {
+		return nil, fmt.Errorf("reading cert/key from files: %w", err)
+	}
+	return &certBundle{
+		ca:   caCertPool,
+		node: nodeCert,
+	}, nil
 }
 
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 
+	// TODO: verify they are not 0.0.0.0 or ::0
 	chordIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
 		Address: ctx.String("listen-chord"),
@@ -81,30 +115,33 @@ func cmdServer(ctx *cli.Context) error {
 		Address: ctx.String("listen-client"),
 	}
 
-	// ========== TODO: THESE TLS CONFIGS ARE FOR DEVELOPMENT ONLY ==========
+	bundle, err := certLoader(ctx.Path("cert-dir"))
+	if err != nil {
+		return fmt.Errorf("loading certificates from directory: %w", err)
+	}
 
-	chordTLS := generateTLSConfig()
-	chordTLS.NextProtos = []string{
+	// TODO: acme management such as CertMagic
+	fakeCerts := generateTLSConfig()
+
+	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
-	}
-	chordClientTLS := &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos: []string{
-			tun.ALPN(protocol.Link_SPECTER_CHORD),
-		},
-	}
+	})
 
-	gwTLSConf := generateTLSConfig()
-	gwTLSConf.NextProtos = []string{
+	gwTLSConf := cipher.GetGatewayTLSConfig(func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &fakeCerts.Certificates[0], nil
+	}, []string{
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
-	}
-	tunTLSConf := generateTLSConfig()
-	tunTLSConf.NextProtos = []string{
-		tun.ALPN(protocol.Link_SPECTER_TUN),
-	}
+	})
 
+	tunTLSConf := cipher.GetGatewayTLSConfig(func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &fakeCerts.Certificates[0], nil
+	}, []string{
+		tun.ALPN(protocol.Link_SPECTER_TUN),
+	})
+
+	// TODO: implement SNI proxy so specter can share port with another webserver
 	gwListener, err := tls.Listen("tcp", ctx.String("listen-gateway"), gwTLSConf)
 	if err != nil {
 		return fmt.Errorf("setting up gateway listener: %w", err)
@@ -112,7 +149,6 @@ func cmdServer(ctx *cli.Context) error {
 	defer gwListener.Close()
 
 	gwPort := gwListener.Addr().(*net.TCPAddr).Port
-	rootDomain := "example.com"
 
 	chordLogger := logger.With(zap.String("component", "chord"))
 	tunLogger := logger.With(zap.String("component", "tun"))
@@ -122,7 +158,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:    chordLogger,
 		Endpoint:  chordIdentity,
 		ServerTLS: chordTLS,
-		ClientTLS: chordClientTLS,
+		ClientTLS: chordTLS,
 	})
 	defer chordTransport.Stop()
 
@@ -145,6 +181,7 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordNode.Stop()
 
+	rootDomain := ctx.String("zone")
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
@@ -162,9 +199,9 @@ func cmdServer(ctx *cli.Context) error {
 	go chordTransport.Accept(ctx.Context)
 	go chordNode.HandleRPC(ctx.Context)
 
-	if ctx.Bool("bootstrap") {
+	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {
-			logger.Fatal("Start LocalNode with new Chord Ring", zap.Error(err))
+			return fmt.Errorf("bootstrapping chord ring: %w", err)
 		}
 	} else {
 		p, err := chord.NewRemoteNode(ctx.Context, chordTransport, chordLogger, &protocol.Node{
@@ -172,10 +209,10 @@ func cmdServer(ctx *cli.Context) error {
 			Address: ctx.String("join"),
 		})
 		if err != nil {
-			logger.Fatal("Creating RemoteNode", zap.Error(err))
+			return fmt.Errorf("connecting existing chord node: %w", err)
 		}
 		if err := chordNode.Join(p); err != nil {
-			logger.Fatal("Start LocalNode with existing Chord Ring", zap.Error(err))
+			return fmt.Errorf("joining to existing chord ring: %w", err)
 		}
 	}
 
