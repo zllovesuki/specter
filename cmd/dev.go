@@ -7,15 +7,19 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"math/big"
+	"time"
 )
 
-func generateTLSConfig() *tls.Config {
+func generateTLSConfig(zone string) *tls.Config {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
 	}
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		DNSNames:     []string{zone, "*." + zone},
 	}
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	if err != nil {

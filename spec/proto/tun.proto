@@ -41,7 +41,7 @@ message Link {
         SPECTER_CHORD = 1 [(alpn_name) = "specter-chord/1"];
         SPECTER_TUN = 2 [(alpn_name) = "specter-tun/1"];
 
-
+        HTTP2 = 9 [(alpn_name) = "h2"];
         HTTP = 10 [(alpn_name) = "http/1.1"];
         TCP = 11 [(alpn_name) = "tcp"];
     }

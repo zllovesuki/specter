@@ -121,7 +121,8 @@ func cmdServer(ctx *cli.Context) error {
 	}
 
 	// TODO: acme management such as CertMagic
-	fakeCerts := generateTLSConfig()
+	rootDomain := ctx.String("zone")
+	fakeCerts := generateTLSConfig(rootDomain)
 
 	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
@@ -130,6 +131,7 @@ func cmdServer(ctx *cli.Context) error {
 	gwTLSConf := cipher.GetGatewayTLSConfig(func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return &fakeCerts.Certificates[0], nil
 	}, []string{
+		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
@@ -181,7 +183,6 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordNode.Stop()
 
-	rootDomain := ctx.String("zone")
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 

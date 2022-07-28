@@ -83,7 +83,7 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
-		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP):
+		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
 			g.httpTunnelAcceptor.Conn <- conn
 
 		case tun.ALPN(protocol.Link_TCP):
