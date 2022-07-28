@@ -16,6 +16,14 @@ os = $(word 1, $(plat_temp))
 arch = $(word 2, $(plat_temp))
 ext = $(word 3, $(plat_temp))
 
+# ========================================================
+
+dev: certs
+	docker buildx build -t specter -f Dockerfile.dev .
+	docker compose up --remove-orphans
+
+# ========================================================
+
 all: proto test clean release
 
 release: $(PLATFORMS) android
@@ -78,9 +86,5 @@ certs:
 	openssl req -text -in certs/node.csr -noout -verify
 	# Sign and generate node certificate
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev-support/openssl.txt
-
-dev: certs
-	docker buildx build -t specter .
-	docker compose up --remove-orphans
 
 .PHONY: all

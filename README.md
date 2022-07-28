@@ -61,7 +61,7 @@ The following should be installed on your machine:
 - [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
 - [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
 
-See `Makefile` for more details.
+Run `make dev` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
 
 ## References
 
