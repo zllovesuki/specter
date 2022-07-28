@@ -79,4 +79,8 @@ certs:
 	# Sign and generate node certificate
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev-support/openssl.txt
 
+dev: certs
+	docker buildx build -t specter .
+	docker compose up --remove-orphans
+
 .PHONY: all
