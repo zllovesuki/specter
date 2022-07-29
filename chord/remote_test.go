@@ -18,7 +18,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 	as := require.New(t)
 
 	logger, err := zap.NewDevelopment()
-	as.Nil(err)
+	as.NoError(err)
 
 	tp := new(mocks.Transport)
 
@@ -41,7 +41,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 	}), mock.Anything).Return(rpcCaller, nil)
 
 	r, err := NewRemoteNode(ctx, tp, logger, peer)
-	as.Nil(err)
+	as.NoError(err)
 
 	defer r.Stop()
 

@@ -42,7 +42,7 @@ func TestLocalRPC(t *testing.T) {
 	})
 
 	err = node.Create()
-	as.Nil(err)
+	as.NoError(err)
 
 	rRPC := new(mocks.RPC)
 	rRPC.On("Call", mock.Anything, mock.Anything).Return(&protocol.RPC_Response{}, nil)
@@ -175,7 +175,7 @@ func TestLocalRPC(t *testing.T) {
 
 	for _, tc := range calls {
 		_, err := caller.Call(callCtx, tc)
-		as.Nil(err)
+		as.NoError(err)
 	}
 
 	node.Stop()

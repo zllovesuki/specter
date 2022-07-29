@@ -117,7 +117,7 @@ func TestJoin(t *testing.T) {
 	n2.Create()
 
 	n1 := NewLocalNode(devConfig(as))
-	as.Nil(n1.Join(n2))
+	as.NoError(n1.Join(n2))
 
 	<-time.After(waitInterval)
 

@@ -40,21 +40,21 @@ func TestKVOperation(t *testing.T) {
 
 		// Put
 		err := local.Put(key, value)
-		as.Nil(err)
+		as.NoError(err)
 
 		fsck(as, nodes)
 
 		// Get
 		for _, remote := range nodes {
 			r, err := remote.Get(key)
-			as.Nil(err)
+			as.NoError(err)
 			as.EqualValues(value, r)
 		}
 
 		// Overwrite
 		rand.Read(value)
 		err = local.Put(key, value)
-		as.Nil(err)
+		as.NoError(err)
 		for _, remote := range nodes {
 			r, err := remote.Get(key)
 			as.Nil(err)
@@ -63,7 +63,7 @@ func TestKVOperation(t *testing.T) {
 
 		// Delete
 		err = local.Delete(key)
-		as.Nil(err)
+		as.NoError(err)
 		for _, remote := range nodes {
 			r, err := remote.Get(key)
 			as.Nil(err)
@@ -100,7 +100,7 @@ func TestKeyTransferOut(t *testing.T) {
 	t.Logf("precedessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
 
 	leavingKeys, err := randomNode.kv.LocalKeys(0, 0)
-	as.Nil(err)
+	as.NoError(err)
 
 	randomNode.Stop()
 	<-time.After(waitInterval)
@@ -115,7 +115,7 @@ func TestKeyTransferOut(t *testing.T) {
 	fsck(as, c)
 
 	succVals, err := successor.LocalGets(leavingKeys)
-	as.Nil(err)
+	as.NoError(err)
 	as.Len(succVals, len(leavingKeys))
 
 	indicies := make([]int, 0)
@@ -133,7 +133,7 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 
 	preVals, err := predecessor.LocalGets(leavingKeys)
-	as.Nil(err)
+	as.NoError(err)
 	for _, v := range preVals {
 		as.Nil(v)
 	}
@@ -153,16 +153,16 @@ func TestKeyTransferIn(t *testing.T) {
 	}
 
 	n1 := NewLocalNode(devConfig(as))
-	n1.Join(nodes[0])
+	as.NoError(n1.Join(nodes[0]))
 	defer n1.Stop()
 
 	<-time.After(waitInterval * 2)
 
 	keys, err := n1.LocalKeys(0, 0)
-	as.Nil(err)
+	as.NoError(err)
 	as.Greater(len(keys), 0)
 	vals, err := n1.LocalGets(keys)
-	as.Nil(err)
+	as.NoError(err)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
 	}
@@ -170,13 +170,13 @@ func TestKeyTransferIn(t *testing.T) {
 	fsck(as, []*LocalNode{n1, nodes[0]})
 
 	n2 := NewLocalNode(devConfig(as))
-	n2.Join(nodes[0])
+	as.NoError(n2.Join(nodes[0]))
 	defer n2.Stop()
 
 	<-time.After(waitInterval * 2)
 
 	keys, err = n2.LocalKeys(0, 0)
-	as.Nil(err)
+	as.NoError(err)
 	as.Greater(len(keys), 0)
 	vals, err = n2.LocalGets(keys)
 	as.Nil(err)
