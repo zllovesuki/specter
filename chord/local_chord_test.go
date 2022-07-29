@@ -17,7 +17,7 @@ import (
 
 const (
 	defaultInterval = time.Millisecond * 10
-	waitInterval    = defaultInterval * 10
+	waitInterval    = defaultInterval * 5
 )
 
 func devConfig(as *require.Assertions) NodeConfig {
