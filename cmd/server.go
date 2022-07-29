@@ -22,8 +22,14 @@ import (
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 
+	"github.com/caddyserver/certmagic"
+	"github.com/mholt/acmez"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+)
+
+var (
+	CertCA = certmagic.LetsEncryptProductionCA
 )
 
 var Server = &cli.Command{
@@ -70,6 +76,12 @@ var Server = &cli.Command{
 			Usage:       "canonical domain to be used as tunnel root zone. Tunnels will be given names under *.`ZONE`",
 			Required:    true,
 		},
+		&cli.StringFlag{
+			Name:        "email",
+			DefaultText: "acme@example.com",
+			Usage:       "email address for ACME issurance",
+			Required:    true,
+		},
 	},
 	Action: cmdServer,
 }
@@ -102,6 +114,31 @@ func certLoader(dir string) (*certBundle, error) {
 	}, nil
 }
 
+func configSolver(ctx *cli.Context, logger *zap.Logger) acmez.Solver {
+	switch CertCA {
+	case certmagic.LetsEncryptProductionCA:
+		return nil
+	default:
+		return &NoopSolver{logger: logger}
+	}
+}
+
+func configACME(ctx *cli.Context, logger *zap.Logger) *certmagic.Config {
+	gg := certmagic.NewDefault()
+	gg.DefaultServerName = ctx.String("zone")
+	gg.Logger = logger.With(zap.String("component", "acme"))
+
+	issuer := certmagic.NewACMEIssuer(gg, certmagic.ACMEIssuer{
+		CA:          CertCA,
+		Email:       ctx.String("email"),
+		Agreed:      true,
+		DNS01Solver: configSolver(ctx, logger),
+		Logger:      logger.With(zap.String("component", "issuer")),
+	})
+	gg.Issuers = []certmagic.Issuer{issuer}
+	return gg
+}
+
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 
@@ -120,26 +157,22 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("loading certificates from directory: %w", err)
 	}
 
-	// TODO: acme management such as CertMagic
 	rootDomain := ctx.String("zone")
-	fakeCerts := generateTLSConfig(rootDomain)
+	magic := configACME(ctx, logger)
+	magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain})
 
 	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
-	gwTLSConf := cipher.GetGatewayTLSConfig(func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return &fakeCerts.Certificates[0], nil
-	}, []string{
+	gwTLSConf := cipher.GetGatewayTLSConfig(magic.GetCertificate, []string{
 		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
 	})
 
-	tunTLSConf := cipher.GetGatewayTLSConfig(func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return &fakeCerts.Certificates[0], nil
-	}, []string{
+	tunTLSConf := cipher.GetGatewayTLSConfig(magic.GetCertificate, []string{
 		tun.ALPN(protocol.Link_SPECTER_TUN),
 	})
 

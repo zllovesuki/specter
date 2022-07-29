@@ -36,7 +36,7 @@ func cmdClient(ctx *cli.Context) error {
 
 	// TODO: endpoint discovery via http
 	seed := &protocol.Node{
-		Address: "127.0.0.1:1112",
+		Address: "dev.con.nect.sh:1112",
 	}
 
 	clientTLSConf := &tls.Config{

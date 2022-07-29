@@ -16,6 +16,8 @@ os = $(word 1, $(plat_temp))
 arch = $(word 2, $(plat_temp))
 ext = $(word 3, $(plat_temp))
 
+.DEFAULT_GOAL := all
+
 # ========================================================
 
 dev: certs
