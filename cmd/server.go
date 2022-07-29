@@ -183,8 +183,6 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	defer gwListener.Close()
 
-	gwPort := gwListener.Addr().(*net.TCPAddr).Port
-
 	chordLogger := logger.With(zap.String("component", "chord"))
 	tunLogger := logger.With(zap.String("component", "tun"))
 	gwLogger := logger.With(zap.String("component", "gateway"))
@@ -219,12 +217,20 @@ func cmdServer(ctx *cli.Context) error {
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
+	gwPort := gwListener.Addr().(*net.TCPAddr).Port
+	clientIf, err := net.ResolveUDPAddr("udp", ctx.String("listen-client"))
+	if err != nil {
+		return fmt.Errorf("parsing client listening address: %w", err)
+	}
+	clientPort := clientIf.Port
+
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
 		Tun:         tunServer,
 		Listener:    gwListener,
 		RootDomain:  rootDomain,
 		GatewayPort: gwPort,
+		ClientPort:  clientPort,
 	})
 	if err != nil {
 		return fmt.Errorf("starting gateway server: %w", err)

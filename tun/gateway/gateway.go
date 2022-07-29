@@ -21,22 +21,31 @@ type GatewayConfig struct {
 	Listener    net.Listener
 	RootDomain  string
 	GatewayPort int
+	ClientPort  int
 }
 
 type Gateway struct {
 	GatewayConfig
 	httpTunnelAcceptor *tun.HTTPAcceptor
+
+	apexAcceptor *tun.HTTPAcceptor
+	apexServer   *apexServer
 }
 
 func New(conf GatewayConfig) (*Gateway, error) {
-	if conf.GatewayPort != 443 {
-		conf.RootDomain = fmt.Sprintf("%s:%d", conf.RootDomain, conf.GatewayPort)
-	}
 	return &Gateway{
 		GatewayConfig: conf,
 		httpTunnelAcceptor: &tun.HTTPAcceptor{
 			Parent: conf.Listener,
 			Conn:   make(chan net.Conn, 16),
+		},
+		apexAcceptor: &tun.HTTPAcceptor{
+			Parent: conf.Listener,
+			Conn:   make(chan net.Conn, 16),
+		},
+		apexServer: &apexServer{
+			rootDomain: conf.RootDomain,
+			clientPort: conf.ClientPort,
 		},
 	}, nil
 }
@@ -44,6 +53,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 func (g *Gateway) Start(ctx context.Context) {
 	g.Logger.Info("gateway server started")
 	go http.Serve(g.httpTunnelAcceptor, g.httpHandler())
+	go http.Serve(g.apexAcceptor, g.apexServer.Handler())
 
 	for {
 		conn, err := g.Listener.Accept()
@@ -78,7 +88,7 @@ func (g *Gateway) handleConnection(ctx context.Context, conn *tls.Conn) {
 
 	switch cs.ServerName {
 	case g.RootDomain:
-		err = fmt.Errorf("not implemented")
+		g.apexAcceptor.Conn <- conn
 		return
 	default:
 		// maybe tunnel it

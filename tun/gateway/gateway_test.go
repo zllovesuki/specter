@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"kon.nect.sh/specter/spec/gateway"
 	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
@@ -27,7 +29,8 @@ import (
 )
 
 const (
-	testDomain = "a.b.c.d.com"
+	testDomain     = "a.b.c.d.com"
+	testClientPort = 42069
 )
 
 func generateTLSConfig(protos []string) *tls.Config {
@@ -68,9 +71,13 @@ func getListener(as *require.Assertions) (net.Listener, int) {
 }
 
 func getDialer(proto string, sn string) *tls.Dialer {
+	sni := testDomain
+	if sn != "" {
+		sni = sn + "." + testDomain
+	}
 	return &tls.Dialer{
 		Config: &tls.Config{
-			ServerName:         fmt.Sprintf("%s.%s", sn, testDomain),
+			ServerName:         sni,
 			InsecureSkipVerify: true,
 			NextProtos:         []string{proto},
 		},
@@ -79,6 +86,7 @@ func getDialer(proto string, sn string) *tls.Dialer {
 
 func getClient(host string, port int) *http.Client {
 	return &http.Client{
+		Timeout: time.Second,
 		Transport: &http.Transport{
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return getDialer(tun.ALPN(protocol.Link_HTTP), host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
@@ -101,12 +109,11 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		Listener:    l,
 		RootDomain:  testDomain,
 		GatewayPort: port,
+		ClientPort:  testClientPort,
 	}
 
 	g, err := New(conf)
 	as.Nil(err)
-
-	as.Equal(fmt.Sprintf("%s:%d", testDomain, port), g.GatewayConfig.RootDomain)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go g.Start(ctx)
@@ -115,6 +122,48 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		cancel()
 		l.Close()
 	}
+}
+
+func TestApexIndex(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	c := getClient("", port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
+	as.Nil(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.Nil(err)
+
+	as.Contains(string(b), testDomain)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestApexWhere(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	c := getClient("", port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s/where", testDomain))
+	as.Nil(err)
+	defer resp.Body.Close()
+
+	r := &gateway.LookupResponse{}
+	err = json.NewDecoder(resp.Body).Decode(r)
+	as.NoError(err)
+
+	as.Equal(testDomain, r.Address)
+	as.Equal(testClientPort, r.Port)
+
+	mockS.AssertExpectations(t)
 }
 
 func TestHTTPNotFound(t *testing.T) {

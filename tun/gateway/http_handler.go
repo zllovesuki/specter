@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -14,17 +15,27 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
 	bufferSize = 1024 * 16
 )
 
+var delHeaders = []string{
+	"x-forwarded-for",
+	"x-forwarded-host",
+	"x-forwarded-server",
+}
+
 func (g *Gateway) httpHandler() http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
 			req.URL.Host = req.TLS.ServerName
+			for _, header := range delHeaders {
+				req.Header.Del(header)
+			}
 		},
 		Transport: &http.Transport{
 			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
@@ -47,7 +58,10 @@ func (g *Gateway) httpHandler() http.Handler {
 			r.Header.Del("alt-svc")
 			return nil
 		},
-		ErrorLog: zap.NewStdLog(g.Logger),
+		ErrorLog: func() *log.Logger {
+			l, _ := zap.NewStdLogAt(g.Logger, zapcore.ErrorLevel)
+			return l
+		}(),
 	}
 }
 
@@ -69,6 +83,8 @@ func (g *Gateway) errorHandler(rw http.ResponseWriter, r *http.Request, e error)
 		// this is expected
 		return
 	}
+
+	g.Logger.Error("forwarding to client", zap.Error(e))
 	rw.WriteHeader(http.StatusServiceUnavailable)
 	fmt.Fprint(rw, "An unexpected error has occurred while attempting to forward to destination.")
 }
