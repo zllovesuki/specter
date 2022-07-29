@@ -37,20 +37,7 @@ Similar to t, specter also:
 
 ## Roadmap
 
-*Chord DHT*
-- [ ] Implement a Dynamo-like replication scheme
-- [ ] Expose KV functionalities via HTTP/SDK
-
-*Tunnel Core*
-- [ ] Support multiple tunnels to a single client endpoint
-- [ ] Persistent tunnel hostnames
-- [ ] Support UDP forwarding from edge to client
-
-*Tunnel Gateway*
-- [ ] Uses HTTP/3 for handling eyeball traffic
-- [ ] Support custom hostname and Let's Encrypt cert issurance
-    - Certificate issurance for custom hostname is unblocked by [kon.nect.sh/challenger](https://github.com/zllovesuki/challenger)
-- [ ] Implement SNI proxy to share :443 with other services
+Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3ARoadmap).
 
 ## Contributing
 
