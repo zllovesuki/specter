@@ -19,6 +19,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	CONNECT_TIMEOUT = time.Second * 3
+)
+
 var (
 	ErrClosed   = fmt.Errorf("transport is already closed")
 	ErrNoDirect = fmt.Errorf("cannot open direct quic connection without address")
@@ -82,7 +86,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 
 	t.Logger.Debug("Creating new QUIC connection", zap.Any("peer", peer))
 
-	dialCtx, dialCancel := context.WithTimeout(ctx, time.Second)
+	dialCtx, dialCancel := context.WithTimeout(ctx, CONNECT_TIMEOUT)
 	defer dialCancel()
 
 	q, err := quic.DialAddrContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)

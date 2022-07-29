@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	rpcTimeout  = time.Second
-	pingTimeout = time.Millisecond * 500
+	rpcTimeout  = time.Second * 5
+	pingTimeout = time.Second
 )
 
 type RemoteNode struct {
