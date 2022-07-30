@@ -14,6 +14,7 @@ require (
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
 	go.uber.org/atomic v1.9.0
+	go.uber.org/goleak v1.1.12
 	go.uber.org/zap v1.21.0
 	google.golang.org/protobuf v1.28.1
 )

@@ -139,6 +139,9 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 }
 
+// Even with 300 keys we could still run into the issues of
+// all the keys fall into just 1 node and when new node joins,
+// no keys will be transferred (see line denoted #OFFEND below).
 func TestKeyTransferIn(t *testing.T) {
 	as := require.New(t)
 
@@ -177,9 +180,9 @@ func TestKeyTransferIn(t *testing.T) {
 
 	keys, err = n2.LocalKeys(0, 0)
 	as.NoError(err)
-	as.Greater(len(keys), 0)
+	as.Greater(len(keys), 0) // #OFFEND
 	vals, err = n2.LocalGets(keys)
-	as.Nil(err)
+	as.NoError(err)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
 	}

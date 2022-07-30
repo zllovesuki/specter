@@ -12,6 +12,7 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"go.uber.org/zap"
 )
 
@@ -93,6 +94,10 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 		as.Equal(nodes[i+1].ID(), nodes[i].getSuccessor().ID())
 	}
 	as.Equal(nodes[0].ID(), nodes[len(nodes)-1].getSuccessor().ID())
+}
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
 }
 
 func TestCreate(t *testing.T) {

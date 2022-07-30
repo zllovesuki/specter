@@ -9,8 +9,13 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"go.uber.org/zap"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
 
 func TestRPC(t *testing.T) {
 	as := require.New(t)
