@@ -1,7 +1,9 @@
 package chord
 
 import (
+	"bytes"
 	"crypto/rand"
+	"fmt"
 	mathRand "math/rand"
 	"testing"
 	"time"
@@ -152,7 +154,8 @@ func TestKeyTransferIn(t *testing.T) {
 	keys, values := makeKV(300, 8)
 
 	for i := range keys {
-		as.Nil(nodes[0].Put(keys[i], values[i]))
+		err := nodes[0].Put(keys[i], values[i])
+		as.NoError(err)
 	}
 
 	n1 := NewLocalNode(devConfig(as))
@@ -188,4 +191,247 @@ func TestKeyTransferIn(t *testing.T) {
 	}
 
 	fsck(as, []*LocalNode{n2, n1, nodes[0]})
+}
+
+func TestConcurrentJoinKV(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping many nodes concurrent join kv in short mode")
+	}
+
+	type test struct {
+		numNodes int
+		numKeys  int
+	}
+
+	tests := []test{
+		// 64
+		{
+			numNodes: 64,
+			numKeys:  100,
+		},
+		{
+			numNodes: 64,
+			numKeys:  200,
+		},
+		{
+			numNodes: 64,
+			numKeys:  300,
+		},
+		{
+			numNodes: 64,
+			numKeys:  600,
+		},
+		// 128
+		{
+			numNodes: 128,
+			numKeys:  100,
+		},
+		{
+			numNodes: 128,
+			numKeys:  200,
+		},
+		{
+			numNodes: 128,
+			numKeys:  300,
+		},
+		{
+			numNodes: 128,
+			numKeys:  600,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
+			concurrentJoinKVOps(t, tc.numNodes, tc.numKeys)
+		})
+	}
+
+}
+
+func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
+	as := require.New(t)
+
+	nodes := make([]*LocalNode, numNodes)
+	for i := 0; i < numNodes; i++ {
+		node := NewLocalNode(devConfig(as))
+		nodes[i] = node
+	}
+
+	keys, values := makeKV(numKeys, 16)
+	syncA := make(chan struct{})
+
+	nodes[0].Create()
+
+	stale := 0
+	go func() {
+		defer close(syncA)
+
+		for i := range keys {
+		RETRY:
+			err := nodes[0].Put(keys[i], values[i])
+			if err == ErrStateOwnership {
+				stale++
+				t.Logf("outdated ownership at key %d", i)
+				<-time.After(defaultInterval)
+				goto RETRY
+			}
+			t.Logf("message %d inserted\n", i)
+			<-time.After(defaultInterval)
+		}
+	}()
+
+	for i := 1; i < numNodes; i++ {
+		nodes[i].Join(nodes[0])
+		<-time.After(waitInterval)
+	}
+
+	<-syncA
+
+	found := 0
+	missing := 0
+	indices := make([]int, 0)
+	for i := range keys {
+		val, err := nodes[0].Get(keys[i])
+		as.NoError(err)
+		if bytes.Equal(values[i], val) {
+			found++
+		} else {
+			missing++
+			indices = append(indices, i)
+		}
+	}
+
+	defer func() {
+		<-time.After(waitInterval)
+		t.Logf("stale ownership counts: %d", stale)
+		t.Logf("missing indicies: %+v\n", indices)
+	}()
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
+
+	for i := 0; i < numNodes; i++ {
+		nodes[i].Stop()
+	}
+}
+
+func TestConcurrentLeaveKV(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping many nodes concurrent leave kv in short mode")
+	}
+
+	type test struct {
+		numNodes int
+		numKeys  int
+	}
+
+	tests := []test{
+		// 64
+		{
+			numNodes: 64,
+			numKeys:  100,
+		},
+		{
+			numNodes: 64,
+			numKeys:  200,
+		},
+		{
+			numNodes: 64,
+			numKeys:  300,
+		},
+		{
+			numNodes: 64,
+			numKeys:  600,
+		},
+		// 128
+		{
+			numNodes: 128,
+			numKeys:  100,
+		},
+		{
+			numNodes: 128,
+			numKeys:  200,
+		},
+		{
+			numNodes: 128,
+			numKeys:  300,
+		},
+		{
+			numNodes: 128,
+			numKeys:  600,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
+			concurrentLeaveKVOps(t, tc.numNodes, tc.numKeys)
+		})
+	}
+}
+
+func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
+	as := require.New(t)
+
+	nodes := make([]*LocalNode, numNodes)
+	for i := 0; i < numNodes; i++ {
+		node := NewLocalNode(devConfig(as))
+		nodes[i] = node
+	}
+
+	keys, values := makeKV(numKeys, 16)
+	syncA := make(chan struct{})
+
+	nodes[0].Create()
+	defer nodes[0].Stop()
+
+	for i := 1; i < numNodes; i++ {
+		nodes[i].Join(nodes[0])
+		<-time.After(waitInterval)
+	}
+
+	// allow plenty of time for ring to stablize
+	<-time.After(time.Second)
+
+	stale := 0
+	go func() {
+		defer close(syncA)
+
+		for i := range keys {
+		RETRY:
+			err := nodes[0].Put(keys[i], values[i])
+			if err == ErrStateOwnership {
+				stale++
+				t.Logf("outdated ownership at key %d", i)
+				<-time.After(defaultInterval)
+				goto RETRY
+			}
+			t.Logf("message %d inserted\n", i)
+			<-time.After(defaultInterval)
+		}
+	}()
+
+	// kill every node except the first node
+	for i := 1; i < numNodes; i++ {
+		nodes[i].Stop()
+	}
+
+	<-syncA
+
+	found := 0
+	missing := 0
+	indices := make([]int, 0)
+	for i := range keys {
+		// inspec
+		val, err := nodes[0].Get(keys[i])
+		as.NoError(err)
+		if bytes.Equal(values[i], val) {
+			found++
+		} else {
+			missing++
+			indices = append(indices, i)
+		}
+	}
+	defer func() {
+		<-time.After(waitInterval)
+		t.Logf("stale ownership counts: %d", stale)
+		t.Logf("missing indicies: %+v\n", indices)
+	}()
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
+
 }

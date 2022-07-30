@@ -18,10 +18,15 @@ ext = $(word 3, $(plat_temp))
 
 .DEFAULT_GOAL := all
 
-# ========================================================
+# ==========================DEV===========================
 
-dev: certs
+buildx: certs
 	docker buildx build -t specter -f Dockerfile.dev .
+
+dev: buildx
+	SKIP=" " docker compose up --remove-orphans
+
+dev-acme: buildx
 	docker compose up --remove-orphans
 
 yeet:
@@ -56,9 +61,11 @@ dep:
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
+full_test: test extended_test long_test concurrency_test
+
 test:
-	go test -v -short -cover -count=1 -timeout 30s ./...
-	go test -v -short -race -cover -count=1 -timeout 30s ./...
+	go test -v -short -cover -count=1 -timeout 60s ./...
+	go test -v -short -race -cover -count=1 -timeout 60s ./...
 
 coverage:
 	go test -short -race -coverprofile cover.out ./...
@@ -70,7 +77,11 @@ extended_test:
 	go test -short -race -count=$(COUNT) -timeout 120s ./...
 
 long_test:
-	go test -timeout 120s -run ^TestLotsOfNodes -race -v -count=1 ./chord/...
+	go test -timeout 180s -run ^TestLotsOfNodes -race -count=$(COUNT) ./chord/...
+
+concurrency_test:
+	go test -timeout 180s -run ^TestConcurrentJoin -race -count=1 ./chord/...
+	go test -timeout 180s -run ^TestConcurrentLeave -race -count=1 ./chord/...
 
 clean:
 	-rm bin/*

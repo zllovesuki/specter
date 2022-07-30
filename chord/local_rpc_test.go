@@ -83,15 +83,6 @@ func TestLocalRPC(t *testing.T) {
 		},
 
 		{
-			Kind: protocol.RPC_NOTIFY,
-			NotifyRequest: &protocol.NotifyRequest{
-				Predecessor: &protocol.Node{
-					Id: chord.Random(),
-				},
-			},
-		},
-
-		{
 			Kind: protocol.RPC_FIND_SUCCESSOR,
 			FindSuccessorRequest: &protocol.FindSuccessorRequest{
 				Key: chord.Random(),
@@ -164,6 +155,17 @@ func TestLocalRPC(t *testing.T) {
 			KvRequest: &protocol.KVRequest{
 				Op:   protocol.KVOperation_LOCAL_DELETES,
 				Keys: [][]byte{[]byte("k")},
+			},
+		},
+
+		// since we don't have a valid ring, if we call NOTIFY before KV operations,
+		// then none of the KV operations will succeed
+		{
+			Kind: protocol.RPC_NOTIFY,
+			NotifyRequest: &protocol.NotifyRequest{
+				Predecessor: &protocol.Node{
+					Id: chord.Random(),
+				},
 			},
 		},
 	}

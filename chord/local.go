@@ -2,6 +2,7 @@ package chord
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -39,10 +40,11 @@ type LocalNode struct {
 	NodeConfig
 	kv chord.KV
 
-	_              [56]byte
 	lastStabilized *atomic.Time
-	_              [56]byte
 	started        *atomic.Bool
+
+	surrogate   chord.VNode
+	surrogateMu sync.RWMutex
 
 	stopCh chan struct{}
 }
@@ -160,7 +162,7 @@ func (n *LocalNode) Stop() {
 	}
 
 	n.Logger.Info("waiting for chord ring to notice our departure")
-	<-time.After(n.StablizeInterval)
+	<-time.After(n.StablizeInterval * 2)
 
 	if err := n.transKeysOut(succ); err != nil {
 		n.Logger.Error("transfering KV to successor", zap.Error(err))

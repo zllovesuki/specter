@@ -32,7 +32,15 @@ var _ rpc.RPC = (*RPC)(nil)
 
 type rrContainer struct {
 	rr *protocol.RPC_Response
-	e  string
+	e  error
+}
+
+type remoteError struct {
+	msg string
+}
+
+func (r *remoteError) Error() string {
+	return r.msg
 }
 
 type rrChan chan rrContainer
@@ -89,7 +97,7 @@ func (r *RPC) Start(ctx context.Context) {
 				}
 				c := rrContainer{}
 				if rr.GetResponse().GetError() != nil {
-					c.e = string(rr.GetResponse().GetError())
+					c.e = &remoteError{string(rr.GetResponse().GetError())}
 				} else {
 					c.rr = rr.GetResponse()
 				}
@@ -163,7 +171,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 		return nil, ctx.Err()
 	case rs := <-rC:
 		if rs.rr == nil {
-			return nil, fmt.Errorf("remote RPC error: %s", rs.e)
+			return nil, rs.e
 		}
 		return rs.rr, nil
 	}

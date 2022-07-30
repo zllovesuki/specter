@@ -42,7 +42,16 @@ RETRY:
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
-		go n.transferKeysIn(nil, predecessor)
+		n.surrogateMu.Lock()
+		if err := n.transferKeysIn(nil, predecessor); err != nil {
+			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
+		}
+		if predecessor.ID() == n.ID() {
+			n.surrogate = nil
+		} else {
+			n.surrogate = predecessor
+		}
+		n.surrogateMu.Unlock()
 		return nil
 	}
 
@@ -64,7 +73,12 @@ RETRY:
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
-		go n.transferKeysIn(old, new)
+		n.surrogateMu.Lock()
+		if err := n.transferKeysIn(old, new); err != nil {
+			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
+		}
+		n.surrogate = new
+		n.surrogateMu.Unlock()
 	}
 
 	return nil
