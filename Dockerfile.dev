@@ -10,7 +10,10 @@ RUN cat /etc/ssl/certs/ca-certificates.crt /app/dev-support/pebble/certs/cert.pe
 ARG TARGETOS
 ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v2 go build -race -tags 'osusergo netgo urfave_cli_no_docs' -ldflags "-s -w -extldflags -static -X 'kon.nect.sh/specter/cmd.CertCA=https://pebble:14000/dir'" -o bin/specter .
+    GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
+    go build -race -tags 'osusergo netgo urfave_cli_no_docs' \
+    -ldflags "-s -w -extldflags -static -X 'kon.nect.sh/specter/spec/cipher.CertCA=https://pebble:14000/dir'" \
+    -o bin/specter .
 
 FROM --platform=$BUILDPLATFORM debian:bullseye-slim
 WORKDIR /app

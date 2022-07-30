@@ -7,7 +7,7 @@ PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 
 COUNT=5
 GOARM=7
-GOAMD64=v2
+GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs'
 LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 
@@ -23,6 +23,12 @@ ext = $(word 3, $(plat_temp))
 dev: certs
 	docker buildx build -t specter -f Dockerfile.dev .
 	docker compose up --remove-orphans
+
+yeet:
+	docker compose down
+	docker compose stop
+	docker compose rm
+	docker image prune -f
 
 # ========================================================
 

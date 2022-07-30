@@ -6,7 +6,8 @@ import (
 	"os"
 	"runtime"
 
-	"kon.nect.sh/specter/cmd"
+	"kon.nect.sh/specter/cmd/client"
+	"kon.nect.sh/specter/cmd/server"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -27,18 +28,18 @@ func main() {
 		Description:     "specter, a distributed networking and KV toolkit",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:  "debug",
+				Name:  "verbose",
 				Value: false,
-				Usage: "Enable verbose logging and disable TLS verification",
+				Usage: "enable verbose logging",
 			},
 		},
 		Commands: []*cli.Command{
-			cmd.Server,
-			cmd.Client,
+			server.Cmd,
+			client.Cmd,
 		},
 		Before: func(ctx *cli.Context) error {
 			var config zap.Config
-			if ctx.Bool("debug") {
+			if ctx.Bool("verbose") {
 				config = zap.NewDevelopmentConfig()
 				config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			} else {

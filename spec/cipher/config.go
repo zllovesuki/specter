@@ -6,8 +6,6 @@ import (
 	"crypto/x509"
 )
 
-type CertProviderFunc func(*tls.ClientHelloInfo) (*tls.Certificate, error)
-
 // we will require the use of ECDSA certificates for Chord
 func GetPeerTLSConfig(ca *x509.CertPool, node tls.Certificate, protos []string) *tls.Config {
 	return &tls.Config{

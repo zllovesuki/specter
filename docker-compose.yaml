@@ -1,6 +1,7 @@
 version: '3.9`'
 
 services:
+  # simulate let's encrypt acme
   pebble:
     image: letsencrypt/pebble
     command: pebble -config /pebble/config.json
@@ -23,7 +24,7 @@ services:
       - "1113:1113/tcp"
     volumes:
       - ./certs:/certs
-    command: --debug server --cert-dir /certs --chord seed:1111 --client seed:1112 --gateway seed:1113 --zone dev.con.nect.sh --email acme@con.nect.sh
+    command: --verbose server --cert-dir /certs --chord seed:1111 --client seed:1112 --gateway seed:1113 --apex dev.con.nect.sh --challenger acme://admin@example.com:cf_token@hostedacme.com
 
   # node-a:
   #   image: specter

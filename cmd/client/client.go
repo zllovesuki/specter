@@ -1,4 +1,4 @@
-package cmd
+package client
 
 import (
 	"crypto/tls"
@@ -17,12 +17,16 @@ import (
 	"go.uber.org/zap"
 )
 
-var Client = &cli.Command{
+var Cmd = &cli.Command{
 	Name:        "client",
 	Usage:       "start an specter client on this machine",
 	Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum. ",
 	Flags: []cli.Flag{
-		&cli.StringFlag{},
+		&cli.BoolFlag{
+			Name:  "insecure",
+			Value: false,
+			Usage: "disable TLS verification, useful for debugging and local development",
+		},
 	},
 	Action: cmdClient,
 }
@@ -40,7 +44,7 @@ func cmdClient(ctx *cli.Context) error {
 	}
 
 	clientTLSConf := &tls.Config{
-		InsecureSkipVerify: ctx.Bool("debug"),
+		InsecureSkipVerify: ctx.Bool("insecure"),
 		NextProtos: []string{
 			tun.ALPN(protocol.Link_SPECTER_TUN),
 		},
