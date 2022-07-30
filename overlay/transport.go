@@ -168,6 +168,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
+		t.Logger.Error("Error creating new stream for RPC", zap.Error(err), zap.Uint64("node", t.Identity().GetId()), zap.Any("peer", peer))
 		return nil, err
 	}
 

@@ -24,29 +24,29 @@ services:
       - "1113:1113/tcp"
     volumes:
       - ./certs:/certs
-    command: --verbose server --cert-dir /certs --chord seed:1111 --client seed:1112 --gateway seed:1113 --apex dev.con.nect.sh --challenger acme://admin@example.com:cf_token@hostedacme.com
+    command: --verbose server --cert-dir /certs --chord seed:1111 --client seed:1112 --gateway seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
-  # node-a:
-  #   image: specter
-  #   restart: unless-stopped
-  #   ports:
-  #     - "2112:1112/udp"
-  #     - "2113:1113/tcp"
-  #   volumes:
-  #     - ./certs:/certs
-  #   command: --debug server --cert-dir /certs --join seed:1111 --chord node-a:1111 --client node-a:1112 --gateway node-a:1113 -z dev.con.nect.sh
+  srva:
+    image: specter
+    restart: unless-stopped
+    ports:
+      - "2112:1112/udp"
+      - "2113:1113/tcp"
+    volumes:
+      - ./certs:/certs
+    command: --verbose server --cert-dir /certs --chord srva:1111 --client srva:1112 --gateway srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
-  # node-b:
-  #   image: specter
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3112:1112/udp"
-  #     - "3113:1113/tcp"
-  #   volumes:
-  #     - ./certs:/certs
-  #   command: --debug server --cert-dir /certs --join seed:1111 --chord node-b:1111 --client node-b:1112 --gateway node-b:1113 -z dev.con.nect.sh
+  srvb:
+    image: specter
+    restart: unless-stopped
+    ports:
+      - "3112:1112/udp"
+      - "3113:1113/tcp"
+    volumes:
+      - ./certs:/certs
+    command: --verbose server --cert-dir /certs --chord srvb:1111 --client srvb:1112 --gateway srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
-  # node-c:
+  # srvc:
   #   image: specter
   #   restart: unless-stopped
   #   ports:
@@ -54,9 +54,9 @@ services:
   #     - "4113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs
-  #   command: --debug server --cert-dir /certs --join seed:1111 --chord node-c:1111 --client node-c:1112 --gateway node-c:1113 -z dev.con.nect.sh
+  #   command: --verbose server --cert-dir /certs --chord srvc:1111 --client srvc:1112 --gateway srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
-  # node-d:
+  # srvd:
   #   image: specter
   #   restart: unless-stopped
   #   ports:
@@ -64,4 +64,4 @@ services:
   #     - "5113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs
-  #   command: --debug server --cert-dir /certs --join seed:1111 --chord node-d:1111 --client node-d:1112 --gateway node-d:1113 -z dev.con.nect.sh
+  #   command: --verbose server --cert-dir /certs --chord srvd:1111 --client srvd:1112 --gateway srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111

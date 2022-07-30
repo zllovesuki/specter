@@ -7,8 +7,8 @@ subjectAltName          =   @alt_names
 [alt_names]
 DNS.1 = localhost
 DNS.2 = seed
-DNS.3 = node-a
-DNS.4 = node-b
-DNS.5 = node-c
-DNS.6 = node-d
+DNS.3 = srva
+DNS.4 = srvb
+DNS.5 = srvc
+DNS.6 = srvd
 IP.1 = 127.0.0.1
