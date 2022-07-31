@@ -85,8 +85,10 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 	}
 	var parsedErr error
 	switch err.Error() {
-	case ErrKVStaleOwnership.Error():
-		parsedErr = ErrKVStaleOwnership
+	case chord.ErrKVStaleOwnership.Error():
+		parsedErr = chord.ErrKVStaleOwnership
+	case chord.ErrKVKeyConflict.Error():
+		parsedErr = chord.ErrKVKeyConflict
 	default:
 		// passthrough
 		parsedErr = err
@@ -212,6 +214,23 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	}
 
 	return pre, nil
+}
+
+func (n *RemoteNode) MakeKey(key []byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_MAKE_KEY,
+		Key: key,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	// if err != nil {
+	// 	n.logger.Error("remote KV MakeKey RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+	// }
+	return err
 }
 
 func (n *RemoteNode) Put(key, value []byte) error {

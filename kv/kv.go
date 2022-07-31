@@ -61,6 +61,17 @@ func (m *MemoryMap) delete(key []byte) {
 	}
 }
 
+func (m *MemoryMap) MakeKey(key []byte) error {
+	sKey := string(key)
+	p := m.hashFn(sKey)
+	kMap, _ := m.s.LoadOrStoreLazy(p, newValFunc)
+	_, loaded := kMap.LoadOrStore(sKey, nil)
+	if loaded {
+		return chord.ErrKVKeyConflict
+	}
+	return nil
+}
+
 func (m *MemoryMap) Put(key, value []byte) error {
 	m.put(key, value)
 	return nil

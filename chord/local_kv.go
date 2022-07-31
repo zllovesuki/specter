@@ -8,9 +8,27 @@ import (
 
 func (n *LocalNode) ownershipCheck(id uint64) error {
 	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
-		return ErrKVStaleOwnership
+		return chord.ErrKVStaleOwnership
 	}
 	return nil
+}
+
+func (n *LocalNode) MakeKey(key []byte) error {
+	id := chord.Hash(key)
+	succ, err := n.FindSuccessor(id)
+	if err != nil {
+		return err
+	}
+	if succ.ID() == n.ID() {
+		n.Logger.Debug("KV MakeKey", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("node", succ.ID()))
+		n.surrogateMu.RLock()
+		defer n.surrogateMu.RUnlock()
+		if err := n.ownershipCheck(id); err != nil {
+			return err
+		}
+		return n.kv.MakeKey(key)
+	}
+	return succ.MakeKey(key)
 }
 
 func (n *LocalNode) Put(key, value []byte) error {

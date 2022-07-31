@@ -5,10 +5,13 @@ import (
 	"crypto/rand"
 	"fmt"
 	mathRand "math/rand"
+	"sync"
 	"testing"
 	"time"
 
+	"go.uber.org/atomic"
 	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/spec/chord"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +27,51 @@ func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
 		rand.Read(values[i])
 	}
 	return
+}
+
+func TestMakeKey(t *testing.T) {
+	as := require.New(t)
+
+	numNodes := 7
+	nodes, done := makeRing(as, 7)
+	defer done()
+
+	key := make([]byte, 16)
+	rand.Read(key)
+
+	success := atomic.NewInt32(0)
+	wg := &sync.WaitGroup{}
+	wg.Add(numNodes)
+
+	f := func(node chord.VNode) {
+		defer wg.Done()
+	RETRY:
+		err := node.MakeKey(key)
+		switch err {
+		case nil:
+		case chord.ErrKVKeyConflict:
+			return
+		case chord.ErrKVStaleOwnership:
+			goto RETRY
+		default:
+			as.Fail("unexpected error", "%s", err)
+			return
+		}
+		success.Inc()
+		value := make([]byte, 16)
+		rand.Read(value)
+		as.NoError(node.Put(key, value))
+	}
+
+	for i := 0; i < numNodes; i++ {
+		go f(nodes[mathRand.Intn(numNodes)])
+	}
+
+	wg.Wait()
+	as.Equal(int32(1), success.Load())
+	val, err := nodes[0].Get(key)
+	as.NoError(err)
+	as.NotNil(val)
 }
 
 func TestKVOperation(t *testing.T) {
@@ -268,7 +316,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrKVStaleOwnership {
+			if err == chord.ErrKVStaleOwnership {
 				stale++
 				t.Logf("outdated ownership at key %d", i)
 				<-time.After(defaultInterval)
@@ -354,7 +402,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrKVStaleOwnership {
+			if err == chord.ErrKVStaleOwnership {
 				stale++
 				t.Logf("outdated ownership at key %d", i)
 				<-time.After(defaultInterval)

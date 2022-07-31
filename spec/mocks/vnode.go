@@ -13,6 +13,11 @@ type VNode struct {
 
 var _ chord.VNode = (*VNode)(nil)
 
+func (n *VNode) MakeKey(key []byte) error {
+	args := n.Called(key)
+	return args.Error(0)
+}
+
 func (n *VNode) Put(key []byte, value []byte) error {
 	args := n.Called(key, value)
 	return args.Error(0)

@@ -120,6 +120,10 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		kvResp := &protocol.KVResponse{}
 
 		switch kvReq.GetOp() {
+		case protocol.KVOperation_MAKE_KEY:
+			if err := n.MakeKey(kvReq.GetKey()); err != nil {
+				return nil, err
+			}
 		case protocol.KVOperation_GET:
 			val, err := n.Get(kvReq.GetKey())
 			if err != nil {

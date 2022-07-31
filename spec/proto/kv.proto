@@ -9,6 +9,7 @@ enum KVOperation {
     PUT = 1;
     GET = 2;
     DELETE = 3;
+    MAKE_KEY = 4;
 
     LOCAL_KEYS = 10;
     LOCAL_PUTS = 11;
