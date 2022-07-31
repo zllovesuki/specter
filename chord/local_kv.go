@@ -1,21 +1,14 @@
 package chord
 
 import (
-	"fmt"
-
 	"kon.nect.sh/specter/spec/chord"
 
 	"go.uber.org/zap"
 )
 
-var (
-	ErrStateOwnership = fmt.Errorf("processing node no longer has ownership over requested key")
-)
-
 func (n *LocalNode) ownershipCheck(id uint64) error {
-	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.ID(), true) {
-		fmt.Printf("(%d, %d, %d]\n", n.ID(), id, n.surrogate.ID())
-		return ErrStateOwnership
+	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
+		return ErrKVStaleOwnership
 	}
 	return nil
 }

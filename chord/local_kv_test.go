@@ -193,58 +193,58 @@ func TestKeyTransferIn(t *testing.T) {
 	fsck(as, []*LocalNode{n2, n1, nodes[0]})
 }
 
+type concurrentTest struct {
+	numNodes int
+	numKeys  int
+}
+
+var concurrentParams = []concurrentTest{
+	// 64
+	{
+		numNodes: 64,
+		numKeys:  100,
+	},
+	{
+		numNodes: 64,
+		numKeys:  200,
+	},
+	{
+		numNodes: 64,
+		numKeys:  300,
+	},
+	{
+		numNodes: 64,
+		numKeys:  600,
+	},
+	// 128
+	{
+		numNodes: 128,
+		numKeys:  100,
+	},
+	{
+		numNodes: 128,
+		numKeys:  200,
+	},
+	{
+		numNodes: 128,
+		numKeys:  300,
+	},
+	{
+		numNodes: 128,
+		numKeys:  600,
+	},
+}
+
 func TestConcurrentJoinKV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping many nodes concurrent join kv in short mode")
 	}
 
-	type test struct {
-		numNodes int
-		numKeys  int
-	}
-
-	tests := []test{
-		// 64
-		{
-			numNodes: 64,
-			numKeys:  100,
-		},
-		{
-			numNodes: 64,
-			numKeys:  200,
-		},
-		{
-			numNodes: 64,
-			numKeys:  300,
-		},
-		{
-			numNodes: 64,
-			numKeys:  600,
-		},
-		// 128
-		{
-			numNodes: 128,
-			numKeys:  100,
-		},
-		{
-			numNodes: 128,
-			numKeys:  200,
-		},
-		{
-			numNodes: 128,
-			numKeys:  300,
-		},
-		{
-			numNodes: 128,
-			numKeys:  600,
-		},
-	}
-	for _, tc := range tests {
+	for _, tc := range concurrentParams {
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
 			concurrentJoinKVOps(t, tc.numNodes, tc.numKeys)
 		})
 	}
-
 }
 
 func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
@@ -268,7 +268,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrStateOwnership {
+			if err == ErrKVStaleOwnership {
 				stale++
 				t.Logf("outdated ownership at key %d", i)
 				<-time.After(defaultInterval)
@@ -317,48 +317,7 @@ func TestConcurrentLeaveKV(t *testing.T) {
 		t.Skip("skipping many nodes concurrent leave kv in short mode")
 	}
 
-	type test struct {
-		numNodes int
-		numKeys  int
-	}
-
-	tests := []test{
-		// 64
-		{
-			numNodes: 64,
-			numKeys:  100,
-		},
-		{
-			numNodes: 64,
-			numKeys:  200,
-		},
-		{
-			numNodes: 64,
-			numKeys:  300,
-		},
-		{
-			numNodes: 64,
-			numKeys:  600,
-		},
-		// 128
-		{
-			numNodes: 128,
-			numKeys:  100,
-		},
-		{
-			numNodes: 128,
-			numKeys:  200,
-		},
-		{
-			numNodes: 128,
-			numKeys:  300,
-		},
-		{
-			numNodes: 128,
-			numKeys:  600,
-		},
-	}
-	for _, tc := range tests {
+	for _, tc := range concurrentParams {
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
 			concurrentLeaveKVOps(t, tc.numNodes, tc.numKeys)
 		})
@@ -395,7 +354,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrStateOwnership {
+			if err == ErrKVStaleOwnership {
 				stale++
 				t.Logf("outdated ownership at key %d", i)
 				<-time.After(defaultInterval)

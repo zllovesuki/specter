@@ -49,7 +49,7 @@ RETRY:
 		if predecessor.ID() == n.ID() {
 			n.surrogate = nil
 		} else {
-			n.surrogate = predecessor
+			n.surrogate = predecessor.Identity()
 		}
 		n.surrogateMu.Unlock()
 		return nil
@@ -77,7 +77,7 @@ RETRY:
 		if err := n.transferKeysIn(old, new); err != nil {
 			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
 		}
-		n.surrogate = new
+		n.surrogate = new.Identity()
 		n.surrogateMu.Unlock()
 	}
 

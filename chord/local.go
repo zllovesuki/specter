@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -43,7 +44,7 @@ type LocalNode struct {
 	lastStabilized *atomic.Time
 	started        *atomic.Bool
 
-	surrogate   chord.VNode
+	surrogate   *protocol.Node
 	surrogateMu sync.RWMutex
 
 	stopCh chan struct{}
