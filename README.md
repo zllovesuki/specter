@@ -29,7 +29,7 @@ Similar to t, specter also:
 | **Component**  | Status | Description                                               |
 |----------------|--------|-----------------------------------------------------------|
 | Chord DHT      | Stable | Chord implementation is stable to be used as a dependency |
-| Chord KV       | Beta   | Key transfers require more in depth testing               |
+| Chord KV       | Beta*  | Key consistency is maintained when independent Join/Leave is happening while concurrent KV operations are inprogress. However, concurrent Join/Leave behavior is currently undefined               |
 | Tunnel Core    | Beta   | Storage format is subjected to change                     |
 | Tunnel Gateway | Alpha  |                                                           |
 | Server         | Beta   |                                                           |
