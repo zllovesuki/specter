@@ -85,8 +85,10 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 	}
 	var parsedErr error
 	switch err.Error() {
-	case ErrKVStaleOwnership.Error():
-		parsedErr = ErrKVStaleOwnership
+	case chord.ErrKVStaleOwnership.Error():
+		parsedErr = chord.ErrKVStaleOwnership
+	case chord.ErrNodeGone.Error():
+		parsedErr = chord.ErrNodeGone
 	default:
 		// passthrough
 		parsedErr = err

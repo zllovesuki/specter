@@ -24,12 +24,13 @@ const (
 func devConfig(as *require.Assertions) NodeConfig {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
+	iden := &protocol.Node{
+		Id: chord.Random(),
+	}
 
 	return NodeConfig{
-		Logger: logger,
-		Identity: &protocol.Node{
-			Id: chord.Random(),
-		},
+		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
+		Identity:                 iden,
 		Transport:                new(mocks.Transport),
 		KVProvider:               kv.WithChordHash(),
 		StablizeInterval:         defaultInterval,
@@ -63,6 +64,7 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	}
 }
 
+// should not be called after any of the nodes stopped
 func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 	if len(nodes) == 0 {
 		return
@@ -120,20 +122,18 @@ func TestJoin(t *testing.T) {
 
 	n2 := NewLocalNode(devConfig(as))
 	n2.Create()
+	defer n2.Stop()
 
 	n1 := NewLocalNode(devConfig(as))
 	as.NoError(n1.Join(n2))
+	defer n1.Stop()
 
 	<-time.After(waitInterval)
 
-	n1.Stop()
-	n2.Stop()
-
-	// skip counter clockwise check because we stopped first
 	RingCheck(as, []*LocalNode{
 		n1,
 		n2,
-	}, false)
+	}, true)
 }
 
 func TestRandomNodes(t *testing.T) {

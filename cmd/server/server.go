@@ -262,8 +262,8 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	defer gwListener.Close()
 
-	chordLogger := logger.With(zap.String("component", "chord"))
-	tunLogger := logger.With(zap.String("component", "tun"))
+	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
+	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{

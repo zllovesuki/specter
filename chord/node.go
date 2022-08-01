@@ -11,10 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrLeft = fmt.Errorf("node is not part of the chord ring")
-)
-
 func createRPC(ctx context.Context, t transport.Transport, logger *zap.Logger, node *protocol.Node) (chord.VNode, error) {
 	if node == nil {
 		return nil, fmt.Errorf("cannot create rpc with an nil node")

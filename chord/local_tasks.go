@@ -1,9 +1,11 @@
 package chord
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
+	"github.com/zeebo/xxh3"
 	"kon.nect.sh/specter/spec/chord"
 
 	"go.uber.org/zap"
@@ -27,15 +29,19 @@ func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 	return list
 }
 
-func (n *LocalNode) xor(nodes []chord.VNode) uint64 {
-	s := n.ID()
+// previous implementation uses XOR, which becomes an issues when the succList
+// becomes cyclical, causing succList never gets updated
+func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
+	hasher := xxh3.New()
+	b := make([]byte, 8)
 	for _, node := range nodes {
 		if node == nil {
 			continue
 		}
-		s ^= node.ID()
+		binary.BigEndian.PutUint64(b, node.ID())
+		hasher.Write(b)
 	}
-	return s
+	return hasher.Sum64()
 }
 
 func (n *LocalNode) stabilize() error {
@@ -62,22 +68,22 @@ func (n *LocalNode) stabilize() error {
 			}
 			break
 		}
-		n.Logger.Debug("Skipping over successor", zap.Uint64("peer", head.ID()))
+		n.Logger.Debug("Skipping over successor", zap.Uint64("head", head.ID()), zap.Uint64s("succ", v2d(succList)))
 		succList = succList[1:]
 	}
 
 	n.lastStabilized.Store(time.Now())
 
-	xor := n.xor(succList)
-	if modified && n.succXOR.Load() != xor {
-		n.succXOR.Store(xor)
+	listHash := n.hash(succList)
+	if modified && n.succListHash.Load() != listHash {
+		n.succListHash.Store(listHash)
 		n.successors.Store(&atomicVNodeList{Nodes: succList})
 
 		n.Logger.Info("Discovered new successors via Stablize",
-			zap.Uint64("node", n.ID()),
 			zap.Uint64s("successors", v2d(succList)),
 		)
 	}
+
 	if succ := n.getSuccessor(); succ != nil {
 		go succ.Notify(n)
 	}
@@ -137,7 +143,6 @@ func (n *LocalNode) checkPredecessor() error {
 	err := pre.Ping()
 	if err != nil && n.predecessor.CompareAndSwap(oldA, nilNode) {
 		n.Logger.Info("Discovered dead predecessor",
-			zap.Uint64("node", n.ID()),
 			zap.Uint64("old", pre.ID()),
 		)
 	}
@@ -145,49 +150,43 @@ func (n *LocalNode) checkPredecessor() error {
 }
 
 func (n *LocalNode) periodicStablize() {
-	timer := time.NewTimer(n.NodeConfig.StablizeInterval)
 	for {
 		select {
-		case <-timer.C:
-			if err := n.stabilize(); err != nil {
-				n.Logger.Error("Stablize task", zap.Error(err))
-			}
-			timer.Reset(n.NodeConfig.StablizeInterval)
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
-			timer.Stop()
+			n.Logger.Debug("Stopping Stablize task")
 			return
+		default:
 		}
+		if err := n.stabilize(); err != nil {
+			n.Logger.Error("Stablize task", zap.Error(err))
+		}
+		time.Sleep(n.StablizeInterval)
 	}
 }
 
 func (n *LocalNode) periodicPredecessorCheck() {
-	timer := time.NewTimer(n.NodeConfig.PredecessorCheckInterval)
 	for {
 		select {
-		case <-timer.C:
-			n.checkPredecessor()
-			timer.Reset(n.NodeConfig.PredecessorCheckInterval)
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
-			timer.Stop()
+			n.Logger.Debug("Stopping predecessor checking task")
 			return
+		default:
 		}
+		n.checkPredecessor()
+		time.Sleep(n.PredecessorCheckInterval)
 	}
 }
 
 func (n *LocalNode) periodicFixFingers() {
-	timer := time.NewTimer(n.NodeConfig.FixFingerInterval)
 	for {
 		select {
-		case <-timer.C:
-			n.fixFinger()
-			timer.Reset(n.NodeConfig.FixFingerInterval)
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
-			timer.Stop()
+			n.Logger.Debug("Stopping FixFinger task")
 			return
+		default:
 		}
+		n.fixFinger()
+		time.Sleep(n.FixFingerInterval)
 	}
 }
 

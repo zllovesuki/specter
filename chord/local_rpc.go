@@ -37,13 +37,8 @@ func (n *LocalNode) HandleRPC(ctx context.Context) {
 }
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	if !n.started.Load() {
-		return nil, ErrLeft
-	}
-	select {
-	case <-n.stopCh:
-		return nil, ErrLeft
-	default:
+	if !n.isRunning.Load() {
+		return nil, chord.ErrNodeGone
 	}
 
 	resp := &protocol.RPC_Response{}
@@ -58,6 +53,9 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 
 	case protocol.RPC_PING:
 		resp.PingResponse = &protocol.PingResponse{}
+		if err := n.Ping(); err != nil {
+			return nil, err
+		}
 
 	case protocol.RPC_NOTIFY:
 		resp.NotifyResponse = &protocol.NotifyResponse{}

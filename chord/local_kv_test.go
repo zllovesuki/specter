@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/spec/chord"
 
 	"github.com/stretchr/testify/require"
 )
@@ -268,19 +269,23 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrKVStaleOwnership {
+			switch err {
+			case nil:
+				t.Logf("message %d inserted\n", i)
+				time.Sleep(defaultInterval)
+			case chord.ErrKVStaleOwnership:
 				stale++
 				t.Logf("outdated ownership at key %d", i)
-				<-time.After(defaultInterval)
+				time.Sleep(defaultInterval)
 				goto RETRY
+			default:
+				as.NoError(err)
 			}
-			t.Logf("message %d inserted\n", i)
-			<-time.After(defaultInterval)
 		}
 	}()
 
 	for i := 1; i < numNodes; i++ {
-		nodes[i].Join(nodes[0])
+		as.NoError(nodes[i].Join(nodes[0]))
 		<-time.After(waitInterval)
 	}
 
@@ -328,10 +333,11 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	as := require.New(t)
 
 	nodes := make([]*LocalNode, numNodes)
-	for i := 0; i < numNodes; i++ {
+	for i := 1; i < numNodes; i++ {
 		node := NewLocalNode(devConfig(as))
 		nodes[i] = node
 	}
+	nodes[0] = NewLocalNode(devConfig(as))
 
 	keys, values := makeKV(numKeys, 16)
 	syncA := make(chan struct{})
@@ -340,12 +346,11 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	defer nodes[0].Stop()
 
 	for i := 1; i < numNodes; i++ {
-		nodes[i].Join(nodes[0])
+		as.NoError(nodes[i].Join(nodes[0]))
 		<-time.After(waitInterval)
 	}
 
-	// allow plenty of time for ring to stablize
-	<-time.After(time.Second)
+	<-time.After(waitInterval)
 
 	stale := 0
 	go func() {
@@ -354,14 +359,18 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			if err == ErrKVStaleOwnership {
+			switch err {
+			case nil:
+				t.Logf("message %d inserted\n", i)
+				time.Sleep(defaultInterval)
+			case chord.ErrKVStaleOwnership:
 				stale++
 				t.Logf("outdated ownership at key %d", i)
-				<-time.After(defaultInterval)
+				time.Sleep(defaultInterval)
 				goto RETRY
+			default:
+				as.NoError(err)
 			}
-			t.Logf("message %d inserted\n", i)
-			<-time.After(defaultInterval)
 		}
 	}()
 
@@ -377,8 +386,18 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	indices := make([]int, 0)
 	for i := range keys {
 		// inspec
+	RETRY:
 		val, err := nodes[0].Get(keys[i])
-		as.NoError(err)
+		switch err {
+		case nil:
+		case chord.ErrKVStaleOwnership:
+			stale++
+			t.Logf("outdated ownership at key %d", i)
+			time.Sleep(defaultInterval)
+			goto RETRY
+		default:
+			as.NoError(err)
+		}
 		if bytes.Equal(values[i], val) {
 			found++
 		} else {
@@ -391,6 +410,21 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		t.Logf("stale ownership counts: %d", stale)
 		t.Logf("missing indicies: %+v\n", indices)
 	}()
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
 
+	if len(indices) > 0 {
+		for _, i := range indices {
+			k := keys[i]
+			for j := 1; j < numNodes; j++ {
+				v, _ := nodes[j].kv.Get(k)
+				if v != nil {
+					t.Logf("missing key index %d found in node %d", i, nodes[i].ID())
+				}
+			}
+		}
+	}
+
+	k, err := nodes[0].LocalKeys(0, 0)
+	as.NoError(err)
+	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
 }

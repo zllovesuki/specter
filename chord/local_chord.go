@@ -19,16 +19,17 @@ func (n *LocalNode) Identity() *protocol.Node {
 }
 
 func (n *LocalNode) Ping() error {
-	select {
-	case <-n.stopCh:
-		return ErrLeft
-	default:
-		return nil
+	if !n.isRunning.Load() {
+		return chord.ErrNodeGone
 	}
+	return nil
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	l := n.Logger.With(zap.Uint64("node", n.ID()))
+	if !n.isRunning.Load() {
+		return chord.ErrNodeGone
+	}
+
 	var oldA *atomicVNode
 	var old chord.VNode
 	var new chord.VNode
@@ -38,12 +39,12 @@ RETRY:
 	old = oldA.Node
 
 	if old == nil && n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
-		l.Info("Discovered new predecessor via Notify",
+		n.Logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
 		n.surrogateMu.Lock()
-		if err := n.transferKeysIn(nil, predecessor); err != nil {
+		if err := n.transferKeysUpward(nil, predecessor); err != nil {
 			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
 		}
 		if predecessor.ID() == n.ID() {
@@ -69,15 +70,19 @@ RETRY:
 	}
 
 	if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
-		l.Info("Discovered new predecessor via Notify",
+		n.Logger.Info("Discovered new predecessor via Notify",
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
 		n.surrogateMu.Lock()
-		if err := n.transferKeysIn(old, new); err != nil {
+		if err := n.transferKeysUpward(old, new); err != nil {
 			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
 		}
-		n.surrogate = new.Identity()
+		if new.ID() == n.ID() {
+			n.surrogate = nil
+		} else {
+			n.surrogate = new.Identity()
+		}
 		n.surrogateMu.Unlock()
 	}
 
@@ -89,10 +94,15 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 	if s == nil {
 		return nil
 	}
-	return s.(*atomicVNodeList).Nodes[0]
+	list := s.(*atomicVNodeList).Nodes
+	return list[0]
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
+	if !n.isRunning.Load() {
+		return nil, chord.ErrNodeGone
+	}
+
 	succ := n.getSuccessor()
 	if succ == nil {
 		return nil, errors.New("successor not found, possibly invalid Chord ring")
@@ -139,6 +149,10 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
+	if !n.isRunning.Load() {
+		return nil, chord.ErrNodeGone
+	}
+
 	s := n.successors.Load()
 	if s == nil {
 		return []chord.VNode{}, nil
@@ -166,10 +180,15 @@ func (n *LocalNode) getPredecessor() chord.VNode {
 }
 
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
+	if !n.isRunning.Load() {
+		return nil, chord.ErrNodeGone
+	}
 	return n.getPredecessor(), nil
 }
 
-func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) (err error) {
+// transferKeyUpward is called when a new predecessor has notified us, and we should transfer predecessors'
+// key range (upward). Caller of this function should hold the surrogateMu Write Lock.
+func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNode) (err error) {
 	var keys [][]byte
 	var values [][]byte
 	var low uint64
@@ -178,8 +197,6 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return nil
 	}
 
-	l := n.Logger.With(zap.Uint64("node", n.ID()))
-
 	if prevPredecessor == nil {
 		low = n.ID()
 	} else {
@@ -187,7 +204,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 	}
 
 	if !chord.Between(low, newPredecessor.ID(), n.ID(), false) {
-		l.Debug("skip transferring keys to predecessor because predecessor left", zap.Uint64("predecessor", newPredecessor.ID()))
+		n.Logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Uint64("prev", low), zap.Uint64("new", newPredecessor.ID()))
 		return
 	}
 
@@ -199,7 +216,7 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 		return nil
 	}
 
-	l.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
+	n.Logger.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
 	values, err = n.LocalGets(keys)
 	if err != nil {
@@ -215,11 +232,15 @@ func (n *LocalNode) transferKeysIn(prevPredecessor, newPredecessor chord.VNode) 
 	return
 }
 
-func (n *LocalNode) transKeysOut(successor chord.VNode) error {
+// transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
+// to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
+func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 	keys, err := n.LocalKeys(0, 0)
 	if err != nil {
 		return fmt.Errorf("fetching all keys locally: %w", err)
 	}
+
+	n.Logger.Debug("keys to transfer", zap.Int("num", len(keys)))
 
 	if len(keys) == 0 {
 		return nil

@@ -25,13 +25,13 @@ type atomicVNodeList struct {
 }
 
 type LocalNode struct {
-	_           [56]byte
-	predecessor atomic.Value // *atomicVNode
-	_           [56]byte
-	successors  atomic.Value // *atomicVNodeList
-	_           [56]byte
-	succXOR     *atomic.Uint64
-	_           [56]byte
+	_            [56]byte
+	predecessor  atomic.Value // *atomicVNode
+	_            [56]byte
+	successors   atomic.Value // *atomicVNodeList
+	_            [56]byte
+	succListHash *atomic.Uint64
+	_            [56]byte
 
 	fingers []struct {
 		n atomic.Value // *atomicVNode
@@ -42,7 +42,7 @@ type LocalNode struct {
 	kv chord.KV
 
 	lastStabilized *atomic.Time
-	started        *atomic.Bool
+	isRunning      *atomic.Bool
 
 	surrogate   *protocol.Node
 	surrogateMu sync.RWMutex
@@ -57,10 +57,10 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		panic(err)
 	}
 	n := &LocalNode{
-		NodeConfig: conf,
-		succXOR:    atomic.NewUint64(conf.Identity.GetId()),
-		started:    atomic.NewBool(false),
-		kv:         conf.KVProvider,
+		NodeConfig:   conf,
+		succListHash: atomic.NewUint64(conf.Identity.GetId()),
+		isRunning:    atomic.NewBool(false),
+		kv:           conf.KVProvider,
 		fingers: make([]struct {
 			n atomic.Value
 			_ [56]byte
@@ -76,20 +76,18 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 }
 
 func (n *LocalNode) Create() error {
-	if !n.started.CAS(false, true) {
+	if !n.isRunning.CAS(false, true) {
 		return fmt.Errorf("chord node already started")
 	}
 
-	n.Logger.Info("Creating new Chord ring",
-		zap.Uint64("node", n.ID()),
-	)
+	n.Logger.Info("Creating new Chord ring")
 
 	n.predecessor.Store(nilNode)
 
 	s := &atomicVNodeList{
 		Nodes: makeList(n, []chord.VNode{}),
 	}
-	n.succXOR.Store(n.xor(s.Nodes))
+	n.succListHash.Store(n.hash(s.Nodes))
 	n.successors.Store(s)
 
 	n.startTasks()
@@ -114,7 +112,6 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	}
 
 	n.Logger.Info("Joining Chord ring",
-		zap.Uint64("node", n.ID()),
 		zap.String("via", peer.Identity().GetAddress()),
 		zap.Uint64("successor", proposedSucc.ID()),
 	)
@@ -124,7 +121,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		return fmt.Errorf("querying successor list: %w", err)
 	}
 
-	if !n.started.CAS(false, true) {
+	if !n.isRunning.CAS(false, true) {
 		return fmt.Errorf("chord node already started")
 	}
 
@@ -133,7 +130,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	s := &atomicVNodeList{
 		Nodes: makeList(proposedSucc, successors),
 	}
-	n.succXOR.Store(n.xor(s.Nodes))
+	n.succListHash.Store(n.hash(s.Nodes))
 	n.successors.Store(s)
 
 	n.startTasks()
@@ -142,34 +139,53 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 }
 
 func (n *LocalNode) Stop() {
-	if !n.started.CAS(true, false) {
+	if !n.isRunning.CAS(true, false) {
 		return
 	}
 
-	pre, _ := n.GetPredecessor()
+	n.Logger.Info("Stopping Chord processing")
+
+	// ensure no pending KV operations to our nodes can proceed while we are leaving
+	n.surrogateMu.Lock()
+	defer func() {
+		n.surrogate = n.Identity()
+		n.surrogateMu.Unlock()
+
+		// it is possible that our successor list is not up to date,
+		// need to keep it running until the very end
+		close(n.stopCh)
+		// ensure other nodes can update their finger table/successor list
+		time.Sleep(n.StablizeInterval * 2)
+	}()
+
+RETRY:
 	succ := n.getSuccessor()
-
-	// remove ourself from the ring
-	close(n.stopCh)
-
-	if pre == nil {
+	if succ == nil || succ.ID() == n.ID() {
+		n.Logger.Debug("Skip key transfer to successor because successor is either nil or ourself")
 		return
 	}
-	if succ == nil {
-		return
-	}
-	if pre.ID() == n.ID() || succ.ID() == n.ID() {
-		return
+	// TODO: figure out a way to ensure another concurrent join to our successor will get
+	// our transferred keys. Currently if Join or Leave happens independently, our code is correct.
+	// However, if there are concurrent Join or Leave happening with the same successor,
+	// no happens-before ordering can be guaranteed, which means the new predecessor of our successor
+	// may lose the ownership of our keys (as we are leaving).
+	err := n.transferKeysDownward(succ)
+	switch err {
+	case nil:
+	case chord.ErrNodeGone:
+		n.Logger.Info("Immediate successor is not responsive, retrying")
+		time.Sleep(n.StablizeInterval)
+		goto RETRY
+	default:
+		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
 	}
 
-	n.Logger.Info("waiting for chord ring to notice our departure")
-	<-time.After(n.StablizeInterval * 2)
-
-	if err := n.transKeysOut(succ); err != nil {
-		n.Logger.Error("transfering KV to successor", zap.Error(err))
+	pre := n.getPredecessor()
+	if pre == nil || pre.ID() == n.ID() {
+		return
 	}
 
 	if err := succ.Notify(pre); err != nil {
-		n.Logger.Error("notifying successor upon leaving", zap.Error(err))
+		n.Logger.Error("Notifying successor upon leaving", zap.Error(err))
 	}
 }
