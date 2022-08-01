@@ -8,7 +8,7 @@ on:
 
 jobs:
   testing:
-    name: Unit Tests with Race Detector
+    name: Short Tests with Race Detector
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -52,7 +52,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Generate Test Coverage
+      - name: Generate Test Coverage Using Full Test Suite
         run: go test -coverprofile=cover.out -covermode=count ./... 
       - name: Bleh
         run: |
@@ -76,3 +76,23 @@ jobs:
           label: Coverage
           message: ${{ env.COVERAGE }}
           color: ${{ env.COLOR }}
+  full:
+    name: Run Full Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.18.2"
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Test short, long, extended, and concurrency validation
+        run: make full_test TIMEOUT=300s

@@ -141,10 +141,7 @@ func TestRandomNodes(t *testing.T) {
 
 	num := 8
 	nodes, done := makeRing(as, num)
-
-	done()
-
-	<-time.After(waitInterval)
+	defer done()
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())
@@ -160,10 +157,7 @@ func TestLotsOfNodes(t *testing.T) {
 
 	num := 128
 	nodes, done := makeRing(as, num)
-
-	done()
-
-	<-time.After(waitInterval)
+	defer done()
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].n.Load().(*atomicVNode).Node.ID())

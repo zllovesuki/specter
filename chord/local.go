@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -161,7 +162,7 @@ func (n *LocalNode) Stop() {
 RETRY:
 	succ := n.getSuccessor()
 	if succ == nil || succ.ID() == n.ID() {
-		n.Logger.Debug("Skip key transfer to successor because successor is either nil or ourself")
+		n.Logger.Debug("Skipping key transfer to successor because successor is either nil or ourself")
 		return
 	}
 	// TODO: figure out a way to ensure another concurrent join to our successor will get
@@ -169,14 +170,12 @@ RETRY:
 	// However, if there are concurrent Join or Leave happening with the same successor,
 	// no happens-before ordering can be guaranteed, which means the new predecessor of our successor
 	// may lose the ownership of our keys (as we are leaving).
-	err := n.transferKeysDownward(succ)
-	switch err {
-	case nil:
-	case chord.ErrNodeGone:
-		n.Logger.Info("Immediate successor is not responsive, retrying")
-		time.Sleep(n.StablizeInterval)
-		goto RETRY
-	default:
+	if err := n.transferKeysDownward(succ); err != nil {
+		if errors.Is(err, chord.ErrNodeGone) {
+			n.Logger.Info("Immediate successor is not responsive, retrying")
+			time.Sleep(n.StablizeInterval)
+			goto RETRY
+		}
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
 	}
 
