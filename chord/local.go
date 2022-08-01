@@ -156,9 +156,10 @@ func (n *LocalNode) Stop() {
 		// need to keep it running until the very end
 		close(n.stopCh)
 		// ensure other nodes can update their finger table/successor list
-		time.Sleep(n.StablizeInterval * 2)
+		<-time.After(n.StablizeInterval * 2)
 	}()
 
+	retries := 3
 RETRY:
 	succ := n.getSuccessor()
 	if succ == nil || succ.ID() == n.ID() {
@@ -172,9 +173,12 @@ RETRY:
 	// may lose the ownership of our keys (as we are leaving).
 	if err := n.transferKeysDownward(succ); err != nil {
 		if errors.Is(err, chord.ErrNodeGone) {
-			n.Logger.Info("Immediate successor is not responsive, retrying")
-			time.Sleep(n.StablizeInterval)
-			goto RETRY
+			if retries > 0 {
+				n.Logger.Info("Immediate successor is not responsive, retrying")
+				retries--
+				<-time.After(n.StablizeInterval * 2)
+				goto RETRY
+			}
 		}
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
 	}

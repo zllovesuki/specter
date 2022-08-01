@@ -84,8 +84,8 @@ func (n *LocalNode) stabilize() error {
 		)
 	}
 
-	if succ := n.getSuccessor(); succ != nil {
-		go succ.Notify(n)
+	if modified && len(succList) > 0 {
+		go succList[0].Notify(n)
 	}
 
 	return nil
@@ -156,11 +156,11 @@ func (n *LocalNode) periodicStablize() {
 			n.Logger.Debug("Stopping Stablize task")
 			return
 		default:
+			if err := n.stabilize(); err != nil {
+				n.Logger.Error("Stablize task", zap.Error(err))
+			}
 		}
-		if err := n.stabilize(); err != nil {
-			n.Logger.Error("Stablize task", zap.Error(err))
-		}
-		time.Sleep(n.StablizeInterval)
+		<-time.After(n.StablizeInterval)
 	}
 }
 
@@ -171,9 +171,9 @@ func (n *LocalNode) periodicPredecessorCheck() {
 			n.Logger.Debug("Stopping predecessor checking task")
 			return
 		default:
+			n.checkPredecessor()
 		}
-		n.checkPredecessor()
-		time.Sleep(n.PredecessorCheckInterval)
+		<-time.After(n.PredecessorCheckInterval)
 	}
 }
 
@@ -184,9 +184,9 @@ func (n *LocalNode) periodicFixFingers() {
 			n.Logger.Debug("Stopping FixFinger task")
 			return
 		default:
+			n.fixFinger()
 		}
-		n.fixFinger()
-		time.Sleep(n.FixFingerInterval)
+		<-time.After(n.FixFingerInterval)
 	}
 }
 

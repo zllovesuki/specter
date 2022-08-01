@@ -33,9 +33,9 @@ func devConfig(as *require.Assertions) NodeConfig {
 		Identity:                 iden,
 		Transport:                new(mocks.Transport),
 		KVProvider:               kv.WithChordHash(),
-		StablizeInterval:         defaultInterval,
-		FixFingerInterval:        defaultInterval,
-		PredecessorCheckInterval: defaultInterval,
+		FixFingerInterval:        defaultInterval * 3,
+		StablizeInterval:         defaultInterval * 5,
+		PredecessorCheckInterval: defaultInterval * 7,
 	}
 }
 
@@ -52,9 +52,9 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 		<-time.After(waitInterval)
 	}
 
-	// the more nodes we have, the longer we wait for nodes to stablize
+	// the more nodes we have, the longer we wait for nodes to stablize.
 	// the purpose is to check steady state correctness in RingCheck
-	<-time.After(time.Millisecond * time.Duration(num) * 2)
+	<-time.After(time.Millisecond * time.Duration(num) * 5)
 
 	RingCheck(as, nodes, true)
 
@@ -72,7 +72,7 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 		return
 	}
 	for _, node := range nodes {
-		as.NotNil(node.getPredecessor())
+		as.NotNil(node.getPredecessor(), "node %d has nil predecessor", node.ID())
 		as.NotNil(node.getSuccessor())
 	}
 

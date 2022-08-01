@@ -299,7 +299,17 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	missing := 0
 	indices := make([]int, 0)
 	for i := range keys {
+	RETRY:
 		val, err := nodes[0].Get(keys[i])
+		switch err {
+		case nil:
+		case chord.ErrKVStaleOwnership:
+			t.Logf("outdated ownership at key %d", i)
+			time.Sleep(defaultInterval)
+			goto RETRY
+		default:
+			as.NoError(err)
+		}
 		as.NoError(err)
 		if bytes.Equal(values[i], val) {
 			found++
@@ -397,7 +407,6 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		switch err {
 		case nil:
 		case chord.ErrKVStaleOwnership:
-			stale++
 			t.Logf("outdated ownership at key %d", i)
 			time.Sleep(defaultInterval)
 			goto RETRY
