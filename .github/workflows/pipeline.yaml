@@ -53,8 +53,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Generate Test Coverage Using Full Test Suite
-        run: go test -coverprofile=cover.out -covermode=count ./... 
-      - name: Bleh
+        run: go test -timeout 600s -coverprofile=cover.out -covermode=count ./... 
+      - name: Calculate Coverage
         run: |
           set -x
           total=`go tool cover -func=cover.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -95,4 +95,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Test short, long, extended, and concurrency validation
-        run: make full_test TIMEOUT=300s
+        run: make full_test TIMEOUT=600s

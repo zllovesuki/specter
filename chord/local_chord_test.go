@@ -157,7 +157,7 @@ func TestLotsOfNodes(t *testing.T) {
 	}
 	as := require.New(t)
 
-	num := 128
+	num := 64
 	nodes, done := makeRing(as, num)
 	defer done()
 
