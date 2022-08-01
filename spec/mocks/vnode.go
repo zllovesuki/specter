@@ -33,6 +33,12 @@ func (n *VNode) Delete(key []byte) error {
 	return args.Error(0)
 }
 
+func (n *VNode) DirectPuts(keys [][]byte, values [][]byte) error {
+	args := n.Called(keys, values)
+	e := args.Error(0)
+	return e
+}
+
 func (n *VNode) LocalKeys(low uint64, high uint64) ([][]byte, error) {
 	args := n.Called(low, high)
 	v := args.Get(0)
@@ -41,12 +47,6 @@ func (n *VNode) LocalKeys(low uint64, high uint64) ([][]byte, error) {
 		return nil, e
 	}
 	return v.([][]byte), e
-}
-
-func (n *VNode) LocalPuts(keys [][]byte, values [][]byte) error {
-	args := n.Called(keys, values)
-	e := args.Error(0)
-	return e
 }
 
 func (n *VNode) LocalGets(keys [][]byte) ([][]byte, error) {

@@ -155,7 +155,7 @@ func TestLocalOperations(t *testing.T) {
 		rand.Read(values[i])
 	}
 
-	as.Nil(kv.LocalPuts(keys, values))
+	as.Nil(kv.DirectPuts(keys, values))
 
 	ret, err := kv.LocalGets(keys)
 	as.Nil(err)

@@ -127,34 +127,9 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
-				Op:      protocol.KVOperation_LOCAL_KEYS,
-				LowKey:  0,
-				HighKey: 0,
-			},
-		},
-
-		{
-			Kind: protocol.RPC_KV,
-			KvRequest: &protocol.KVRequest{
-				Op:     protocol.KVOperation_LOCAL_PUTS,
+				Op:     protocol.KVOperation_DIRECT_PUTS,
 				Keys:   [][]byte{[]byte("k")},
 				Values: [][]byte{[]byte("v")},
-			},
-		},
-
-		{
-			Kind: protocol.RPC_KV,
-			KvRequest: &protocol.KVRequest{
-				Op:   protocol.KVOperation_LOCAL_GETS,
-				Keys: [][]byte{[]byte("k")},
-			},
-		},
-
-		{
-			Kind: protocol.RPC_KV,
-			KvRequest: &protocol.KVRequest{
-				Op:   protocol.KVOperation_LOCAL_DELETES,
-				Keys: [][]byte{[]byte("k")},
 			},
 		},
 

@@ -133,24 +133,8 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 				return nil, err
 			}
 
-		case protocol.KVOperation_LOCAL_KEYS:
-			keys, err := n.LocalKeys(kvReq.GetLowKey(), kvReq.GetHighKey())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Keys = keys
-		case protocol.KVOperation_LOCAL_PUTS:
-			if err := n.LocalPuts(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
-				return nil, err
-			}
-		case protocol.KVOperation_LOCAL_GETS:
-			vals, err := n.LocalGets(kvReq.GetKeys())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Values = vals
-		case protocol.KVOperation_LOCAL_DELETES:
-			if err := n.LocalDeletes(kvReq.GetKeys()); err != nil {
+		case protocol.KVOperation_DIRECT_PUTS:
+			if err := n.DirectPuts(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
 				return nil, err
 			}
 		default:

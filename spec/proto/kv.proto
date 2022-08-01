@@ -10,10 +10,7 @@ enum KVOperation {
     GET = 2;
     DELETE = 3;
 
-    LOCAL_KEYS = 10;
-    LOCAL_PUTS = 11;
-    LOCAL_GETS = 12;
-    LOCAL_DELETES = 13;
+    DIRECT_PUTS = 10;
 }
 
 message KVRequest {

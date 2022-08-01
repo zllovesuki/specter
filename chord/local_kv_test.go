@@ -142,7 +142,7 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 }
 
-// Even with 300 keys we could still run into the issues of
+// Even with 400 keys we could still run into the issues of
 // all the keys fall into just 1 node and when new node joins,
 // no keys will be transferred (see line denoted #OFFEND below).
 func TestKeyTransferIn(t *testing.T) {
@@ -152,7 +152,7 @@ func TestKeyTransferIn(t *testing.T) {
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(300, 8)
+	keys, values := makeKV(400, 8)
 
 	for i := range keys {
 		err := nodes[0].Put(keys[i], values[i])
@@ -293,6 +293,8 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 
 	<-syncA
 
+	nodes[0].Logger.Debug("Starting test validation")
+
 	found := 0
 	missing := 0
 	indices := make([]int, 0)
@@ -382,6 +384,8 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	}
 
 	<-syncA
+
+	nodes[0].Logger.Debug("Starting test validation")
 
 	found := 0
 	missing := 0

@@ -2,6 +2,7 @@ package chord
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -269,32 +270,13 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
+func (n *RemoteNode) DirectPuts(keys, values [][]byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:      protocol.KVOperation_LOCAL_KEYS,
-		LowKey:  low,
-		HighKey: high,
-	}
-
-	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
-		// n.logger.Error("remote KV LocalKeys RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-		return nil, err
-	}
-	return rResp.GetKvResponse().GetKeys(), nil
-}
-
-func (n *RemoteNode) LocalPuts(keys, values [][]byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
-	defer cancel()
-
-	rReq := newReq(protocol.RPC_KV)
-	rReq.KvRequest = &protocol.KVRequest{
-		Op:     protocol.KVOperation_LOCAL_PUTS,
+		Op:     protocol.KVOperation_DIRECT_PUTS,
 		Keys:   keys,
 		Values: values,
 	}
@@ -306,39 +288,16 @@ func (n *RemoteNode) LocalPuts(keys, values [][]byte) error {
 	return err
 }
 
+func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
+	return nil, fmt.Errorf("LocalKeys is not a valid RPC method")
+}
+
 func (n *RemoteNode) LocalGets(keys [][]byte) ([][]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
-	defer cancel()
-
-	rReq := newReq(protocol.RPC_KV)
-	rReq.KvRequest = &protocol.KVRequest{
-		Op:   protocol.KVOperation_LOCAL_GETS,
-		Keys: keys,
-	}
-
-	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
-		// n.logger.Error("remote KV LocalGets RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-		return nil, err
-	}
-	return rResp.GetKvResponse().GetValues(), nil
+	return nil, fmt.Errorf("LocalGets is not a valid RPC method")
 }
 
 func (n *RemoteNode) LocalDeletes(keys [][]byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
-	defer cancel()
-
-	rReq := newReq(protocol.RPC_KV)
-	rReq.KvRequest = &protocol.KVRequest{
-		Op:   protocol.KVOperation_LOCAL_DELETES,
-		Keys: keys,
-	}
-
-	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// 	n.logger.Error("remote KV LocalDeletes RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
-	return err
+	return fmt.Errorf("LocalDeletes is not a valid RPC method")
 }
 
 func (n *RemoteNode) Stop() {

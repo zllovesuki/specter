@@ -76,15 +76,15 @@ func (n *LocalNode) Delete(key []byte) error {
 	return succ.Delete(key)
 }
 
-func (n *LocalNode) LocalPuts(keys, values [][]byte) error {
-	n.Logger.Debug("KV LocalPuts", zap.Int("num_keys", len(keys)))
+func (n *LocalNode) DirectPuts(keys, values [][]byte) error {
+	n.Logger.Debug("KV DirectPuts", zap.Int("num_keys", len(keys)))
 	if !n.isRunning.Load() {
 		return chord.ErrNodeGone
 	}
-	return n.kv.LocalPuts(keys, values)
+	return n.kv.DirectPuts(keys, values)
 }
 
-// these operations are designed for key transfers and ignore if the current node is stopped or not
+// these operations are designed for key transfers and only used locally
 func (n *LocalNode) LocalKeys(low, high uint64) ([][]byte, error) {
 	n.Logger.Debug("KV LocalKeys", zap.Uint64("low", low), zap.Uint64("high", high))
 	return n.kv.LocalKeys(low, high)

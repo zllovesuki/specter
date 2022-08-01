@@ -223,7 +223,7 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 		return
 	}
 
-	err = newPredecessor.LocalPuts(keys, values)
+	err = newPredecessor.DirectPuts(keys, values)
 	if err != nil {
 		return
 	}
@@ -254,7 +254,7 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 
 	// TODO: split into batches
-	if err := successor.LocalPuts(keys, values); err != nil {
+	if err := successor.DirectPuts(keys, values); err != nil {
 		return fmt.Errorf("storing KV to successor: %w", err)
 	}
 

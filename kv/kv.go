@@ -91,7 +91,7 @@ func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
 	return keys, nil
 }
 
-func (m *MemoryMap) LocalPuts(keys, values [][]byte) error {
+func (m *MemoryMap) DirectPuts(keys, values [][]byte) error {
 	for i, key := range keys {
 		m.put(key, values[i])
 	}

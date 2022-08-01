@@ -76,16 +76,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.Delete([]byte("key"))
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.LocalKeys(0, 0)
-	as.ErrorContains(err, e.Error())
-
-	err = r.LocalPuts([][]byte{[]byte("k")}, [][]byte{[]byte("v")})
-	as.ErrorContains(err, e.Error())
-
-	_, err = r.LocalGets([][]byte{[]byte("k")})
-	as.ErrorContains(err, e.Error())
-
-	err = r.LocalDeletes([][]byte{[]byte("k")})
+	err = r.DirectPuts([][]byte{[]byte("k")}, [][]byte{[]byte("v")})
 	as.ErrorContains(err, e.Error())
 
 	tp.AssertExpectations(t)
