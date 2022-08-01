@@ -78,7 +78,7 @@ RETRY:
 		if err := n.transferKeysUpward(old, new); err != nil {
 			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
 		}
-		if new.ID() == n.ID() {
+		if old.ID() != n.ID() && new.ID() == n.ID() {
 			n.surrogate = nil
 		} else {
 			n.surrogate = new.Identity()

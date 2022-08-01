@@ -253,6 +253,7 @@ func TestConcurrentJoinKV(t *testing.T) {
 func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	as := require.New(t)
 
+	// can't use makeRing here as we need to manually control joining
 	nodes := make([]*LocalNode, numNodes)
 	for i := 0; i < numNodes; i++ {
 		node := NewLocalNode(devConfig(as))
@@ -277,7 +278,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 				time.Sleep(defaultInterval)
 			case chord.ErrKVStaleOwnership:
 				stale++
-				t.Logf("outdated ownership at key %d", i)
+				t.Logf("[put] outdated ownership at key %d", i)
 				time.Sleep(defaultInterval)
 				goto RETRY
 			default:
@@ -304,7 +305,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		switch err {
 		case nil:
 		case chord.ErrKVStaleOwnership:
-			t.Logf("outdated ownership at key %d", i)
+			t.Logf("[get] outdated ownership at key %d", i)
 			time.Sleep(defaultInterval)
 			goto RETRY
 		default:
@@ -346,25 +347,11 @@ func TestConcurrentLeaveKV(t *testing.T) {
 func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	as := require.New(t)
 
-	nodes := make([]*LocalNode, numNodes)
-	for i := 1; i < numNodes; i++ {
-		node := NewLocalNode(devConfig(as))
-		nodes[i] = node
-	}
-	nodes[0] = NewLocalNode(devConfig(as))
+	nodes, done := makeRing(as, numNodes)
+	defer done()
 
 	keys, values := makeKV(numKeys, 16)
 	syncA := make(chan struct{})
-
-	nodes[0].Create()
-	defer nodes[0].Stop()
-
-	for i := 1; i < numNodes; i++ {
-		as.NoError(nodes[i].Join(nodes[0]))
-		<-time.After(waitInterval)
-	}
-
-	<-time.After(waitInterval)
 
 	stale := 0
 	go func() {
@@ -379,7 +366,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 				time.Sleep(defaultInterval)
 			case chord.ErrKVStaleOwnership:
 				stale++
-				t.Logf("outdated ownership at key %d", i)
+				t.Logf("[put] outdated ownership at key %d", i)
 				time.Sleep(defaultInterval)
 				goto RETRY
 			default:
@@ -407,7 +394,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		switch err {
 		case nil:
 		case chord.ErrKVStaleOwnership:
-			t.Logf("outdated ownership at key %d", i)
+			t.Logf("[get] outdated ownership at key %d", i)
 			time.Sleep(defaultInterval)
 			goto RETRY
 		default:

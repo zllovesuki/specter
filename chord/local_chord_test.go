@@ -3,6 +3,7 @@ package chord
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +40,22 @@ func devConfig(as *require.Assertions) NodeConfig {
 	}
 }
 
+// taken from https://yangwwei.github.io/2020/05/12/flaky-unit-tests-on-github.html
+func WaitForCondition(eval func() bool, interval time.Duration, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		if eval() {
+			return nil
+		}
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for condition")
+		}
+
+		time.Sleep(interval)
+	}
+}
+
 func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
@@ -52,9 +69,14 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 		<-time.After(waitInterval)
 	}
 
-	// the more nodes we have, the longer we wait for nodes to stablize.
-	// the purpose is to check steady state correctness in RingCheck
-	<-time.After(time.Millisecond * time.Duration(num) * 5)
+	// wait until the ring is stablized before we ring check
+	as.NoError(WaitForCondition(func() bool {
+		ring := nodes[0].RingTrace()
+		if !strings.HasSuffix(ring, "error") && ring != "unstable" && nodes[0].getPredecessor() != nil {
+			return true
+		}
+		return false
+	}, waitInterval, time.Second*5))
 
 	RingCheck(as, nodes, true)
 

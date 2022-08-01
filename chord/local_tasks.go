@@ -44,6 +44,7 @@ func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
 	return hasher.Sum64()
 }
 
+// routine based on pseudo code from the paper "How to Make Chord Correct"
 func (n *LocalNode) stabilize() error {
 	succList, _ := n.GetSuccessors()
 	modified := false
@@ -85,7 +86,10 @@ func (n *LocalNode) stabilize() error {
 	}
 
 	if modified && len(succList) > 0 {
-		go succList[0].Notify(n)
+		succ := succList[0]
+		if err := succ.Notify(n); err != nil {
+			n.Logger.Error("Error notifying successor about us", zap.Uint64("successor", succ.ID()), zap.Error(err))
+		}
 	}
 
 	return nil
