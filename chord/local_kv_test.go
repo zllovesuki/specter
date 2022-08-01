@@ -236,6 +236,8 @@ var concurrentParams = []concurrentTest{
 	},
 }
 
+// TODO: this test sometimes is still reporting missing keys, but it is consistently in index 1
+// need to figure out why it is the case
 func TestConcurrentJoinKV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping many nodes concurrent join kv in short mode")

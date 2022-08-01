@@ -52,7 +52,9 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 		<-time.After(waitInterval)
 	}
 
-	<-time.After(waitInterval)
+	// the more nodes we have, the longer we wait for nodes to stablize
+	// the purpose is to check steady state correctness in RingCheck
+	<-time.After(time.Millisecond * time.Duration(num) * 2)
 
 	RingCheck(as, nodes, true)
 
