@@ -144,51 +144,55 @@ func (n *LocalNode) checkPredecessor() error {
 	return err
 }
 
+func (n *LocalNode) periodicStablize() {
+	timer := time.NewTimer(n.NodeConfig.StablizeInterval)
+	for {
+		select {
+		case <-timer.C:
+			if err := n.stabilize(); err != nil {
+				n.Logger.Error("Stablize task", zap.Error(err))
+			}
+			timer.Reset(n.NodeConfig.StablizeInterval)
+		case <-n.stopCh:
+			n.Logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
+			timer.Stop()
+			return
+		}
+	}
+}
+
+func (n *LocalNode) periodicPredecessorCheck() {
+	timer := time.NewTimer(n.NodeConfig.PredecessorCheckInterval)
+	for {
+		select {
+		case <-timer.C:
+			n.checkPredecessor()
+			timer.Reset(n.NodeConfig.PredecessorCheckInterval)
+		case <-n.stopCh:
+			n.Logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
+			timer.Stop()
+			return
+		}
+	}
+}
+
+func (n *LocalNode) periodicFixFingers() {
+	timer := time.NewTimer(n.NodeConfig.FixFingerInterval)
+	for {
+		select {
+		case <-timer.C:
+			n.fixFinger()
+			timer.Reset(n.NodeConfig.FixFingerInterval)
+		case <-n.stopCh:
+			n.Logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
+			timer.Stop()
+			return
+		}
+	}
+}
+
 func (n *LocalNode) startTasks() {
-	go func() {
-		timer := time.NewTimer(n.NodeConfig.StablizeInterval)
-		for {
-			select {
-			case <-timer.C:
-				if err := n.stabilize(); err != nil {
-					n.Logger.Error("Stablize task", zap.Error(err))
-				}
-				timer.Reset(n.NodeConfig.StablizeInterval)
-			case <-n.stopCh:
-				n.Logger.Debug("Stopping Stablize task", zap.Uint64("node", n.ID()))
-				timer.Stop()
-				return
-			}
-		}
-	}()
-
-	go func() {
-		timer := time.NewTimer(n.NodeConfig.PredecessorCheckInterval)
-		for {
-			select {
-			case <-timer.C:
-				n.checkPredecessor()
-				timer.Reset(n.NodeConfig.PredecessorCheckInterval)
-			case <-n.stopCh:
-				n.Logger.Debug("Stopping predecessor checking task", zap.Uint64("node", n.ID()))
-				timer.Stop()
-				return
-			}
-		}
-	}()
-
-	go func() {
-		timer := time.NewTimer(n.NodeConfig.FixFingerInterval)
-		for {
-			select {
-			case <-timer.C:
-				n.fixFinger()
-				timer.Reset(n.NodeConfig.FixFingerInterval)
-			case <-n.stopCh:
-				n.Logger.Debug("Stopping FixFinger task", zap.Uint64("node", n.ID()))
-				timer.Stop()
-				return
-			}
-		}
-	}()
+	go n.periodicStablize()
+	go n.periodicPredecessorCheck()
+	go n.periodicFixFingers()
 }
