@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        go: ["1.18.2"]
+        go: ["1.18.5"]
     env:
       OS: ${{ matrix.os }}
     steps: 
@@ -43,7 +43,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: "1.18.2"
+          go-version: "1.18.5"
       - uses: actions/cache@v2
         with:
           path: |
@@ -85,7 +85,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: "1.18.2"
+          go-version: "1.18.5"
       - uses: actions/cache@v2
         with:
           path: |
