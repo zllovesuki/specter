@@ -2,12 +2,16 @@ package server
 
 import (
 	"fmt"
+	"time"
 
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
 )
+
+// TODO: cleanup the retry semantics
 
 func (s *Server) publishIdentities() error {
 	identities := &protocol.IdentitiesPair{
@@ -24,8 +28,14 @@ func (s *Server) publishIdentities() error {
 		tun.IdentitiesTunKey(s.clientTransport.Identity()),
 	}
 	for _, key := range keys {
+	RETRY:
 		err := s.chord.Put([]byte(key), buf)
-		if err != nil {
+		switch err {
+		case nil:
+		case chord.ErrKVStaleOwnership:
+			time.Sleep(time.Second)
+			goto RETRY
+		default:
 			return err
 		}
 	}
@@ -43,7 +53,15 @@ func (s *Server) unpublishIdentities() {
 		tun.IdentitiesTunKey(s.clientTransport.Identity()),
 	}
 	for _, key := range keys {
-		s.chord.Delete([]byte(key))
+	RETRY:
+		err := s.chord.Delete([]byte(key))
+		switch err {
+		case nil:
+		case chord.ErrKVStaleOwnership:
+			time.Sleep(time.Second)
+			goto RETRY
+		default:
+		}
 	}
 
 	s.logger.Info("identities unpublished on chord",
@@ -52,8 +70,14 @@ func (s *Server) unpublishIdentities() {
 }
 
 func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
+RETRY:
 	buf, err := s.chord.Get([]byte(key))
-	if err != nil {
+	switch err {
+	case nil:
+	case chord.ErrKVStaleOwnership:
+		time.Sleep(time.Second)
+		goto RETRY
+	default:
 		return nil, err
 	}
 	if len(buf) == 0 {

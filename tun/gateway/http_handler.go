@@ -23,9 +23,9 @@ const (
 )
 
 var delHeaders = []string{
-	"x-forwarded-for",
-	"x-forwarded-host",
-	"x-forwarded-server",
+	"True-Client-IP",
+	"X-Real-IP",
+	"X-Forwarded-For",
 }
 
 func (g *Gateway) httpHandler() http.Handler {

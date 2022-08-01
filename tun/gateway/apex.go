@@ -36,10 +36,3 @@ func (a *apexServer) handleLookup(w http.ResponseWriter, r *http.Request) {
 		Port:    a.clientPort,
 	})
 }
-
-func (a *apexServer) Handler() http.Handler {
-	m := http.NewServeMux()
-	m.HandleFunc("/", a.handleRoot)
-	m.HandleFunc("/where", a.handleLookup)
-	return m
-}

@@ -12,6 +12,8 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -50,10 +52,18 @@ func New(conf GatewayConfig) (*Gateway, error) {
 	}, nil
 }
 
+func (g *Gateway) apexMux() http.Handler {
+	r := chi.NewRouter()
+	r.Get("/", g.apexServer.handleRoot)
+	r.Get("/lookup", g.apexServer.handleLookup)
+	r.Mount("/debug", middleware.Profiler())
+	return r
+}
+
 func (g *Gateway) Start(ctx context.Context) {
 	g.Logger.Info("gateway server started")
 	go http.Serve(g.httpTunnelAcceptor, g.httpHandler())
-	go http.Serve(g.apexAcceptor, g.apexServer.Handler())
+	go http.Serve(g.apexAcceptor, g.apexMux())
 
 	for {
 		conn, err := g.Listener.Accept()

@@ -144,7 +144,7 @@ func TestApexIndex(t *testing.T) {
 	mockS.AssertExpectations(t)
 }
 
-func TestApexWhere(t *testing.T) {
+func TestApexLookup(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
@@ -152,7 +152,7 @@ func TestApexWhere(t *testing.T) {
 
 	c := getClient("", port)
 
-	resp, err := c.Get(fmt.Sprintf("https://%s/where", testDomain))
+	resp, err := c.Get(fmt.Sprintf("https://%s/lookup", testDomain))
 	as.Nil(err)
 	defer resp.Body.Close()
 

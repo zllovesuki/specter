@@ -59,8 +59,13 @@ func (s *SelfSignedProvider) Initialize(node chord.VNode) {
 	if err != nil {
 		panic(err)
 	}
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		panic(err)
+	}
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"Dev"},
 		},
