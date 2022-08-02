@@ -10,6 +10,16 @@ import (
 	"go.uber.org/zap"
 )
 
+func (n *LocalNode) conditionsCheck() error {
+	if !n.started.Load() {
+		return chord.ErrNodeNotStarted
+	}
+	if !n.isRunning.Load() {
+		return chord.ErrNodeGone
+	}
+	return nil
+}
+
 func (n *LocalNode) ID() uint64 {
 	return n.NodeConfig.Identity.GetId()
 }
@@ -26,39 +36,40 @@ func (n *LocalNode) Ping() error {
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	if !n.isRunning.Load() {
-		return chord.ErrNodeGone
+	if err := n.conditionsCheck(); err != nil {
+		return err
 	}
-
-	var oldA *atomicVNode
 	var old chord.VNode
 	var new chord.VNode
 
-RETRY:
-	oldA = n.predecessor.Load().(*atomicVNode)
-	old = oldA.Node
+	defer func() {
+		if new == nil {
+			return
+		}
+		n.surrogateMu.Lock()
+		if err := n.transferKeysUpward(old, new); err != nil {
+			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
+		}
+		if new.ID() == n.ID() {
+			n.surrogate = nil
+		} else {
+			n.surrogate = new.Identity()
+		}
+		n.surrogateMu.Unlock()
+	}()
 
-	if old == nil && n.predecessor.CompareAndSwap(nilNode, &atomicVNode{Node: predecessor}) {
+	n.predecessorMu.Lock()
+	defer n.predecessorMu.Unlock()
+	old = n.predecessor
+
+	if old == nil {
+		new = predecessor
+		n.predecessor = predecessor
 		n.Logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Uint64("predecessor", predecessor.ID()),
 		)
-		n.surrogateMu.Lock()
-		if err := n.transferKeysUpward(nil, predecessor); err != nil {
-			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
-		}
-		if predecessor.ID() == n.ID() {
-			n.surrogate = nil
-		} else {
-			n.surrogate = predecessor.Identity()
-		}
-		n.surrogateMu.Unlock()
 		return nil
-	}
-
-	if old == nil {
-		// CAS failure
-		goto RETRY
 	}
 
 	if err := old.Ping(); err == nil {
@@ -69,24 +80,16 @@ RETRY:
 		new = predecessor
 	}
 
-	if new != nil && n.predecessor.CompareAndSwap(oldA, &atomicVNode{Node: new}) {
+	if new != nil {
+		n.predecessor = new
 		n.Logger.Info("Discovered new predecessor via Notify",
 			zap.Uint64("previous", old.ID()),
 			zap.Uint64("predecessor", new.ID()),
 		)
-		n.surrogateMu.Lock()
-		if err := n.transferKeysUpward(old, new); err != nil {
-			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
-		}
-		if old.ID() != n.ID() && new.ID() == n.ID() {
-			n.surrogate = nil
-		} else {
-			n.surrogate = new.Identity()
-		}
-		n.surrogateMu.Unlock()
 	}
 
 	return nil
+
 }
 
 func (n *LocalNode) getSuccessor() chord.VNode {
@@ -99,8 +102,8 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	if !n.isRunning.Load() {
-		return nil, chord.ErrNodeGone
+	if err := n.conditionsCheck(); err != nil {
+		return nil, err
 	}
 
 	succ := n.getSuccessor()
@@ -123,7 +126,7 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
 	for k := chord.MaxFingerEntries; k >= 1; k-- {
-		finger := n.fingers[k].n.Load().(*atomicVNode).Node
+		finger := n.fingers[k].Load().(*atomicVNode).Node
 		if finger != nil {
 			if !fn(k, finger) {
 				break
@@ -149,8 +152,8 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
-	if !n.isRunning.Load() {
-		return nil, chord.ErrNodeGone
+	if err := n.conditionsCheck(); err != nil {
+		return nil, err
 	}
 
 	s := n.successors.Load()
@@ -172,16 +175,15 @@ func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
 }
 
 func (n *LocalNode) getPredecessor() chord.VNode {
-	a := n.predecessor.Load()
-	if a == nil {
-		return nil
-	}
-	return a.(*atomicVNode).Node
+	n.predecessorMu.RLock()
+	p := n.predecessor
+	n.predecessorMu.RUnlock()
+	return p
 }
 
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
-	if !n.isRunning.Load() {
-		return nil, chord.ErrNodeGone
+	if err := n.conditionsCheck(); err != nil {
+		return nil, err
 	}
 	return n.getPredecessor(), nil
 }

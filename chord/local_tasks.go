@@ -106,7 +106,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 		err = fmt.Errorf("no successor found for k = %d", k)
 		return
 	}
-	old := n.fingers[k].n.Swap(&atomicVNode{Node: f}).(*atomicVNode).Node
+	old := n.fingers[k].Swap(&atomicVNode{Node: f}).(*atomicVNode).Node
 	if old == nil || old.ID() != f.ID() {
 		updated = true
 	}
@@ -115,7 +115,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 
 func (n *LocalNode) fixFinger() error {
 	fixed := make([]int, 0)
-	for k := 1; k <= chord.MaxFingerEntries; k++ {
+	for k := chord.MaxFingerEntries; k >= 1; k-- {
 		changed, err := n.fixK(k)
 		if err != nil {
 			continue
@@ -131,21 +131,17 @@ func (n *LocalNode) fixFinger() error {
 }
 
 func (n *LocalNode) checkPredecessor() error {
-	oldA := n.predecessor.Load()
-	if oldA == nil {
-		return nil
-	}
+	n.predecessorMu.Lock()
+	defer n.predecessorMu.Unlock()
 
-	pre := oldA.(*atomicVNode).Node
-	if pre == nil {
-		return nil
-	}
-	if pre.ID() == n.ID() {
+	pre := n.predecessor
+	if pre == nil || pre.ID() == n.ID() {
 		return nil
 	}
 
 	err := pre.Ping()
-	if err != nil && n.predecessor.CompareAndSwap(oldA, nilNode) {
+	if err != nil {
+		n.predecessor = nil
 		n.Logger.Info("Discovered dead predecessor",
 			zap.Uint64("old", pre.ID()),
 		)

@@ -13,10 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	nilNode = &atomicVNode{Node: nil}
-)
-
 type atomicVNode struct {
 	Node chord.VNode
 }
@@ -26,24 +22,19 @@ type atomicVNodeList struct {
 }
 
 type LocalNode struct {
-	_            [56]byte
-	predecessor  atomic.Value // *atomicVNode
-	_            [56]byte
-	successors   atomic.Value // *atomicVNodeList
-	_            [56]byte
-	succListHash *atomic.Uint64
-	_            [56]byte
-
-	fingers []struct {
-		n atomic.Value // *atomicVNode
-		_ [56]byte
-	}
-
 	NodeConfig
 	kv chord.KV
 
+	successors atomic.Value   // *atomicVNodeList
+	fingers    []atomic.Value // *atomicVNode
+
+	succListHash   *atomic.Uint64
 	lastStabilized *atomic.Time
 	isRunning      *atomic.Bool
+	started        *atomic.Bool
+
+	predecessor   chord.VNode
+	predecessorMu sync.RWMutex
 
 	surrogate   *protocol.Node
 	surrogateMu sync.RWMutex
@@ -58,19 +49,17 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		panic(err)
 	}
 	n := &LocalNode{
-		NodeConfig:   conf,
-		succListHash: atomic.NewUint64(conf.Identity.GetId()),
-		isRunning:    atomic.NewBool(false),
-		kv:           conf.KVProvider,
-		fingers: make([]struct {
-			n atomic.Value
-			_ [56]byte
-		}, chord.MaxFingerEntries+1),
+		NodeConfig:     conf,
+		succListHash:   atomic.NewUint64(conf.Identity.GetId()),
+		isRunning:      atomic.NewBool(false),
+		started:        atomic.NewBool(false),
+		kv:             conf.KVProvider,
+		fingers:        make([]atomic.Value, chord.MaxFingerEntries+1),
 		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
 	}
 	for i := range n.fingers {
-		n.fingers[i].n.Store(&atomicVNode{})
+		n.fingers[i].Store(&atomicVNode{})
 	}
 
 	return n
@@ -80,10 +69,9 @@ func (n *LocalNode) Create() error {
 	if !n.isRunning.CAS(false, true) {
 		return fmt.Errorf("chord node already started")
 	}
+	n.started.Store(true)
 
 	n.Logger.Info("Creating new Chord ring")
-
-	n.predecessor.Store(nilNode)
 
 	s := &atomicVNodeList{
 		Nodes: makeList(n, []chord.VNode{}),
@@ -125,8 +113,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if !n.isRunning.CAS(false, true) {
 		return fmt.Errorf("chord node already started")
 	}
-
-	n.predecessor.Store(nilNode)
+	n.started.Store(true)
 
 	s := &atomicVNodeList{
 		Nodes: makeList(proposedSucc, successors),
