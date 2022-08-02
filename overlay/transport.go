@@ -113,7 +113,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 
 	q, err = t.getQ(ctx, peer)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("creating quic connection: %w", err)
 	}
 
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
@@ -168,8 +168,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
-		t.Logger.Error("Error creating new stream for RPC", zap.Error(err), zap.Any("peer", peer))
-		return nil, err
+		return nil, fmt.Errorf("dialing stream: %w", err)
 	}
 
 	l := t.Logger.With(
