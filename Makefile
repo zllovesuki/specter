@@ -61,6 +61,11 @@ proto:
 dep:
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install honnef.co/go/tools/cmd/staticcheck@2022.1.3
+
+vet:
+	go vet ./...
+	staticcheck ./...
 
 full_test: test extended_test long_test concurrency_test
 
