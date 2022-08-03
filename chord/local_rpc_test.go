@@ -127,9 +127,14 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
-				Op:     protocol.KVOperation_IMPORT,
-				Keys:   [][]byte{[]byte("k")},
-				Values: [][]byte{[]byte("v")},
+				Op:   protocol.KVOperation_IMPORT,
+				Keys: [][]byte{[]byte("k")},
+				Values: []*protocol.KVTransfer{
+					{
+						Value: []byte("v"),
+						Type:  protocol.KVValueType_SIMPLE,
+					},
+				},
 			},
 		},
 

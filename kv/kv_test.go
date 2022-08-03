@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -144,13 +145,16 @@ func TestLocalOperations(t *testing.T) {
 	num := 32
 	length := 8
 	keys := make([][]byte, num)
-	values := make([][]byte, num)
+	values := make([]*protocol.KVTransfer, num)
 
 	for i := range keys {
 		keys[i] = make([]byte, length)
-		values[i] = make([]byte, length)
+		values[i] = &protocol.KVTransfer{
+			Value: make([]byte, length),
+			Type:  protocol.KVValueType_SIMPLE,
+		}
 		rand.Read(keys[i])
-		rand.Read(values[i])
+		rand.Read(values[i].Value)
 	}
 
 	as.Nil(kv.Import(keys, values))

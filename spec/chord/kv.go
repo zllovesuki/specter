@@ -1,5 +1,7 @@
 package chord
 
+import "kon.nect.sh/specter/spec/protocol"
+
 type KV interface {
 	// Put will store the value to a node in the Chord network responsible for the given key.
 	// If the key did not exist, a new entry will be added.
@@ -13,10 +15,10 @@ type KV interface {
 
 	// Import is used when a node is transferring its KV to a remote node.
 	// Used when a new node joins or a node leaves gracefully
-	Import(keys, values [][]byte) error
+	Import(keys [][]byte, values []*protocol.KVTransfer) error
 	// Export is used when a Local node is retriving relavent keys to transfer.
 	// Only used locally, not used for RPC
-	Export(keys [][]byte) [][]byte
+	Export(keys [][]byte) []*protocol.KVTransfer
 
 	// RangeKeys retrieve actual byte values of the keys, given the [low, high]
 	// range of key hashes.

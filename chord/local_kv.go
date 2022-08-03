@@ -2,6 +2,7 @@ package chord
 
 import (
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )
@@ -76,7 +77,7 @@ func (n *LocalNode) Delete(key []byte) error {
 	return succ.Delete(key)
 }
 
-func (n *LocalNode) Import(keys, values [][]byte) error {
+func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	if !n.isRunning.Load() {
 		return chord.ErrNodeGone
@@ -85,7 +86,7 @@ func (n *LocalNode) Import(keys, values [][]byte) error {
 }
 
 // these operations are designed for key transfers and only used locally
-func (n *LocalNode) Export(keys [][]byte) [][]byte {
+func (n *LocalNode) Export(keys [][]byte) []*protocol.KVTransfer {
 	n.Logger.Debug("KV Export", zap.Int("num_keys", len(keys)))
 	return n.kv.Export(keys)
 }

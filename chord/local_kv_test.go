@@ -130,12 +130,12 @@ func TestKeyTransferOut(t *testing.T) {
 	as.Len(indicies, len(leavingKeys))
 
 	for i, v := range succVals {
-		as.EqualValues(values[indicies[i]], v)
+		as.EqualValues(values[indicies[i]], v.GetValue())
 	}
 
 	preVals := predecessor.Export(leavingKeys)
 	for _, v := range preVals {
-		as.Nil(v)
+		as.Nil(v.GetValue())
 	}
 }
 
@@ -166,7 +166,7 @@ func TestKeyTransferIn(t *testing.T) {
 	as.Greater(len(keys), 0)
 	vals := n1.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val), 0)
+		as.Greater(len(val.GetValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n1, nodes[0]})
@@ -181,7 +181,7 @@ func TestKeyTransferIn(t *testing.T) {
 	as.Greater(len(keys), 0) // #OFFEND
 	vals = n2.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val), 0)
+		as.Greater(len(val.GetValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n2, n1, nodes[0]})

@@ -1,7 +1,10 @@
 package kv
 
 import (
+	"fmt"
+
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/zhangyunhao116/skipmap"
 )
@@ -75,17 +78,25 @@ func (m *MemoryMap) Delete(key []byte) error {
 	return nil
 }
 
-func (m *MemoryMap) Import(keys, values [][]byte) error {
+func (m *MemoryMap) Import(keys [][]byte, values []*protocol.KVTransfer) error {
+	for _, val := range values {
+		if val.GetType() != protocol.KVValueType_SIMPLE {
+			return fmt.Errorf("unsupported value type: %s", val.GetType())
+		}
+	}
 	for i, key := range keys {
-		m.put(key, values[i])
+		m.put(key, values[i].GetValue())
 	}
 	return nil
 }
 
-func (m *MemoryMap) Export(keys [][]byte) [][]byte {
-	vals := make([][]byte, len(keys))
+func (m *MemoryMap) Export(keys [][]byte) []*protocol.KVTransfer {
+	vals := make([]*protocol.KVTransfer, len(keys))
 	for i, key := range keys {
-		vals[i] = m.get(key)
+		vals[i] = &protocol.KVTransfer{
+			Value: m.get(key),
+			Type:  protocol.KVValueType_SIMPLE,
+		}
 	}
 	return vals
 }

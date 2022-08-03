@@ -5,12 +5,22 @@ option optimize_for = SPEED;
 option go_package = "kon.nect.sh/specter/spec/protocol";
 
 enum KVOperation {
-    UNKNOWN = 0;
+    UNKNOWN_OP = 0;
     PUT = 1;
     GET = 2;
     DELETE = 3;
 
     IMPORT = 10;
+}
+
+enum KVValueType {
+    UNKNOWN_TYPE = 0;
+    SIMPLE = 1;
+}
+
+message KVTransfer {
+    KVValueType type = 1;
+    bytes value = 2;
 }
 
 message KVRequest {
@@ -19,11 +29,8 @@ message KVRequest {
     bytes key = 2;
     bytes value = 3;
 
-    uint64 low_key = 4;
-    uint64 high_key = 5;
-
     repeated bytes keys = 10;
-    repeated bytes values = 11;
+    repeated KVTransfer values = 11;
 }
 
 message KVResponse {
@@ -32,5 +39,5 @@ message KVResponse {
     bytes value = 2;
 
     repeated bytes keys = 10;
-    repeated bytes values = 11;
+    repeated KVTransfer values = 11;
 }

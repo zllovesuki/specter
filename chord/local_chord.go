@@ -192,7 +192,7 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 // key range (upward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNode) (err error) {
 	var keys [][]byte
-	var values [][]byte
+	var values []*protocol.KVTransfer
 	var low uint64
 
 	if newPredecessor.ID() == n.ID() {

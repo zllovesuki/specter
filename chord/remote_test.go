@@ -76,7 +76,9 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.Delete([]byte("key"))
 	as.ErrorContains(err, e.Error())
 
-	err = r.Import([][]byte{[]byte("k")}, [][]byte{[]byte("v")})
+	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
+		Value: []byte("v"),
+	}})
 	as.ErrorContains(err, e.Error())
 
 	tp.AssertExpectations(t)

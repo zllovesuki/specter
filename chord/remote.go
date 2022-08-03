@@ -269,7 +269,7 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (n *RemoteNode) Import(keys, values [][]byte) error {
+func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
@@ -287,7 +287,7 @@ func (n *RemoteNode) Import(keys, values [][]byte) error {
 	return err
 }
 
-func (n *RemoteNode) Export(keys [][]byte) [][]byte {
+func (n *RemoteNode) Export(keys [][]byte) []*protocol.KVTransfer {
 	panic("Export is not a valid RPC method")
 }
 
