@@ -104,9 +104,9 @@ func (n *RemoteNode) Ping() error {
 	rReq := newReq(protocol.RPC_PING)
 	rReq.PingRequest = &protocol.PingRequest{}
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// 	n.logger.Error("remote Ping RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
+	if err != nil {
+		n.logger.Error("remote Ping RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
 	return err
 }
 
@@ -119,9 +119,9 @@ func (n *RemoteNode) Notify(predecessor chord.VNode) error {
 		Predecessor: predecessor.Identity(),
 	}
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// n.logger.Error("remote Notify RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
+	if err != nil {
+		n.logger.Error("remote Notify RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
 	return err
 }
 
@@ -136,7 +136,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		// n.logger.Error("remote FindSuccessor RPC", zap.String("node", n.Identity().String()), zap.Uint64("key", key), zap.Error(err))
+		n.logger.Error("remote FindSuccessor RPC", zap.String("peer", n.Identity().String()), zap.Uint64("key", key), zap.Error(err))
 		return nil, err
 	}
 
@@ -151,7 +151,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 	succ, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetSuccessor())
 	if err != nil {
-		// n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetSuccessor().String()), zap.Error(err))
+		n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetSuccessor().String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -167,7 +167,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		// n.logger.Error("remote GetSuccessors RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		n.logger.Error("remote GetSuccessors RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -175,13 +175,13 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 	succList := resp.GetSuccessors()
 
 	nodes := make([]chord.VNode, 0, len(succList))
-	for _, node := range succList {
-		n, err := createRPC(n.parentCtx, n.transport, n.logger, node)
+	for _, succ := range succList {
+		node, err := createRPC(n.parentCtx, n.transport, n.logger, succ)
 		if err != nil {
-			// n.logger.Error("create RemoteNote in GetSuccessors", zap.String("node", n.Identity().String()), zap.Error(err))
+			n.logger.Error("create RemoteNote in GetSuccessors", zap.String("peer", n.Identity().String()), zap.Error(err))
 			continue
 		}
-		nodes = append(nodes, n)
+		nodes = append(nodes, node)
 	}
 
 	return nodes, nil
@@ -196,7 +196,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		// n.logger.Error("remote GetPredecessor RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		n.logger.Error("remote GetPredecessor RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -210,7 +210,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 
 	pre, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetPredecessor())
 	if err != nil {
-		// n.logger.Error("creating new RemoteNode", zap.String("node", resp.GetPredecessor().String()), zap.Error(err))
+		n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetPredecessor().String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -229,9 +229,9 @@ func (n *RemoteNode) Put(key, value []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// 	n.logger.Error("remote KV Put RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
+	if err != nil {
+		n.logger.Error("remote KV Put RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
 	return err
 }
 
@@ -247,7 +247,7 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		// n.logger.Error("remote KV Get RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		n.logger.Error("remote KV Get RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 		return nil, err
 	}
 	return rResp.GetKvResponse().GetValue(), nil
@@ -264,9 +264,9 @@ func (n *RemoteNode) Delete(key []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// 	n.logger.Error("remote KV Delete RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
+	if err != nil {
+		n.logger.Error("remote KV Delete RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
 	return err
 }
 
@@ -282,9 +282,9 @@ func (n *RemoteNode) DirectPuts(keys, values [][]byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	// if err != nil {
-	// 	n.logger.Error("remote KV LocalPuts RPC", zap.String("node", n.Identity().String()), zap.Error(err))
-	// }
+	if err != nil {
+		n.logger.Error("remote KV DirectPuts RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
 	return err
 }
 

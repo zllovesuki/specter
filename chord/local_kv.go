@@ -8,7 +8,7 @@ import (
 
 func (n *LocalNode) ownershipCheck(id uint64) error {
 	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
-		n.Logger.Info("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
+		n.Logger.Debug("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 		return chord.ErrKVStaleOwnership
 	}
 	return nil
