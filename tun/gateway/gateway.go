@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
 type GatewayConfig struct {
 	Logger      *zap.Logger
 	Tun         tun.Server
+	Chord       chord.VNode
 	Listener    net.Listener
 	RootDomain  string
 	GatewayPort int
@@ -46,24 +46,18 @@ func New(conf GatewayConfig) (*Gateway, error) {
 			Conn:   make(chan net.Conn, 16),
 		},
 		apexServer: &apexServer{
+			chord:      conf.Chord,
 			rootDomain: conf.RootDomain,
 			clientPort: conf.ClientPort,
 		},
 	}, nil
 }
 
-func (g *Gateway) apexMux() http.Handler {
-	r := chi.NewRouter()
-	r.Get("/", g.apexServer.handleRoot)
-	r.Get("/lookup", g.apexServer.handleLookup)
-	r.Mount("/debug", middleware.Profiler())
-	return r
-}
-
 func (g *Gateway) Start(ctx context.Context) {
 	g.Logger.Info("gateway server started")
+
 	go http.Serve(g.httpTunnelAcceptor, g.httpHandler())
-	go http.Serve(g.apexAcceptor, g.apexMux())
+	go http.Serve(g.apexAcceptor, g.apexServer.Routes())
 
 	for {
 		conn, err := g.Listener.Accept()

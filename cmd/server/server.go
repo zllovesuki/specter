@@ -307,6 +307,7 @@ func cmdServer(ctx *cli.Context) error {
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
 		Tun:         tunServer,
+		Chord:       chordNode,
 		Listener:    gwListener,
 		RootDomain:  rootDomain,
 		GatewayPort: gwPort,
