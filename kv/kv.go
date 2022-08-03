@@ -82,15 +82,15 @@ func (m *MemoryMap) Import(keys, values [][]byte) error {
 	return nil
 }
 
-func (m *MemoryMap) Export(keys [][]byte) ([][]byte, error) {
+func (m *MemoryMap) Export(keys [][]byte) [][]byte {
 	vals := make([][]byte, len(keys))
 	for i, key := range keys {
 		vals[i] = m.get(key)
 	}
-	return vals, nil
+	return vals
 }
 
-func (m *MemoryMap) RangeKeys(low, high uint64) ([][]byte, error) {
+func (m *MemoryMap) RangeKeys(low, high uint64) [][]byte {
 	keys := make([][]byte, 0)
 
 	m.s.Range(func(key uint64, value *skipmap.StringMap[[]byte]) bool {
@@ -103,14 +103,13 @@ func (m *MemoryMap) RangeKeys(low, high uint64) ([][]byte, error) {
 		return true
 	})
 
-	return keys, nil
+	return keys
 }
 
-func (m *MemoryMap) RemoveKeys(keys [][]byte) error {
+func (m *MemoryMap) RemoveKeys(keys [][]byte) {
 	for _, key := range keys {
 		m.delete(key)
 	}
-	return nil
 }
 
 func (m *MemoryMap) Fsck(low, self uint64) bool {

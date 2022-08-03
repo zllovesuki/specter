@@ -39,30 +39,26 @@ func (n *VNode) Import(keys [][]byte, values [][]byte) error {
 	return e
 }
 
-func (n *VNode) Export(keys [][]byte) ([][]byte, error) {
+func (n *VNode) Export(keys [][]byte) [][]byte {
 	args := n.Called(keys)
 	v := args.Get(0)
-	e := args.Error(1)
 	if v == nil {
-		return nil, e
+		return nil
 	}
-	return v.([][]byte), e
+	return v.([][]byte)
 }
 
-func (n *VNode) RangeKeys(low uint64, high uint64) ([][]byte, error) {
+func (n *VNode) RangeKeys(low uint64, high uint64) [][]byte {
 	args := n.Called(low, high)
 	v := args.Get(0)
-	e := args.Error(1)
 	if v == nil {
-		return nil, e
+		return nil
 	}
-	return v.([][]byte), e
+	return v.([][]byte)
 }
 
-func (n *VNode) RemoveKeys(keys [][]byte) error {
-	args := n.Called(keys)
-	e := args.Error(0)
-	return e
+func (n *VNode) RemoveKeys(keys [][]byte) {
+	n.Called(keys)
 }
 
 func (n *VNode) ID() uint64 {

@@ -2,7 +2,6 @@ package chord
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -288,16 +287,16 @@ func (n *RemoteNode) Import(keys, values [][]byte) error {
 	return err
 }
 
-func (n *RemoteNode) Export(keys [][]byte) ([][]byte, error) {
-	return nil, fmt.Errorf("Export is not a valid RPC method")
+func (n *RemoteNode) Export(keys [][]byte) [][]byte {
+	panic("Export is not a valid RPC method")
 }
 
-func (n *RemoteNode) RangeKeys(low, high uint64) ([][]byte, error) {
-	return nil, fmt.Errorf("RangeKeys is not a valid RPC method")
+func (n *RemoteNode) RangeKeys(low, high uint64) [][]byte {
+	panic("RangeKeys is not a valid RPC method")
 }
 
-func (n *RemoteNode) RemoveKeys(keys [][]byte) error {
-	return fmt.Errorf("RemoveKeys is not a valid RPC method")
+func (n *RemoteNode) RemoveKeys(keys [][]byte) {
+	panic("RemoveKeys is not a valid RPC method")
 }
 
 func (n *RemoteNode) Stop() {

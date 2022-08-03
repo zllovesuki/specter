@@ -210,20 +210,14 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 		return
 	}
 
-	keys, err = n.RangeKeys(low, newPredecessor.ID())
-	if err != nil {
-		return err
-	}
+	keys = n.RangeKeys(low, newPredecessor.ID())
 	if len(keys) == 0 {
 		return nil
 	}
 
 	n.Logger.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
-	values, err = n.Export(keys)
-	if err != nil {
-		return
-	}
+	values = n.Export(keys)
 
 	err = newPredecessor.Import(keys, values)
 	if err != nil {
@@ -231,17 +225,14 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 	}
 
 	// TODO: remove this when we implement replication
-	err = n.RemoveKeys(keys)
+	n.RemoveKeys(keys)
 	return
 }
 
 // transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
 // to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
-	keys, err := n.RangeKeys(0, 0)
-	if err != nil {
-		return fmt.Errorf("fetching all keys locally: %w", err)
-	}
+	keys := n.RangeKeys(0, 0)
 
 	n.Logger.Debug("keys to transfer", zap.Int("num", len(keys)))
 
@@ -249,10 +240,7 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 		return nil
 	}
 
-	values, err := n.Export(keys)
-	if err != nil {
-		return fmt.Errorf("fetching all values locally: %w", err)
-	}
+	values := n.Export(keys)
 
 	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 

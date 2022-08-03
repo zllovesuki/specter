@@ -105,8 +105,7 @@ func TestAllKeys(t *testing.T) {
 		kv.Put(key, value)
 	}
 
-	keys, err := kv.RangeKeys(0, 0)
-	as.Nil(err)
+	keys := kv.RangeKeys(0, 0)
 	as.Len(keys, num)
 
 	as.True(kv.Fsck(0, 0))
@@ -127,8 +126,7 @@ func TestOrderedKeys(t *testing.T) {
 		kv.Put(key, value)
 	}
 
-	keys, err := kv.RangeKeys(0, 0)
-	as.Nil(err)
+	keys := kv.RangeKeys(0, 0)
 
 	var prev uint64 = 0
 	for _, key := range keys {
@@ -157,13 +155,11 @@ func TestLocalOperations(t *testing.T) {
 
 	as.Nil(kv.Import(keys, values))
 
-	ret, err := kv.Export(keys)
-	as.Nil(err)
+	ret := kv.Export(keys)
 	as.EqualValues(values, ret)
 
-	as.Nil(kv.RemoveKeys(keys))
+	kv.RemoveKeys(keys)
 
-	ret, err = kv.Export(keys)
-	as.Nil(err)
+	ret = kv.Export(keys)
 	as.NotEqualValues(values, ret)
 }

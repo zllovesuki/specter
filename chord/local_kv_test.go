@@ -102,8 +102,7 @@ func TestKeyTransferOut(t *testing.T) {
 	predecessor := randomNode.getPredecessor()
 	t.Logf("precedessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
 
-	leavingKeys, err := randomNode.kv.RangeKeys(0, 0)
-	as.NoError(err)
+	leavingKeys := randomNode.kv.RangeKeys(0, 0)
 
 	randomNode.Stop()
 	<-time.After(waitInterval)
@@ -117,8 +116,7 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 	fsck(as, c)
 
-	succVals, err := successor.Export(leavingKeys)
-	as.NoError(err)
+	succVals := successor.Export(leavingKeys)
 	as.Len(succVals, len(leavingKeys))
 
 	indicies := make([]int, 0)
@@ -135,8 +133,7 @@ func TestKeyTransferOut(t *testing.T) {
 		as.EqualValues(values[indicies[i]], v)
 	}
 
-	preVals, err := predecessor.Export(leavingKeys)
-	as.NoError(err)
+	preVals := predecessor.Export(leavingKeys)
 	for _, v := range preVals {
 		as.Nil(v)
 	}
@@ -165,11 +162,9 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval * 2)
 
-	keys, err := n1.RangeKeys(0, 0)
-	as.NoError(err)
+	keys = n1.RangeKeys(0, 0)
 	as.Greater(len(keys), 0)
-	vals, err := n1.Export(keys)
-	as.NoError(err)
+	vals := n1.Export(keys)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
 	}
@@ -182,11 +177,9 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval * 2)
 
-	keys, err = n2.RangeKeys(0, 0)
-	as.NoError(err)
+	keys = n2.RangeKeys(0, 0)
 	as.Greater(len(keys), 0) // #OFFEND
-	vals, err = n2.Export(keys)
-	as.NoError(err)
+	vals = n2.Export(keys)
 	for _, val := range vals {
 		as.Greater(len(val), 0)
 	}
@@ -425,8 +418,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	k, err := nodes[0].RangeKeys(0, 0)
-	as.NoError(err)
+	k := nodes[0].RangeKeys(0, 0)
 	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
 }
