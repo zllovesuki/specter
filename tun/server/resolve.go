@@ -12,6 +12,9 @@ import (
 )
 
 // TODO: cleanup the retry semantics
+const (
+	kvRetryInterval = time.Second * 2
+)
 
 func (s *Server) publishIdentities() error {
 	identities := &protocol.IdentitiesPair{
@@ -33,7 +36,7 @@ func (s *Server) publishIdentities() error {
 		switch err {
 		case nil:
 		case chord.ErrKVStaleOwnership:
-			time.Sleep(time.Second)
+			time.Sleep(kvRetryInterval)
 			goto RETRY
 		default:
 			return err
@@ -58,7 +61,7 @@ func (s *Server) unpublishIdentities() {
 		switch err {
 		case nil:
 		case chord.ErrKVStaleOwnership:
-			time.Sleep(time.Second)
+			time.Sleep(kvRetryInterval)
 			goto RETRY
 		default:
 		}
@@ -75,7 +78,7 @@ RETRY:
 	switch err {
 	case nil:
 	case chord.ErrKVStaleOwnership:
-		time.Sleep(time.Second)
+		time.Sleep(kvRetryInterval)
 		goto RETRY
 	default:
 		return nil, err
