@@ -3,11 +3,11 @@ module kon.nect.sh/specter
 go 1.18
 
 require (
-	github.com/caddyserver/certmagic v0.16.1
+	github.com/caddyserver/certmagic v0.16.2
 	github.com/golang/protobuf v1.5.2
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/lucas-clemente/quic-go v0.28.1
-	github.com/mholt/acmez v1.0.3
+	github.com/mholt/acmez v1.0.4
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli/v2 v2.11.1

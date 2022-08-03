@@ -14,8 +14,8 @@ github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZx
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
-github.com/caddyserver/certmagic v0.16.1 h1:rdSnjcUVJojmL4M0efJ+yHXErrrijS4YYg3FuwRdJkI=
-github.com/caddyserver/certmagic v0.16.1/go.mod h1:jKQ5n+ViHAr6DbPwEGLTSM2vDwTO6EvCKBblBRUvvuQ=
+github.com/caddyserver/certmagic v0.16.2 h1:k2n3LkkUG3aMUK/kckMuF9/0VFo+0FtMX3drPYESbmQ=
+github.com/caddyserver/certmagic v0.16.2/go.mod h1:PgLIr/dSJa+WA7t7z6Je5xuS/e5A/GFCPHRuZ1QP+MQ=
 github.com/cheekybits/genny v1.0.0 h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitfE=
 github.com/cheekybits/genny v1.0.0/go.mod h1:+tQajlRqAUrPI7DOSpB0XAqZYtQakVtB7wXkRAgjxjQ=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
@@ -106,8 +106,8 @@ github.com/marten-seemann/qtls-go1-18 v0.1.2/go.mod h1:mJttiymBAByA49mhlNZZGrH5u
 github.com/marten-seemann/qtls-go1-19 v0.1.0-beta.1 h1:7m/WlWcSROrcK5NxuXaxYD32BZqe/LEEnBrWcH/cOqQ=
 github.com/marten-seemann/qtls-go1-19 v0.1.0-beta.1/go.mod h1:5HTDWtVudo/WFsHKRNuOhWlbdjrfs5JHrYb0wIJqGpI=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/mholt/acmez v1.0.3 h1:mDgRxGYk6TKlfydYNMfX0HXXJh9i73YL+swPjYCADU8=
-github.com/mholt/acmez v1.0.3/go.mod h1:qFGLZ4u+ehWINeJZjzPlsnjJBCPAADWTcIqE/7DAYQY=
+github.com/mholt/acmez v1.0.4 h1:N3cE4Pek+dSolbsofIkAYz6H1d3pE+2G0os7QHslf80=
+github.com/mholt/acmez v1.0.4/go.mod h1:qFGLZ4u+ehWINeJZjzPlsnjJBCPAADWTcIqE/7DAYQY=
 github.com/microcosm-cc/bluemonday v1.0.1/go.mod h1:hsXNsILzKxV+sX77C5b8FSuKF00vh2OMYv+xgHpAMF4=
 github.com/miekg/dns v1.1.50 h1:DQUfb9uc6smULcREF09Uc+/Gd46YWqJd5DbpPE9xkcA=
 github.com/miekg/dns v1.1.50/go.mod h1:e3IlAVfNqAllflbibAZEWOXOQ+Ynzk/dDozDxY7XnME=
