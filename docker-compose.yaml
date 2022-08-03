@@ -12,7 +12,7 @@ services:
       - PEBBLE_VA_NOSLEEP=1
       - PEBBLE_VA_ALWAYS_VALID=1
     volumes:
-      - ./dev-support/pebble:/pebble
+      - ./dev-support/pebble:/pebble:ro
 
   seed:
     image: specter
@@ -23,7 +23,7 @@ services:
       - "1112:1112/udp"
       - "1113:1113/tcp"
     volumes:
-      - ./certs:/certs
+      - ./certs:/certs:ro
     command: --verbose server --cert-dir /certs --chord seed:1111 --client seed:1112 --gateway seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
@@ -33,7 +33,7 @@ services:
       - "2112:1112/udp"
       - "2113:1113/tcp"
     volumes:
-      - ./certs:/certs
+      - ./certs:/certs:ro
     command: --verbose server --cert-dir /certs --chord srva:1111 --client srva:1112 --gateway srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
   srvb:
@@ -43,7 +43,7 @@ services:
       - "3112:1112/udp"
       - "3113:1113/tcp"
     volumes:
-      - ./certs:/certs
+      - ./certs:/certs:ro
     command: --verbose server --cert-dir /certs --chord srvb:1111 --client srvb:1112 --gateway srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
   # srvc:
@@ -53,7 +53,7 @@ services:
   #     - "4112:1112/udp"
   #     - "4113:1113/tcp"
   #   volumes:
-  #     - ./certs:/certs
+  #     - ./certs:/certs:ro
   #   command: --verbose server --cert-dir /certs --chord srvc:1111 --client srvc:1112 --gateway srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
 
   # srvd:
@@ -63,5 +63,5 @@ services:
   #     - "5112:1112/udp"
   #     - "5113:1113/tcp"
   #   volumes:
-  #     - ./certs:/certs
+  #     - ./certs:/certs:ro
   #   command: --verbose server --cert-dir /certs --chord srvd:1111 --client srvd:1112 --gateway srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
