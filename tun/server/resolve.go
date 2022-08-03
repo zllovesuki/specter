@@ -33,12 +33,11 @@ func (s *Server) publishIdentities() error {
 	for _, key := range keys {
 	RETRY:
 		err := s.chord.Put([]byte(key), buf)
-		switch err {
-		case nil:
-		case chord.ErrKVStaleOwnership:
-			time.Sleep(kvRetryInterval)
-			goto RETRY
-		default:
+		if err != nil {
+			if chord.ErrorIsRetryable(err) {
+				time.Sleep(kvRetryInterval)
+				goto RETRY
+			}
 			return err
 		}
 	}
@@ -58,12 +57,12 @@ func (s *Server) unpublishIdentities() {
 	for _, key := range keys {
 	RETRY:
 		err := s.chord.Delete([]byte(key))
-		switch err {
-		case nil:
-		case chord.ErrKVStaleOwnership:
-			time.Sleep(kvRetryInterval)
-			goto RETRY
-		default:
+		if err != nil {
+			if chord.ErrorIsRetryable(err) {
+				time.Sleep(kvRetryInterval)
+				goto RETRY
+			}
+			return
 		}
 	}
 
@@ -75,12 +74,11 @@ func (s *Server) unpublishIdentities() {
 func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
 RETRY:
 	buf, err := s.chord.Get([]byte(key))
-	switch err {
-	case nil:
-	case chord.ErrKVStaleOwnership:
-		time.Sleep(kvRetryInterval)
-		goto RETRY
-	default:
+	if err != nil {
+		if chord.ErrorIsRetryable(err) {
+			time.Sleep(kvRetryInterval)
+			goto RETRY
+		}
 		return nil, err
 	}
 	if len(buf) == 0 {

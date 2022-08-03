@@ -60,7 +60,7 @@ func TestKVOperation(t *testing.T) {
 		as.NoError(err)
 		for _, remote := range nodes {
 			r, err := remote.Get(key)
-			as.Nil(err)
+			as.NoError(err)
 			as.EqualValues(value, r)
 		}
 
@@ -69,7 +69,7 @@ func TestKVOperation(t *testing.T) {
 		as.NoError(err)
 		for _, remote := range nodes {
 			r, err := remote.Get(key)
-			as.Nil(err)
+			as.NoError(err)
 			as.Nil(r)
 		}
 	}
@@ -263,18 +263,18 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			switch err {
-			case nil:
-				t.Logf("message %d inserted\n", i)
-				time.Sleep(defaultInterval)
-			case chord.ErrKVStaleOwnership:
-				stale++
-				t.Logf("[put] outdated ownership at key %d", i)
-				time.Sleep(defaultInterval)
-				goto RETRY
-			default:
+			if err != nil {
+				if chord.ErrorIsRetryable(err) {
+					stale++
+					t.Logf("[put] outdated ownership at key %d", i)
+					time.Sleep(defaultInterval)
+					goto RETRY
+				}
 				as.NoError(err)
+				return
 			}
+			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval)
 		}
 	}()
 
@@ -293,16 +293,15 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	for i := range keys {
 	RETRY:
 		val, err := nodes[0].Get(keys[i])
-		switch err {
-		case nil:
-		case chord.ErrKVStaleOwnership:
-			t.Logf("[get] outdated ownership at key %d", i)
-			time.Sleep(defaultInterval)
-			goto RETRY
-		default:
+		if err != nil {
+			if chord.ErrorIsRetryable(err) {
+				t.Logf("[get] outdated ownership at key %d", i)
+				time.Sleep(defaultInterval)
+				goto RETRY
+			}
 			as.NoError(err)
+			return
 		}
-		as.NoError(err)
 		if bytes.Equal(values[i], val) {
 			found++
 		} else {
@@ -351,18 +350,18 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		for i := range keys {
 		RETRY:
 			err := nodes[0].Put(keys[i], values[i])
-			switch err {
-			case nil:
-				t.Logf("message %d inserted\n", i)
-				time.Sleep(defaultInterval)
-			case chord.ErrKVStaleOwnership:
-				stale++
-				t.Logf("[put] outdated ownership at key %d", i)
-				time.Sleep(defaultInterval)
-				goto RETRY
-			default:
+			if err != nil {
+				if chord.ErrorIsRetryable(err) {
+					stale++
+					t.Logf("[put] outdated ownership at key %d", i)
+					time.Sleep(defaultInterval)
+					goto RETRY
+				}
 				as.NoError(err)
+				return
 			}
+			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval)
 		}
 	}()
 
@@ -382,14 +381,14 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		// inspec
 	RETRY:
 		val, err := nodes[0].Get(keys[i])
-		switch err {
-		case nil:
-		case chord.ErrKVStaleOwnership:
-			t.Logf("[get] outdated ownership at key %d", i)
-			time.Sleep(defaultInterval)
-			goto RETRY
-		default:
+		if err != nil {
+			if chord.ErrorIsRetryable(err) {
+				t.Logf("[get] outdated ownership at key %d", i)
+				time.Sleep(defaultInterval)
+				goto RETRY
+			}
 			as.NoError(err)
+			return
 		}
 		if bytes.Equal(values[i], val) {
 			found++
