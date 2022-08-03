@@ -21,12 +21,13 @@ import (
 )
 
 type GatewayConfig struct {
-	Logger      *zap.Logger
-	Tun         tun.Server
-	H2Listener  net.Listener
-	H3Listener  quic.EarlyListener
-	RootDomain  string
-	GatewayPort int
+	Logger       *zap.Logger
+	Tun          tun.Server
+	H2Listener   net.Listener
+	H3Listener   quic.EarlyListener
+	StatsHandler http.HandlerFunc
+	RootDomain   string
+	GatewayPort  int
 }
 
 type Gateway struct {
@@ -50,7 +51,8 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		http3TunnelAcceptor: acceptor.NewH3Acceptor(conf.H3Listener),
 		http3ApexAcceptor:   acceptor.NewH3Acceptor(conf.H3Listener),
 		apexServer: &apexServer{
-			rootDomain: conf.RootDomain,
+			statsHandler: conf.StatsHandler,
+			rootDomain:   conf.RootDomain,
 		},
 	}
 	g.h3ApexServer = &http3.Server{

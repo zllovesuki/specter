@@ -2,6 +2,7 @@ package chord
 
 import (
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,4 +88,33 @@ func (n *LocalNode) RingTrace() string {
 	}
 
 	return sb.String()
+}
+
+func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
+	pre, err := n.GetPredecessor()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error getting predecessor: %v", err)
+	}
+	succList, err := n.GetSuccessors()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error getting successor list: %v", err)
+	}
+
+	w.Header().Set("content-type", "text/plain")
+	finger := n.FingerTrace()
+	keys := n.RangeKeys(0, 0)
+	fmt.Fprintf(w, "keys on current node:\n")
+	for _, key := range keys {
+		fmt.Fprintf(w, "  %15d - %s\n", chord.Hash(key), key)
+	}
+	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "Predecessor: %d - %s\n", pre.ID(), pre.Identity().GetAddress())
+	fmt.Fprintf(w, "LocalNode: %d - %s\n", n.ID(), n.Identity().GetAddress())
+	fmt.Fprintf(w, "Successors: \n")
+	for _, succ := range succList {
+		fmt.Fprintf(w, "  %15d - %s\n", succ.ID(), succ.Identity().GetAddress())
+	}
+	fmt.Fprintf(w, "FingerTable: \n%s\n", finger)
 }

@@ -309,12 +309,13 @@ func cmdServer(ctx *cli.Context) error {
 	// TODO: use advertise?
 	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
 	gw, err := gateway.New(gateway.GatewayConfig{
-		Logger:      gwLogger,
-		Tun:         tunServer,
-		H2Listener:  gwH2Listener,
-		H3Listener:  gwH3Listener,
-		RootDomain:  rootDomain,
-		GatewayPort: gwPort,
+		Logger:       gwLogger,
+		Tun:          tunServer,
+		H2Listener:   gwH2Listener,
+		H3Listener:   gwH3Listener,
+		StatsHandler: chordNode.StatsHandler,
+		RootDomain:   rootDomain,
+		GatewayPort:  gwPort,
 	})
 	if err != nil {
 		return fmt.Errorf("error starting gateway server: %w", err)
