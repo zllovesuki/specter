@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -105,8 +106,7 @@ func TestAllKeys(t *testing.T) {
 		kv.Put(key, value)
 	}
 
-	keys, err := kv.LocalKeys(0, 0)
-	as.Nil(err)
+	keys := kv.RangeKeys(0, 0)
 	as.Len(keys, num)
 
 	as.True(kv.Fsck(0, 0))
@@ -127,8 +127,7 @@ func TestOrderedKeys(t *testing.T) {
 		kv.Put(key, value)
 	}
 
-	keys, err := kv.LocalKeys(0, 0)
-	as.Nil(err)
+	keys := kv.RangeKeys(0, 0)
 
 	var prev uint64 = 0
 	for _, key := range keys {
@@ -146,24 +145,25 @@ func TestLocalOperations(t *testing.T) {
 	num := 32
 	length := 8
 	keys := make([][]byte, num)
-	values := make([][]byte, num)
+	values := make([]*protocol.KVTransfer, num)
 
 	for i := range keys {
 		keys[i] = make([]byte, length)
-		values[i] = make([]byte, length)
+		values[i] = &protocol.KVTransfer{
+			Value: make([]byte, length),
+			Type:  protocol.KVValueType_SIMPLE,
+		}
 		rand.Read(keys[i])
-		rand.Read(values[i])
+		rand.Read(values[i].Value)
 	}
 
-	as.Nil(kv.DirectPuts(keys, values))
+	as.Nil(kv.Import(keys, values))
 
-	ret, err := kv.LocalGets(keys)
-	as.Nil(err)
+	ret := kv.Export(keys)
 	as.EqualValues(values, ret)
 
-	as.Nil(kv.LocalDeletes(keys))
+	kv.RemoveKeys(keys)
 
-	ret, err = kv.LocalGets(keys)
-	as.Nil(err)
+	ret = kv.Export(keys)
 	as.NotEqualValues(values, ret)
 }

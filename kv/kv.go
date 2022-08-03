@@ -1,7 +1,10 @@
 package kv
 
 import (
+	"fmt"
+
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/zhangyunhao116/skipmap"
 )
@@ -75,7 +78,30 @@ func (m *MemoryMap) Delete(key []byte) error {
 	return nil
 }
 
-func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
+func (m *MemoryMap) Import(keys [][]byte, values []*protocol.KVTransfer) error {
+	for _, val := range values {
+		if val.GetType() != protocol.KVValueType_SIMPLE {
+			return fmt.Errorf("unsupported value type: %s", val.GetType())
+		}
+	}
+	for i, key := range keys {
+		m.put(key, values[i].GetValue())
+	}
+	return nil
+}
+
+func (m *MemoryMap) Export(keys [][]byte) []*protocol.KVTransfer {
+	vals := make([]*protocol.KVTransfer, len(keys))
+	for i, key := range keys {
+		vals[i] = &protocol.KVTransfer{
+			Value: m.get(key),
+			Type:  protocol.KVValueType_SIMPLE,
+		}
+	}
+	return vals
+}
+
+func (m *MemoryMap) RangeKeys(low, high uint64) [][]byte {
 	keys := make([][]byte, 0)
 
 	m.s.Range(func(key uint64, value *skipmap.StringMap[[]byte]) bool {
@@ -88,29 +114,13 @@ func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
 		return true
 	})
 
-	return keys, nil
+	return keys
 }
 
-func (m *MemoryMap) DirectPuts(keys, values [][]byte) error {
-	for i, key := range keys {
-		m.put(key, values[i])
-	}
-	return nil
-}
-
-func (m *MemoryMap) LocalGets(keys [][]byte) ([][]byte, error) {
-	vals := make([][]byte, len(keys))
-	for i, key := range keys {
-		vals[i] = m.get(key)
-	}
-	return vals, nil
-}
-
-func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
+func (m *MemoryMap) RemoveKeys(keys [][]byte) {
 	for _, key := range keys {
 		m.delete(key)
 	}
-	return nil
 }
 
 func (m *MemoryMap) Fsck(low, self uint64) bool {

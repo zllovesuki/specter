@@ -6,6 +6,8 @@
 
 Specter aims to create a distributed network of nodes that forms an overlay network, allowing users to create a reverse tunnel on any publicly exposed node, then redundantly route the traffic back to the user, without having the user's machine exposed to the Internet.
 
+## Why another tunnel project?
+
 Specter is the spiritual successor of [t](https://github.com/zllovesuki/t/), another similar reverse tunnel software written by me.
 
 Specter has these improvements over t:
@@ -15,7 +17,7 @@ Specter has these improvements over t:
 2. Redundant connections from client to edge nodes and self-healing to maintain the tunnel;
     - t only connects to 1 public node and can encounter downtime when a node is having an outage
     - this has caused headache in production usage and causes assets to be unreachable
-3. Robust testing to ensure correctness (`make extended_test` and `make long_test`).
+3. Robust testing to ensure correctness (`make full_test`).
     - t has _zero_ tests whatsoever
     - development is difficult as I have no confidence on correctness
 
@@ -39,7 +41,7 @@ Similar to t, specter also:
 
 Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3ARoadmap).
 
-## Contributing
+## Development
 
 The following should be installed on your machine:
 - Docker with buildx support
@@ -50,8 +52,13 @@ The following should be installed on your machine:
 
 Run `make dev` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
 
+For changes unrelated to KV, `make test` should be sufficient. Any changes to KV must pass `make concurrency_test`.
+
 ## References
 
 Chord:
 - Original Chord paper: [Chord: A Scalable Peer-to-peer Lookup Protocol for Internet Applications](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf)
 - Improvement on the original paper: [How to Make Chord Correct](https://arxiv.org/pdf/1502.06461.pdf)
+
+Key Consistency:
+- Inspiraion on join/leave KV correctness: [Atomic Data Access in Distributed Hash Tables](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.71.6111&rep=rep1&type=pdf)

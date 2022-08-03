@@ -192,7 +192,7 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 // key range (upward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNode) (err error) {
 	var keys [][]byte
-	var values [][]byte
+	var values []*protocol.KVTransfer
 	var low uint64
 
 	if newPredecessor.ID() == n.ID() {
@@ -210,37 +210,29 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 		return
 	}
 
-	keys, err = n.LocalKeys(low, newPredecessor.ID())
-	if err != nil {
-		return err
-	}
+	keys = n.RangeKeys(low, newPredecessor.ID())
 	if len(keys) == 0 {
 		return nil
 	}
 
 	n.Logger.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
-	values, err = n.LocalGets(keys)
+	values = n.Export(keys)
+
+	err = newPredecessor.Import(keys, values)
 	if err != nil {
 		return
 	}
 
-	err = newPredecessor.DirectPuts(keys, values)
-	if err != nil {
-		return
-	}
-
-	err = n.LocalDeletes(keys)
+	// TODO: remove this when we implement replication
+	n.RemoveKeys(keys)
 	return
 }
 
 // transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
 // to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
-	keys, err := n.LocalKeys(0, 0)
-	if err != nil {
-		return fmt.Errorf("fetching all keys locally: %w", err)
-	}
+	keys := n.RangeKeys(0, 0)
 
 	n.Logger.Debug("keys to transfer", zap.Int("num", len(keys)))
 
@@ -248,15 +240,12 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 		return nil
 	}
 
-	values, err := n.LocalGets(keys)
-	if err != nil {
-		return fmt.Errorf("fetching all values locally: %w", err)
-	}
+	values := n.Export(keys)
 
 	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 
 	// TODO: split into batches
-	if err := successor.DirectPuts(keys, values); err != nil {
+	if err := successor.Import(keys, values); err != nil {
 		return fmt.Errorf("storing KV to successor: %w", err)
 	}
 
