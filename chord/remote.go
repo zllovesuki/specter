@@ -270,13 +270,13 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (n *RemoteNode) DirectPuts(keys, values [][]byte) error {
+func (n *RemoteNode) Import(keys, values [][]byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:     protocol.KVOperation_DIRECT_PUTS,
+		Op:     protocol.KVOperation_IMPORT,
 		Keys:   keys,
 		Values: values,
 	}
@@ -288,16 +288,16 @@ func (n *RemoteNode) DirectPuts(keys, values [][]byte) error {
 	return err
 }
 
-func (n *RemoteNode) LocalKeys(low, high uint64) ([][]byte, error) {
-	return nil, fmt.Errorf("LocalKeys is not a valid RPC method")
+func (n *RemoteNode) Export(keys [][]byte) ([][]byte, error) {
+	return nil, fmt.Errorf("Export is not a valid RPC method")
 }
 
-func (n *RemoteNode) LocalGets(keys [][]byte) ([][]byte, error) {
-	return nil, fmt.Errorf("LocalGets is not a valid RPC method")
+func (n *RemoteNode) RangeKeys(low, high uint64) ([][]byte, error) {
+	return nil, fmt.Errorf("RangeKeys is not a valid RPC method")
 }
 
-func (n *RemoteNode) LocalDeletes(keys [][]byte) error {
-	return fmt.Errorf("LocalDeletes is not a valid RPC method")
+func (n *RemoteNode) RemoveKeys(keys [][]byte) error {
+	return fmt.Errorf("RemoveKeys is not a valid RPC method")
 }
 
 func (n *RemoteNode) Stop() {

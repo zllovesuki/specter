@@ -10,7 +10,7 @@ enum KVOperation {
     GET = 2;
     DELETE = 3;
 
-    DIRECT_PUTS = 10;
+    IMPORT = 10;
 }
 
 message KVRequest {

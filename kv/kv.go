@@ -75,7 +75,22 @@ func (m *MemoryMap) Delete(key []byte) error {
 	return nil
 }
 
-func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
+func (m *MemoryMap) Import(keys, values [][]byte) error {
+	for i, key := range keys {
+		m.put(key, values[i])
+	}
+	return nil
+}
+
+func (m *MemoryMap) Export(keys [][]byte) ([][]byte, error) {
+	vals := make([][]byte, len(keys))
+	for i, key := range keys {
+		vals[i] = m.get(key)
+	}
+	return vals, nil
+}
+
+func (m *MemoryMap) RangeKeys(low, high uint64) ([][]byte, error) {
 	keys := make([][]byte, 0)
 
 	m.s.Range(func(key uint64, value *skipmap.StringMap[[]byte]) bool {
@@ -91,22 +106,7 @@ func (m *MemoryMap) LocalKeys(low, high uint64) ([][]byte, error) {
 	return keys, nil
 }
 
-func (m *MemoryMap) DirectPuts(keys, values [][]byte) error {
-	for i, key := range keys {
-		m.put(key, values[i])
-	}
-	return nil
-}
-
-func (m *MemoryMap) LocalGets(keys [][]byte) ([][]byte, error) {
-	vals := make([][]byte, len(keys))
-	for i, key := range keys {
-		vals[i] = m.get(key)
-	}
-	return vals, nil
-}
-
-func (m *MemoryMap) LocalDeletes(keys [][]byte) error {
+func (m *MemoryMap) RemoveKeys(keys [][]byte) error {
 	for _, key := range keys {
 		m.delete(key)
 	}

@@ -133,8 +133,8 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 				return nil, err
 			}
 
-		case protocol.KVOperation_DIRECT_PUTS:
-			if err := n.DirectPuts(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
+		case protocol.KVOperation_IMPORT:
+			if err := n.Import(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
 				return nil, err
 			}
 		default:
