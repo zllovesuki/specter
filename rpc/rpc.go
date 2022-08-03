@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"kon.nect.sh/specter/spec"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -177,7 +176,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	}
 }
 
-func Receive(stream io.Reader, rr spec.VTMarshaler) error {
+func Receive(stream io.Reader, rr VTMarshaler) error {
 	sb := pool.Get(lengthSize)
 	defer pool.Put(sb)
 
@@ -205,7 +204,7 @@ func Receive(stream io.Reader, rr spec.VTMarshaler) error {
 	return rr.UnmarshalVT(mb)
 }
 
-func Send(stream io.Writer, rr spec.VTMarshaler) error {
+func Send(stream io.Writer, rr VTMarshaler) error {
 	buf, err := rr.MarshalVT()
 	if err != nil {
 		return fmt.Errorf("encoding outbound RPC message: %w", err)

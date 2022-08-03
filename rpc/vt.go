@@ -1,4 +1,4 @@
-package spec
+package rpc
 
 type VTMarshaler interface {
 	MarshalVT() (dAtA []byte, err error)
