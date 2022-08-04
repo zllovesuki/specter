@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	H3Protos = []string{"h3", "h3-29"}
+	// support only h3 (drop support for h3-29)
+	H3Protos = []string{"h3"}
 )
 
 // we will require the use of ECDSA certificates for Chord
@@ -65,13 +66,13 @@ func GetGatewayHTTP3Config(provider CertProviderFunc, protos []string) *tls.Conf
 	baseCfg := GetGatewayTLSConfig(provider, nil)
 	baseCfg.GetConfigForClient = func(chi *tls.ClientHelloInfo) (*tls.Config, error) {
 		var isH3 bool
+		var isSpecter bool
 		var xCfg *tls.Config
-		protosOverride := []string{}
 
 		for _, cP := range chi.SupportedProtos {
 			for _, sP := range protos {
 				if sP == cP {
-					protosOverride = append(protosOverride, sP)
+					isSpecter = true
 				}
 			}
 			for _, hP := range H3Protos {
@@ -80,14 +81,9 @@ func GetGatewayHTTP3Config(provider CertProviderFunc, protos []string) *tls.Conf
 				}
 			}
 		}
-		if isH3 {
+		if isH3 || isSpecter {
 			xCfg = baseCfg.Clone()
 			xCfg.NextProtos = chi.SupportedProtos
-			return xCfg, nil
-		}
-		if len(protosOverride) > 0 {
-			xCfg = baseCfg.Clone()
-			xCfg.NextProtos = protosOverride
 			return xCfg, nil
 		}
 		return nil, errors.New("cipher: no mutually supported protocols")

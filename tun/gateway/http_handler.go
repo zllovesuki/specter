@@ -44,7 +44,7 @@ func (g *Gateway) httpHandler(h3 bool) http.Handler {
 		Transport: &http.Transport{
 			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
 				parts := strings.SplitN(addr, ".", 2)
-				g.Logger.Debug("dialing http connection", zap.String("hostname", parts[0]), zap.String("addr", addr), zap.Bool("via-http3", h3))
+				g.Logger.Debug("dialing http proxy connection to client", zap.Bool("via-quic", h3), zap.String("hostname", parts[0]), zap.String("addr", addr))
 				return g.Tun.Dial(c, &protocol.Link{
 					Alpn:     protocol.Link_HTTP,
 					Hostname: parts[0],
