@@ -9,7 +9,7 @@ import (
 
 var (
 	// support only h3 (drop support for h3-29)
-	H3Protos = []string{"h3"}
+	H3Protos = []string{"h3", "h3-29"}
 )
 
 // we will require the use of ECDSA certificates for Chord
