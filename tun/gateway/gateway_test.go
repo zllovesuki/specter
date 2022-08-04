@@ -8,7 +8,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -18,8 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"kon.nect.sh/specter/overlay"
 	"kon.nect.sh/specter/spec/cipher"
-	"kon.nect.sh/specter/spec/gateway"
 	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
@@ -32,8 +31,7 @@ import (
 )
 
 const (
-	testDomain     = "a.b.c.d.com"
-	testClientPort = 42069
+	testDomain = "a.b.c.d.com"
 )
 
 func generateTLSConfig(protos []string) *tls.Config {
@@ -72,19 +70,6 @@ func getH2Listener(as *require.Assertions) (net.Listener, int) {
 	as.NoError(err)
 
 	return l, l.Addr().(*net.TCPAddr).Port
-}
-
-func getH3Listener(as *require.Assertions, port int) quic.EarlyListener {
-	ss := generateTLSConfig([]string{})
-	cfg := cipher.GetGatewayHTTP3Config(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return &ss.Certificates[0], nil
-	}, []string{
-		tun.ALPN(protocol.Link_TCP),
-	})
-	l, err := quic.ListenAddrEarly(fmt.Sprintf("127.0.0.1:%d", port), cfg, nil)
-	as.NoError(err)
-
-	return l
 }
 
 func getDialer(proto string, sn string) *tls.Dialer {
@@ -131,13 +116,20 @@ func getH3Client(host string, port int) *http.Client {
 }
 
 func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
-	h2, port := getH2Listener(as)
-	h3 := getH3Listener(as, port)
-
-	mockS := new(mocks.TunServer)
-
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
+
+	h2, port := getH2Listener(as)
+
+	ss := generateTLSConfig([]string{})
+	alpnMux, err := overlay.NewMux(logger, fmt.Sprintf("127.0.0.1:%d", port), func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &ss.Certificates[0], nil
+	})
+	as.NoError(err)
+
+	h3 := alpnMux.For(append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+
+	mockS := new(mocks.TunServer)
 
 	conf := GatewayConfig{
 		Logger:      logger,
@@ -146,7 +138,6 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		H3Listener:  h3,
 		RootDomain:  testDomain,
 		GatewayPort: port,
-		ClientPort:  testClientPort,
 	}
 
 	g, err := New(conf)
@@ -154,11 +145,13 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go g.Start(ctx)
+	go alpnMux.Aceept(ctx)
 
 	return port, mockS, func() {
 		cancel()
 		h2.Close()
 		h3.Close()
+		alpnMux.Close()
 	}
 }
 
@@ -199,52 +192,6 @@ func TestH3ApexIndex(t *testing.T) {
 	as.NoError(err)
 
 	as.Contains(string(b), testDomain)
-	as.NotEmpty(resp.Header.Get("alt-svc"))
-
-	mockS.AssertExpectations(t)
-}
-
-func TestH2ApexLookup(t *testing.T) {
-	as := require.New(t)
-
-	port, mockS, done := getStuff(as)
-	defer done()
-
-	c := getH2Client("", port)
-
-	resp, err := c.Get(fmt.Sprintf("https://%s/lookup", testDomain))
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	r := &gateway.LookupResponse{}
-	err = json.NewDecoder(resp.Body).Decode(r)
-	as.NoError(err)
-
-	as.Equal(testDomain, r.Address)
-	as.Equal(testClientPort, r.Port)
-	as.NotEmpty(resp.Header.Get("alt-svc"))
-
-	mockS.AssertExpectations(t)
-}
-
-func TestH3ApexLookup(t *testing.T) {
-	as := require.New(t)
-
-	port, mockS, done := getStuff(as)
-	defer done()
-
-	c := getH3Client("", port)
-
-	resp, err := c.Get(fmt.Sprintf("https://%s/lookup", testDomain))
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	r := &gateway.LookupResponse{}
-	err = json.NewDecoder(resp.Body).Decode(r)
-	as.NoError(err)
-
-	as.Equal(testDomain, r.Address)
-	as.Equal(testClientPort, r.Port)
 	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)

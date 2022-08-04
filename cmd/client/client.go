@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"kon.nect.sh/specter/overlay"
@@ -27,6 +29,11 @@ var Cmd = &cli.Command{
 			Value: false,
 			Usage: "disable TLS verification, useful for debugging and local development",
 		},
+		&cli.StringFlag{
+			Name:     "apex",
+			Usage:    "the apex domain of specter gateway. It the gateway is not listening on port 443, the port needs to be appended (e.g. dev.con.nect.sh:1337)",
+			Required: true,
+		},
 	},
 	Action: cmdClient,
 }
@@ -38,12 +45,25 @@ func cmdClient(ctx *cli.Context) error {
 		Id: chordSpec.Random(),
 	}
 
+	apex := ctx.String("apex")
+	port := 443
+	i := strings.Index(apex, ":")
+	if i != -1 {
+		nP, err := strconv.ParseInt(apex[i+1:], 0, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing port number: %w", err)
+		}
+		apex = apex[:i]
+		port = int(nP)
+	}
+
 	// TODO: endpoint discovery via http
 	seed := &protocol.Node{
-		Address: "dev.con.nect.sh:1112",
+		Address: fmt.Sprintf("%s:%d", apex, port),
 	}
 
 	clientTLSConf := &tls.Config{
+		ServerName:         apex,
 		InsecureSkipVerify: ctx.Bool("insecure"),
 		NextProtos: []string{
 			tun.ALPN(protocol.Link_SPECTER_TUN),
@@ -81,6 +101,10 @@ func cmdClient(ctx *cli.Context) error {
 	hostname, err := c.PublishTunnel(ctx.Context, nodes)
 	if err != nil {
 		logger.Fatal("publishing tunnel", zap.Error(err))
+	}
+
+	if port != 443 {
+		hostname = fmt.Sprintf("%s:%d", hostname, port)
 	}
 
 	logger.Info("tunnel published", zap.String("hostname", hostname))
