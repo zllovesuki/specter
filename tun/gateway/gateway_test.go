@@ -23,6 +23,8 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -59,15 +61,27 @@ func generateTLSConfig(protos []string) *tls.Config {
 	}
 }
 
-func getListener(as *require.Assertions) (net.Listener, int) {
+func getH2Listener(as *require.Assertions) (net.Listener, int) {
 	l, err := tls.Listen("tcp", "127.0.0.1:0", generateTLSConfig([]string{
+		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
 	}))
-	as.Nil(err)
+	as.NoError(err)
 
 	return l, l.Addr().(*net.TCPAddr).Port
+}
+
+func getH3Listener(as *require.Assertions, port int) quic.EarlyListener {
+	l, err := quic.ListenAddrEarly(fmt.Sprintf("127.0.0.1:%d", port), generateTLSConfig([]string{
+		"h3",
+		"h3-29",
+		tun.ALPN(protocol.Link_TCP),
+	}), nil)
+	as.NoError(err)
+
+	return l
 }
 
 func getDialer(proto string, sn string) *tls.Dialer {
@@ -84,7 +98,13 @@ func getDialer(proto string, sn string) *tls.Dialer {
 	}
 }
 
-func getClient(host string, port int) *http.Client {
+func getQuicDialer(proto string, sn string) func(context.Context, string) (quic.EarlyConnection, error) {
+	return func(ctx context.Context, addr string) (quic.EarlyConnection, error) {
+		return quic.DialAddrEarlyContext(ctx, addr, getDialer(proto, sn).Config, nil)
+	}
+}
+
+func getH2Client(host string, port int) *http.Client {
 	return &http.Client{
 		Timeout: time.Second,
 		Transport: &http.Transport{
@@ -95,65 +115,102 @@ func getClient(host string, port int) *http.Client {
 	}
 }
 
+func getH3Client(host string, port int) *http.Client {
+	return &http.Client{
+		Timeout: time.Second,
+		Transport: &http3.RoundTripper{
+			TLSClientConfig: getDialer("h3", host).Config,
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+				return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", port), tlsCfg, cfg)
+			},
+		},
+	}
+}
+
 func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
-	l, port := getListener(as)
+	h2, port := getH2Listener(as)
+	h3 := getH3Listener(as, port)
 
 	mockS := new(mocks.TunServer)
 
 	logger, err := zap.NewDevelopment()
-	as.Nil(err)
+	as.NoError(err)
 
 	conf := GatewayConfig{
 		Logger:      logger,
 		Tun:         mockS,
-		Listener:    l,
+		H2Listener:  h2,
+		H3Listener:  h3,
 		RootDomain:  testDomain,
 		GatewayPort: port,
 		ClientPort:  testClientPort,
 	}
 
 	g, err := New(conf)
-	as.Nil(err)
+	as.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go g.Start(ctx)
 
 	return port, mockS, func() {
 		cancel()
-		l.Close()
+		h2.Close()
+		h3.Close()
 	}
 }
 
-func TestApexIndex(t *testing.T) {
+func TestH2ApexIndex(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
 	defer done()
 
-	c := getClient("", port)
+	c := getH2Client("", port)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
-	as.Nil(err)
+	as.NoError(err)
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
-	as.Nil(err)
+	as.NoError(err)
 
 	as.Contains(string(b), testDomain)
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
 
-func TestApexLookup(t *testing.T) {
+func TestH3ApexIndex(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
 	defer done()
 
-	c := getClient("", port)
+	c := getH3Client("", port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.Contains(string(b), testDomain)
+	as.Empty(resp.Header.Get("alt-svc"))
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2ApexLookup(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	c := getH2Client("", port)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/lookup", testDomain))
-	as.Nil(err)
+	as.NoError(err)
 	defer resp.Body.Close()
 
 	r := &gateway.LookupResponse{}
@@ -162,11 +219,35 @@ func TestApexLookup(t *testing.T) {
 
 	as.Equal(testDomain, r.Address)
 	as.Equal(testClientPort, r.Port)
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
 
-func TestHTTPNotFound(t *testing.T) {
+func TestH3ApexLookup(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	c := getH3Client("", port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s/lookup", testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	r := &gateway.LookupResponse{}
+	err = json.NewDecoder(resp.Body).Decode(r)
+	as.NoError(err)
+
+	as.Equal(testDomain, r.Address)
+	as.Equal(testClientPort, r.Port)
+	as.Empty(resp.Header.Get("alt-svc"))
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2HTTPNotFound(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
@@ -178,21 +259,47 @@ func TestHTTPNotFound(t *testing.T) {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrDestinationNotFound)
 
-	c := getClient(testHost, port)
+	c := getH2Client(testHost, port)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
-	as.Nil(err)
+	as.NoError(err)
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
-	as.Nil(err)
+	as.NoError(err)
 
 	as.Contains(string(b), "not found")
 
 	mockS.AssertExpectations(t)
 }
 
-func TestHTTPFound(t *testing.T) {
+func TestH3HTTPNotFound(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
+	})).Return(nil, tun.ErrDestinationNotFound)
+
+	c := getH3Client(testHost, port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.Contains(string(b), "not found")
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2HTTPFound(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
@@ -206,35 +313,79 @@ func TestHTTPFound(t *testing.T) {
 	go func() {
 		rd := bufio.NewReader(c2)
 		_, err := http.ReadRequest(rd)
-		as.Nil(err)
+		as.NoError(err)
 		resp := &http.Response{
 			StatusCode:    200,
 			Body:          io.NopCloser(bytes.NewBufferString(testResponse)),
 			ContentLength: int64(len(testResponse)),
 		}
 		err = resp.Write(c2)
-		as.Nil(err)
+		as.NoError(err)
 	}()
 
 	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 
-	c := getClient(testHost, port)
+	c := getH2Client(testHost, port)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
-	as.Nil(err)
+	as.NoError(err)
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
-	as.Nil(err)
+	as.NoError(err)
 
 	as.Contains(string(b), testResponse)
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
 
-func TestTCPNotFound(t *testing.T) {
+func TestH3HTTPFound(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+	testResponse := "this is fine from h3"
+
+	c1, c2 := net.Pipe()
+
+	go func() {
+		rd := bufio.NewReader(c2)
+		_, err := http.ReadRequest(rd)
+		as.NoError(err)
+		resp := &http.Response{
+			StatusCode:    200,
+			Body:          io.NopCloser(bytes.NewBufferString(testResponse)),
+			ContentLength: int64(len(testResponse)),
+		}
+		err = resp.Write(c2)
+		as.NoError(err)
+	}()
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
+	})).Return(c1, nil)
+
+	c := getH3Client(testHost, port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.Contains(string(b), testResponse)
+	as.Empty(resp.Header.Get("alt-svc"))
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2TCPNotFound(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
@@ -248,14 +399,43 @@ func TestTCPNotFound(t *testing.T) {
 
 	dialer := getDialer(tun.ALPN(protocol.Link_TCP), testHost)
 	_, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	as.Nil(err)
+	as.NoError(err)
 
 	<-time.After(time.Millisecond * 100)
 
 	mockS.AssertExpectations(t)
 }
 
-func TestTCPFound(t *testing.T) {
+func TestH3TCPNotFound(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
+	})).Return(nil, tun.ErrDestinationNotFound)
+
+	dial := getQuicDialer(tun.ALPN(protocol.Link_TCP), testHost)
+	conn, err := dial(context.Background(), fmt.Sprintf("127.0.0.1:%d", port))
+	as.NoError(err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	b, err := conn.OpenStreamSync(ctx)
+	as.NoError(err)
+
+	_, err = b.Write([]byte("a"))
+	as.NoError(err)
+
+	<-time.After(time.Millisecond * 100)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2TCPFound(t *testing.T) {
 	as := require.New(t)
 
 	port, mockS, done := getStuff(as)
@@ -269,12 +449,12 @@ func TestTCPFound(t *testing.T) {
 	go func() {
 		buf := make([]byte, bufLength)
 		n, err := io.ReadFull(c2, buf)
-		as.Nil(err)
+		as.NoError(err)
 		as.Equal(bufLength, n)
 
 		rand.Read(buf)
 		n, err = c2.Write(buf)
-		as.Nil(err)
+		as.NoError(err)
 		as.Equal(bufLength, n)
 	}()
 
@@ -284,17 +464,67 @@ func TestTCPFound(t *testing.T) {
 
 	dialer := getDialer(tun.ALPN(protocol.Link_TCP), testHost)
 	conn, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	as.Nil(err)
+	as.NoError(err)
 
 	buf := make([]byte, bufLength)
 
 	rand.Read(buf)
 	n, err := conn.Write(buf)
-	as.Nil(err)
+	as.NoError(err)
 	as.Equal(bufLength, n)
 
 	n, err = io.ReadFull(conn, buf)
-	as.Nil(err)
+	as.NoError(err)
+	as.Equal(bufLength, n)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH3TCPFound(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+	bufLength := 20
+
+	c1, c2 := net.Pipe()
+
+	go func() {
+		buf := make([]byte, bufLength)
+		n, err := io.ReadFull(c2, buf)
+		as.NoError(err)
+		as.Equal(bufLength, n)
+
+		rand.Read(buf)
+		n, err = c2.Write(buf)
+		as.NoError(err)
+		as.Equal(bufLength, n)
+	}()
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
+	})).Return(c1, nil)
+
+	dial := getQuicDialer(tun.ALPN(protocol.Link_TCP), testHost)
+	conn, err := dial(context.Background(), fmt.Sprintf("127.0.0.1:%d", port))
+	as.NoError(err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	stream, err := conn.OpenStreamSync(ctx)
+	as.NoError(err)
+
+	buf := make([]byte, bufLength)
+
+	rand.Read(buf)
+	n, err := stream.Write(buf)
+	as.NoError(err)
+	as.Equal(bufLength, n)
+
+	n, err = io.ReadFull(stream, buf)
+	as.NoError(err)
 	as.Equal(bufLength, n)
 
 	mockS.AssertExpectations(t)

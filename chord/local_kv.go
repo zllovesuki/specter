@@ -24,6 +24,7 @@ func (n *LocalNode) kvMiddleware(key []byte,
 	}
 	if succ.ID() == n.ID() {
 		if !n.surrogateMu.TryRLock() {
+			// this is to avoid caller timing out RPC call
 			return nil, chord.ErrKVPendingTransfer
 		}
 		defer n.surrogateMu.RUnlock()
