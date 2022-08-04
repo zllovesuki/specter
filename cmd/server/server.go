@@ -25,6 +25,7 @@ import (
 	"kon.nect.sh/specter/tun/server"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/mholt/acmez"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -244,23 +245,37 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
-	gwTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
+	tunTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
+		tun.ALPN(protocol.Link_SPECTER_TUN),
+	})
+
+	gwH2TLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
 		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
 		tun.ALPN(protocol.Link_UNKNOWN),
 	})
 
-	tunTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
-		tun.ALPN(protocol.Link_SPECTER_TUN),
+	// TODO: figure out a way to not hard code these
+	gwH3TLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
+		"h3",
+		"h3-29",
+		tun.ALPN(protocol.Link_TCP),
 	})
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	gwListener, err := tls.Listen("tcp", ctx.String("listen-gateway"), gwTLSConf)
+	gwH2Listener, err := tls.Listen("tcp", ctx.String("listen-gateway"), gwH2TLSConf)
 	if err != nil {
-		return fmt.Errorf("setting up gateway listener: %w", err)
+		return fmt.Errorf("setting up gateway http2 listener: %w", err)
 	}
-	defer gwListener.Close()
+	defer gwH2Listener.Close()
+
+	// TODO: investigate why alt-svc is broken (cannot upgrade)
+	gwH3Listener, err := quic.ListenAddrEarly(ctx.String("listen-gateway"), gwH3TLSConf, nil)
+	if err != nil {
+		return fmt.Errorf("setting up gateway http3 listener: %w", err)
+	}
+	defer gwH3Listener.Close()
 
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
 	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
@@ -297,7 +312,7 @@ func cmdServer(ctx *cli.Context) error {
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
-	gwPort := gwListener.Addr().(*net.TCPAddr).Port
+	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
 	clientIf, err := net.ResolveUDPAddr("udp", ctx.String("listen-client"))
 	if err != nil {
 		return fmt.Errorf("error parsing client listening address: %w", err)
@@ -307,7 +322,8 @@ func cmdServer(ctx *cli.Context) error {
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
 		Tun:         tunServer,
-		Listener:    gwListener,
+		H2Listener:  gwH2Listener,
+		H3Listener:  gwH3Listener,
 		RootDomain:  rootDomain,
 		GatewayPort: gwPort,
 		ClientPort:  clientPort,

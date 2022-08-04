@@ -129,7 +129,7 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	proxy.ErrorLog = zap.NewStdLog(c.logger)
 
 	httpCh := make(chan net.Conn, 32)
-	accepter := &tun.HTTPAcceptor{
+	accepter := &tun.HTTP2Acceptor{
 		Conn: httpCh,
 	}
 	forwarder := &http.Server{

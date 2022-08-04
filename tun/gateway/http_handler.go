@@ -28,11 +28,15 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
-func (g *Gateway) httpHandler() http.Handler {
+func (g *Gateway) httpHandler(h3 bool) http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
-			req.URL.Host = req.TLS.ServerName
+			if h3 {
+				req.URL.Host = req.Host // req.Host is the ServerName (:authority)
+			} else {
+				req.URL.Host = req.TLS.ServerName
+			}
 			for _, header := range delHeaders {
 				req.Header.Del(header)
 			}
@@ -40,7 +44,7 @@ func (g *Gateway) httpHandler() http.Handler {
 		Transport: &http.Transport{
 			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
 				parts := strings.SplitN(addr, ".", 2)
-				g.Logger.Debug("dialing http connection", zap.String("hostname", parts[0]))
+				g.Logger.Debug("dialing http connection", zap.String("hostname", parts[0]), zap.String("addr", addr), zap.Bool("via-http3", h3))
 				return g.Tun.Dial(c, &protocol.Link{
 					Alpn:     protocol.Link_HTTP,
 					Hostname: parts[0],
@@ -53,9 +57,12 @@ func (g *Gateway) httpHandler() http.Handler {
 			ExpectContinueTimeout: time.Second * 3,
 		},
 		BufferPool:   NewBufferPool(bufferSize),
-		ErrorHandler: g.errorHandler,
+		ErrorHandler: g.errorHandler(h3),
 		ModifyResponse: func(r *http.Response) error {
 			r.Header.Del("alt-svc")
+			if !h3 && g.h3Enabled {
+				g.h3ApexServer.SetQuicHeaders(r.Header)
+			}
 			return nil
 		},
 		ErrorLog: func() *log.Logger {
@@ -65,26 +72,31 @@ func (g *Gateway) httpHandler() http.Handler {
 	}
 }
 
-func (g *Gateway) errorHandler(rw http.ResponseWriter, r *http.Request, e error) {
-	if errors.Is(e, tun.ErrDestinationNotFound) {
-		rw.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(rw, "Destination %s not found on the Chord network.", r.URL.Hostname())
-		return
-	}
+func (g *Gateway) errorHandler(h3 bool) func(rw http.ResponseWriter, r *http.Request, e error) {
+	return func(rw http.ResponseWriter, r *http.Request, e error) {
+		if !h3 && g.h3Enabled {
+			g.h3ApexServer.SetQuicHeaders(rw.Header())
+		}
+		if errors.Is(e, tun.ErrDestinationNotFound) {
+			rw.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(rw, "Destination %s not found on the Chord network.", r.URL.Hostname())
+			return
+		}
 
-	g.Logger.Debug("forwarding http/https request", zap.Error(e))
+		g.Logger.Debug("forwarding http/https request", zap.Error(e))
 
-	if tun.IsTimeout(e) {
-		rw.WriteHeader(http.StatusGatewayTimeout)
-		fmt.Fprintf(rw, "Destination %s is taking too long to respond.", r.URL.Hostname())
-		return
-	}
-	if errors.Is(e, context.Canceled) {
-		// this is expected
-		return
-	}
+		if tun.IsTimeout(e) {
+			rw.WriteHeader(http.StatusGatewayTimeout)
+			fmt.Fprintf(rw, "Destination %s is taking too long to respond.", r.URL.Hostname())
+			return
+		}
+		if errors.Is(e, context.Canceled) {
+			// this is expected
+			return
+		}
 
-	g.Logger.Error("forwarding to client", zap.Error(e))
-	rw.WriteHeader(http.StatusServiceUnavailable)
-	fmt.Fprint(rw, "An unexpected error has occurred while attempting to forward to destination.")
+		g.Logger.Error("forwarding to client", zap.Error(e))
+		rw.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(rw, "An unexpected error has occurred while attempting to forward to destination.")
+	}
 }
