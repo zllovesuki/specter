@@ -142,9 +142,8 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 	case <-hsCtx.Done():
 	}
 
-	logger := g.Logger.With(zap.Bool("via-quic", true))
-
 	cs := conn.ConnectionState().TLS
+	logger := g.Logger.With(zap.Bool("via-quic", true), zap.String("proto", cs.NegotiatedProtocol))
 
 	switch cs.ServerName {
 	case g.RootDomain:
@@ -189,6 +188,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	}
 
 	cs := conn.ConnectionState()
+	logger = logger.With(zap.String("proto", cs.NegotiatedProtocol))
 
 	switch cs.ServerName {
 	case g.RootDomain:
@@ -204,7 +204,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.http2TunnelAcceptor.Conn <- conn
 		default:
-			err = fmt.Errorf("unknown alpn proposal: %s", cs.NegotiatedProtocol)
+			err = fmt.Errorf("unknown alpn proposal")
 		}
 	}
 }
