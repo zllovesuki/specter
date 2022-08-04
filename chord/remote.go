@@ -89,6 +89,10 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrKVStaleOwnership
 	case chord.ErrNodeGone.Error():
 		parsedErr = chord.ErrNodeGone
+	case chord.ErrKVPendingTransfer.Error():
+		parsedErr = chord.ErrKVPendingTransfer
+	case chord.ErrNodeNotStarted.Error():
+		parsedErr = chord.ErrNodeNotStarted
 	default:
 		// passthrough
 		parsedErr = err
