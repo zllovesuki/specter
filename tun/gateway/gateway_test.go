@@ -199,7 +199,7 @@ func TestH3ApexIndex(t *testing.T) {
 	as.NoError(err)
 
 	as.Contains(string(b), testDomain)
-	as.Empty(resp.Header.Get("alt-svc"))
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
@@ -245,7 +245,7 @@ func TestH3ApexLookup(t *testing.T) {
 
 	as.Equal(testDomain, r.Address)
 	as.Equal(testClientPort, r.Port)
-	as.Empty(resp.Header.Get("alt-svc"))
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
@@ -272,6 +272,7 @@ func TestH2HTTPNotFound(t *testing.T) {
 	as.NoError(err)
 
 	as.Contains(string(b), "not found")
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
@@ -298,6 +299,7 @@ func TestH3HTTPNotFound(t *testing.T) {
 	as.NoError(err)
 
 	as.Contains(string(b), "not found")
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }
@@ -383,7 +385,7 @@ func TestH3HTTPFound(t *testing.T) {
 	as.NoError(err)
 
 	as.Contains(string(b), testResponse)
-	as.Empty(resp.Header.Get("alt-svc"))
+	as.NotEmpty(resp.Header.Get("alt-svc"))
 
 	mockS.AssertExpectations(t)
 }

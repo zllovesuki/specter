@@ -38,7 +38,6 @@ type Gateway struct {
 	http3ApexAcceptor *tun.HTTP3Acceptor
 
 	apexServer     *apexServer
-	h3Enabled      bool
 	h3ApexServer   *http3.Server
 	h3TunnelServer *http3.Server
 }
@@ -66,54 +65,50 @@ func New(conf GatewayConfig) (*Gateway, error) {
 			rootDomain: conf.RootDomain,
 			clientPort: conf.ClientPort,
 		},
-		h3ApexServer: &http3.Server{
-			Port: conf.GatewayPort,
-			QuicConfig: &quic.Config{
-				HandshakeIdleTimeout: time.Second * 5,
-				KeepAlivePeriod:      time.Second * 30,
-				MaxIdleTimeout:       time.Second * 60,
-			},
-		},
-		h3TunnelServer: &http3.Server{
-			Port: conf.GatewayPort,
-			QuicConfig: &quic.Config{
-				HandshakeIdleTimeout: time.Second * 5,
-				KeepAlivePeriod:      time.Second * 30,
-				MaxIdleTimeout:       time.Second * 60,
-			},
-		},
-		h3Enabled: conf.H3Listener != nil,
 	}
-	g.h3ApexServer.Handler = g.apexMux(true)
-	g.h3TunnelServer.Handler = g.httpHandler(true)
+	g.h3ApexServer = &http3.Server{
+		Port: conf.GatewayPort,
+		QuicConfig: &quic.Config{
+			HandshakeIdleTimeout: time.Second * 5,
+			KeepAlivePeriod:      time.Second * 30,
+			MaxIdleTimeout:       time.Second * 60,
+		},
+		Handler: g.apexMux(true),
+	}
+	g.h3TunnelServer = &http3.Server{
+		Port: conf.GatewayPort,
+		QuicConfig: &quic.Config{
+			HandshakeIdleTimeout: time.Second * 5,
+			KeepAlivePeriod:      time.Second * 30,
+			MaxIdleTimeout:       time.Second * 60,
+		},
+		Handler: g.httpHandler(true),
+	}
 	return g, nil
 }
 
 func (g *Gateway) apexMux(h3 bool) http.Handler {
 	r := chi.NewRouter()
-	if !h3 {
-		r.Use(func(h http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				g.h3ApexServer.SetQuicHeaders(w.Header())
-				h.ServeHTTP(w, r)
-			})
+	r.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			g.appendHeaders(h3)(w.Header())
+			h.ServeHTTP(w, r)
 		})
-	}
+	})
 	g.apexServer.Mount(r)
 	return r
 }
 
 func (g *Gateway) Start(ctx context.Context) {
 	g.Logger.Info("gateway server started")
+
 	go http.Serve(g.http2TunnelAcceptor, g.httpHandler(false))
 	go http.Serve(g.http2ApexAcceptor, g.apexMux(false))
 	go g.acceptHTTP2(ctx)
-	if g.h3Enabled {
-		g.Logger.Info("enabling http3 tunnel gateway support")
-		go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
-		go g.h3ApexServer.ServeListener(g.http3ApexAcceptor)
-		go g.acceptHTTP3(ctx)
-	}
+
+	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
+	go g.h3ApexServer.ServeListener(g.http3ApexAcceptor)
+	go g.acceptHTTP3(ctx)
 }
 
 func (g *Gateway) acceptHTTP2(ctx context.Context) {

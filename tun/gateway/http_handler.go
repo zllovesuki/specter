@@ -60,9 +60,7 @@ func (g *Gateway) httpHandler(h3 bool) http.Handler {
 		ErrorHandler: g.errorHandler(h3),
 		ModifyResponse: func(r *http.Response) error {
 			r.Header.Del("alt-svc")
-			if !h3 && g.h3Enabled {
-				g.h3ApexServer.SetQuicHeaders(r.Header)
-			}
+			g.appendHeaders(h3)(r.Header)
 			return nil
 		},
 		ErrorLog: func() *log.Logger {
@@ -72,22 +70,21 @@ func (g *Gateway) httpHandler(h3 bool) http.Handler {
 	}
 }
 
-func (g *Gateway) errorHandler(h3 bool) func(rw http.ResponseWriter, r *http.Request, e error) {
-	return func(rw http.ResponseWriter, r *http.Request, e error) {
-		if !h3 && g.h3Enabled {
-			g.h3ApexServer.SetQuicHeaders(rw.Header())
-		}
+func (g *Gateway) errorHandler(h3 bool) func(w http.ResponseWriter, r *http.Request, e error) {
+	return func(w http.ResponseWriter, r *http.Request, e error) {
+		g.appendHeaders(h3)(w.Header())
+
 		if errors.Is(e, tun.ErrDestinationNotFound) {
-			rw.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(rw, "Destination %s not found on the Chord network.", r.URL.Hostname())
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.URL.Hostname())
 			return
 		}
 
 		g.Logger.Debug("forwarding http/https request", zap.Error(e))
 
 		if tun.IsTimeout(e) {
-			rw.WriteHeader(http.StatusGatewayTimeout)
-			fmt.Fprintf(rw, "Destination %s is taking too long to respond.", r.URL.Hostname())
+			w.WriteHeader(http.StatusGatewayTimeout)
+			fmt.Fprintf(w, "Destination %s is taking too long to respond.", r.URL.Hostname())
 			return
 		}
 		if errors.Is(e, context.Canceled) {
@@ -96,7 +93,7 @@ func (g *Gateway) errorHandler(h3 bool) func(rw http.ResponseWriter, r *http.Req
 		}
 
 		g.Logger.Error("forwarding to client", zap.Error(e))
-		rw.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprint(rw, "An unexpected error has occurred while attempting to forward to destination.")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
 	}
 }
