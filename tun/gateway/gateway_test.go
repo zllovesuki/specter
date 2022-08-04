@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/gateway"
 	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
@@ -74,11 +75,13 @@ func getH2Listener(as *require.Assertions) (net.Listener, int) {
 }
 
 func getH3Listener(as *require.Assertions, port int) quic.EarlyListener {
-	l, err := quic.ListenAddrEarly(fmt.Sprintf("127.0.0.1:%d", port), generateTLSConfig([]string{
-		"h3",
-		"h3-29",
+	ss := generateTLSConfig([]string{})
+	cfg := cipher.GetGatewayHTTP3Config(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &ss.Certificates[0], nil
+	}, []string{
 		tun.ALPN(protocol.Link_TCP),
-	}), nil)
+	})
+	l, err := quic.ListenAddrEarly(fmt.Sprintf("127.0.0.1:%d", port), cfg, nil)
 	as.NoError(err)
 
 	return l
@@ -526,6 +529,36 @@ func TestH3TCPFound(t *testing.T) {
 	n, err = io.ReadFull(stream, buf)
 	as.NoError(err)
 	as.Equal(bufLength, n)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH2RejectALPN(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	dialer := getDialer("h3", testHost)
+	_, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	as.Error(err)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestH3RejectALPN(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	dial := getQuicDialer(tun.ALPN(protocol.Link_HTTP2), testHost)
+	_, err := dial(context.Background(), fmt.Sprintf("127.0.0.1:%d", port))
+	as.Error(err)
 
 	mockS.AssertExpectations(t)
 }

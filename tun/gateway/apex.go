@@ -4,13 +4,20 @@ import (
 	_ "embed"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"text/template"
 
 	"kon.nect.sh/specter/spec/gateway"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 //go:embed index.html
 var index string
+
+//go:embed quic.png
+var quicPng []byte
 
 var view = template.Must(template.New("index").Parse(index))
 
@@ -35,4 +42,17 @@ func (a *apexServer) handleLookup(w http.ResponseWriter, r *http.Request) {
 		Address: a.rootDomain,
 		Port:    a.clientPort,
 	})
+}
+
+func (a *apexServer) handleLogo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Length", strconv.Itoa(len(quicPng)))
+	w.Write(quicPng)
+}
+
+func (a *apexServer) Mount(r *chi.Mux) {
+	r.Get("/", a.handleRoot)
+	r.Get("/lookup", a.handleLookup)
+	r.Get("/quic.png", a.handleLogo)
+	r.Mount("/debug", middleware.Profiler())
 }
