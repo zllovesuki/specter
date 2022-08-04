@@ -256,10 +256,7 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_UNKNOWN),
 	})
 
-	// TODO: figure out a way to not hard code these
-	gwH3TLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
-		"h3",
-		"h3-29",
+	gwH3TLSConf := cipher.GetGatewayHTTP3Config(certProvider.GetCertificate, []string{
 		tun.ALPN(protocol.Link_TCP),
 	})
 
@@ -270,8 +267,7 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	defer gwH2Listener.Close()
 
-	// TODO: investigate why alt-svc is broken (cannot upgrade)
-	gwH3Listener, err := quic.ListenAddrEarly(ctx.String("listen-gateway"), gwH3TLSConf, nil)
+	gwH3Listener, err := quic.ListenAddrEarly(ctx.String("listen-gateway"), gwH3TLSConf, &quic.Config{})
 	if err != nil {
 		return fmt.Errorf("setting up gateway http3 listener: %w", err)
 	}

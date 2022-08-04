@@ -14,7 +14,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"go.uber.org/zap"
@@ -100,9 +99,7 @@ func (g *Gateway) apexMux(h3 bool) http.Handler {
 			})
 		})
 	}
-	r.Get("/", g.apexServer.handleRoot)
-	r.Get("/lookup", g.apexServer.handleLookup)
-	r.Mount("/debug", middleware.Profiler())
+	g.apexServer.Mount(r)
 	return r
 }
 
@@ -150,12 +147,14 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 	case <-hsCtx.Done():
 	}
 
+	logger := g.Logger.With(zap.Bool("via-quic", true))
+
 	cs := conn.ConnectionState().TLS
 
 	switch cs.ServerName {
 	case g.RootDomain:
+		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
 		g.http3ApexAcceptor.Conn <- conn
-		return
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
@@ -165,10 +164,11 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 				if err != nil {
 					return
 				}
-				g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName), zap.Bool("via-quic", true))
+				logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
 				go g.handleH3Stream(ctx, cs.ServerName, stream)
 			}
 		default:
+			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.http3TunnelAcceptor.Conn <- conn
 		}
 	}
@@ -176,10 +176,11 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 
 func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	var err error
+	logger := g.Logger.With(zap.Bool("via-quic", false))
 
 	defer func() {
 		if err != nil {
-			g.Logger.Debug("handle connection failure", zap.Error(err), zap.Bool("via-quic", false))
+			logger.Debug("handle connection failure", zap.Error(err))
 			conn.Close()
 		}
 	}()
@@ -196,16 +197,17 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 
 	switch cs.ServerName {
 	case g.RootDomain:
+		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
 		g.http2ApexAcceptor.Conn <- conn
-		return
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
-		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
-			g.http2TunnelAcceptor.Conn <- conn
 		case tun.ALPN(protocol.Link_TCP):
-			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName), zap.Bool("via-quic", false))
+			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
 			err = g.forwardTCP(ctx, cs.ServerName, conn)
+		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
+			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
+			g.http2TunnelAcceptor.Conn <- conn
 		default:
 			err = fmt.Errorf("unknown alpn proposal: %s", cs.NegotiatedProtocol)
 		}

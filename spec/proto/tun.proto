@@ -43,7 +43,7 @@ message Link {
 
         HTTP2 = 9 [(alpn_name) = "h2"];
         HTTP = 10 [(alpn_name) = "http/1.1"];
-        TCP = 11 [(alpn_name) = "tcp"];
+        TCP = 11 [(alpn_name) = "specter-tcp/1"];
     }
 
     ALPN alpn = 1;
