@@ -56,6 +56,16 @@ func WaitForCondition(eval func() bool, interval time.Duration, timeout time.Dur
 	}
 }
 
+func waitRing(as *require.Assertions, node *LocalNode) {
+	as.NoError(WaitForCondition(func() bool {
+		ring := node.RingTrace()
+		if !strings.HasSuffix(ring, "error") && ring != "unstable" && node.getPredecessor() != nil {
+			return true
+		}
+		return false
+	}, waitInterval, time.Second*5))
+}
+
 func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
@@ -70,13 +80,7 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	}
 
 	// wait until the ring is stablized before we ring check
-	as.NoError(WaitForCondition(func() bool {
-		ring := nodes[0].RingTrace()
-		if !strings.HasSuffix(ring, "error") && ring != "unstable" && nodes[0].getPredecessor() != nil {
-			return true
-		}
-		return false
-	}, waitInterval, time.Second*5))
+	waitRing(as, nodes[0])
 
 	RingCheck(as, nodes, true)
 

@@ -139,26 +139,27 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 }
 
-// Even with 400 keys we could still run into the issues of
-// all the keys fall into just 1 node and when new node joins,
-// no keys will be transferred (see line denoted #OFFEND below).
 func TestKeyTransferIn(t *testing.T) {
 	as := require.New(t)
 
-	numNodes := 1
-	nodes, done := makeRing(as, numNodes)
-	defer done()
+	seedCfg := devConfig(as)
+	seedCfg.Identity.Id = (1 << chord.MaxFingerEntries) / 2 // halfway
+	seed := NewLocalNode(seedCfg)
+	as.NoError(seed.Create())
+	defer seed.Stop()
+	waitRing(as, seed)
 
 	keys, values := makeKV(400, 8)
 
 	for i := range keys {
-		err := nodes[0].Put(keys[i], values[i])
+		err := seed.Put(keys[i], values[i])
 		as.NoError(err)
 	}
 
 	n1 := NewLocalNode(devConfig(as))
-	as.NoError(n1.Join(nodes[0]))
+	as.NoError(n1.Join(seed))
 	defer n1.Stop()
+	waitRing(as, n1)
 
 	<-time.After(waitInterval * 2)
 
@@ -169,22 +170,21 @@ func TestKeyTransferIn(t *testing.T) {
 		as.Greater(len(val.GetValue()), 0)
 	}
 
-	fsck(as, []*LocalNode{n1, nodes[0]})
+	fsck(as, []*LocalNode{n1, seed})
 
 	n2 := NewLocalNode(devConfig(as))
-	as.NoError(n2.Join(nodes[0]))
+	as.NoError(n2.Join(seed))
 	defer n2.Stop()
-
-	<-time.After(waitInterval * 2)
+	waitRing(as, n2)
 
 	keys = n2.RangeKeys(0, 0)
-	as.Greater(len(keys), 0) // #OFFEND
+	as.Greater(len(keys), 0)
 	vals = n2.Export(keys)
 	for _, val := range vals {
 		as.Greater(len(val.GetValue()), 0)
 	}
 
-	fsck(as, []*LocalNode{n2, n1, nodes[0]})
+	fsck(as, []*LocalNode{n2, n1, seed})
 }
 
 type concurrentTest struct {
