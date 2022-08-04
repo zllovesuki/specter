@@ -309,7 +309,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
-	stream, err := q.OpenStreamSync(openCtx)
+	stream, err := q.AcceptStream(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
-	stream, err := q.AcceptStream(openCtx)
+	stream, err := q.OpenStreamSync(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -370,18 +370,11 @@ func (t *QUIC) background(ctx context.Context) {
 	go t.reaper(ctx)
 }
 
-func (t *QUIC) Accept(ctx context.Context) error {
-	l, err := quic.ListenAddr(t.Endpoint.GetAddress(), t.ServerTLS, quicConfig)
-	if err != nil {
-		return err
-	}
-
+func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListener) error {
+	t.Logger.Info("Accepting connections", zap.String("listen", listener.Addr().String()))
 	t.background(ctx)
-
-	t.Logger.Info("Accepting connections", zap.String("listen", t.Endpoint.GetAddress()))
-
 	for {
-		q, err := l.Accept(ctx)
+		q, err := listener.Accept(ctx)
 		if err != nil {
 			return err
 		}
@@ -391,6 +384,17 @@ func (t *QUIC) Accept(ctx context.Context) error {
 			}
 		}(q)
 	}
+}
+
+func (t *QUIC) Accept(ctx context.Context) error {
+	if t.ServerTLS == nil {
+		return fmt.Errorf("missing ServerTLS")
+	}
+	l, err := quic.ListenAddrEarly(t.Endpoint.GetAddress(), t.ServerTLS, quicConfig)
+	if err != nil {
+		return err
+	}
+	return t.AcceptWithListener(ctx, l)
 }
 
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {

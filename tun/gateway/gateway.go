@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/spec/acceptor"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
@@ -26,16 +27,15 @@ type GatewayConfig struct {
 	H3Listener  quic.EarlyListener
 	RootDomain  string
 	GatewayPort int
-	ClientPort  int
 }
 
 type Gateway struct {
 	GatewayConfig
-	http2TunnelAcceptor *tun.HTTP2Acceptor
-	http3TunnelAcceptor *tun.HTTP3Acceptor
+	http2TunnelAcceptor *acceptor.HTTP2Acceptor
+	http3TunnelAcceptor *acceptor.HTTP3Acceptor
 
-	http2ApexAcceptor *tun.HTTP2Acceptor
-	http3ApexAcceptor *tun.HTTP3Acceptor
+	http2ApexAcceptor *acceptor.HTTP2Acceptor
+	http3ApexAcceptor *acceptor.HTTP3Acceptor
 
 	apexServer     *apexServer
 	h3ApexServer   *http3.Server
@@ -44,26 +44,13 @@ type Gateway struct {
 
 func New(conf GatewayConfig) (*Gateway, error) {
 	g := &Gateway{
-		GatewayConfig: conf,
-		http2TunnelAcceptor: &tun.HTTP2Acceptor{
-			Parent: conf.H2Listener,
-			Conn:   make(chan net.Conn, 16),
-		},
-		http3TunnelAcceptor: &tun.HTTP3Acceptor{
-			Parent: conf.H3Listener,
-			Conn:   make(chan quic.EarlyConnection, 16),
-		},
-		http2ApexAcceptor: &tun.HTTP2Acceptor{
-			Parent: conf.H2Listener,
-			Conn:   make(chan net.Conn, 16),
-		},
-		http3ApexAcceptor: &tun.HTTP3Acceptor{
-			Parent: conf.H3Listener,
-			Conn:   make(chan quic.EarlyConnection, 16),
-		},
+		GatewayConfig:       conf,
+		http2TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
+		http2ApexAcceptor:   acceptor.NewH2Acceptor(conf.H2Listener),
+		http3TunnelAcceptor: acceptor.NewH3Acceptor(conf.H3Listener),
+		http3ApexAcceptor:   acceptor.NewH3Acceptor(conf.H3Listener),
 		apexServer: &apexServer{
 			rootDomain: conf.RootDomain,
-			clientPort: conf.ClientPort,
 		},
 	}
 	g.h3ApexServer = &http3.Server{
@@ -73,7 +60,8 @@ func New(conf GatewayConfig) (*Gateway, error) {
 			KeepAlivePeriod:      time.Second * 30,
 			MaxIdleTimeout:       time.Second * 60,
 		},
-		Handler: g.apexMux(true),
+		EnableDatagrams: false,
+		Handler:         g.apexMux(true),
 	}
 	g.h3TunnelServer = &http3.Server{
 		Port: conf.GatewayPort,
@@ -82,7 +70,8 @@ func New(conf GatewayConfig) (*Gateway, error) {
 			KeepAlivePeriod:      time.Second * 30,
 			MaxIdleTimeout:       time.Second * 60,
 		},
-		Handler: g.httpHandler(true),
+		EnableDatagrams: false,
+		Handler:         g.httpHandler(true),
 	}
 	return g, nil
 }
@@ -133,15 +122,6 @@ func (g *Gateway) acceptHTTP3(ctx context.Context) {
 }
 
 func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnection) {
-	hsCtx := conn.HandshakeComplete()
-	select {
-	case <-time.After(time.Second):
-		return
-	case <-ctx.Done():
-		return
-	case <-hsCtx.Done():
-	}
-
 	cs := conn.ConnectionState().TLS
 	logger := g.Logger.With(zap.Bool("via-quic", true), zap.String("proto", cs.NegotiatedProtocol))
 

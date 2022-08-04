@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/rpc"
+	"kon.nect.sh/specter/spec/acceptor"
 	"kon.nect.sh/specter/spec/protocol"
 	rpcSpec "kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -129,7 +130,7 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	proxy.ErrorLog = zap.NewStdLog(c.logger)
 
 	httpCh := make(chan net.Conn, 32)
-	accepter := &tun.HTTP2Acceptor{
+	accepter := &acceptor.HTTP2Acceptor{
 		Conn: httpCh,
 	}
 	forwarder := &http.Server{
