@@ -24,7 +24,7 @@ services:
       - "1113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
-    command: --verbose server --cert-dir /certs --chord seed:1111 --gateway seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
+    command: --verbose server --cert-dir /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
     image: specter
@@ -34,7 +34,7 @@ services:
       - "2113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
-    command: --verbose server --cert-dir /certs --chord srva:1111 --gateway srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
+    command: --verbose server --cert-dir /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter
@@ -44,7 +44,7 @@ services:
       - "3113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
-    command: --verbose server --cert-dir /certs --chord srvb:1111 --gateway srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
+    command: --verbose server --cert-dir /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   # srvc:
   #   image: specter
@@ -54,7 +54,7 @@ services:
   #     - "4113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs:ro
-  #   command: --verbose server --cert-dir /certs --chord srvc:1111 --gateway srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
+  #   command: --verbose server --cert-dir /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   # srvd:
   #   image: specter
@@ -64,4 +64,4 @@ services:
   #     - "5113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs:ro
-  #   command: --verbose server --cert-dir /certs --chord srvd:1111 --gateway srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1111
+  #   command: --verbose server --cert-dir /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113

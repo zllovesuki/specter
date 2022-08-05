@@ -122,12 +122,12 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 	h2, port := getH2Listener(as)
 
 	ss := generateTLSConfig([]string{})
-	alpnMux, err := overlay.NewMux(logger, fmt.Sprintf("127.0.0.1:%d", port), func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return &ss.Certificates[0], nil
-	})
+	alpnMux, err := overlay.NewMux(logger, fmt.Sprintf("127.0.0.1:%d", port))
 	as.NoError(err)
 
-	h3 := alpnMux.For(append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+	h3 := alpnMux.With(cipher.GetGatewayTLSConfig(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &ss.Certificates[0], nil
+	}, nil), append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
 
 	mockS := new(mocks.TunServer)
 
@@ -145,7 +145,7 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go g.Start(ctx)
-	go alpnMux.Aceept(ctx)
+	go alpnMux.Accept(ctx)
 
 	return port, mockS, func() {
 		cancel()

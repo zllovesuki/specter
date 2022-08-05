@@ -69,7 +69,7 @@ func makeSKey(peer *protocol.Node) string {
 	}
 }
 
-func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, error) {
+func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
 	qKey := makeQKey(peer)
 
 	rUnlock := t.qMu.RLock(qKey)
@@ -89,7 +89,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.Connection, 
 	dialCtx, dialCancel := context.WithTimeout(ctx, CONNECT_TIMEOUT)
 	defer dialCancel()
 
-	q, err := quic.DialAddrContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
+	q, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 	return fmt.Errorf("peer %s is not registered in transport", qKey)
 }
 
-func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.Stream, dir string) (*nodeConnection, bool, error) {
+func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s quic.Stream, dir string) (*nodeConnection, bool, error) {
 	rr := &protocol.Connection{
 		Identity: t.Endpoint,
 	}
@@ -305,7 +305,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.Connection, s quic.St
 	}, false, nil
 }
 
-func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Connection, error) {
+func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
@@ -331,7 +331,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.Connection) (quic.Conn
 	return c.quic, nil
 }
 
-func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Connection, error) {
+func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
 	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
 	defer openCancel()
 
@@ -357,7 +357,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.Connection) (quic.Conn
 	return c.quic, nil
 }
 
-func (t *QUIC) handlePeer(ctx context.Context, q quic.Connection, peer *protocol.Node, dir string) {
+func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *protocol.Node, dir string) {
 	t.Logger.Debug("Starting goroutines to handle incoming streams and datagrams", zap.String("direction", dir), zap.String("key", makeQKey(peer)))
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
@@ -378,7 +378,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 		if err != nil {
 			return err
 		}
-		go func(prev quic.Connection) {
+		go func(prev quic.EarlyConnection) {
 			if _, err := t.handleIncoming(ctx, prev); err != nil {
 				t.Logger.Error("incoming connection reuse error", zap.Error(err))
 			}
