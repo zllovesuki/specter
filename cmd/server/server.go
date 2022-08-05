@@ -54,17 +54,10 @@ var Cmd = &cli.Command{
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:        "listen-chord",
-			Aliases:     []string{"chord"},
-			DefaultText: "192.168.2.1:993",
-			Usage:       "address and port to listen for inter-specter server connections. This port will serve UDP only",
-			Required:    true,
-		},
-		&cli.StringFlag{
-			Name:        "listen-gateway",
-			Aliases:     []string{"gateway"},
-			DefaultText: "192.168.2.1:443",
-			Usage:       "address and port to listen for specter client and gateway connections. This port will serve both TCP and UDP",
+			Name:        "listen",
+			Aliases:     []string{"l"},
+			DefaultText: fmt.Sprintf("%s:443", GetOutboundIP().String()),
+			Usage:       "address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP",
 			Required:    true,
 		},
 		&cli.StringFlag{
@@ -215,15 +208,16 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+	addr := ctx.String("listen")
 
 	// TODO: verify they are not 0.0.0.0 or ::0
 	chordIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: ctx.String("listen-chord"),
+		Address: addr,
 	}
 	serverIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: ctx.String("listen-gateway"),
+		Address: addr,
 	}
 
 	bundle, err := certLoader(ctx.Path("cert-dir"))
@@ -250,37 +244,37 @@ func cmdServer(ctx *cli.Context) error {
 	muxLogger := logger.With(zap.String("component", "alpnMux"))
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	gwH2Listener, err := tls.Listen("tcp", ctx.String("listen-gateway"), gwH2TLSConf)
+	gwH2Listener, err := tls.Listen("tcp", addr, gwH2TLSConf)
 	if err != nil {
-		return fmt.Errorf("setting up gateway http2 listener: %w", err)
+		return fmt.Errorf("error setting up gateway http2 listener: %w", err)
 	}
 	defer gwH2Listener.Close()
 
-	alpnMux, err := overlay.NewMux(muxLogger, ctx.String("listen-gateway"), certProvider.GetCertificate)
+	alpnMux, err := overlay.NewMux(muxLogger, addr)
 	if err != nil {
-		return fmt.Errorf("setting up quic/http3 alpn muxer: %w", err)
+		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}
 	defer alpnMux.Close()
 
-	// handles h3, h3-20, and specter-tcp/1
-	gwH3Listener := alpnMux.For(append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+	// handles h3, h3-29, and specter-tcp/1
+	gwH3Listener := alpnMux.With(cipher.GetGatewayTLSConfig(certProvider.GetCertificate, nil), append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
 
 	// handles specter-tun/1
-	clientListner := alpnMux.For(tun.ALPN(protocol.Link_SPECTER_TUN))
+	clientListener := alpnMux.With(cipher.GetGatewayTLSConfig(certProvider.GetCertificate, nil), tun.ALPN(protocol.Link_SPECTER_TUN))
+
+	// handles specter-chord/1
+	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
 
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:    chordLogger,
 		Endpoint:  chordIdentity,
-		ServerTLS: chordTLS,
 		ClientTLS: chordTLS,
 	})
 	defer chordTransport.Stop()
 
 	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:    tunLogger,
-		Endpoint:  serverIdentity,
-		ServerTLS: nil,
-		ClientTLS: nil,
+		Logger:   tunLogger,
+		Endpoint: serverIdentity,
 	})
 	defer clientTransport.Stop()
 
@@ -332,10 +326,10 @@ func cmdServer(ctx *cli.Context) error {
 
 	certProvider.Initialize(chordNode)
 
-	go chordTransport.Accept(ctx.Context)
+	go alpnMux.Accept(ctx.Context)
+	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 	go chordNode.HandleRPC(ctx.Context)
-	go alpnMux.Aceept(ctx.Context)
-	go clientTransport.AcceptWithListener(ctx.Context, clientListner)
+	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
 	go tunServer.HandleRPC(ctx.Context)
 	go tunServer.Accept(ctx.Context)
 	go gw.Start(ctx.Context)
@@ -358,3 +352,15 @@ func (a *ACMEProvider) Initialize(node chordSpec.VNode) {
 }
 
 var _ cipher.CertProvider = (*ACMEProvider)(nil)
+
+func GetOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "1.1.1.1:53")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
+}
