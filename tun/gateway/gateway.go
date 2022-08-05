@@ -100,6 +100,13 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.acceptHTTP3(ctx)
 }
 
+func (g *Gateway) Close() {
+	g.h3ApexServer.Close()
+	g.h3TunnelServer.Close()
+	g.http2ApexAcceptor.Close()
+	g.http2TunnelAcceptor.Close()
+}
+
 func (g *Gateway) acceptHTTP2(ctx context.Context) {
 	for {
 		conn, err := g.H2Listener.Accept()

@@ -1,8 +1,6 @@
 package gateway
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -28,6 +26,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 const (
@@ -152,6 +152,7 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		h2.Close()
 		h3.Close()
 		alpnMux.Close()
+		g.Close()
 	}
 }
 
@@ -251,6 +252,34 @@ func TestH3HTTPNotFound(t *testing.T) {
 	mockS.AssertExpectations(t)
 }
 
+type miniClient struct {
+	c chan net.Conn
+	net.Listener
+}
+
+func (b *miniClient) Accept() (net.Conn, error) {
+	c := <-b.c
+	if c == nil {
+		return nil, net.ErrClosed
+	}
+	return c, nil
+}
+
+func (b *miniClient) Close() error {
+	return nil
+}
+
+func serveMiniClient(ch chan net.Conn, resp string) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(resp))
+	})
+	h2s := &http2.Server{}
+	h1 := &http.Server{
+		Handler: h2c.NewHandler(h, h2s),
+	}
+	h1.Serve(&miniClient{c: ch})
+}
+
 func TestH2HTTPFound(t *testing.T) {
 	as := require.New(t)
 
@@ -261,19 +290,10 @@ func TestH2HTTPFound(t *testing.T) {
 	testResponse := "this is fine"
 
 	c1, c2 := net.Pipe()
-
-	go func() {
-		rd := bufio.NewReader(c2)
-		_, err := http.ReadRequest(rd)
-		as.NoError(err)
-		resp := &http.Response{
-			StatusCode:    200,
-			Body:          io.NopCloser(bytes.NewBufferString(testResponse)),
-			ContentLength: int64(len(testResponse)),
-		}
-		err = resp.Write(c2)
-		as.NoError(err)
-	}()
+	ch := make(chan net.Conn, 1)
+	go serveMiniClient(ch, testResponse)
+	defer close(ch)
+	ch <- c2
 
 	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
@@ -304,19 +324,10 @@ func TestH3HTTPFound(t *testing.T) {
 	testResponse := "this is fine from h3"
 
 	c1, c2 := net.Pipe()
-
-	go func() {
-		rd := bufio.NewReader(c2)
-		_, err := http.ReadRequest(rd)
-		as.NoError(err)
-		resp := &http.Response{
-			StatusCode:    200,
-			Body:          io.NopCloser(bytes.NewBufferString(testResponse)),
-			ContentLength: int64(len(testResponse)),
-		}
-		err = resp.Write(c2)
-		as.NoError(err)
-	}()
+	ch := make(chan net.Conn, 1)
+	go serveMiniClient(ch, testResponse)
+	defer close(ch)
+	ch <- c2
 
 	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
