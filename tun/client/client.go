@@ -18,6 +18,8 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 // Tunnel create procedure:
@@ -133,8 +135,9 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	accepter := &acceptor.HTTP2Acceptor{
 		Conn: httpCh,
 	}
+	h2s := &http2.Server{}
 	forwarder := &http.Server{
-		Handler:  proxy,
+		Handler:  h2c.NewHandler(proxy, h2s),
 		ErrorLog: zap.NewStdLog(c.logger),
 	}
 	go func() {

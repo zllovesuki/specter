@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -16,6 +17,7 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/net/http2"
 )
 
 const (
@@ -41,20 +43,17 @@ func (g *Gateway) httpHandler(h3 bool) http.Handler {
 				req.Header.Del(header)
 			}
 		},
-		Transport: &http.Transport{
-			DialContext: func(c context.Context, network, addr string) (net.Conn, error) {
+		Transport: &http2.Transport{
+			AllowHTTP:       true,
+			ReadIdleTimeout: time.Second * 30,
+			DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
 				parts := strings.SplitN(addr, ".", 2)
-				g.Logger.Debug("dialing http proxy connection to client", zap.Bool("via-quic", h3), zap.String("hostname", parts[0]), zap.String("addr", addr))
-				return g.Tun.Dial(c, &protocol.Link{
+				g.Logger.Debug("dialing to client via overlay", zap.Bool("via-quic", h3), zap.String("hostname", parts[0]), zap.String("addr", addr))
+				return g.Tun.Dial(context.Background(), &protocol.Link{
 					Alpn:     protocol.Link_HTTP,
 					Hostname: parts[0],
 				})
 			},
-			MaxConnsPerHost:       15,
-			MaxIdleConnsPerHost:   3,
-			IdleConnTimeout:       time.Minute,
-			ResponseHeaderTimeout: time.Second * 30,
-			ExpectContinueTimeout: time.Second * 3,
 		},
 		BufferPool:   NewBufferPool(bufferSize),
 		ErrorHandler: g.errorHandler(h3),
