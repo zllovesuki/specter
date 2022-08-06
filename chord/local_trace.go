@@ -2,6 +2,7 @@ package chord
 
 import (
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ func minmax(nums []int) (min, max int) {
 	return
 }
 
-func (n *LocalNode) FingerTrace() string {
+func (n *LocalNode) fingerTrace() string {
 	var sb strings.Builder
 
 	ftMap := map[uint64][]int{}
@@ -55,7 +56,7 @@ func (n *LocalNode) FingerTrace() string {
 	return sb.String()
 }
 
-func (n *LocalNode) RingTrace() string {
+func (n *LocalNode) ringTrace() string {
 	var sb strings.Builder
 	sb.WriteString(strconv.FormatUint(n.ID(), 10))
 
@@ -87,4 +88,34 @@ func (n *LocalNode) RingTrace() string {
 	}
 
 	return sb.String()
+}
+
+func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
+	pre, err := n.GetPredecessor()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error getting predecessor: %v", err)
+	}
+	succList, err := n.GetSuccessors()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error getting successor list: %v", err)
+	}
+
+	w.Header().Set("content-type", "text/plain")
+	fmt.Fprintf(w, "Predecessor: %d - %s\n", pre.ID(), pre.Identity().GetAddress())
+	fmt.Fprintf(w, "LocalNode: %d - %s\n", n.ID(), n.Identity().GetAddress())
+	fmt.Fprintf(w, "Successors: \n")
+	for _, succ := range succList {
+		fmt.Fprintf(w, "  %15d - %s\n", succ.ID(), succ.Identity().GetAddress())
+	}
+	fmt.Fprintf(w, "---\n")
+	finger := n.fingerTrace()
+	fmt.Fprintf(w, "FingerTable: \n%s\n", finger)
+	keys := n.RangeKeys(0, 0)
+	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "keys on current node:\n")
+	for _, key := range keys {
+		fmt.Fprintf(w, "  %15d - %s\n", chord.Hash(key), key)
+	}
 }

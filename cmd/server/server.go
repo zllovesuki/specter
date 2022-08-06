@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -32,10 +31,13 @@ import (
 )
 
 var Cmd = &cli.Command{
-	Name:        "server",
-	Usage:       "start an specter server on the edge",
-	Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum. ",
-	ArgsUsage:   " ",
+	Name:  "server",
+	Usage: "start an specter server on the edge",
+	Description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum.
+
+	Specter server provides an internal endpoint on /_internal under apex domain. To enable internal endpoint, provide username and password 
+	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.`,
+	ArgsUsage: " ",
 	Flags: []cli.Flag{
 		&cli.PathFlag{
 			Name: "cert-dir",
@@ -45,7 +47,7 @@ var Cmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name: "join",
-			Usage: `a known specter server's listen-chord address.
+			Usage: `a known specter server's advertise address.
 			Absent of this flag will boostrap a new cluster with current node as the seed node`,
 		},
 		&cli.StringFlag{
@@ -92,6 +94,16 @@ var Cmd = &cli.Command{
 		&cli.StringFlag{
 			Name:   "cf_zone",
 			Hidden: true,
+		},
+		&cli.StringFlag{
+			Name:    "auth_user",
+			Hidden:  true,
+			EnvVars: []string{"INTERNAL_USER"},
+		},
+		&cli.StringFlag{
+			Name:    "auth_pass",
+			Hidden:  true,
+			EnvVars: []string{"INTERNAL_PASS"},
 		},
 	},
 	Before: func(ctx *cli.Context) error {
@@ -147,7 +159,7 @@ func certLoader(dir string) (*certBundle, error) {
 	for i, name := range files {
 		files[i] = filepath.Join(dir, name)
 	}
-	caCert, err := ioutil.ReadFile(files[0])
+	caCert, err := os.ReadFile(files[0])
 	if err != nil {
 		return nil, fmt.Errorf("reading ca bundle from file: %w", err)
 	}
@@ -309,12 +321,15 @@ func cmdServer(ctx *cli.Context) error {
 	// TODO: use advertise?
 	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
 	gw, err := gateway.New(gateway.GatewayConfig{
-		Logger:      gwLogger,
-		Tun:         tunServer,
-		H2Listener:  gwH2Listener,
-		H3Listener:  gwH3Listener,
-		RootDomain:  rootDomain,
-		GatewayPort: gwPort,
+		Logger:       gwLogger,
+		Tun:          tunServer,
+		H2Listener:   gwH2Listener,
+		H3Listener:   gwH3Listener,
+		StatsHandler: chordNode.StatsHandler,
+		RootDomain:   rootDomain,
+		GatewayPort:  gwPort,
+		AdminUser:    ctx.String("auth_user"),
+		AdminPass:    ctx.String("auth_pass"),
 	})
 	if err != nil {
 		return fmt.Errorf("error starting gateway server: %w", err)
