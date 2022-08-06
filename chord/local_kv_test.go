@@ -72,6 +72,32 @@ func TestKVOperation(t *testing.T) {
 			as.NoError(err)
 			as.Nil(r)
 		}
+
+		// PrefixAppend
+		rand.Read(value)
+		err = local.PrefixAppend(key, value)
+		as.NoError(err)
+		err = local.PrefixAppend(key, value)
+		as.ErrorIs(err, chord.ErrKVPrefixConflict)
+		for _, remote := range nodes {
+			// PrefixList
+			ret, err := remote.PrefixList(key)
+			as.NoError(err)
+			as.Len(ret, 1)
+			as.EqualValues(value, ret[0])
+		}
+
+		// PrefixRemove
+		err = local.PrefixRemove(key, value)
+		as.NoError(err)
+		for _, remote := range nodes {
+			// PrefixList
+			ret, err := remote.PrefixList(key)
+			as.NoError(err)
+			as.Len(ret, 0)
+		}
+		err = local.PrefixAppend(key, value)
+		as.NoError(err)
 	}
 }
 
@@ -130,12 +156,12 @@ func TestKeyTransferOut(t *testing.T) {
 	as.Len(indicies, len(leavingKeys))
 
 	for i, v := range succVals {
-		as.EqualValues(values[indicies[i]], v.GetValue())
+		as.EqualValues(values[indicies[i]], v.GetPlainValue())
 	}
 
 	preVals := predecessor.Export(leavingKeys)
 	for _, v := range preVals {
-		as.Nil(v.GetValue())
+		as.Nil(v.GetPlainValue())
 	}
 }
 
@@ -169,7 +195,7 @@ func TestKeyTransferIn(t *testing.T) {
 	as.Greater(len(keys), 0)
 	vals := n1.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val.GetValue()), 0)
+		as.Greater(len(val.GetPlainValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n1, seed})
@@ -185,7 +211,7 @@ func TestKeyTransferIn(t *testing.T) {
 	as.Greater(len(keys), 0)
 	vals = n2.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val.GetValue()), 0)
+		as.Greater(len(val.GetPlainValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n2, n1, seed})

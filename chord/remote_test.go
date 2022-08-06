@@ -76,8 +76,18 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.Delete([]byte("key"))
 	as.ErrorContains(err, e.Error())
 
+	err = r.PrefixAppend([]byte("prefix"), []byte("child"))
+	as.ErrorContains(err, e.Error())
+
+	_, err = r.PrefixList([]byte("prefix"))
+	as.ErrorContains(err, e.Error())
+
+	err = r.PrefixRemove([]byte("prefix"), []byte("child"))
+	as.ErrorContains(err, e.Error())
+
 	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
-		Value: []byte("v"),
+		PlainValue:     []byte("v"),
+		PrefixChildren: [][]byte{[]byte("c")},
 	}})
 	as.ErrorContains(err, e.Error())
 

@@ -93,6 +93,8 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrKVPendingTransfer
 	case chord.ErrNodeNotStarted.Error():
 		parsedErr = chord.ErrNodeNotStarted
+	case chord.ErrKVPrefixConflict.Error():
+		parsedErr = chord.ErrKVPrefixConflict
 	default:
 		// passthrough
 		parsedErr = err
@@ -269,6 +271,60 @@ func (n *RemoteNode) Delete(key []byte) error {
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
 		n.logger.Error("remote KV Delete RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
+func (n *RemoteNode) PrefixAppend(prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PREFIX_APPEND,
+		Key:   prefix,
+		Value: child,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixAppend RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
+func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_PREFIX_LIST,
+		Key: prefix,
+	}
+
+	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixList RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		return nil, err
+	}
+	return rResp.GetKvResponse().GetChildren(), nil
+}
+
+func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PREFIX_REMOVE,
+		Key:   prefix,
+		Value: child,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixRemove RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
 }

@@ -33,6 +33,25 @@ func (n *VNode) Delete(key []byte) error {
 	return args.Error(0)
 }
 
+func (n *VNode) PrefixAppend(prefix []byte, child []byte) error {
+	args := n.Called(prefix, child)
+	e := args.Error(0)
+	return e
+}
+
+func (n *VNode) PrefixList(prefix []byte) ([][]byte, error) {
+	args := n.Called(prefix)
+	v := args.Get(0)
+	e := args.Error(1)
+	return v.([][]byte), e
+}
+
+func (n *VNode) PrefixRemove(prefix []byte, child []byte) error {
+	args := n.Called(prefix, child)
+	e := args.Error(0)
+	return e
+}
+
 func (n *VNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	args := n.Called(keys, values)
 	e := args.Error(0)

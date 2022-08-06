@@ -132,6 +132,20 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			if err := n.Delete(kvReq.GetKey()); err != nil {
 				return nil, err
 			}
+		case protocol.KVOperation_PREFIX_APPEND:
+			if err := n.PrefixAppend(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+				return nil, err
+			}
+		case protocol.KVOperation_PREFIX_LIST:
+			val, err := n.PrefixList(kvReq.GetKey())
+			if err != nil {
+				return nil, err
+			}
+			kvResp.Children = val
+		case protocol.KVOperation_PREFIX_REMOVE:
+			if err := n.PrefixRemove(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+				return nil, err
+			}
 
 		case protocol.KVOperation_IMPORT:
 			if err := n.Import(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
