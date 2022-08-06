@@ -24,7 +24,7 @@ func minmax(nums []int) (min, max int) {
 	return
 }
 
-func (n *LocalNode) FingerTrace() string {
+func (n *LocalNode) fingerTrace() string {
 	var sb strings.Builder
 
 	ftMap := map[uint64][]int{}
@@ -56,7 +56,7 @@ func (n *LocalNode) FingerTrace() string {
 	return sb.String()
 }
 
-func (n *LocalNode) RingTrace() string {
+func (n *LocalNode) ringTrace() string {
 	var sb strings.Builder
 	sb.WriteString(strconv.FormatUint(n.ID(), 10))
 
@@ -103,7 +103,7 @@ func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("content-type", "text/plain")
-	finger := n.FingerTrace()
+	finger := n.fingerTrace()
 	keys := n.RangeKeys(0, 0)
 	fmt.Fprintf(w, "keys on current node:\n")
 	for _, key := range keys {

@@ -58,7 +58,7 @@ func WaitForCondition(eval func() bool, interval time.Duration, timeout time.Dur
 
 func waitRing(as *require.Assertions, node *LocalNode) {
 	as.NoError(WaitForCondition(func() bool {
-		ring := node.RingTrace()
+		ring := node.ringTrace()
 		if !strings.HasSuffix(ring, "error") && ring != "unstable" && node.getPredecessor() != nil {
 			return true
 		}
@@ -102,7 +102,7 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 		as.NotNil(node.getSuccessor())
 	}
 
-	fmt.Printf("Ring: %s\n", nodes[0].RingTrace())
+	fmt.Printf("Ring: %s\n", nodes[0].ringTrace())
 
 	if len(nodes) == 1 {
 		as.Equal(nodes[0].ID(), nodes[0].getPredecessor().ID())
@@ -173,7 +173,7 @@ func TestRandomNodes(t *testing.T) {
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].Load().(*atomicVNode).Node.ID())
-		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
+		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }
 
@@ -189,6 +189,6 @@ func TestLotsOfNodes(t *testing.T) {
 
 	for i := 0; i < num; i++ {
 		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].Load().(*atomicVNode).Node.ID())
-		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].FingerTrace())
+		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }
