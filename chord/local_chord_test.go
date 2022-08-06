@@ -66,6 +66,19 @@ func waitRing(as *require.Assertions, node *LocalNode) {
 	}, waitInterval, time.Second*5))
 }
 
+// it looks like a race condition in macos runner but it is impossible to be a race condition
+// -- famous last words
+func waitRingLong(as *require.Assertions, nodes []*LocalNode) {
+	as.NoError(WaitForCondition(func() bool {
+		for _, node := range nodes {
+			if node.getPredecessor() == nil {
+				return false
+			}
+		}
+		return true
+	}, waitInterval, time.Second*5))
+}
+
 func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
@@ -81,6 +94,7 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 
 	// wait until the ring is stablized before we ring check
 	waitRing(as, nodes[0])
+	waitRingLong(as, nodes)
 
 	RingCheck(as, nodes, true)
 
@@ -156,7 +170,8 @@ func TestJoin(t *testing.T) {
 	as.NoError(n1.Join(n2))
 	defer n1.Stop()
 
-	<-time.After(waitInterval)
+	waitRing(as, n2)
+	waitRingLong(as, []*LocalNode{n1, n2})
 
 	RingCheck(as, []*LocalNode{
 		n1,
