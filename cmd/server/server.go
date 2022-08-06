@@ -54,17 +54,24 @@ var Cmd = &cli.Command{
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:        "listen",
-			Aliases:     []string{"l"},
+			Name:        "listen-addr",
+			Aliases:     []string{"listen"},
 			DefaultText: fmt.Sprintf("%s:443", GetOutboundIP().String()),
 			Usage:       "address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP",
 			Required:    true,
 		},
 		&cli.StringFlag{
+			Name:        "advertise-addr",
+			Aliases:     []string{"advertise"},
+			DefaultText: "same as listen-addr",
+			Usage:       "address and port to advertise to specter servers and clients to connect to",
+		},
+		&cli.StringFlag{
 			Name:        "challenger",
 			DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
 			Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challanges
-			Absent of this flag will serve self-signed certificate`,
+			Absent of this flag will serve self-signed certificate.
+			Alternatively, you can set API token via the environment variable CF_API_TOKEN`,
 		},
 		&cli.StringFlag{
 			Name:        "sentry",
@@ -78,8 +85,9 @@ var Cmd = &cli.Command{
 			Hidden: true,
 		},
 		&cli.StringFlag{
-			Name:   "cf_token",
-			Hidden: true,
+			Name:    "cf_token",
+			Hidden:  true,
+			EnvVars: []string{"CF_API_TOKEN"},
 		},
 		&cli.StringFlag{
 			Name:   "cf_zone",
@@ -94,26 +102,28 @@ var Cmd = &cli.Command{
 			}
 			email := parse.User.Username()
 			if email == "" {
-				return fmt.Errorf("missing email address in dsn")
+				return fmt.Errorf("missing email address")
 			}
-			cf, ok := parse.User.Password()
-			if !ok {
-				return fmt.Errorf("missing cloudflare api token in dsn")
+			if !ctx.IsSet("cf_token") {
+				cf, ok := parse.User.Password()
+				if !ok {
+					return fmt.Errorf("missing cloudflare api token")
+				}
+				ctx.Set("cf_token", cf)
 			}
 			hosted := parse.Hostname()
 			if hosted == "" {
-				return fmt.Errorf("missing hosted zone in dsn")
+				return fmt.Errorf("missing hosted zone")
 			}
 
 			ctx.Set("email", email)
-			ctx.Set("cf_token", cf)
 			ctx.Set("cf_zone", hosted)
 
 			if ds.IsDev(cipher.CertCA) {
 				return nil
 			} else {
 				p := &cloudflare.Provider{
-					APIToken: cf,
+					APIToken: ctx.String("cf_token"),
 					RootZone: hosted,
 				}
 				if err := p.Validate(); err != nil {
@@ -208,16 +218,19 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
-	addr := ctx.String("listen")
+	addr := ctx.String("listen-addr")
+	advertise := addr
+	if ctx.IsSet("advertise-addr") {
+		advertise = ctx.String("advertise-addr")
+	}
 
-	// TODO: verify they are not 0.0.0.0 or ::0
 	chordIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: addr,
+		Address: advertise,
 	}
 	serverIdentity := &protocol.Node{
 		Id:      chordSpec.Random(),
-		Address: addr,
+		Address: advertise,
 	}
 
 	bundle, err := certLoader(ctx.Path("cert-dir"))
@@ -231,7 +244,7 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
-	gwH2TLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
+	gwTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
 		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
@@ -244,7 +257,7 @@ func cmdServer(ctx *cli.Context) error {
 	muxLogger := logger.With(zap.String("component", "alpnMux"))
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	gwH2Listener, err := tls.Listen("tcp", addr, gwH2TLSConf)
+	gwH2Listener, err := tls.Listen("tcp", addr, gwTLSConf)
 	if err != nil {
 		return fmt.Errorf("error setting up gateway http2 listener: %w", err)
 	}
@@ -257,10 +270,10 @@ func cmdServer(ctx *cli.Context) error {
 	defer alpnMux.Close()
 
 	// handles h3, h3-29, and specter-tcp/1
-	gwH3Listener := alpnMux.With(cipher.GetGatewayTLSConfig(certProvider.GetCertificate, nil), append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+	gwH3Listener := alpnMux.With(gwTLSConf, append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
 
 	// handles specter-tun/1
-	clientListener := alpnMux.With(cipher.GetGatewayTLSConfig(certProvider.GetCertificate, nil), tun.ALPN(protocol.Link_SPECTER_TUN))
+	clientListener := alpnMux.With(gwTLSConf, tun.ALPN(protocol.Link_SPECTER_TUN))
 
 	// handles specter-chord/1
 	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
@@ -271,12 +284,6 @@ func cmdServer(ctx *cli.Context) error {
 		ClientTLS: chordTLS,
 	})
 	defer chordTransport.Stop()
-
-	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:   tunLogger,
-		Endpoint: serverIdentity,
-	})
-	defer clientTransport.Stop()
 
 	chordNode := chord.NewLocalNode(chord.NodeConfig{
 		Logger:                   chordLogger,
@@ -289,12 +296,18 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordNode.Stop()
 
+	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
+		Logger:   tunLogger,
+		Endpoint: serverIdentity,
+	})
+	defer clientTransport.Stop()
+
 	rootDomain := ctx.String("apex")
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
+	// TODO: use advertise?
 	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
-
 	gw, err := gateway.New(gateway.GatewayConfig{
 		Logger:      gwLogger,
 		Tun:         tunServer,
@@ -306,6 +319,7 @@ func cmdServer(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("error starting gateway server: %w", err)
 	}
+	defer gw.Close()
 
 	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {
