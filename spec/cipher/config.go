@@ -1,6 +1,7 @@
 package cipher
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -13,7 +14,7 @@ var (
 // we will require the use of ECDSA certificates for Chord
 func GetPeerTLSConfig(ca *x509.CertPool, node tls.Certificate, protos []string) *tls.Config {
 	return &tls.Config{
-		Rand:         rand.Reader,
+		Rand:         bufio.NewReader(rand.Reader),
 		RootCAs:      ca,
 		ClientCAs:    ca,
 		Certificates: []tls.Certificate{node},
@@ -36,7 +37,7 @@ func GetPeerTLSConfig(ca *x509.CertPool, node tls.Certificate, protos []string) 
 // ciphers that do not do elliptic curve DH
 func GetGatewayTLSConfig(provider CertProviderFunc, protos []string) *tls.Config {
 	return &tls.Config{
-		Rand:           rand.Reader,
+		Rand:           bufio.NewReader(rand.Reader),
 		GetCertificate: provider,
 		ClientAuth:     tls.NoClientCert,
 		NextProtos:     protos,
