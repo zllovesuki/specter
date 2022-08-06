@@ -347,18 +347,6 @@ func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error 
 	return err
 }
 
-func (n *RemoteNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	panic("Export is not a valid RPC method")
-}
-
-func (n *RemoteNode) RangeKeys(low, high uint64) [][]byte {
-	panic("RangeKeys is not a valid RPC method")
-}
-
-func (n *RemoteNode) RemoveKeys(keys [][]byte) {
-	panic("RemoveKeys is not a valid RPC method")
-}
-
 func (n *RemoteNode) Stop() {
 	n.rpc.Close()
 }

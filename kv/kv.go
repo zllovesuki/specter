@@ -17,6 +17,8 @@ type MemoryMap struct {
 	hashFn HashFn
 }
 
+var _ chord.KV = (*MemoryMap)(nil)
+
 type kvValue struct {
 	plain    atomic.Pointer[[]byte]
 	children *skipset.StringSet
@@ -34,8 +36,6 @@ func newValueFunc() *kvValue {
 	v.plain.Store(new([]byte))
 	return v
 }
-
-var _ chord.KV = (*MemoryMap)(nil)
 
 func WithHashFn(fn HashFn) *MemoryMap {
 	return &MemoryMap{
@@ -168,17 +168,4 @@ func (m *MemoryMap) RemoveKeys(keys [][]byte) {
 	for _, key := range keys {
 		m.deleteAll(key)
 	}
-}
-
-func (m *MemoryMap) Fsck(low, self uint64) bool {
-	valid := true
-
-	m.s.Range(func(id uint64, kMap *skipmap.StringMap[*kvValue]) bool {
-		if !chord.Between(low, id, self, true) && kMap.Len() > 0 {
-			valid = false
-			return false
-		}
-		return true
-	})
-	return valid
 }

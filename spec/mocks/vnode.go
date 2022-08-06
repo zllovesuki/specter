@@ -58,28 +58,6 @@ func (n *VNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	return e
 }
 
-func (n *VNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	args := n.Called(keys)
-	v := args.Get(0)
-	if v == nil {
-		return nil
-	}
-	return v.([]*protocol.KVTransfer)
-}
-
-func (n *VNode) RangeKeys(low uint64, high uint64) [][]byte {
-	args := n.Called(low, high)
-	v := args.Get(0)
-	if v == nil {
-		return nil
-	}
-	return v.([][]byte)
-}
-
-func (n *VNode) RemoveKeys(keys [][]byte) {
-	n.Called(keys)
-}
-
 func (n *VNode) ID() uint64 {
 	args := n.Called()
 	v := args.Get(0)

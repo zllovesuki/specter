@@ -109,8 +109,6 @@ func TestAllKeys(t *testing.T) {
 
 	keys := kv.RangeKeys(0, 0)
 	as.Len(keys, num)
-
-	as.True(kv.Fsck(0, 0))
 }
 
 func TestOrderedKeys(t *testing.T) {

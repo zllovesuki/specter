@@ -111,19 +111,3 @@ func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(keys, values)
 }
-
-// these operations are designed for key transfers and only used locally
-func (n *LocalNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	n.Logger.Debug("KV Export", zap.Int("num_keys", len(keys)))
-	return n.kv.Export(keys)
-}
-
-func (n *LocalNode) RangeKeys(low, high uint64) [][]byte {
-	n.Logger.Debug("KV RangeKeys", zap.Uint64("low", low), zap.Uint64("high", high))
-	return n.kv.RangeKeys(low, high)
-}
-
-func (n *LocalNode) RemoveKeys(keys [][]byte) {
-	n.Logger.Debug("KV RemoveKeys", zap.Int("num_keys", len(keys)))
-	n.kv.RemoveKeys(keys)
-}
