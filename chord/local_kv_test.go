@@ -156,7 +156,9 @@ func TestKeyTransferIn(t *testing.T) {
 		as.NoError(err)
 	}
 
-	n1 := NewLocalNode(devConfig(as))
+	n1Cfg := devConfig(as)
+	n1Cfg.Identity.Id = (1 << chord.MaxFingerEntries) / 4 // 1 quarter
+	n1 := NewLocalNode(n1Cfg)
 	as.NoError(n1.Join(seed))
 	defer n1.Stop()
 	waitRing(as, n1)
@@ -172,7 +174,9 @@ func TestKeyTransferIn(t *testing.T) {
 
 	fsck(as, []*LocalNode{n1, seed})
 
-	n2 := NewLocalNode(devConfig(as))
+	n2Cfg := devConfig(as)
+	n2Cfg.Identity.Id = ((1 << chord.MaxFingerEntries) / 4) + ((1 << chord.MaxFingerEntries) / 2) // 3 quarter
+	n2 := NewLocalNode(n2Cfg)
 	as.NoError(n2.Join(seed))
 	defer n2.Stop()
 	waitRing(as, n2)
