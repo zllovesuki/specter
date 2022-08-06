@@ -32,6 +32,7 @@ func TestH2ApexIndex(t *testing.T) {
 
 	as.Contains(string(b), testDomain)
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("false", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }
@@ -53,6 +54,7 @@ func TestH3ApexIndex(t *testing.T) {
 
 	as.Contains(string(b), testDomain)
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("true", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }

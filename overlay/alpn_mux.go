@@ -119,5 +119,5 @@ func (a *ALPNMux) handleConnection(ctx context.Context, conn quic.EarlyConnectio
 		conn.CloseWithError(404, "Unsupported protocol")
 		return
 	}
-	cfg.acceptor.Conn <- conn
+	cfg.acceptor.Handle(conn)
 }

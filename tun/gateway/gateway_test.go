@@ -185,6 +185,7 @@ func TestH2HTTPNotFound(t *testing.T) {
 
 	as.Contains(string(b), "not found")
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("false", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }
@@ -212,6 +213,7 @@ func TestH3HTTPNotFound(t *testing.T) {
 
 	as.Contains(string(b), "not found")
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("true", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }
@@ -274,6 +276,7 @@ func TestH2HTTPFound(t *testing.T) {
 
 	as.Contains(string(b), testResponse)
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("false", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }
@@ -308,6 +311,7 @@ func TestH3HTTPFound(t *testing.T) {
 
 	as.Contains(string(b), testResponse)
 	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("true", resp.Header.Get("http3"))
 
 	mockS.AssertExpectations(t)
 }
