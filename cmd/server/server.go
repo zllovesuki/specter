@@ -301,7 +301,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
-		KVProvider:               kv.WithChordHash(),
+		KVProvider:               kv.WithHashFn(chordSpec.HashString),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,

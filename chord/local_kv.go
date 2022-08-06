@@ -7,10 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func (n *LocalNode) kvMiddleware(key []byte,
+func (n *LocalNode) kvMiddleware(
+	key []byte,
 	value []byte,
-	local func(id uint64, key, value []byte) ([]byte, error),
-	remote func(succ chord.KV, key, value []byte) ([]byte, error),
+	handler func(kv chord.KV, remote bool, id uint64, key, value []byte) ([]byte, error),
 ) ([]byte, error) {
 	id := chord.Hash(key)
 	succ, err := n.FindSuccessor(id)
@@ -32,51 +32,48 @@ func (n *LocalNode) kvMiddleware(key []byte,
 			n.Logger.Debug("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 			return nil, chord.ErrKVStaleOwnership
 		}
-		return local(id, key, value)
+		return handler(n.kv, false, id, key, value)
 	}
-	return remote(succ, key, value)
+	return handler(succ, true, id, key, value)
 }
 
 func (n *LocalNode) Put(key, value []byte) error {
 	_, err := n.kvMiddleware(key, value,
-		func(id uint64, key, value []byte) ([]byte, error) {
-			n.Logger.Debug("KV Put", zap.String("key", string(key)), zap.Uint64("id", id))
-			return nil, n.kv.Put(key, value)
-		},
-		func(succ chord.KV, key, value []byte) ([]byte, error) {
-			return nil, succ.Put(key, value)
+		func(kv chord.KV, remote bool, id uint64, key, value []byte) ([]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV Put", zap.String("key", string(key)), zap.Uint64("id", id))
+			}
+			return nil, kv.Put(key, value)
 		})
 	return err
 }
 
 func (n *LocalNode) Get(key []byte) ([]byte, error) {
 	return n.kvMiddleware(key, nil,
-		func(id uint64, key, _ []byte) ([]byte, error) {
-			n.Logger.Debug("KV Get", zap.String("key", string(key)), zap.Uint64("id", id))
-			return n.kv.Get(key)
-		},
-		func(succ chord.KV, key, _ []byte) ([]byte, error) {
-			return succ.Get(key)
+		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV Get", zap.String("key", string(key)), zap.Uint64("id", id))
+			}
+			return kv.Get(key)
 		})
 }
 
 func (n *LocalNode) Delete(key []byte) error {
 	_, err := n.kvMiddleware(key, nil,
-		func(id uint64, key, _ []byte) ([]byte, error) {
-			n.Logger.Debug("KV Delete", zap.String("key", string(key)), zap.Uint64("id", id))
-			return nil, n.kv.Delete(key)
-		},
-		func(succ chord.KV, key, _ []byte) ([]byte, error) {
-			return nil, succ.Delete(key)
+		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV Delete", zap.String("key", string(key)), zap.Uint64("id", id))
+			}
+			return nil, kv.Delete(key)
 		})
 	return err
 }
 
 func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	if !n.isRunning.Load() {
 		return chord.ErrNodeGone
 	}
+	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(keys, values)
 }
 

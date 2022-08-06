@@ -1,7 +1,6 @@
 package chord
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -159,13 +158,11 @@ RETRY:
 	// no happens-before ordering can be guaranteed, which means the new predecessor of our successor
 	// may lose the ownership of our keys (as we are leaving).
 	if err := n.transferKeysDownward(succ); err != nil {
-		if errors.Is(err, chord.ErrNodeGone) {
-			if retries > 0 {
-				n.Logger.Info("Immediate successor is not responsive, retrying")
-				retries--
-				<-time.After(n.StablizeInterval * 2)
-				goto RETRY
-			}
+		if chord.ErrorIsRetryable(err) && retries > 0 {
+			n.Logger.Info("Immediate successor did not accept Import request, retrying")
+			retries--
+			<-time.After(n.StablizeInterval * 2)
+			goto RETRY
 		}
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
 	}

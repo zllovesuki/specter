@@ -234,15 +234,13 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 	keys := n.RangeKeys(0, 0)
 
-	n.Logger.Debug("keys to transfer", zap.Int("num", len(keys)))
-
 	if len(keys) == 0 {
 		return nil
 	}
 
-	values := n.Export(keys)
-
 	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
+
+	values := n.Export(keys)
 
 	// TODO: split into batches
 	if err := successor.Import(keys, values); err != nil {

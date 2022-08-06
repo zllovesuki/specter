@@ -94,7 +94,7 @@ func TestCollisionDelete(t *testing.T) {
 func TestAllKeys(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithChordHash()
+	kv := WithHashFn(chord.HashString)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
@@ -115,7 +115,7 @@ func TestAllKeys(t *testing.T) {
 func TestOrderedKeys(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithChordHash()
+	kv := WithHashFn(chord.HashString)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
@@ -140,7 +140,7 @@ func TestOrderedKeys(t *testing.T) {
 func TestLocalOperations(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithChordHash()
+	kv := WithHashFn(chord.HashString)
 
 	num := 32
 	length := 8

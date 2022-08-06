@@ -286,7 +286,7 @@ func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error 
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote KV DirectPuts RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		n.logger.Error("remote KV Import RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
 }

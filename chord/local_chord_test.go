@@ -33,7 +33,7 @@ func devConfig(as *require.Assertions) NodeConfig {
 		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
 		Identity:                 iden,
 		Transport:                new(mocks.Transport),
-		KVProvider:               kv.WithChordHash(),
+		KVProvider:               kv.WithHashFn(chord.HashString),
 		FixFingerInterval:        defaultInterval * 3,
 		StablizeInterval:         defaultInterval * 5,
 		PredecessorCheckInterval: defaultInterval * 7,

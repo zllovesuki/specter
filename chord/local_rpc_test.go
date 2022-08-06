@@ -35,7 +35,7 @@ func TestLocalRPC(t *testing.T) {
 		Logger:                   logger,
 		Identity:                 identity,
 		Transport:                tp,
-		KVProvider:               kv.WithChordHash(),
+		KVProvider:               kv.WithHashFn(chord.HashString),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,

@@ -22,13 +22,6 @@ func newValFunc() *skipmap.StringMap[[]byte] {
 
 var _ chord.KV = (*MemoryMap)(nil)
 
-func WithChordHash() *MemoryMap {
-	return &MemoryMap{
-		s:      skipmap.NewUint64[*skipmap.StringMap[[]byte]](),
-		hashFn: chord.HashString,
-	}
-}
-
 func WithHashFn(fn HashFn) *MemoryMap {
 	return &MemoryMap{
 		s:      skipmap.NewUint64[*skipmap.StringMap[[]byte]](),
