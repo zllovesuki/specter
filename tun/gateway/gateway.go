@@ -32,13 +32,17 @@ type GatewayConfig struct {
 
 type Gateway struct {
 	GatewayConfig
+	apexServer *apexServer
+	altHeaders string
+
 	http2TunnelAcceptor *acceptor.HTTP2Acceptor
 	http3TunnelAcceptor *acceptor.HTTP3Acceptor
 
 	http2ApexAcceptor *acceptor.HTTP2Acceptor
 	http3ApexAcceptor *acceptor.HTTP3Acceptor
 
-	apexServer     *apexServer
+	h2ApexServer   *http.Server
+	h2TunnelServer *http.Server
 	h3ApexServer   *http3.Server
 	h3TunnelServer *http3.Server
 }
@@ -55,26 +59,33 @@ func New(conf GatewayConfig) (*Gateway, error) {
 			rootDomain:   conf.RootDomain,
 		},
 	}
+	qCfg := &quic.Config{
+		HandshakeIdleTimeout: time.Second * 5,
+		KeepAlivePeriod:      time.Second * 30,
+		MaxIdleTimeout:       time.Second * 60,
+	}
+
+	g.h2ApexServer = &http.Server{
+		ReadHeaderTimeout: time.Second * 5,
+		Handler:           g.apexMux(false),
+	}
+	g.h2TunnelServer = &http.Server{
+		ReadHeaderTimeout: time.Second * 5,
+		Handler:           g.httpHandler(false),
+	}
 	g.h3ApexServer = &http3.Server{
-		Port: conf.GatewayPort,
-		QuicConfig: &quic.Config{
-			HandshakeIdleTimeout: time.Second * 5,
-			KeepAlivePeriod:      time.Second * 30,
-			MaxIdleTimeout:       time.Second * 60,
-		},
+		Port:            conf.GatewayPort,
+		QuicConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         g.apexMux(true),
 	}
 	g.h3TunnelServer = &http3.Server{
-		Port: conf.GatewayPort,
-		QuicConfig: &quic.Config{
-			HandshakeIdleTimeout: time.Second * 5,
-			KeepAlivePeriod:      time.Second * 30,
-			MaxIdleTimeout:       time.Second * 60,
-		},
+		Port:            conf.GatewayPort,
+		QuicConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         g.httpHandler(true),
 	}
+	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	return g, nil
 }
 
@@ -93,8 +104,8 @@ func (g *Gateway) apexMux(h3 bool) http.Handler {
 func (g *Gateway) Start(ctx context.Context) {
 	g.Logger.Info("gateway server started")
 
-	go http.Serve(g.http2TunnelAcceptor, g.httpHandler(false))
-	go http.Serve(g.http2ApexAcceptor, g.apexMux(false))
+	go g.h2TunnelServer.Serve(g.http2TunnelAcceptor)
+	go g.h2ApexServer.Serve(g.http2ApexAcceptor)
 	go g.acceptHTTP2(ctx)
 
 	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
