@@ -93,6 +93,8 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrKVPendingTransfer
 	case chord.ErrNodeNotStarted.Error():
 		parsedErr = chord.ErrNodeNotStarted
+	case chord.ErrKVPrefixConflict.Error():
+		parsedErr = chord.ErrKVPrefixConflict
 	default:
 		// passthrough
 		parsedErr = err
@@ -273,6 +275,60 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
+func (n *RemoteNode) PrefixAppend(prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PREFIX_APPEND,
+		Key:   prefix,
+		Value: child,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixAppend RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
+func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_PREFIX_LIST,
+		Key: prefix,
+	}
+
+	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixList RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		return nil, err
+	}
+	return rResp.GetKvResponse().GetChildren(), nil
+}
+
+func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PREFIX_REMOVE,
+		Key:   prefix,
+		Value: child,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV PrefixRemove RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
 func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
@@ -289,18 +345,6 @@ func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error 
 		n.logger.Error("remote KV Import RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
-}
-
-func (n *RemoteNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	panic("Export is not a valid RPC method")
-}
-
-func (n *RemoteNode) RangeKeys(low, high uint64) [][]byte {
-	panic("RangeKeys is not a valid RPC method")
-}
-
-func (n *RemoteNode) RemoveKeys(keys [][]byte) {
-	panic("RemoveKeys is not a valid RPC method")
 }
 
 func (n *RemoteNode) Stop() {

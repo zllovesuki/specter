@@ -210,14 +210,14 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 		return
 	}
 
-	keys = n.RangeKeys(low, newPredecessor.ID())
+	keys = n.kv.RangeKeys(low, newPredecessor.ID())
 	if len(keys) == 0 {
 		return nil
 	}
 
 	n.Logger.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
 
-	values = n.Export(keys)
+	values = n.kv.Export(keys)
 
 	err = newPredecessor.Import(keys, values)
 	if err != nil {
@@ -225,14 +225,14 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 	}
 
 	// TODO: remove this when we implement replication
-	n.RemoveKeys(keys)
+	n.kv.RemoveKeys(keys)
 	return
 }
 
 // transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
 // to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
-	keys := n.RangeKeys(0, 0)
+	keys := n.kv.RangeKeys(0, 0)
 
 	if len(keys) == 0 {
 		return nil
@@ -240,7 +240,7 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 
 	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
 
-	values := n.Export(keys)
+	values := n.kv.Export(keys)
 
 	// TODO: split into batches
 	if err := successor.Import(keys, values); err != nil {

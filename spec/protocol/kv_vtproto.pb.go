@@ -47,17 +47,21 @@ func (m *KVTransfer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if len(m.Value) > 0 {
-		i -= len(m.Value)
-		copy(dAtA[i:], m.Value)
-		i = encodeVarint(dAtA, i, uint64(len(m.Value)))
-		i--
-		dAtA[i] = 0x12
+	if len(m.PrefixChildren) > 0 {
+		for iNdEx := len(m.PrefixChildren) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.PrefixChildren[iNdEx])
+			copy(dAtA[i:], m.PrefixChildren[iNdEx])
+			i = encodeVarint(dAtA, i, uint64(len(m.PrefixChildren[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
 	}
-	if m.Type != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.Type))
+	if len(m.PlainValue) > 0 {
+		i -= len(m.PlainValue)
+		copy(dAtA[i:], m.PlainValue)
+		i = encodeVarint(dAtA, i, uint64(len(m.PlainValue)))
 		i--
-		dAtA[i] = 0x8
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -101,7 +105,9 @@ func (m *KVRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			i -= size
 			i = encodeVarint(dAtA, i, uint64(size))
 			i--
-			dAtA[i] = 0x5a
+			dAtA[i] = 0x1
+			i--
+			dAtA[i] = 0xa2
 		}
 	}
 	if len(m.Keys) > 0 {
@@ -174,6 +180,17 @@ func (m *KVResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			i -= size
 			i = encodeVarint(dAtA, i, uint64(size))
 			i--
+			dAtA[i] = 0x1
+			i--
+			dAtA[i] = 0xa2
+		}
+	}
+	if len(m.Children) > 0 {
+		for iNdEx := len(m.Children) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Children[iNdEx])
+			copy(dAtA[i:], m.Children[iNdEx])
+			i = encodeVarint(dAtA, i, uint64(len(m.Children[iNdEx])))
+			i--
 			dAtA[i] = 0x5a
 		}
 	}
@@ -207,12 +224,15 @@ func (m *KVTransfer) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Type != 0 {
-		n += 1 + sov(uint64(m.Type))
-	}
-	l = len(m.Value)
+	l = len(m.PlainValue)
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
+	}
+	if len(m.PrefixChildren) > 0 {
+		for _, b := range m.PrefixChildren {
+			l = len(b)
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -246,7 +266,7 @@ func (m *KVRequest) SizeVT() (n int) {
 	if len(m.Values) > 0 {
 		for _, e := range m.Values {
 			l = e.SizeVT()
-			n += 1 + l + sov(uint64(l))
+			n += 2 + l + sov(uint64(l))
 		}
 	}
 	if m.unknownFields != nil {
@@ -274,10 +294,16 @@ func (m *KVResponse) SizeVT() (n int) {
 			n += 1 + l + sov(uint64(l))
 		}
 	}
+	if len(m.Children) > 0 {
+		for _, b := range m.Children {
+			l = len(b)
+			n += 1 + l + sov(uint64(l))
+		}
+	}
 	if len(m.Values) > 0 {
 		for _, e := range m.Values {
 			l = e.SizeVT()
-			n += 1 + l + sov(uint64(l))
+			n += 2 + l + sov(uint64(l))
 		}
 	}
 	if m.unknownFields != nil {
@@ -316,27 +342,8 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
-			}
-			m.Type = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Type |= KVValueType(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PlainValue", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -363,10 +370,42 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Value = append(m.Value[:0], dAtA[iNdEx:postIndex]...)
-			if m.Value == nil {
-				m.Value = []byte{}
+			m.PlainValue = append(m.PlainValue[:0], dAtA[iNdEx:postIndex]...)
+			if m.PlainValue == nil {
+				m.PlainValue = []byte{}
 			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PrefixChildren", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PrefixChildren = append(m.PrefixChildren, make([]byte, postIndex-iNdEx))
+			copy(m.PrefixChildren[len(m.PrefixChildren)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -538,7 +577,7 @@ func (m *KVRequest) UnmarshalVT(dAtA []byte) error {
 			m.Keys = append(m.Keys, make([]byte, postIndex-iNdEx))
 			copy(m.Keys[len(m.Keys)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 11:
+		case 20:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Values", wireType)
 			}
@@ -709,6 +748,38 @@ func (m *KVResponse) UnmarshalVT(dAtA []byte) error {
 			copy(m.Keys[len(m.Keys)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Children", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Children = append(m.Children, make([]byte, postIndex-iNdEx))
+			copy(m.Children[len(m.Children)-1], dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 20:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Values", wireType)
 			}

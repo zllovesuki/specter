@@ -7,30 +7,33 @@ import (
 	"go.uber.org/zap"
 )
 
-func (n *LocalNode) kvMiddleware(
+// Workaround for https://github.com/golang/go/issues/49085#issuecomment-948108705
+func kvMiddleware[V any](
+	n *LocalNode,
 	key []byte,
 	value []byte,
-	handler func(kv chord.KV, remote bool, id uint64, key, value []byte) ([]byte, error),
-) ([]byte, error) {
+	handler func(kv chord.KV, remote bool, id uint64, key, value []byte) (V, error),
+) (V, error) {
+	var zeroV V
 	id := chord.Hash(key)
 	succ, err := n.FindSuccessor(id)
 	switch err {
 	case nil:
 	case chord.ErrNodeGone:
 		// if the remote node happens to be leaving, the caller needs to retry
-		return nil, chord.ErrKVStaleOwnership
+		return zeroV, chord.ErrKVStaleOwnership
 	default:
-		return nil, err
+		return zeroV, err
 	}
 	if succ.ID() == n.ID() {
 		if !n.surrogateMu.TryRLock() {
 			// this is to avoid caller timing out RPC call
-			return nil, chord.ErrKVPendingTransfer
+			return zeroV, chord.ErrKVPendingTransfer
 		}
 		defer n.surrogateMu.RUnlock()
 		if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
 			n.Logger.Debug("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
-			return nil, chord.ErrKVStaleOwnership
+			return zeroV, chord.ErrKVStaleOwnership
 		}
 		return handler(n.kv, false, id, key, value)
 	}
@@ -38,7 +41,7 @@ func (n *LocalNode) kvMiddleware(
 }
 
 func (n *LocalNode) Put(key, value []byte) error {
-	_, err := n.kvMiddleware(key, value,
+	_, err := kvMiddleware(n, key, value,
 		func(kv chord.KV, remote bool, id uint64, key, value []byte) ([]byte, error) {
 			if !remote {
 				n.Logger.Debug("KV Put", zap.String("key", string(key)), zap.Uint64("id", id))
@@ -49,7 +52,7 @@ func (n *LocalNode) Put(key, value []byte) error {
 }
 
 func (n *LocalNode) Get(key []byte) ([]byte, error) {
-	return n.kvMiddleware(key, nil,
+	return kvMiddleware(n, key, nil,
 		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
 			if !remote {
 				n.Logger.Debug("KV Get", zap.String("key", string(key)), zap.Uint64("id", id))
@@ -59,12 +62,44 @@ func (n *LocalNode) Get(key []byte) ([]byte, error) {
 }
 
 func (n *LocalNode) Delete(key []byte) error {
-	_, err := n.kvMiddleware(key, nil,
+	_, err := kvMiddleware(n, key, nil,
 		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
 			if !remote {
 				n.Logger.Debug("KV Delete", zap.String("key", string(key)), zap.Uint64("id", id))
 			}
 			return nil, kv.Delete(key)
+		})
+	return err
+}
+
+func (n *LocalNode) PrefixAppend(prefix []byte, child []byte) error {
+	_, err := kvMiddleware(n, prefix, child,
+		func(kv chord.KV, remote bool, id uint64, prefix, child []byte) ([]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV PrefixAppend", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
+			}
+			return nil, kv.PrefixAppend(prefix, child)
+		})
+	return err
+}
+
+func (n *LocalNode) PrefixList(prefix []byte) ([][]byte, error) {
+	return kvMiddleware(n, prefix, nil,
+		func(kv chord.KV, remote bool, id uint64, prefix, _ []byte) ([][]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV PrefixList", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
+			}
+			return kv.PrefixList(prefix)
+		})
+}
+
+func (n *LocalNode) PrefixRemove(prefix []byte, child []byte) error {
+	_, err := kvMiddleware(n, prefix, child,
+		func(kv chord.KV, remote bool, id uint64, prefix, child []byte) ([]byte, error) {
+			if !remote {
+				n.Logger.Debug("KV PrefixRemove", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
+			}
+			return nil, kv.PrefixRemove(prefix, child)
 		})
 	return err
 }
@@ -75,20 +110,4 @@ func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	}
 	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(keys, values)
-}
-
-// these operations are designed for key transfers and only used locally
-func (n *LocalNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	n.Logger.Debug("KV Export", zap.Int("num_keys", len(keys)))
-	return n.kv.Export(keys)
-}
-
-func (n *LocalNode) RangeKeys(low, high uint64) [][]byte {
-	n.Logger.Debug("KV RangeKeys", zap.Uint64("low", low), zap.Uint64("high", high))
-	return n.kv.RangeKeys(low, high)
-}
-
-func (n *LocalNode) RemoveKeys(keys [][]byte) {
-	n.Logger.Debug("KV RemoveKeys", zap.Int("num_keys", len(keys)))
-	n.kv.RemoveKeys(keys)
 }

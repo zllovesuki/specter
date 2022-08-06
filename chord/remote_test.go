@@ -76,52 +76,20 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.Delete([]byte("key"))
 	as.ErrorContains(err, e.Error())
 
-	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
-		Value: []byte("v"),
-	}})
+	err = r.PrefixAppend([]byte("prefix"), []byte("child"))
 	as.ErrorContains(err, e.Error())
 
-	tp.AssertExpectations(t)
-}
+	_, err = r.PrefixList([]byte("prefix"))
+	as.ErrorContains(err, e.Error())
 
-func TestInvalidRPCPanics(t *testing.T) {
-	as := require.New(t)
+	err = r.PrefixRemove([]byte("prefix"), []byte("child"))
+	as.ErrorContains(err, e.Error())
 
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
-
-	tp := new(mocks.Transport)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	peer := &protocol.Node{
-		Unknown: true,
-		Address: "127.0.0.1:1234",
-	}
-
-	rpcCaller := new(mocks.RPC)
-	rpcCaller.On("Close").Return(nil)
-
-	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
-		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
-	}), mock.Anything).Return(rpcCaller, nil)
-
-	r, err := NewRemoteNode(ctx, tp, logger, peer)
-	as.NoError(err)
-	defer r.Stop()
-
-	as.Panics(func() {
-		r.Export([][]byte{})
-	})
-
-	as.Panics(func() {
-		r.RangeKeys(0, 0)
-	})
-
-	as.Panics(func() {
-		r.RemoveKeys([][]byte{})
-	})
+	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
+		PlainValue:     []byte("v"),
+		PrefixChildren: [][]byte{[]byte("c")},
+	}})
+	as.ErrorContains(err, e.Error())
 
 	tp.AssertExpectations(t)
 }

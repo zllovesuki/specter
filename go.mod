@@ -13,6 +13,7 @@ require (
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
+	github.com/zhangyunhao116/skipset v0.12.1
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
 	go.uber.org/zap v1.21.0

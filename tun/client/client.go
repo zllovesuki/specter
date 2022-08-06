@@ -131,10 +131,7 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	}
 	proxy.ErrorLog = zap.NewStdLog(c.logger)
 
-	httpCh := make(chan net.Conn, 32)
-	accepter := &acceptor.HTTP2Acceptor{
-		Conn: httpCh,
-	}
+	accepter := &acceptor.HTTP2Acceptor{}
 	h2s := &http2.Server{}
 	forwarder := &http.Server{
 		Handler:  h2c.NewHandler(proxy, h2s),
@@ -154,7 +151,7 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 			}
 			switch link.GetAlpn() {
 			case protocol.Link_HTTP:
-				httpCh <- delegation.Connection
+				accepter.Handle(delegation.Connection)
 			case protocol.Link_TCP:
 				c.forward(ctx, delegation.Connection)
 			default:

@@ -7,7 +7,7 @@ import (
 )
 
 type HTTP2Acceptor struct {
-	Conn    chan net.Conn
+	conn    chan net.Conn
 	parent  net.Listener
 	closed  atomic.Bool
 	closeCh chan struct{}
@@ -18,16 +18,20 @@ var _ net.Listener = &HTTP2Acceptor{}
 func NewH2Acceptor(parent net.Listener) *HTTP2Acceptor {
 	return &HTTP2Acceptor{
 		parent:  parent,
-		Conn:    make(chan net.Conn, 128),
+		conn:    make(chan net.Conn, 128),
 		closeCh: make(chan struct{}),
 	}
+}
+
+func (h *HTTP2Acceptor) Handle(c net.Conn) {
+	h.conn <- c
 }
 
 func (h *HTTP2Acceptor) Accept() (net.Conn, error) {
 	select {
 	case <-h.closeCh:
 		return nil, net.ErrClosed
-	case c := <-h.Conn:
+	case c := <-h.conn:
 		return c, nil
 	}
 }

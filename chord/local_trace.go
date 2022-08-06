@@ -112,7 +112,7 @@ func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "---\n")
 	finger := n.fingerTrace()
 	fmt.Fprintf(w, "FingerTable: \n%s\n", finger)
-	keys := n.RangeKeys(0, 0)
+	keys := n.kv.RangeKeys(0, 0)
 	fmt.Fprintf(w, "---\n")
 	fmt.Fprintf(w, "keys on current node:\n")
 	for _, key := range keys {

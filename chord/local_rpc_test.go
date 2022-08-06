@@ -131,8 +131,8 @@ func TestLocalRPC(t *testing.T) {
 				Keys: [][]byte{[]byte("k")},
 				Values: []*protocol.KVTransfer{
 					{
-						Value: []byte("v"),
-						Type:  protocol.KVValueType_SIMPLE,
+						PlainValue:     []byte("v"),
+						PrefixChildren: [][]byte{[]byte("c")},
 					},
 				},
 			},

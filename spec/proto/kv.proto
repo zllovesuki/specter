@@ -10,17 +10,16 @@ enum KVOperation {
     GET = 2;
     DELETE = 3;
 
+    PREFIX_APPEND = 5;
+    PREFIX_LIST = 6;
+    PREFIX_REMOVE = 7;
+
     IMPORT = 10;
 }
 
-enum KVValueType {
-    UNKNOWN_TYPE = 0;
-    SIMPLE = 1;
-}
-
 message KVTransfer {
-    KVValueType type = 1;
-    bytes value = 2;
+    bytes plain_value = 1;
+    repeated bytes prefix_children = 2;
 }
 
 message KVRequest {
@@ -30,7 +29,8 @@ message KVRequest {
     bytes value = 3;
 
     repeated bytes keys = 10;
-    repeated KVTransfer values = 11;
+
+    repeated KVTransfer values = 20;
 }
 
 message KVResponse {
@@ -39,5 +39,7 @@ message KVResponse {
     bytes value = 2;
 
     repeated bytes keys = 10;
-    repeated KVTransfer values = 11;
+    repeated bytes children = 11;
+
+    repeated KVTransfer values = 20;
 }

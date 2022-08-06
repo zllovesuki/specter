@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/kv"
 	"kon.nect.sh/specter/spec/chord"
 
 	"github.com/stretchr/testify/require"
@@ -72,14 +71,52 @@ func TestKVOperation(t *testing.T) {
 			as.NoError(err)
 			as.Nil(r)
 		}
+
+		// PrefixAppend
+		rand.Read(value)
+		err = local.PrefixAppend(key, value)
+		as.NoError(err)
+		err = local.PrefixAppend(key, value)
+		as.ErrorIs(err, chord.ErrKVPrefixConflict)
+		for _, remote := range nodes {
+			// PrefixList
+			ret, err := remote.PrefixList(key)
+			as.NoError(err)
+			as.Len(ret, 1)
+			as.EqualValues(value, ret[0])
+		}
+
+		// PrefixRemove
+		err = local.PrefixRemove(key, value)
+		as.NoError(err)
+		for _, remote := range nodes {
+			// PrefixList
+			ret, err := remote.PrefixList(key)
+			as.NoError(err)
+			as.Len(ret, 0)
+		}
+		err = local.PrefixAppend(key, value)
+		as.NoError(err)
 	}
 }
 
 func fsck(as *require.Assertions, nodes []*LocalNode) {
 	for _, node := range nodes {
 		pre := node.getPredecessor()
-		as.True(node.kv.(*kv.MemoryMap).Fsck(pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
+		as.True(kvFsck(node.kv, pre.ID(), node.ID()), "node %d contains out of range keys", node.ID())
 	}
+}
+
+func kvFsck(kv KVProvider, low, high uint64) bool {
+	valid := true
+
+	keys := kv.RangeKeys(0, 0)
+	for _, key := range keys {
+		if !chord.Between(low, chord.Hash(key), high, true) {
+			valid = false
+		}
+	}
+	return valid
 }
 
 func TestKeyTransferOut(t *testing.T) {
@@ -116,7 +153,7 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 	fsck(as, c)
 
-	succVals := successor.Export(leavingKeys)
+	succVals := successor.(*LocalNode).kv.Export(leavingKeys)
 	as.Len(succVals, len(leavingKeys))
 
 	indicies := make([]int, 0)
@@ -130,12 +167,12 @@ func TestKeyTransferOut(t *testing.T) {
 	as.Len(indicies, len(leavingKeys))
 
 	for i, v := range succVals {
-		as.EqualValues(values[indicies[i]], v.GetValue())
+		as.EqualValues(values[indicies[i]], v.GetPlainValue())
 	}
 
-	preVals := predecessor.Export(leavingKeys)
+	preVals := predecessor.(*LocalNode).kv.Export(leavingKeys)
 	for _, v := range preVals {
-		as.Nil(v.GetValue())
+		as.Nil(v.GetPlainValue())
 	}
 }
 
@@ -165,11 +202,11 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval * 2)
 
-	keys = n1.RangeKeys(0, 0)
+	keys = n1.kv.RangeKeys(0, 0)
 	as.Greater(len(keys), 0)
-	vals := n1.Export(keys)
+	vals := n1.kv.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val.GetValue()), 0)
+		as.Greater(len(val.GetPlainValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n1, seed})
@@ -181,11 +218,11 @@ func TestKeyTransferIn(t *testing.T) {
 	defer n2.Stop()
 	waitRing(as, n2)
 
-	keys = n2.RangeKeys(0, 0)
+	keys = n2.kv.RangeKeys(0, 0)
 	as.Greater(len(keys), 0)
-	vals = n2.Export(keys)
+	vals = n2.kv.Export(keys)
 	for _, val := range vals {
-		as.Greater(len(val.GetValue()), 0)
+		as.Greater(len(val.GetPlainValue()), 0)
 	}
 
 	fsck(as, []*LocalNode{n2, n1, seed})
@@ -419,7 +456,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	k := nodes[0].RangeKeys(0, 0)
+	k := nodes[0].kv.RangeKeys(0, 0)
 	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
 }

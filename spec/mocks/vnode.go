@@ -33,32 +33,29 @@ func (n *VNode) Delete(key []byte) error {
 	return args.Error(0)
 }
 
-func (n *VNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	args := n.Called(keys, values)
+func (n *VNode) PrefixAppend(prefix []byte, child []byte) error {
+	args := n.Called(prefix, child)
 	e := args.Error(0)
 	return e
 }
 
-func (n *VNode) Export(keys [][]byte) []*protocol.KVTransfer {
-	args := n.Called(keys)
+func (n *VNode) PrefixList(prefix []byte) ([][]byte, error) {
+	args := n.Called(prefix)
 	v := args.Get(0)
-	if v == nil {
-		return nil
-	}
-	return v.([]*protocol.KVTransfer)
+	e := args.Error(1)
+	return v.([][]byte), e
 }
 
-func (n *VNode) RangeKeys(low uint64, high uint64) [][]byte {
-	args := n.Called(low, high)
-	v := args.Get(0)
-	if v == nil {
-		return nil
-	}
-	return v.([][]byte)
+func (n *VNode) PrefixRemove(prefix []byte, child []byte) error {
+	args := n.Called(prefix, child)
+	e := args.Error(0)
+	return e
 }
 
-func (n *VNode) RemoveKeys(keys [][]byte) {
-	n.Called(keys)
+func (n *VNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
+	args := n.Called(keys, values)
+	e := args.Error(0)
+	return e
 }
 
 func (n *VNode) ID() uint64 {

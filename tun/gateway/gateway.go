@@ -70,10 +70,10 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		KeepAlivePeriod:      time.Second * 30,
 		MaxIdleTimeout:       time.Second * 60,
 	}
-
+	apex := g.apexMux()
 	g.h2ApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           g.apexMux(false),
+		Handler:           apex,
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
@@ -83,7 +83,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		Port:            conf.GatewayPort,
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
-		Handler:         g.apexMux(true),
+		Handler:         apex,
 	}
 	g.h3TunnelServer = &http3.Server{
 		Port:            conf.GatewayPort,
@@ -98,11 +98,11 @@ func New(conf GatewayConfig) (*Gateway, error) {
 	return g, nil
 }
 
-func (g *Gateway) apexMux(h3 bool) http.Handler {
+func (g *Gateway) apexMux() http.Handler {
 	r := chi.NewRouter()
 	r.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			g.appendHeaders(h3)(w.Header())
+			g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
 			h.ServeHTTP(w, r)
 		})
 	})
@@ -157,7 +157,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 	switch cs.ServerName {
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
-		g.http3ApexAcceptor.Conn <- conn
+		g.http3ApexAcceptor.Handle(conn)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
@@ -172,7 +172,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 			}
 		default:
 			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
-			g.http3TunnelAcceptor.Conn <- conn
+			g.http3TunnelAcceptor.Handle(conn)
 		}
 	}
 }
@@ -202,7 +202,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	switch cs.ServerName {
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
-		g.http2ApexAcceptor.Conn <- conn
+		g.http2ApexAcceptor.Handle(conn)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
@@ -211,7 +211,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 			err = g.forwardTCP(ctx, cs.ServerName, conn)
 		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
 			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
-			g.http2TunnelAcceptor.Conn <- conn
+			g.http2TunnelAcceptor.Handle(conn)
 		default:
 			err = fmt.Errorf("unknown alpn proposal")
 		}
