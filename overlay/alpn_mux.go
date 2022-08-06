@@ -42,12 +42,14 @@ func NewMux(logger *zap.Logger, addr string) (*ALPNMux, error) {
 func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
 	var baseCfg *tls.Config
 	var xCfg *tls.Config
+	var selected string
 	var found bool
 
 	a.mux.Range(func(proto string, cfg *protoCfg) bool {
 		for _, cP := range hello.SupportedProtos {
 			if proto == cP {
 				found = true
+				selected = proto
 				baseCfg = cfg.tls
 				return false
 			}
@@ -57,7 +59,7 @@ func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, e
 
 	if found {
 		xCfg = baseCfg.Clone()
-		xCfg.NextProtos = hello.SupportedProtos
+		xCfg.NextProtos = []string{selected}
 		return xCfg, nil
 	}
 	return nil, errors.New("cipher: no mutually supported protocols")

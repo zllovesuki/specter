@@ -11,7 +11,7 @@ var (
 	quicConfig = &quic.Config{
 		KeepAlivePeriod:      time.Second * 5,
 		HandshakeIdleTimeout: time.Second * 3,
-		MaxIdleTimeout:       time.Second * 15,
+		MaxIdleTimeout:       time.Minute,
 		EnableDatagrams:      true,
 	}
 )
