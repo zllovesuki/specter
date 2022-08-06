@@ -24,6 +24,9 @@ services:
       - "1113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+    environment:
+      - INTERNAL_USER=test
+      - INTERNAL_PASS=test
     command: --verbose server --cert-dir /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
@@ -34,6 +37,9 @@ services:
       - "2113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+    environment:
+      - INTERNAL_USER=test
+      - INTERNAL_PASS=test
     command: --verbose server --cert-dir /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvb:
@@ -44,6 +50,9 @@ services:
       - "3113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+    environment:
+      - INTERNAL_USER=test
+      - INTERNAL_PASS=test
     command: --verbose server --cert-dir /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   # srvc:
@@ -54,6 +63,9 @@ services:
   #     - "4113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs:ro
+  #   environment:
+  #     - INTERNAL_USER=test
+  #     - INTERNAL_PASS=test
   #   command: --verbose server --cert-dir /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   # srvd:
@@ -64,4 +76,7 @@ services:
   #     - "5113:1113/tcp"
   #   volumes:
   #     - ./certs:/certs:ro
+  #   environment:
+  #     - INTERNAL_USER=test
+  #     - INTERNAL_PASS=test
   #   command: --verbose server --cert-dir /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113

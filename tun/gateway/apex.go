@@ -21,6 +21,8 @@ var view = template.Must(template.New("index").Parse(index))
 type apexServer struct {
 	statsHandler http.HandlerFunc
 	rootDomain   string
+	authUser     string
+	authPass     string
 }
 
 func (a *apexServer) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -41,18 +43,14 @@ func (a *apexServer) handleLogo(w http.ResponseWriter, r *http.Request) {
 func (a *apexServer) Mount(r *chi.Mux) {
 	r.Get("/", a.handleRoot)
 	r.Get("/quic.png", a.handleLogo)
-	r.Mount("/debug", middleware.Profiler())
-}
-
-func (a *apexServer) Routes() http.Handler {
-	r := chi.NewRouter()
-	r.Get("/", a.handleRoot)
+	if a.authUser == "" || a.authPass == "" {
+		return
+	}
 	r.Route("/_internal", func(r chi.Router) {
 		r.Use(middleware.BasicAuth("internal", map[string]string{
-			"test": "test",
+			a.authUser: a.authPass,
 		}))
 		r.Get("/stats", a.statsHandler)
 		r.Mount("/debug", middleware.Profiler())
 	})
-	return r
 }

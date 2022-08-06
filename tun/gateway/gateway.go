@@ -28,6 +28,8 @@ type GatewayConfig struct {
 	StatsHandler http.HandlerFunc
 	RootDomain   string
 	GatewayPort  int
+	AdminUser    string
+	AdminPass    string
 }
 
 type Gateway struct {
@@ -57,6 +59,8 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		apexServer: &apexServer{
 			statsHandler: conf.StatsHandler,
 			rootDomain:   conf.RootDomain,
+			authUser:     conf.AdminUser,
+			authPass:     conf.AdminPass,
 		},
 	}
 	qCfg := &quic.Config{
@@ -86,6 +90,9 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		Handler:         g.httpHandler(true),
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
+	if conf.AdminUser == "" || conf.AdminPass == "" {
+		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
+	}
 	return g, nil
 }
 
