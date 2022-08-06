@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -138,6 +139,11 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		H3Listener:  h3,
 		RootDomain:  testDomain,
 		GatewayPort: port,
+		AdminUser:   os.Getenv("INTERNAL_USER"),
+		AdminPass:   os.Getenv("INTERNAL_PASS"),
+		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		},
 	}
 
 	g, err := New(conf)
@@ -154,48 +160,6 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		alpnMux.Close()
 		g.Close()
 	}
-}
-
-func TestH2ApexIndex(t *testing.T) {
-	as := require.New(t)
-
-	port, mockS, done := getStuff(as)
-	defer done()
-
-	c := getH2Client("", port)
-
-	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	as.NoError(err)
-
-	as.Contains(string(b), testDomain)
-	as.NotEmpty(resp.Header.Get("alt-svc"))
-
-	mockS.AssertExpectations(t)
-}
-
-func TestH3ApexIndex(t *testing.T) {
-	as := require.New(t)
-
-	port, mockS, done := getStuff(as)
-	defer done()
-
-	c := getH3Client("", port)
-
-	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	as.NoError(err)
-
-	as.Contains(string(b), testDomain)
-	as.NotEmpty(resp.Header.Get("alt-svc"))
-
-	mockS.AssertExpectations(t)
 }
 
 func TestH2HTTPNotFound(t *testing.T) {

@@ -20,6 +20,7 @@ var view = template.Must(template.New("index").Parse(index))
 
 type apexServer struct {
 	statsHandler http.HandlerFunc
+	limiter      func(http.Handler) http.Handler
 	rootDomain   string
 	authUser     string
 	authPass     string
@@ -41,6 +42,7 @@ func (a *apexServer) handleLogo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *apexServer) Mount(r *chi.Mux) {
+	r.Use(a.limiter)
 	r.Get("/", a.handleRoot)
 	r.Get("/quic.png", a.handleLogo)
 	if a.authUser == "" || a.authPass == "" {

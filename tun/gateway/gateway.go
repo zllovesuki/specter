@@ -13,6 +13,7 @@ import (
 	"kon.nect.sh/specter/spec/acceptor"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/tun/gateway/httprate"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/lucas-clemente/quic-go"
@@ -58,6 +59,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		http3ApexAcceptor:   acceptor.NewH3Acceptor(conf.H3Listener),
 		apexServer: &apexServer{
 			statsHandler: conf.StatsHandler,
+			limiter:      httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
 			rootDomain:   conf.RootDomain,
 			authUser:     conf.AdminUser,
 			authPass:     conf.AdminPass,
