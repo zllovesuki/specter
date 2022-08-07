@@ -1,6 +1,8 @@
 package chord
 
 import (
+	"time"
+
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 
@@ -11,8 +13,7 @@ import (
 func kvMiddleware[V any](
 	n *LocalNode,
 	key []byte,
-	value []byte,
-	handler func(kv chord.KV, remote bool, id uint64, key, value []byte) (V, error),
+	handler func(kv chord.KV, remote bool, id uint64) (V, error),
 ) (V, error) {
 	var zeroV V
 	id := chord.Hash(key)
@@ -35,14 +36,14 @@ func kvMiddleware[V any](
 			n.Logger.Debug("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 			return zeroV, chord.ErrKVStaleOwnership
 		}
-		return handler(n.kv, false, id, key, value)
+		return handler(n.kv, false, id)
 	}
-	return handler(succ, true, id, key, value)
+	return handler(succ, true, id)
 }
 
 func (n *LocalNode) Put(key, value []byte) error {
-	_, err := kvMiddleware(n, key, value,
-		func(kv chord.KV, remote bool, id uint64, key, value []byte) ([]byte, error) {
+	_, err := kvMiddleware(n, key,
+		func(kv chord.KV, remote bool, id uint64) (any, error) {
 			if !remote {
 				n.Logger.Debug("KV Put", zap.String("key", string(key)), zap.Uint64("id", id))
 			}
@@ -52,8 +53,8 @@ func (n *LocalNode) Put(key, value []byte) error {
 }
 
 func (n *LocalNode) Get(key []byte) ([]byte, error) {
-	return kvMiddleware(n, key, nil,
-		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
+	return kvMiddleware(n, key,
+		func(kv chord.KV, remote bool, id uint64) ([]byte, error) {
 			if !remote {
 				n.Logger.Debug("KV Get", zap.String("key", string(key)), zap.Uint64("id", id))
 			}
@@ -62,8 +63,8 @@ func (n *LocalNode) Get(key []byte) ([]byte, error) {
 }
 
 func (n *LocalNode) Delete(key []byte) error {
-	_, err := kvMiddleware(n, key, nil,
-		func(kv chord.KV, remote bool, id uint64, key, _ []byte) ([]byte, error) {
+	_, err := kvMiddleware(n, key,
+		func(kv chord.KV, remote bool, id uint64) (any, error) {
 			if !remote {
 				n.Logger.Debug("KV Delete", zap.String("key", string(key)), zap.Uint64("id", id))
 			}
@@ -73,8 +74,8 @@ func (n *LocalNode) Delete(key []byte) error {
 }
 
 func (n *LocalNode) PrefixAppend(prefix []byte, child []byte) error {
-	_, err := kvMiddleware(n, prefix, child,
-		func(kv chord.KV, remote bool, id uint64, prefix, child []byte) ([]byte, error) {
+	_, err := kvMiddleware(n, prefix,
+		func(kv chord.KV, remote bool, id uint64) (any, error) {
 			if !remote {
 				n.Logger.Debug("KV PrefixAppend", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			}
@@ -84,8 +85,8 @@ func (n *LocalNode) PrefixAppend(prefix []byte, child []byte) error {
 }
 
 func (n *LocalNode) PrefixList(prefix []byte) ([][]byte, error) {
-	return kvMiddleware(n, prefix, nil,
-		func(kv chord.KV, remote bool, id uint64, prefix, _ []byte) ([][]byte, error) {
+	return kvMiddleware(n, prefix,
+		func(kv chord.KV, remote bool, id uint64) ([][]byte, error) {
 			if !remote {
 				n.Logger.Debug("KV PrefixList", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			}
@@ -94,12 +95,43 @@ func (n *LocalNode) PrefixList(prefix []byte) ([][]byte, error) {
 }
 
 func (n *LocalNode) PrefixRemove(prefix []byte, child []byte) error {
-	_, err := kvMiddleware(n, prefix, child,
-		func(kv chord.KV, remote bool, id uint64, prefix, child []byte) ([]byte, error) {
+	_, err := kvMiddleware(n, prefix,
+		func(kv chord.KV, remote bool, id uint64) (any, error) {
 			if !remote {
 				n.Logger.Debug("KV PrefixRemove", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			}
 			return nil, kv.PrefixRemove(prefix, child)
+		})
+	return err
+}
+
+func (n *LocalNode) Acquire(lease []byte, ttl time.Duration) (uint64, error) {
+	return kvMiddleware(n, lease,
+		func(kv chord.KV, remote bool, id uint64) (uint64, error) {
+			if !remote {
+				n.Logger.Debug("KV Acquire", zap.String("lease", string(lease)), zap.Uint64("id", id))
+			}
+			return kv.Acquire(lease, ttl)
+		})
+}
+
+func (n *LocalNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (uint64, error) {
+	return kvMiddleware(n, lease,
+		func(kv chord.KV, remote bool, id uint64) (uint64, error) {
+			if !remote {
+				n.Logger.Debug("KV Renew", zap.String("lease", string(lease)), zap.Uint64("id", id))
+			}
+			return kv.Renew(lease, ttl, prevToken)
+		})
+}
+
+func (n *LocalNode) Release(lease []byte, token uint64) error {
+	_, err := kvMiddleware(n, lease,
+		func(kv chord.KV, remote bool, id uint64) (any, error) {
+			if !remote {
+				n.Logger.Debug("KV Release", zap.String("lease", string(lease)), zap.Uint64("id", id))
+			}
+			return nil, kv.Release(lease, token)
 		})
 	return err
 }

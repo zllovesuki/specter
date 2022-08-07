@@ -4,6 +4,8 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "kon.nect.sh/specter/spec/protocol";
 
+import "google/protobuf/duration.proto";
+
 enum KVOperation {
     UNKNOWN_OP = 0;
     PUT = 1;
@@ -13,13 +15,23 @@ enum KVOperation {
     PREFIX_APPEND = 5;
     PREFIX_LIST = 6;
     PREFIX_REMOVE = 7;
+    
+    LEASE_ACQUIRE = 10;
+    LEASE_RENEWAL = 11;
+    LEASE_RELEASE = 12;
 
-    IMPORT = 10;
+    IMPORT = 20;
 }
 
 message KVTransfer {
     bytes plain_value = 1;
     repeated bytes prefix_children = 2;
+    uint64 lease = 3;
+}
+
+message KVLease {
+    google.protobuf.Duration ttl = 1;
+    uint64 token = 2;
 }
 
 message KVRequest {
@@ -27,6 +39,8 @@ message KVRequest {
 
     bytes key = 2;
     bytes value = 3;
+
+    KVLease lease = 5;
 
     repeated bytes keys = 10;
 
@@ -37,6 +51,8 @@ message KVResponse {
     KVOperation op = 1;
 
     bytes value = 2;
+
+    KVLease lease = 5;
 
     repeated bytes keys = 10;
     repeated bytes children = 11;

@@ -132,6 +132,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			if err := n.Delete(kvReq.GetKey()); err != nil {
 				return nil, err
 			}
+
 		case protocol.KVOperation_PREFIX_APPEND:
 			if err := n.PrefixAppend(kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err
@@ -144,6 +145,30 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			kvResp.Children = val
 		case protocol.KVOperation_PREFIX_REMOVE:
 			if err := n.PrefixRemove(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+				return nil, err
+			}
+
+		case protocol.KVOperation_LEASE_ACQUIRE:
+			lease := kvReq.GetLease()
+			token, err := n.Acquire(kvReq.GetKey(), lease.GetTtl().AsDuration())
+			if err != nil {
+				return nil, err
+			}
+			kvResp.Lease = &protocol.KVLease{
+				Token: token,
+			}
+		case protocol.KVOperation_LEASE_RENEWAL:
+			lease := kvReq.GetLease()
+			token, err := n.Renew(kvReq.GetKey(), lease.GetTtl().AsDuration(), lease.GetToken())
+			if err != nil {
+				return nil, err
+			}
+			kvResp.Lease = &protocol.KVLease{
+				Token: token,
+			}
+		case protocol.KVOperation_LEASE_RELEASE:
+			lease := kvReq.GetLease()
+			if err := n.Release(kvReq.GetKey(), lease.GetToken()); err != nil {
 				return nil, err
 			}
 

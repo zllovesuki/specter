@@ -1,6 +1,8 @@
 package mocks
 
 import (
+	"time"
+
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 
@@ -48,6 +50,26 @@ func (n *VNode) PrefixList(prefix []byte) ([][]byte, error) {
 
 func (n *VNode) PrefixRemove(prefix []byte, child []byte) error {
 	args := n.Called(prefix, child)
+	e := args.Error(0)
+	return e
+}
+
+func (n *VNode) Acquire(lease []byte, ttl time.Duration) (token uint64, err error) {
+	args := n.Called(lease, ttl)
+	t := args.Get(0)
+	e := args.Error(1)
+	return t.(uint64), e
+}
+
+func (n *VNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
+	args := n.Called(lease, ttl, prevToken)
+	t := args.Get(0)
+	e := args.Error(1)
+	return t.(uint64), e
+}
+
+func (n *VNode) Release(lease []byte, token uint64) error {
+	args := n.Called(lease, token)
 	e := args.Error(0)
 	return e
 }
