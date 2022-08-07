@@ -50,7 +50,7 @@ type SelfSignedProvider struct {
 
 var _ cipher.CertProvider = (*SelfSignedProvider)(nil)
 
-func (s *SelfSignedProvider) Initialize(node chord.VNode) {
+func (s *SelfSignedProvider) Initialize(node chord.KV) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)

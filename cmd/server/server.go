@@ -376,7 +376,7 @@ type ACMEProvider struct {
 	InitializeFn func()
 }
 
-func (a *ACMEProvider) Initialize(node chordSpec.VNode) {
+func (a *ACMEProvider) Initialize(node chordSpec.KV) {
 	a.InitializeFn()
 }
 
