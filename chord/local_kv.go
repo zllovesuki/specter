@@ -108,6 +108,9 @@ func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	if !n.isRunning.Load() {
 		return chord.ErrNodeGone
 	}
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
+
 	n.Logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(keys, values)
 }
