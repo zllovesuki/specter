@@ -22,7 +22,7 @@ type atomicVNodeList struct {
 
 type LocalNode struct {
 	NodeConfig
-	kv KVProvider
+	kv chord.KVProvider
 
 	successors atomic.Value   // *atomicVNodeList
 	fingers    []atomic.Value // *atomicVNode

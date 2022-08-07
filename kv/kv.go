@@ -18,6 +18,7 @@ type MemoryMap struct {
 }
 
 var _ chord.KV = (*MemoryMap)(nil)
+var _ chord.KVProvider = (*MemoryMap)(nil)
 
 type kvValue struct {
 	plain    atomic.Pointer[[]byte]

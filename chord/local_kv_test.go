@@ -107,7 +107,7 @@ func fsck(as *require.Assertions, nodes []*LocalNode) {
 	}
 }
 
-func kvFsck(kv KVProvider, low, high uint64) bool {
+func kvFsck(kv chord.KVProvider, low, high uint64) bool {
 	valid := true
 
 	keys := kv.RangeKeys(0, 0)
