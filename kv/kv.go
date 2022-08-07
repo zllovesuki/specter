@@ -18,10 +18,12 @@ type MemoryMap struct {
 }
 
 var _ chord.KV = (*MemoryMap)(nil)
+var _ chord.KVProvider = (*MemoryMap)(nil)
 
 type kvValue struct {
 	plain    atomic.Pointer[[]byte]
 	children *skipset.StringSet
+	lease    atomic.Uint64
 }
 
 func newInnerMapFunc() *skipmap.StringMap[*kvValue] {
@@ -32,8 +34,10 @@ func newValueFunc() *kvValue {
 	v := &kvValue{
 		plain:    atomic.Pointer[[]byte]{},
 		children: skipset.NewString(),
+		lease:    atomic.Uint64{},
 	}
 	v.plain.Store(new([]byte))
+	v.lease.Store(0)
 	return v
 }
 
@@ -129,6 +133,7 @@ func (m *MemoryMap) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 		v, _ := m.fetchVal(key)
 		bytes := values[i].GetPlainValue()
 		v.plain.Store(&bytes)
+		v.lease.Store(values[i].GetLease())
 		for _, child := range values[i].GetPrefixChildren() {
 			v.children.Add(string(child))
 		}
@@ -139,10 +144,12 @@ func (m *MemoryMap) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 func (m *MemoryMap) Export(keys [][]byte) []*protocol.KVTransfer {
 	vals := make([]*protocol.KVTransfer, len(keys))
 	for i, key := range keys {
+		v, _ := m.fetchVal(key)
 		children, _ := m.PrefixList(key)
 		vals[i] = &protocol.KVTransfer{
-			PlainValue:     m.get(key),
+			PlainValue:     *v.plain.Load(),
 			PrefixChildren: children,
+			Lease:          v.lease.Load(),
 		}
 	}
 	return vals

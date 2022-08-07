@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
@@ -305,6 +306,8 @@ func TestComplexImportExport(t *testing.T) {
 
 	as.NoError(kv.Put(key, plainValue))
 	as.NoError(kv.PrefixAppend(key, child))
+	tk, err := kv.Acquire(key, time.Second)
+	as.NoError(err)
 
 	val, err := kv.Get(key)
 	as.NoError(err)
@@ -329,4 +332,8 @@ func TestComplexImportExport(t *testing.T) {
 	as.NoError(err)
 	as.Len(vals, 1)
 	as.EqualValues(child, vals[0])
+
+	tk2, err := kv2.Renew(key, time.Second, tk)
+	as.NoError(err)
+	as.NoError(kv2.Release(key, tk2))
 }

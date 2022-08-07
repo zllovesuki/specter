@@ -10,6 +10,7 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
@@ -85,16 +86,22 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 	}
 	var parsedErr error
 	switch err.Error() {
-	case chord.ErrKVStaleOwnership.Error():
-		parsedErr = chord.ErrKVStaleOwnership
-	case chord.ErrNodeGone.Error():
-		parsedErr = chord.ErrNodeGone
-	case chord.ErrKVPendingTransfer.Error():
-		parsedErr = chord.ErrKVPendingTransfer
 	case chord.ErrNodeNotStarted.Error():
 		parsedErr = chord.ErrNodeNotStarted
+	case chord.ErrNodeGone.Error():
+		parsedErr = chord.ErrNodeGone
+
+	case chord.ErrKVStaleOwnership.Error():
+		parsedErr = chord.ErrKVStaleOwnership
+	case chord.ErrKVPendingTransfer.Error():
+		parsedErr = chord.ErrKVPendingTransfer
 	case chord.ErrKVPrefixConflict.Error():
 		parsedErr = chord.ErrKVPrefixConflict
+
+	case chord.ErrKVLeaseConflict.Error():
+		parsedErr = chord.ErrKVLeaseConflict
+	case chord.ErrKVLeaseExpired.Error():
+		parsedErr = chord.ErrKVLeaseExpired
 	default:
 		// passthrough
 		parsedErr = err
@@ -325,6 +332,69 @@ func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
 		n.logger.Error("remote KV PrefixRemove RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+	return err
+}
+
+func (n *RemoteNode) Acquire(lease []byte, ttl time.Duration) (uint64, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_LEASE_ACQUIRE,
+		Key: lease,
+		Lease: &protocol.KVLease{
+			Ttl: durationpb.New(ttl),
+		},
+	}
+
+	resp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV Acquire RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		return 0, err
+	}
+	return resp.GetKvResponse().GetLease().GetToken(), nil
+}
+
+func (n *RemoteNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_LEASE_RENEWAL,
+		Key: lease,
+		Lease: &protocol.KVLease{
+			Ttl:   durationpb.New(ttl),
+			Token: prevToken,
+		},
+	}
+
+	resp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV Renew RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		return 0, err
+	}
+	return resp.GetKvResponse().GetLease().GetToken(), nil
+}
+
+func (n *RemoteNode) Release(lease []byte, token uint64) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:  protocol.KVOperation_LEASE_RELEASE,
+		Key: lease,
+		Lease: &protocol.KVLease{
+			Token: token,
+		},
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		n.logger.Error("remote KV Release RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
 }

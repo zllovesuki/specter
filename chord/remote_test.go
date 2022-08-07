@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/mocks"
@@ -83,6 +84,15 @@ func TestRemoteRPCErrors(t *testing.T) {
 	as.ErrorContains(err, e.Error())
 
 	err = r.PrefixRemove([]byte("prefix"), []byte("child"))
+	as.ErrorContains(err, e.Error())
+
+	_, err = r.Acquire([]byte("lease"), time.Second)
+	as.ErrorContains(err, e.Error())
+
+	_, err = r.Renew([]byte("lease"), time.Second, 0)
+	as.ErrorContains(err, e.Error())
+
+	err = r.Release([]byte("lease"), 0)
 	as.ErrorContains(err, e.Error())
 
 	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{

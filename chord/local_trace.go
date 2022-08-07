@@ -116,6 +116,8 @@ func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "---\n")
 	fmt.Fprintf(w, "keys on current node:\n")
 	for _, key := range keys {
-		fmt.Fprintf(w, "  %15d - %s\n", chord.Hash(key), key)
+		plain, _ := n.kv.Get(key)
+		children, _ := n.kv.PrefixList(key)
+		fmt.Fprintf(w, "  %15d - %s (Plain: %v; Children: %d)\n", chord.Hash(key), key, len(plain) > 0, len(children))
 	}
 }

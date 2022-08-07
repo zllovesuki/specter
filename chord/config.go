@@ -11,26 +11,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type KVProvider interface {
-	chord.KV
-
-	// Export is used when a Local node is retriving relavent keys to transfer.
-	// Only used locally, not used for RPC
-	Export(keys [][]byte) []*protocol.KVTransfer
-	// RangeKeys retrieve actual byte values of the keys, given the [low, high]
-	// range of key hashes.
-	// Only used locally, not used for RPC
-	RangeKeys(low, high uint64) [][]byte
-	// RemoveKeys hard delete keys from local node.
-	// Only used locally, not used for RPC
-	RemoveKeys(keys [][]byte)
-}
-
 type NodeConfig struct {
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
 	Transport                transport.Transport
-	KVProvider               KVProvider
+	KVProvider               chord.KVProvider
 	StablizeInterval         time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration

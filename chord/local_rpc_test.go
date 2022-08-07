@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestLocalRPC(t *testing.T) {
@@ -134,6 +135,43 @@ func TestLocalRPC(t *testing.T) {
 						PlainValue:     []byte("v"),
 						PrefixChildren: [][]byte{[]byte("c")},
 					},
+				},
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:    protocol.KVOperation_PREFIX_APPEND,
+				Key:   []byte("p"),
+				Value: []byte("c"),
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:  protocol.KVOperation_PREFIX_LIST,
+				Key: []byte("p"),
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:    protocol.KVOperation_PREFIX_REMOVE,
+				Key:   []byte("p"),
+				Value: []byte("c"),
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:  protocol.KVOperation_LEASE_ACQUIRE,
+				Key: []byte("l"),
+				Lease: &protocol.KVLease{
+					Ttl: durationpb.New(time.Second),
 				},
 			},
 		},
