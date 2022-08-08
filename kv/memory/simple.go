@@ -4,33 +4,25 @@ import "kon.nect.sh/specter/spec/chord"
 
 var _ chord.SimpleKV = (*MemoryKV)(nil)
 
-func (m *MemoryKV) put(key, value []byte) {
-	v, _ := m.fetchVal(key)
-	v.simple.Store(&value)
-}
-
-func (m *MemoryKV) get(key []byte) []byte {
-	v, _ := m.fetchVal(key)
-	return *v.simple.Load()
-}
-
-// only delete value from plain keyspace
-func (m *MemoryKV) delete(key []byte) {
-	v, _ := m.fetchVal(key)
-
-	v.simple.Store(new([]byte))
-}
-
 func (m *MemoryKV) Put(key, value []byte) error {
-	m.put(key, value)
+	v, _ := m.fetchVal(key)
+	curr := v.simple.Load()
+	if !v.simple.CompareAndSwap(curr, &value) {
+		return chord.ErrKVSimpleConflict
+	}
 	return nil
 }
 
 func (m *MemoryKV) Get(key []byte) ([]byte, error) {
-	return m.get(key), nil
+	v, _ := m.fetchVal(key)
+	return *v.simple.Load(), nil
 }
 
 func (m *MemoryKV) Delete(key []byte) error {
-	m.delete(key)
+	v, _ := m.fetchVal(key)
+	curr := v.simple.Load()
+	if !v.simple.CompareAndSwap(curr, new([]byte)) {
+		return chord.ErrKVSimpleConflict
+	}
 	return nil
 }

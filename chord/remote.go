@@ -95,11 +95,14 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrKVStaleOwnership
 	case chord.ErrKVPendingTransfer.Error():
 		parsedErr = chord.ErrKVPendingTransfer
+
 	case chord.ErrKVPrefixConflict.Error():
 		parsedErr = chord.ErrKVPrefixConflict
-
 	case chord.ErrKVLeaseConflict.Error():
 		parsedErr = chord.ErrKVLeaseConflict
+	case chord.ErrKVSimpleConflict.Error():
+		parsedErr = chord.ErrKVSimpleConflict
+
 	case chord.ErrKVLeaseExpired.Error():
 		parsedErr = chord.ErrKVLeaseExpired
 	case chord.ErrKVLeaseInvalidTTL.Error():

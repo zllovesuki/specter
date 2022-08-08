@@ -8,9 +8,11 @@ var (
 
 	ErrKVStaleOwnership  = fmt.Errorf("processing node no longer has ownership over requested key")
 	ErrKVPendingTransfer = fmt.Errorf("kv transfer inprogress, state may be outdated")
-	ErrKVPrefixConflict  = fmt.Errorf("child already exists under prefix")
 
-	ErrKVLeaseConflict   = fmt.Errorf("lease has not expired or was acquired by a different requester")
+	ErrKVSimpleConflict = fmt.Errorf("simple key was concurrently modified")
+	ErrKVPrefixConflict = fmt.Errorf("child already exists under prefix")
+	ErrKVLeaseConflict  = fmt.Errorf("lease has not expired or was acquired by a different requester")
+
 	ErrKVLeaseExpired    = fmt.Errorf("lease has expired with the given token")
 	ErrKVLeaseInvalidTTL = fmt.Errorf("lease ttl must be greater than a second")
 )
@@ -25,6 +27,8 @@ func ErrorIsRetryable(err error) bool {
 		return true
 
 	case ErrNodeNotStarted:
+		fallthrough
+	case ErrKVSimpleConflict:
 		fallthrough
 	case ErrKVPrefixConflict:
 		fallthrough

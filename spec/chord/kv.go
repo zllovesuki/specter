@@ -9,11 +9,13 @@ import (
 type SimpleKV interface {
 	// Put will store the value to a node in the Chord network responsible for the given key.
 	// If the key did not exist, a new entry will be added.
-	// If the key already exist, the value will be overwrriten
+	// If the key already exist, the value will be overwrriten.
+	// If the key was concurrently modified by another request, ErrKVSimpleConflict error is returned.
 	Put(key, value []byte) error
-	// Get will fetch the value from a node in the Chord network
+	// Get will fetch the value from a node in the Chord network.
 	Get(key []byte) (value []byte, err error)
-	// Delete will hard delete the key from the Chord network
+	// Delete will hard delete the key from the Chord network.
+	// If the key was concurrently modified by another request, ErrKVSimpleConflict error is returned.
 	// Note that Put/Get methods can share the same keyspace as Prefix methods, and
 	// Delete will not remove the Prefix children.
 	Delete(key []byte) error
