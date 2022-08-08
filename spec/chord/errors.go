@@ -10,8 +10,9 @@ var (
 	ErrKVPendingTransfer = fmt.Errorf("kv transfer inprogress, state may be outdated")
 	ErrKVPrefixConflict  = fmt.Errorf("child already exists under prefix")
 
-	ErrKVLeaseConflict = fmt.Errorf("lease has not expired or was acquired by a different requester")
-	ErrKVLeaseExpired  = fmt.Errorf("lease has expired with the given token")
+	ErrKVLeaseConflict   = fmt.Errorf("lease has not expired or was acquired by a different requester")
+	ErrKVLeaseExpired    = fmt.Errorf("lease has expired with the given token")
+	ErrKVLeaseInvalidTTL = fmt.Errorf("lease ttl must be greater than a second")
 )
 
 func ErrorIsRetryable(err error) bool {
@@ -30,6 +31,8 @@ func ErrorIsRetryable(err error) bool {
 	case ErrKVLeaseConflict:
 		fallthrough
 	case ErrKVLeaseExpired:
+		fallthrough
+	case ErrKVLeaseInvalidTTL:
 		fallthrough
 	default:
 		return false

@@ -8,9 +8,10 @@ import "google/protobuf/duration.proto";
 
 enum KVOperation {
     UNKNOWN_OP = 0;
-    PUT = 1;
-    GET = 2;
-    DELETE = 3;
+
+    SIMPLE_PUT = 1;
+    SIMPLE_GET = 2;
+    SIMPLE_DELETE = 3;
 
     PREFIX_APPEND = 5;
     PREFIX_LIST = 6;
@@ -24,9 +25,9 @@ enum KVOperation {
 }
 
 message KVTransfer {
-    bytes plain_value = 1;
+    bytes simple_value = 1;
     repeated bytes prefix_children = 2;
-    uint64 lease = 3;
+    uint64 lease_token = 3;
 }
 
 message KVLease {

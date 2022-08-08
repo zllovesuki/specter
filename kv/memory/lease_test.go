@@ -1,4 +1,4 @@
-package kv
+package memory
 
 import (
 	"crypto/rand"
@@ -75,7 +75,7 @@ func TestRenewExpired(t *testing.T) {
 	key := make([]byte, 8)
 	rand.Read(key)
 
-	ttl := time.Millisecond * 50
+	ttl := time.Second
 
 	tk1, err := kv.Acquire(key, ttl)
 	as.NoError(err)
@@ -91,5 +91,31 @@ func TestRenewExpired(t *testing.T) {
 	tk2, err = kv.Renew(key, ttl, tk2)
 	as.NoError(err)
 
+	// no releasing with the wrong token
+	as.ErrorIs(kv.Release(key, tk1), chord.ErrKVLeaseExpired)
 	as.NoError(kv.Release(key, tk2))
+}
+
+func TestTTLGuard(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithHashFn(chord.HashString)
+
+	key := make([]byte, 8)
+	rand.Read(key)
+
+	ttl := time.Millisecond * 500
+
+	_, err := kv.Acquire(key, ttl)
+	as.ErrorIs(err, chord.ErrKVLeaseInvalidTTL)
+
+	ttl = time.Second
+	tk, err := kv.Acquire(key, ttl)
+	as.NoError(err)
+
+	ttl = time.Millisecond * 500
+	_, err = kv.Renew(key, ttl, tk)
+	as.ErrorIs(err, chord.ErrKVLeaseInvalidTTL)
+
+	as.NoError(kv.Release(key, tk))
 }

@@ -118,17 +118,17 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		kvResp := &protocol.KVResponse{}
 
 		switch kvReq.GetOp() {
-		case protocol.KVOperation_GET:
+		case protocol.KVOperation_SIMPLE_GET:
 			val, err := n.Get(kvReq.GetKey())
 			if err != nil {
 				return nil, err
 			}
 			kvResp.Value = val
-		case protocol.KVOperation_PUT:
+		case protocol.KVOperation_SIMPLE_PUT:
 			if err := n.Put(kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err
 			}
-		case protocol.KVOperation_DELETE:
+		case protocol.KVOperation_SIMPLE_DELETE:
 			if err := n.Delete(kvReq.GetKey()); err != nil {
 				return nil, err
 			}

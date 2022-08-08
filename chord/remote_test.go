@@ -96,7 +96,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 	as.ErrorContains(err, e.Error())
 
 	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
-		PlainValue:     []byte("v"),
+		SimpleValue:    []byte("v"),
 		PrefixChildren: [][]byte{[]byte("c")},
 	}})
 	as.ErrorContains(err, e.Error())

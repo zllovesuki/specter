@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/mocks"
@@ -36,7 +36,7 @@ func TestLocalRPC(t *testing.T) {
 		Logger:                   logger,
 		Identity:                 identity,
 		Transport:                tp,
-		KVProvider:               kv.WithHashFn(chord.HashString),
+		KVProvider:               memory.WithHashFn(chord.HashString),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
@@ -103,7 +103,7 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
-				Op:  protocol.KVOperation_GET,
+				Op:  protocol.KVOperation_SIMPLE_GET,
 				Key: []byte("k"),
 			},
 		},
@@ -111,7 +111,7 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
-				Op:    protocol.KVOperation_PUT,
+				Op:    protocol.KVOperation_SIMPLE_PUT,
 				Key:   []byte("k"),
 				Value: []byte("v"),
 			},
@@ -120,7 +120,7 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
-				Op:  protocol.KVOperation_DELETE,
+				Op:  protocol.KVOperation_SIMPLE_DELETE,
 				Key: []byte("k"),
 			},
 		},
@@ -132,7 +132,7 @@ func TestLocalRPC(t *testing.T) {
 				Keys: [][]byte{[]byte("k")},
 				Values: []*protocol.KVTransfer{
 					{
-						PlainValue:     []byte("v"),
+						SimpleValue:    []byte("v"),
 						PrefixChildren: [][]byte{[]byte("c")},
 					},
 				},

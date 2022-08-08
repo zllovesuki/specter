@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
@@ -33,7 +33,7 @@ func devConfig(as *require.Assertions) NodeConfig {
 		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
 		Identity:                 iden,
 		Transport:                new(mocks.Transport),
-		KVProvider:               kv.WithHashFn(chord.HashString),
+		KVProvider:               memory.WithHashFn(chord.HashString),
 		FixFingerInterval:        defaultInterval * 3,
 		StablizeInterval:         defaultInterval * 5,
 		PredecessorCheckInterval: defaultInterval * 7,

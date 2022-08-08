@@ -14,7 +14,7 @@ import (
 
 	"kon.nect.sh/specter/chord"
 	ds "kon.nect.sh/specter/dev-support/server"
-	"kon.nect.sh/specter/kv"
+	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/overlay"
 	chordSpec "kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
@@ -301,7 +301,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
-		KVProvider:               kv.WithHashFn(chordSpec.HashString),
+		KVProvider:               memory.WithHashFn(chordSpec.HashString),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,

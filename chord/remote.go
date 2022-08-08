@@ -102,6 +102,8 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrKVLeaseConflict
 	case chord.ErrKVLeaseExpired.Error():
 		parsedErr = chord.ErrKVLeaseExpired
+	case chord.ErrKVLeaseInvalidTTL.Error():
+		parsedErr = chord.ErrKVLeaseInvalidTTL
 	default:
 		// passthrough
 		parsedErr = err
@@ -235,7 +237,7 @@ func (n *RemoteNode) Put(key, value []byte) error {
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:    protocol.KVOperation_PUT,
+		Op:    protocol.KVOperation_SIMPLE_PUT,
 		Key:   key,
 		Value: value,
 	}
@@ -253,7 +255,7 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:  protocol.KVOperation_GET,
+		Op:  protocol.KVOperation_SIMPLE_GET,
 		Key: key,
 	}
 
@@ -271,7 +273,7 @@ func (n *RemoteNode) Delete(key []byte) error {
 
 	rReq := newReq(protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
-		Op:  protocol.KVOperation_DELETE,
+		Op:  protocol.KVOperation_SIMPLE_DELETE,
 		Key: key,
 	}
 

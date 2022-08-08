@@ -49,8 +49,8 @@ func (m *KVTransfer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Lease != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.Lease))
+	if m.LeaseToken != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.LeaseToken))
 		i--
 		dAtA[i] = 0x18
 	}
@@ -63,10 +63,10 @@ func (m *KVTransfer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			dAtA[i] = 0x12
 		}
 	}
-	if len(m.PlainValue) > 0 {
-		i -= len(m.PlainValue)
-		copy(dAtA[i:], m.PlainValue)
-		i = encodeVarint(dAtA, i, uint64(len(m.PlainValue)))
+	if len(m.SimpleValue) > 0 {
+		i -= len(m.SimpleValue)
+		copy(dAtA[i:], m.SimpleValue)
+		i = encodeVarint(dAtA, i, uint64(len(m.SimpleValue)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -311,7 +311,7 @@ func (m *KVTransfer) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.PlainValue)
+	l = len(m.SimpleValue)
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
@@ -321,8 +321,8 @@ func (m *KVTransfer) SizeVT() (n int) {
 			n += 1 + l + sov(uint64(l))
 		}
 	}
-	if m.Lease != 0 {
-		n += 1 + sov(uint64(m.Lease))
+	if m.LeaseToken != 0 {
+		n += 1 + sov(uint64(m.LeaseToken))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -466,7 +466,7 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PlainValue", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SimpleValue", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -493,9 +493,9 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.PlainValue = append(m.PlainValue[:0], dAtA[iNdEx:postIndex]...)
-			if m.PlainValue == nil {
-				m.PlainValue = []byte{}
+			m.SimpleValue = append(m.SimpleValue[:0], dAtA[iNdEx:postIndex]...)
+			if m.SimpleValue == nil {
+				m.SimpleValue = []byte{}
 			}
 			iNdEx = postIndex
 		case 2:
@@ -532,9 +532,9 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Lease", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaseToken", wireType)
 			}
-			m.Lease = 0
+			m.LeaseToken = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -544,7 +544,7 @@ func (m *KVTransfer) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Lease |= uint64(b&0x7F) << shift
+				m.LeaseToken |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
