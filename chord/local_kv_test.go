@@ -438,7 +438,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 			for j := 1; j < numNodes; j++ {
 				v, _ := nodes[j].kv.Get(k)
 				if v != nil {
-					t.Logf("missing key index %d found in node %d", i, nodes[i].ID())
+					t.Logf("missing key index %d found in node %d", i, nodes[j].ID())
 				}
 			}
 		}
