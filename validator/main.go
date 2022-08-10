@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
 )
 
 var (
@@ -29,8 +30,8 @@ func main() {
 		func() {
 			conn, err := tls.Dial("tcp", node, tlsCfg)
 			if err != nil {
-				fmt.Printf("%s failed to connection: %v\n", node, err)
-				return
+				fmt.Printf("failed to connect %s: %v\n", node, err)
+				os.Exit(1)
 			}
 			defer conn.Close()
 			cs := conn.ConnectionState()
@@ -46,7 +47,9 @@ func main() {
 	}
 	if len(serialMap) == 1 {
 		fmt.Printf("validation successful\n")
+		os.Exit(0)
 	} else {
 		fmt.Printf("validation failed: nodes do not have the same certificate")
+		os.Exit(1)
 	}
 }

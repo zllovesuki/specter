@@ -500,8 +500,28 @@ func (m *MembershipChangeRequest) MarshalToSizedBufferVT(dAtA []byte) (int, erro
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Successor != nil {
-		size, err := m.Successor.MarshalToSizedBufferVT(dAtA[:i])
+	if m.Release {
+		i--
+		if m.Release {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.Stablize {
+		i--
+		if m.Stablize {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Leaver != nil {
+		size, err := m.Leaver.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -765,9 +785,15 @@ func (m *MembershipChangeRequest) SizeVT() (n int) {
 		l = m.Joiner.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Successor != nil {
-		l = m.Successor.SizeVT()
+	if m.Leaver != nil {
+		l = m.Leaver.SizeVT()
 		n += 1 + l + sov(uint64(l))
+	}
+	if m.Stablize {
+		n += 2
+	}
+	if m.Release {
+		n += 2
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -1692,7 +1718,7 @@ func (m *MembershipChangeRequest) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Successor", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Leaver", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1719,13 +1745,53 @@ func (m *MembershipChangeRequest) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Successor == nil {
-				m.Successor = &Node{}
+			if m.Leaver == nil {
+				m.Leaver = &Node{}
 			}
-			if err := m.Successor.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Leaver.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Stablize", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Stablize = bool(v != 0)
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Release", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Release = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

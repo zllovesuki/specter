@@ -189,25 +189,9 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
 			MembershipRequest: &protocol.MembershipChangeRequest{
-				Op: protocol.MembershipChangeOperation_JOIN_FINISH,
-			},
-		},
-
-		// need to unlock first then test lock
-		{
-			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
-			MembershipRequest: &protocol.MembershipChangeRequest{
-				Op: protocol.MembershipChangeOperation_LOCK_PREDECESSOR,
-				Successor: &protocol.Node{
-					Id: chord.Random(),
-				},
-			},
-		},
-
-		{
-			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
-			MembershipRequest: &protocol.MembershipChangeRequest{
-				Op: protocol.MembershipChangeOperation_JOIN_FINISH,
+				Op:       protocol.MembershipChangeOperation_JOIN_FINISH,
+				Stablize: true,
+				Release:  true, // otherwise .Leave() will not succeed because we acquired the lock above
 			},
 		},
 

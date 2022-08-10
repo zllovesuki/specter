@@ -450,36 +450,57 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 	return pp, nodes, err
 }
 
-func (n *RemoteNode) LockPredecessor(successor chord.VNode) error {
+func (n *RemoteNode) FinishJoin(stablize bool, release bool) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
 	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
-		Op:        protocol.MembershipChangeOperation_LOCK_PREDECESSOR,
-		Successor: successor.Identity(),
-	}
-
-	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil && !chord.ErrorIsRetryable(err) {
-		n.logger.Error("remote LockPredecessor RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
-	}
-
-	return err
-}
-
-func (n *RemoteNode) FinishJoin() error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
-	defer cancel()
-
-	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
-	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
-		Op: protocol.MembershipChangeOperation_JOIN_FINISH,
+		Op:       protocol.MembershipChangeOperation_JOIN_FINISH,
+		Stablize: stablize,
+		Release:  release,
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote FinishJoin RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+
+	return err
+}
+
+func (n *RemoteNode) RequestToLeave(leaver chord.VNode) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
+	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
+		Op:     protocol.MembershipChangeOperation_LEAVE_REQUEST,
+		Leaver: leaver.Identity(),
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil && !chord.ErrorIsRetryable(err) {
+		n.logger.Error("remote RequestToLeave RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+
+	return err
+}
+
+func (n *RemoteNode) FinishLeave(stablize bool, release bool) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
+	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
+		Op:       protocol.MembershipChangeOperation_LEAVE_FINISH,
+		Stablize: stablize,
+		Release:  release,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil && !chord.ErrorIsRetryable(err) {
+		n.logger.Error("remote FinishLeave RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 
 	return err

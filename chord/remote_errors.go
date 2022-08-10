@@ -26,6 +26,10 @@ func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response
 		parsedErr = chord.ErrJoinInvalidState
 	case chord.ErrJoinTransferFailure.Error():
 		parsedErr = chord.ErrJoinTransferFailure
+	case chord.ErrLeaveInvalidState.Error():
+		parsedErr = chord.ErrLeaveInvalidState
+	case chord.ErrLeaveTransferFailure.Error():
+		parsedErr = chord.ErrLeaveTransferFailure
 
 	case chord.ErrKVStaleOwnership.Error():
 		parsedErr = chord.ErrKVStaleOwnership

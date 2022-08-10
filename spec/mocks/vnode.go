@@ -147,13 +147,19 @@ func (n *VNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, e
 	return p.(chord.VNode), s.([]chord.VNode), e
 }
 
-func (n *VNode) LockPredecessor(successor chord.VNode) error {
-	args := n.Called(successor)
+func (n *VNode) FinishJoin(stablize bool, release bool) error {
+	args := n.Called()
 	e := args.Error(0)
 	return e
 }
 
-func (n *VNode) FinishJoin() error {
+func (n *VNode) RequestToLeave(leaver chord.VNode) error {
+	args := n.Called(leaver)
+	e := args.Error(0)
+	return e
+}
+
+func (n *VNode) FinishLeave(stablize bool, release bool) error {
 	args := n.Called()
 	e := args.Error(0)
 	return e

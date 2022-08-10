@@ -139,20 +139,26 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			}
 			chResp.Successors = identities
 
-		case protocol.MembershipChangeOperation_LOCK_PREDECESSOR:
-			successor := chReq.GetSuccessor()
-			vnode, err = createRPC(ctx, n.Transport, n.Logger, successor)
-			if err != nil {
-				return nil, err
-			}
-			if err := n.LockPredecessor(vnode); err != nil {
+		case protocol.MembershipChangeOperation_JOIN_FINISH:
+			if err := n.FinishJoin(chReq.GetStablize(), chReq.GetRelease()); err != nil {
 				return nil, err
 			}
 
-		case protocol.MembershipChangeOperation_JOIN_FINISH:
-			if err := n.FinishJoin(); err != nil {
+		case protocol.MembershipChangeOperation_LEAVE_REQUEST:
+			leaver := chReq.GetLeaver()
+			vnode, err = createRPC(ctx, n.Transport, n.Logger, leaver)
+			if err != nil {
 				return nil, err
 			}
+			if err := n.RequestToLeave(vnode); err != nil {
+				return nil, err
+			}
+
+		case protocol.MembershipChangeOperation_LEAVE_FINISH:
+			if err := n.FinishLeave(chReq.GetStablize(), chReq.GetRelease()); err != nil {
+				return nil, err
+			}
+
 		default:
 			n.Logger.Warn("Unknown Membership Change Operation", zap.String("Op", chReq.GetOp().String()))
 			return nil, fmt.Errorf("unknown Membership Change Operation: %s", chReq.GetOp())

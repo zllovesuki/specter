@@ -45,16 +45,20 @@ message GetSuccessorsResponse {
 enum MembershipChangeOperation {
     UNKNOWN_CHANGE = 0;
     JOIN_REQUEST = 1;
-    LOCK_PREDECESSOR = 2;
-    JOIN_FINISH = 3;
+    JOIN_FINISH = 2;
+    LEAVE_REQUEST = 3;
+    LEAVE_FINISH = 4;
 }
 
 message MembershipChangeRequest {
     MembershipChangeOperation op = 1;
     // used by RequestToJoin
     Node joiner = 2;
-    // used by LockPredecessor
-    Node successor = 3;
+    // used by RequestToLeave
+    Node leaver = 3;
+    // used by both JoinFinish and LeaveFinish
+    bool stablize = 4;
+    bool release = 5;
 }
 
 message MembershipChangeResponse {

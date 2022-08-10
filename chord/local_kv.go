@@ -147,8 +147,6 @@ func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
 	switch state {
 	case chord.Inactive, chord.Leaving, chord.Left:
 		return chord.ErrNodeGone
-	case chord.Transferring:
-		return chord.ErrKVStaleOwnership
 	}
 	n.surrogateMu.Lock()
 	defer n.surrogateMu.Unlock()

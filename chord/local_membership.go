@@ -46,34 +46,14 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	n.predecessor = predecessor
 	n.predecessorMu.Unlock()
 
-	n.startTasks()
-
 	n.Logger.Info("Successfully joined Chord ring", zap.Uint64("predecessor", predecessor.ID()), zap.Uint64("successor", successors[0].ID()))
 
-	predecessor.FinishJoin()
-	n.state.Set(chord.Active)
-	successors[0].FinishJoin()
+	n.startTasks()
 
-	return nil
-}
+	predecessor.FinishJoin(true, false)   // advisory to let predecessor update successor list
+	n.state.Set(chord.Active)             // release local join lock
+	successors[0].FinishJoin(false, true) // release successor join lock
 
-func (n *LocalNode) LockPredecessor(successor chord.VNode) error {
-	if !n.state.Transition(chord.Active, chord.Transferring) {
-		n.Logger.Warn("Membership lock was not granted to successor", zap.String("state", n.state.String()), zap.Uint64("successor", successor.ID()))
-		return chord.ErrJoinInvalidState
-	}
-	n.Logger.Info("Membership lock acquired by successor", zap.Uint64("successor", successor.ID()))
-	return nil
-}
-
-func (n *LocalNode) FinishJoin() error {
-	n.Logger.Info("Join completed, releasing membership lock")
-	n.stabilize()
-	n.fixFinger()
-	if !n.state.Transition(chord.Transferring, chord.Active) {
-		// It is normal to have this warning when the ring size is only 1 and the 2nd node is joining
-		n.Logger.Warn("Unable to release membership lock", zap.String("state", n.state.String()))
-	}
 	return nil
 }
 
@@ -104,22 +84,10 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		n.state.Set(chord.Active)
 	}()
 
-	// sanity check
-	succList := makeList(n, n.getSuccessors())
-	if succList[0] == nil {
-		return nil, nil, chord.ErrNodeNoSuccessor
-	}
-
 	n.Logger.Info("incoming join request", zap.Uint64("joiner", joiner.ID()))
 
 	n.predecessorMu.Lock()
 	defer n.predecessorMu.Unlock()
-	if n.predecessor.ID() != n.ID() {
-		if err := n.predecessor.LockPredecessor(n); err != nil {
-			return nil, nil, err
-		}
-	}
-
 	n.surrogateMu.Lock()
 	defer n.surrogateMu.Unlock()
 	// transfer key range to new node, and set surrogate pointer to new node.
@@ -133,61 +101,112 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	n.surrogate = joiner.Identity()
 	joined = true
 
-	return prevPredecessor, succList, nil
+	return prevPredecessor, makeList(n, n.getSuccessors()), nil
+}
+
+func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
+	if stablize {
+		n.Logger.Info("Join completed, joiner has requested to update pointers")
+		n.stabilize()
+		n.fixFinger()
+	}
+	if release {
+		n.Logger.Info("Join completed, joiner has requested to release membership lock")
+		if !n.state.Transition(chord.Transferring, chord.Active) {
+			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.String()))
+			return chord.ErrJoinInvalidState
+		}
+	}
+	return nil
+}
+
+func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
+	n.Logger.Info("incoming leave request", zap.Uint64("leaver", leaver.ID()))
+
+	if !n.state.Transition(chord.Active, chord.Transferring) {
+		n.Logger.Warn("rejecting leave request because current state is not Active")
+		return chord.ErrLeaveInvalidState
+	}
+	return nil
+}
+
+func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
+	if stablize {
+		n.Logger.Info("Leave completed, leaver has requested to update pointers")
+		n.stabilize()
+		n.fixFinger()
+	}
+	if release {
+		n.Logger.Info("Leave completed, leaver has requested to release membership lock")
+		if !n.state.Transition(chord.Transferring, chord.Active) {
+			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.String()))
+			return chord.ErrLeaveInvalidState
+		}
+	}
+	return nil
 }
 
 func (n *LocalNode) Leave() {
-RECHECK:
-	state := n.state.Get()
-	if state == chord.Left || state == chord.Inactive {
+	if n.state.Get() == chord.Leaving || n.state.Get() == chord.Left {
 		return
 	}
-	if !n.state.Transition(chord.Active, chord.Leaving) {
-		n.Logger.Warn("Node not in active state, retry leaving later", zap.String("state", state.String()))
-		<-time.After(n.StablizeInterval)
-		goto RECHECK
+	n.Logger.Info("Requesting to leave chord ring")
+
+	var succ chord.VNode
+	var err error
+	for {
+		succ, err = n.executeLeave()
+		if err != nil && !chord.ErrorIsRetryable(err) {
+			n.Logger.Warn("Unable to leave, retrying", zap.Error(err))
+			<-time.After(n.StablizeInterval)
+			continue
+		}
+		break
 	}
 
-	n.Logger.Info("Stopping Chord processing")
+	// release membership locks
+	prev := n.getPredecessor()
+	prev.FinishLeave(true, false)
+	n.state.Set(chord.Left)
+	if succ != nil {
+		succ.FinishLeave(false, true)
+	}
 
-	// ensure no pending KV operations to our nodes can proceed while we are leaving
 	n.surrogateMu.Lock()
-	defer func() {
-		n.surrogate = n.Identity()
-		n.surrogateMu.Unlock()
+	n.surrogate = n.Identity()
+	n.surrogateMu.Unlock()
 
-		n.state.Set(chord.Left)
+	close(n.stopCh)
+	<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
+}
 
-		// it is possible that our successor list is not up to date,
-		// need to keep it running until the very end
-		close(n.stopCh)
-		// ensure other nodes can update their finger table/successor list
-		<-time.After(n.StablizeInterval * 2)
-	}()
-
-	retries := 3
-RETRY:
+func (n *LocalNode) executeLeave() (chord.VNode, error) {
 	succ := n.getSuccessor()
 	if succ == nil || succ.ID() == n.ID() {
 		n.Logger.Debug("Skipping key transfer to successor because successor is either nil or ourself")
-		return
+		return nil, nil
 	}
-	if err := n.transferKeysDownward(succ); err != nil {
-		if chord.ErrorIsRetryable(err) && retries > 0 {
-			n.Logger.Info("Immediate successor did not accept Import request, retrying")
-			retries--
-			<-time.After(n.StablizeInterval * 2)
-			goto RETRY
+	if n.ID() > succ.ID() {
+		if err := succ.RequestToLeave(n); err != nil {
+			return nil, err
 		}
+		if !n.state.Transition(chord.Active, chord.Leaving) {
+			return nil, chord.ErrLeaveInvalidState
+		}
+	} else {
+		if !n.state.Transition(chord.Active, chord.Leaving) {
+			return nil, chord.ErrLeaveInvalidState
+		}
+		if err := succ.RequestToLeave(n); err != nil {
+			n.state.Set(chord.Active)
+			return nil, err
+		}
+	}
+	// kv requests are now blocked
+	if err := n.transferKeysDownward(succ); err != nil {
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
+		return nil, err
 	}
 
-	pre := n.getPredecessor()
-	if pre == nil || pre.ID() == n.ID() {
-		return
-	}
-
-	if err := succ.Notify(pre); err != nil {
-		n.Logger.Error("Notifying successor upon leaving", zap.Error(err))
-	}
+	return succ, nil
 }
