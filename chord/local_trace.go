@@ -6,8 +6,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 func minmax(nums []int) (min, max int) {
@@ -24,9 +27,7 @@ func minmax(nums []int) (min, max int) {
 	return
 }
 
-func (n *LocalNode) fingerTrace() string {
-	var sb strings.Builder
-
+func (n *LocalNode) fingerTrace() map[string]string {
 	ftMap := map[uint64][]int{}
 	n.fingerRange(func(i int, f chord.VNode) bool {
 		id := f.ID()
@@ -45,15 +46,13 @@ func (n *LocalNode) fingerTrace() string {
 		return keys[i] < keys[j]
 	})
 
+	f := make(map[string]string)
 	for _, k := range keys {
 		min, max := minmax(ftMap[k])
-		sb.WriteString(fmt.Sprintf("%d/%d", min, max))
-		sb.WriteString(": ")
-		sb.WriteString(strconv.FormatUint(k, 10))
-		sb.WriteString(", ")
+		f[fmt.Sprintf("%d/%d", min, max)] = strconv.FormatUint(k, 10)
 	}
 
-	return sb.String()
+	return f
 }
 
 func (n *LocalNode) ringTrace() string {
@@ -95,29 +94,84 @@ func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "error getting predecessor: %v", err)
+		return
 	}
 	succList, err := n.GetSuccessors()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "error getting successor list: %v", err)
+		return
 	}
-
 	w.Header().Set("content-type", "text/plain")
-	fmt.Fprintf(w, "Predecessor: %d - %s\n", pre.ID(), pre.Identity().GetAddress())
-	fmt.Fprintf(w, "LocalNode: %d - %s\n", n.ID(), n.Identity().GetAddress())
-	fmt.Fprintf(w, "Successors: \n")
+
+	fmt.Fprintf(w, "Current state: %s\n", n.state.String())
+	fmt.Fprintf(w, "---\n")
+
+	nodesTable := tablewriter.NewWriter(w)
+	nodesTable.SetHeader([]string{"Where", "ID", "Address"})
+	nodesTable.Append([]string{"Precedessor", fmt.Sprintf("%v", pre.ID()), pre.Identity().GetAddress()})
+	nodesTable.Append([]string{"Local", fmt.Sprintf("%v", n.ID()), n.Identity().GetAddress()})
+
 	for _, succ := range succList {
-		fmt.Fprintf(w, "  %15d - %s\n", succ.ID(), succ.Identity().GetAddress())
+		nodesTable.Append([]string{fmt.Sprintf("(Successor; L = %d)", chord.ExtendedSuccessorEntries), fmt.Sprintf("%v", succ.ID()), succ.Identity().GetAddress()})
 	}
+	nodesTable.SetCaption(true, fmt.Sprintf("(stablized: %s)", n.lastStabilized.Load().Round(time.Second).String()))
+	nodesTable.SetAutoMergeCells(true)
+	nodesTable.SetRowLine(true)
+	nodesTable.Render()
+
 	fmt.Fprintf(w, "---\n")
+
 	finger := n.fingerTrace()
-	fmt.Fprintf(w, "FingerTable: \n%s\n", finger)
-	keys := n.kv.RangeKeys(0, 0)
-	fmt.Fprintf(w, "---\n")
-	fmt.Fprintf(w, "keys on current node:\n")
-	for _, key := range keys {
-		plain, _ := n.kv.Get(key)
-		children, _ := n.kv.PrefixList(key)
-		fmt.Fprintf(w, "  %15d - %s (Plain: %v; Children: %d)\n", chord.Hash(key), key, len(plain) > 0, len(children))
+	fingerTable := tablewriter.NewWriter(w)
+	fingerTable.SetHeader([]string{"Range", "ID"})
+	for r, id := range finger {
+		fingerTable.Append([]string{r, id})
 	}
+	fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", uint64(1<<chord.MaxFingerEntries)))
+	fingerTable.SetAutoMergeCells(true)
+	fingerTable.SetRowLine(true)
+	fingerTable.Render()
+
+	fmt.Fprintf(w, "---\n")
+
+	keysTable := tablewriter.NewWriter(w)
+	keysTable.SetHeader([]string{"hash(key)", "key", "simple", "prefix", "lease"})
+
+	keys := n.kv.RangeKeys(0, 0)
+	exp := n.kv.Export(keys)
+	for i, key := range keys {
+		plain := exp[i].GetSimpleValue()
+		children := exp[i].GetPrefixChildren()
+		lease := exp[i].GetLeaseToken()
+		raw := []any{
+			chord.Hash(key),
+			string(key),
+			plain != nil,
+			len(children),
+			lease,
+		}
+		row := make([]string, len(raw))
+		for i, r := range raw {
+			row[i] = fmt.Sprintf("%v", r)
+		}
+		keysTable.Append(row)
+	}
+	good := kvFsck(n.kv, pre.ID(), n.ID())
+	keysTable.SetCaption(true, fmt.Sprintf("(fsck: %v)", good))
+	keysTable.SetAutoMergeCells(true)
+	keysTable.SetRowLine(true)
+	keysTable.Render()
+}
+
+func kvFsck(kv chord.KVProvider, low, high uint64) bool {
+	valid := true
+
+	keys := kv.RangeKeys(0, 0)
+	for _, key := range keys {
+		if !chord.Between(low, chord.Hash(key), high, true) {
+			valid = false
+		}
+	}
+	return valid
 }

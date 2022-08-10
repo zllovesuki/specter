@@ -1,7 +1,10 @@
 package chord
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"testing"
@@ -88,7 +91,7 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 
 	nodes[0].Create()
 	for i := 1; i < num; i++ {
-		nodes[i].Join(nodes[0])
+		as.NoError(nodes[i].Join(nodes[0]))
 		<-time.After(waitInterval)
 	}
 
@@ -100,7 +103,7 @@ func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
 
 	return nodes, func() {
 		for i := 0; i < num; i++ {
-			nodes[i].Stop()
+			nodes[i].Leave()
 		}
 		<-time.After(waitInterval)
 	}
@@ -152,7 +155,7 @@ func TestCreate(t *testing.T) {
 
 	<-time.After(waitInterval)
 
-	n1.Stop()
+	n1.Leave()
 
 	<-time.After(waitInterval)
 
@@ -164,11 +167,11 @@ func TestJoin(t *testing.T) {
 
 	n2 := NewLocalNode(devConfig(as))
 	n2.Create()
-	defer n2.Stop()
+	defer n2.Leave()
 
 	n1 := NewLocalNode(devConfig(as))
 	as.NoError(n1.Join(n2))
-	defer n1.Stop()
+	defer n1.Leave()
 
 	waitRing(as, n2)
 	waitRingLong(as, []*LocalNode{n1, n2})
@@ -187,8 +190,8 @@ func TestRandomNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].Load().(*atomicVNode).Node.ID())
-		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
+		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }
 
@@ -203,7 +206,27 @@ func TestLotsOfNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), nodes[i].fingers[1].Load().(*atomicVNode).Node.ID())
-		fmt.Printf("%d: %s\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
+		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
+}
+
+func TestHandler(t *testing.T) {
+	as := require.New(t)
+	node := NewLocalNode(devConfig(as))
+	as.NoError(node.Create())
+	defer node.Leave()
+
+	rec := httptest.NewRecorder()
+	node.StatsHandler(rec, nil)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	as.Equal(http.StatusOK, resp.StatusCode)
+
+	var body bytes.Buffer
+	body.ReadFrom(resp.Body)
+
+	as.Contains(body.String(), "Active")
 }

@@ -1,7 +1,6 @@
 package chord
 
 import (
-	"errors"
 	"fmt"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -9,16 +8,6 @@ import (
 
 	"go.uber.org/zap"
 )
-
-func (n *LocalNode) conditionsCheck() error {
-	if !n.started.Load() {
-		return chord.ErrNodeNotStarted
-	}
-	if !n.isRunning.Load() {
-		return chord.ErrNodeGone
-	}
-	return nil
-}
 
 func (n *LocalNode) ID() uint64 {
 	return n.NodeConfig.Identity.GetId()
@@ -29,14 +18,19 @@ func (n *LocalNode) Identity() *protocol.Node {
 }
 
 func (n *LocalNode) Ping() error {
-	if !n.isRunning.Load() {
+	state := n.state.Get()
+	switch state {
+	case chord.Inactive:
+		return chord.ErrNodeNotStarted
+	case chord.Leaving, chord.Left:
 		return chord.ErrNodeGone
+	default:
+		return nil
 	}
-	return nil
 }
 
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	if err := n.conditionsCheck(); err != nil {
+	if err := n.Ping(); err != nil {
 		return err
 	}
 	var old chord.VNode
@@ -47,9 +41,6 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 			return
 		}
 		n.surrogateMu.Lock()
-		if err := n.transferKeysUpward(old, new); err != nil {
-			n.Logger.Error("Error transferring keys to new predecessor", zap.Error(err))
-		}
 		if new.ID() == n.ID() {
 			n.surrogate = nil
 		} else {
@@ -97,18 +88,20 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 	if s == nil {
 		return nil
 	}
-	list := s.(*atomicVNodeList).Nodes
-	return list[0]
+	return (*s)[0]
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	if err := n.conditionsCheck(); err != nil {
+	if err := n.Ping(); err != nil {
 		return nil, err
 	}
-
+	pre := n.getPredecessor()
+	if pre != nil && chord.Between(pre.ID(), key, n.ID(), true) {
+		return n, nil
+	}
 	succ := n.getSuccessor()
 	if succ == nil {
-		return nil, errors.New("successor not found, possibly invalid Chord ring")
+		return nil, chord.ErrNodeNoSuccessor
 	}
 	// immediate successor
 	if chord.Between(n.ID(), key, succ.ID(), true) {
@@ -116,17 +109,13 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	}
 	// find next in ring according to finger table
 	closest := n.closestPreceedingNode(key)
-	// small optimization
-	if closest.ID() == n.ID() {
-		return n, nil
-	}
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }
 
 func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
 	for k := chord.MaxFingerEntries; k >= 1; k-- {
-		finger := n.fingers[k].Load().(*atomicVNode).Node
+		finger := *n.fingers[k].Load()
 		if finger != nil {
 			if !fn(k, finger) {
 				break
@@ -151,27 +140,30 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 	return n
 }
 
-func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
-	if err := n.conditionsCheck(); err != nil {
-		return nil, err
-	}
-
+func (n *LocalNode) getSuccessors() []chord.VNode {
 	s := n.successors.Load()
 	if s == nil {
-		return []chord.VNode{}, nil
+		return []chord.VNode{}
 	}
 
-	succ := s.(*atomicVNodeList).Nodes
 	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries+1)
 
-	for _, s := range succ {
+	for _, s := range *s {
 		if s == nil {
 			continue
 		}
 		list = append(list, s)
 	}
 
-	return list, nil
+	return list
+}
+
+func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
+	if err := n.Ping(); err != nil {
+		return nil, err
+	}
+
+	return n.getSuccessors(), nil
 }
 
 func (n *LocalNode) getPredecessor() chord.VNode {
@@ -182,7 +174,7 @@ func (n *LocalNode) getPredecessor() chord.VNode {
 }
 
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
-	if err := n.conditionsCheck(); err != nil {
+	if err := n.Ping(); err != nil {
 		return nil, err
 	}
 	return n.getPredecessor(), nil

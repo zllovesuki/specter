@@ -37,8 +37,8 @@ func (n *LocalNode) HandleRPC(ctx context.Context) {
 }
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	if !n.isRunning.Load() {
-		return nil, chord.ErrNodeGone
+	if err := n.Ping(); err != nil {
+		return nil, err
 	}
 
 	resp := &protocol.RPC_Response{}
@@ -89,7 +89,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			return nil, err
 		}
 
-		identities := make([]*protocol.Node, 0, len(vnodes))
+		identities := make([]*protocol.Node, 0)
 		for _, vnode := range vnodes {
 			if vnode == nil {
 				continue
@@ -112,6 +112,52 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		resp.GetPredecessorResponse = &protocol.GetPredecessorResponse{
 			Predecessor: pre,
 		}
+
+	case protocol.RPC_MEMBERSHIP_CHANGE:
+		chReq := req.GetMembershipRequest()
+		chResp := &protocol.MembershipChangeResponse{}
+		switch chReq.GetOp() {
+		case protocol.MembershipChangeOperation_JOIN_REQUEST:
+			joiner := chReq.GetJoiner()
+			vnode, err = createRPC(ctx, n.Transport, n.Logger, joiner)
+			if err != nil {
+				return nil, err
+			}
+
+			pre, vnodes, err := n.RequestToJoin(vnode)
+			if err != nil {
+				return nil, err
+			}
+			chResp.Predecessor = pre.Identity()
+
+			identities := make([]*protocol.Node, 0)
+			for _, vnode := range vnodes {
+				if vnode == nil {
+					continue
+				}
+				identities = append(identities, vnode.Identity())
+			}
+			chResp.Successors = identities
+
+		case protocol.MembershipChangeOperation_LOCK_PREDECESSOR:
+			successor := chReq.GetSuccessor()
+			vnode, err = createRPC(ctx, n.Transport, n.Logger, successor)
+			if err != nil {
+				return nil, err
+			}
+			if err := n.LockPredecessor(vnode); err != nil {
+				return nil, err
+			}
+
+		case protocol.MembershipChangeOperation_JOIN_FINISH:
+			if err := n.FinishJoin(); err != nil {
+				return nil, err
+			}
+		default:
+			n.Logger.Warn("Unknown Membership Change Operation", zap.String("Op", chReq.GetOp().String()))
+			return nil, fmt.Errorf("unknown Membership Change Operation: %s", chReq.GetOp())
+		}
+		resp.MembershipResponse = chResp
 
 	case protocol.RPC_KV:
 		kvReq := req.GetKvRequest()

@@ -3,8 +3,13 @@ package chord
 import "fmt"
 
 var (
-	ErrNodeGone       = fmt.Errorf("node is not part of the chord ring")
-	ErrNodeNotStarted = fmt.Errorf("node is not running")
+	ErrNodeGone        = fmt.Errorf("node is not part of the chord ring")
+	ErrNodeNotStarted  = fmt.Errorf("node is not running")
+	ErrNodeNoSuccessor = fmt.Errorf("node has no successor, possibly invalid chord ring")
+
+	ErrDuplicateJoinerID   = fmt.Errorf("joining node has duplicate ID as its successor")
+	ErrJoinInvalidState    = fmt.Errorf("node cannot handle join request at the moment")
+	ErrJoinTransferFailure = fmt.Errorf("failed to transfer keys to joiner node")
 
 	ErrKVStaleOwnership  = fmt.Errorf("processing node no longer has ownership over requested key")
 	ErrKVPendingTransfer = fmt.Errorf("kv transfer inprogress, state may be outdated")
@@ -19,24 +24,12 @@ var (
 
 func ErrorIsRetryable(err error) bool {
 	switch err {
-	case ErrNodeGone:
-		fallthrough
-	case ErrKVStaleOwnership:
-		fallthrough
-	case ErrKVPendingTransfer:
+	case ErrNodeGone, ErrKVStaleOwnership, ErrKVPendingTransfer:
 		return true
 
-	case ErrNodeNotStarted:
-		fallthrough
-	case ErrKVSimpleConflict:
-		fallthrough
-	case ErrKVPrefixConflict:
-		fallthrough
-	case ErrKVLeaseConflict:
-		fallthrough
-	case ErrKVLeaseExpired:
-		fallthrough
-	case ErrKVLeaseInvalidTTL:
+	case ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
+		ErrKVSimpleConflict, ErrKVPrefixConflict, ErrKVLeaseConflict,
+		ErrKVLeaseExpired, ErrKVLeaseInvalidTTL:
 		fallthrough
 	default:
 		return false

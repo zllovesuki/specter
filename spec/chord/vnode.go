@@ -14,4 +14,12 @@ type VNode interface {
 	FindSuccessor(key uint64) (VNode, error)
 	GetSuccessors() ([]VNode, error)
 	GetPredecessor() (VNode, error)
+
+	VNodeMembership
+}
+
+type VNodeMembership interface {
+	RequestToJoin(joiner VNode) (predecessor VNode, succList []VNode, err error)
+	LockPredecessor(successor VNode) error
+	FinishJoin() error
 }

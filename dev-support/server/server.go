@@ -50,19 +50,19 @@ type SelfSignedProvider struct {
 
 var _ cipher.CertProvider = (*SelfSignedProvider)(nil)
 
-func (s *SelfSignedProvider) Initialize(node chord.KV) {
+func (s *SelfSignedProvider) Initialize(node chord.KV) error {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	keyDER, err := x509.MarshalECPrivateKey(priv)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -83,17 +83,19 @@ func (s *SelfSignedProvider) Initialize(node chord.KV) {
 	}
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	s.cert = &tlsCert
+
+	return nil
 }
 
 func (s *SelfSignedProvider) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {

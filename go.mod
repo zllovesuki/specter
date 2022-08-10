@@ -8,6 +8,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/mholt/acmez v1.0.4
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli/v2 v2.11.1
@@ -16,11 +17,13 @@ require (
 	github.com/zhangyunhao116/skipset v0.12.1
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
-	go.uber.org/zap v1.21.0
-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
+	go.uber.org/zap v1.22.0
+	golang.org/x/net v0.0.0-20220809012201-f428fae20770
 	google.golang.org/protobuf v1.28.1
 	kon.nect.sh/challenger v1.0.1
 )
+
+require github.com/rivo/uniseg v0.2.0 // indirect
 
 require (
 	github.com/cheekybits/genny v1.0.0 // indirect
@@ -36,6 +39,7 @@ require (
 	github.com/marten-seemann/qtls-go1-17 v0.1.2 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.2 // indirect
 	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
@@ -49,7 +53,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/sys v0.0.0-20220804214406-8e32c043e418 // indirect
+	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
 	golang.org/x/text v0.3.8-0.20211004125949-5bd84dd9b33b // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect

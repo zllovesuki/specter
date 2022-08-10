@@ -1,0 +1,20 @@
+# syntax = docker/dockerfile:1-experimental
+
+FROM --platform=$BUILDPLATFORM golang:1.19-alpine as builder
+RUN apk --no-cache add ca-certificates git
+WORKDIR /app
+COPY . .
+
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
+    go build -tags 'osusergo netgo' \
+    -ldflags "-s -w -extldflags -static" \
+    -o bin/validator ./validator
+
+FROM scratch
+WORKDIR /app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/bin/validator /app/validator
+
+ENTRYPOINT ["/app/validator"]

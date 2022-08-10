@@ -34,6 +34,12 @@ var Cmd = &cli.Command{
 			Usage:    "the apex domain of specter gateway. It the gateway is not listening on port 443, the port needs to be appended (e.g. dev.con.nect.sh:1337)",
 			Required: true,
 		},
+		&cli.StringFlag{
+			Name:        "target",
+			Usage:       "tunnel's destination. Schema must be http://, https://, or tcp://",
+			DefaultText: "http://127.0.0.1:3000",
+			Required:    true,
+		},
 	},
 	Action: cmdClient,
 }
@@ -109,7 +115,7 @@ func cmdClient(ctx *cli.Context) error {
 
 	logger.Info("tunnel published", zap.String("hostname", hostname))
 
-	go c.Tunnel(ctx.Context, hostname)
+	go c.Tunnel(ctx.Context, hostname, ctx.String("target"))
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

@@ -11,6 +11,8 @@ services:
     environment:
       - PEBBLE_VA_NOSLEEP=1
       - PEBBLE_VA_ALWAYS_VALID=1
+    networks:
+      - specter
     volumes:
       - ./dev-support/pebble:/pebble:ro
 
@@ -27,11 +29,15 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+    networks:
+      - specter
     command: --verbose server --cert-dir /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
     image: specter
     restart: unless-stopped
+    depends_on:
+      - seed
     ports:
       - "2113:1113/udp"
       - "2113:1113/tcp"
@@ -40,11 +46,15 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+    networks:
+      - specter
     command: --verbose server --cert-dir /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter
     restart: unless-stopped
+    depends_on:
+      - seed
     ports:
       - "3113:1113/udp"
       - "3113:1113/tcp"
@@ -53,30 +63,43 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+    networks:
+      - specter
     command: --verbose server --cert-dir /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
-  # srvc:
-  #   image: specter
-  #   restart: unless-stopped
-  #   ports:
-  #     - "4113:1113/udp"
-  #     - "4113:1113/tcp"
-  #   volumes:
-  #     - ./certs:/certs:ro
-  #   environment:
-  #     - INTERNAL_USER=test
-  #     - INTERNAL_PASS=test
-  #   command: --verbose server --cert-dir /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+  srvc:
+    image: specter
+    restart: unless-stopped
+    depends_on:
+      - seed
+    ports:
+      - "4113:1113/udp"
+      - "4113:1113/tcp"
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - INTERNAL_USER=test
+      - INTERNAL_PASS=test
+    networks:
+      - specter
+    command: --verbose server --cert-dir /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
-  # srvd:
-  #   image: specter
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5113:1113/udp"
-  #     - "5113:1113/tcp"
-  #   volumes:
-  #     - ./certs:/certs:ro
-  #   environment:
-  #     - INTERNAL_USER=test
-  #     - INTERNAL_PASS=test
-  #   command: --verbose server --cert-dir /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+  srvd:
+    image: specter
+    restart: unless-stopped
+    depends_on:
+      - seed
+    ports:
+      - "5113:1113/udp"
+      - "5113:1113/tcp"
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - INTERNAL_USER=test
+      - INTERNAL_PASS=test
+    networks:
+      - specter
+    command: --verbose server --cert-dir /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+
+networks:
+  specter:

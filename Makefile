@@ -24,17 +24,32 @@ ext = $(word 3, $(plat_temp))
 buildx: certs
 	docker buildx build -t specter -f Dockerfile.dev .
 
-dev: buildx
-	SKIP=" " docker compose up --remove-orphans
+dev-server: buildx
+	SKIP=" " docker compose -f compose-server.yaml up
 
-dev-acme: buildx
-	docker compose up --remove-orphans
+dev-server-acme: buildx
+	docker compose -f compose-server.yaml up
 
-yeet:
-	docker compose down
-	docker compose stop
-	docker compose rm
+dev-client: buildx
+	docker compose -f compose-client.yaml up
+
+yeet-server:
+	docker compose -f compose-server.yaml down
+	docker compose -f compose-server.yaml stop
+	docker compose -f compose-server.yaml rm
 	docker image prune -f
+
+yeet-client:
+	docker compose -f compose-client.yaml down
+	docker compose -f compose-client.yaml stop
+	docker compose -f compose-client.yaml rm
+	docker image prune -f
+
+buildx-validator:
+	docker buildx build -t validator -f Dockerfile.validator .
+
+dev-validate: buildx-validator
+	docker compose -f compose-validator.yaml up
 
 # ========================================================
 
@@ -59,6 +74,7 @@ proto:
 		./spec/proto/*.proto
 
 dep:
+	go install golang.org/x/tools/cmd/stringer@latest
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install honnef.co/go/tools/cmd/staticcheck@2022.1.3

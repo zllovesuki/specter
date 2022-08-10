@@ -21,8 +21,16 @@ var _ chord.KVProvider = (*MemoryKV)(nil)
 
 type kvValue struct {
 	simple   atomic.Pointer[[]byte]
-	children *skipset.StringSet
 	lease    atomic.Uint64
+	children *skipset.StringSet
+}
+
+func (v *kvValue) isDeleted() bool {
+	plain := *v.simple.Load()
+	children := v.children.Len()
+	token := v.lease.Load()
+	deleted := (plain == nil) && (children == 0) && (token == 0)
+	return deleted
 }
 
 func newInnerMapFunc() *skipmap.StringMap[*kvValue] {
@@ -35,7 +43,8 @@ func newValueFunc() *kvValue {
 		children: skipset.NewString(),
 		lease:    atomic.Uint64{},
 	}
-	v.simple.Store(new([]byte))
+	var empty []byte
+	v.simple.Store(&empty)
 	v.lease.Store(0)
 	return v
 }
@@ -82,11 +91,13 @@ func (m *MemoryKV) Export(keys [][]byte) []*protocol.KVTransfer {
 	vals := make([]*protocol.KVTransfer, len(keys))
 	for i, key := range keys {
 		v, _ := m.fetchVal(key)
+		plain := *v.simple.Load()
 		children, _ := m.PrefixList(key)
+		token := v.lease.Load()
 		vals[i] = &protocol.KVTransfer{
-			SimpleValue:    *v.simple.Load(),
+			SimpleValue:    plain,
 			PrefixChildren: children,
-			LeaseToken:     v.lease.Load(),
+			LeaseToken:     token,
 		}
 	}
 	return vals
@@ -97,7 +108,10 @@ func (m *MemoryKV) RangeKeys(low, high uint64) [][]byte {
 
 	m.s.Range(func(id uint64, kMap *skipmap.StringMap[*kvValue]) bool {
 		if chord.Between(low, id, high, true) {
-			kMap.Range(func(key string, _ *kvValue) bool {
+			kMap.Range(func(key string, v *kvValue) bool {
+				if v.isDeleted() {
+					return true
+				}
 				keys = append(keys, []byte(key))
 				return true
 			})

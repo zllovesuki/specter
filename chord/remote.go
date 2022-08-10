@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	rpcTimeout  = time.Second * 5
+	rpcTimeout  = time.Second * 10
 	pingTimeout = time.Second
 )
 
@@ -56,7 +56,9 @@ func (n *RemoteNode) handshake(r rpc.RPC) error {
 	rReq := newReq(protocol.RPC_IDENTITY)
 	rResp, err := r.Call(ctx, rReq)
 	if err != nil {
-		// n.logger.Error("remote Identity RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote Identity RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+		}
 		return err
 	}
 
@@ -78,42 +80,6 @@ func newReq(t protocol.RPC_Kind) *protocol.RPC_Request {
 	}
 }
 
-// this is needed because RPC call squash type information, so in call site with signature
-// if err == ErrABC will fail (but err.Error() == ErrABC.Error() will work).
-func errorMapper(resp *protocol.RPC_Response, err error) (*protocol.RPC_Response, error) {
-	if err == nil {
-		return resp, err
-	}
-	var parsedErr error
-	switch err.Error() {
-	case chord.ErrNodeNotStarted.Error():
-		parsedErr = chord.ErrNodeNotStarted
-	case chord.ErrNodeGone.Error():
-		parsedErr = chord.ErrNodeGone
-
-	case chord.ErrKVStaleOwnership.Error():
-		parsedErr = chord.ErrKVStaleOwnership
-	case chord.ErrKVPendingTransfer.Error():
-		parsedErr = chord.ErrKVPendingTransfer
-
-	case chord.ErrKVPrefixConflict.Error():
-		parsedErr = chord.ErrKVPrefixConflict
-	case chord.ErrKVLeaseConflict.Error():
-		parsedErr = chord.ErrKVLeaseConflict
-	case chord.ErrKVSimpleConflict.Error():
-		parsedErr = chord.ErrKVSimpleConflict
-
-	case chord.ErrKVLeaseExpired.Error():
-		parsedErr = chord.ErrKVLeaseExpired
-	case chord.ErrKVLeaseInvalidTTL.Error():
-		parsedErr = chord.ErrKVLeaseInvalidTTL
-	default:
-		// passthrough
-		parsedErr = err
-	}
-	return resp, parsedErr
-}
-
 func (n *RemoteNode) Ping() error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, pingTimeout)
 	defer cancel()
@@ -121,7 +87,7 @@ func (n *RemoteNode) Ping() error {
 	rReq := newReq(protocol.RPC_PING)
 	rReq.PingRequest = &protocol.PingRequest{}
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote Ping RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -136,7 +102,7 @@ func (n *RemoteNode) Notify(predecessor chord.VNode) error {
 		Predecessor: predecessor.Identity(),
 	}
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote Notify RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -153,7 +119,9 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote FindSuccessor RPC", zap.String("peer", n.Identity().String()), zap.Uint64("key", key), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote FindSuccessor RPC", zap.String("peer", n.Identity().String()), zap.Uint64("key", key), zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -168,7 +136,9 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 
 	succ, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetSuccessor())
 	if err != nil {
-		n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetSuccessor().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetSuccessor().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -184,7 +154,9 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote GetSuccessors RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote GetSuccessors RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -195,7 +167,9 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 	for _, succ := range succList {
 		node, err := createRPC(n.parentCtx, n.transport, n.logger, succ)
 		if err != nil {
-			n.logger.Error("create RemoteNote in GetSuccessors", zap.String("peer", n.Identity().String()), zap.Error(err))
+			if !chord.ErrorIsRetryable(err) {
+				n.logger.Error("create RemoteNote in GetSuccessors", zap.String("peer", n.Identity().String()), zap.Error(err))
+			}
 			continue
 		}
 		nodes = append(nodes, node)
@@ -213,7 +187,9 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote GetPredecessor RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote GetPredecessor RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -227,7 +203,9 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 
 	pre, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetPredecessor())
 	if err != nil {
-		n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetPredecessor().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetPredecessor().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -246,7 +224,7 @@ func (n *RemoteNode) Put(key, value []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV Put RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -264,7 +242,9 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote KV Get RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote KV Get RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 	return rResp.GetKvResponse().GetValue(), nil
@@ -281,7 +261,7 @@ func (n *RemoteNode) Delete(key []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV Delete RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -299,7 +279,7 @@ func (n *RemoteNode) PrefixAppend(prefix []byte, child []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV PrefixAppend RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -317,7 +297,9 @@ func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
 
 	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote KV PrefixList RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote KV PrefixList RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return nil, err
 	}
 	return rResp.GetKvResponse().GetChildren(), nil
@@ -335,7 +317,7 @@ func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV PrefixRemove RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -356,7 +338,9 @@ func (n *RemoteNode) Acquire(lease []byte, ttl time.Duration) (uint64, error) {
 
 	resp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote KV Acquire RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote KV Acquire RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return 0, err
 	}
 	return resp.GetKvResponse().GetLease().GetToken(), nil
@@ -378,7 +362,9 @@ func (n *RemoteNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (n
 
 	resp, err := errorMapper(n.rpc.Call(ctx, rReq))
 	if err != nil {
-		n.logger.Error("remote KV Renew RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote KV Renew RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
 		return 0, err
 	}
 	return resp.GetKvResponse().GetLease().GetToken(), nil
@@ -398,7 +384,7 @@ func (n *RemoteNode) Release(lease []byte, token uint64) error {
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV Release RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
 	return err
@@ -416,9 +402,86 @@ func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error 
 	}
 
 	_, err := errorMapper(n.rpc.Call(ctx, rReq))
-	if err != nil {
+	if err != nil && !chord.ErrorIsRetryable(err) {
 		n.logger.Error("remote KV Import RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
 	}
+	return err
+}
+
+func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
+	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
+		Op:     protocol.MembershipChangeOperation_JOIN_REQUEST,
+		Joiner: joiner.Identity(),
+	}
+
+	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote RequestToJoin RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
+		return nil, nil, err
+	}
+
+	resp := rResp.GetMembershipResponse()
+	pre := resp.GetPredecessor()
+	succList := resp.GetSuccessors()
+
+	pp, err := createRPC(n.parentCtx, n.transport, n.logger, pre)
+	if err != nil {
+		n.logger.Error("create Predecessor in RequestToJoin", zap.String("peer", n.Identity().String()), zap.Error(err))
+		return nil, nil, err
+	}
+
+	nodes := make([]chord.VNode, 0, len(succList))
+	for _, succ := range succList {
+		node, err := createRPC(n.parentCtx, n.transport, n.logger, succ)
+		if err != nil {
+			if !chord.ErrorIsRetryable(err) {
+				n.logger.Error("create Successor in RequestToJoin", zap.String("peer", n.Identity().String()), zap.Error(err))
+			}
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	return pp, nodes, err
+}
+
+func (n *RemoteNode) LockPredecessor(successor chord.VNode) error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
+	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
+		Op:        protocol.MembershipChangeOperation_LOCK_PREDECESSOR,
+		Successor: successor.Identity(),
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil && !chord.ErrorIsRetryable(err) {
+		n.logger.Error("remote LockPredecessor RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+
+	return err
+}
+
+func (n *RemoteNode) FinishJoin() error {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_MEMBERSHIP_CHANGE)
+	rReq.MembershipRequest = &protocol.MembershipChangeRequest{
+		Op: protocol.MembershipChangeOperation_JOIN_FINISH,
+	}
+
+	_, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil && !chord.ErrorIsRetryable(err) {
+		n.logger.Error("remote FinishJoin RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+	}
+
 	return err
 }
 

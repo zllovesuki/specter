@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zeebo/xxh3"
 	"kon.nect.sh/specter/spec/chord"
 
+	"github.com/zeebo/xxh3"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +26,18 @@ func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 	list := make([]chord.VNode, chord.ExtendedSuccessorEntries+1)
 	list[0] = immediate
 	copy(list[1:], successors)
+	// deduplicate VNodes
+	seen := make(map[uint64]bool)
+	for i, succ := range list {
+		if succ == nil {
+			continue
+		}
+		if seen[succ.ID()] {
+			list[i] = nil
+			continue
+		}
+		seen[succ.ID()] = true
+	}
 	return list
 }
 
@@ -78,7 +90,7 @@ func (n *LocalNode) stabilize() error {
 	listHash := n.hash(succList)
 	if modified && n.succListHash.Load() != listHash {
 		n.succListHash.Store(listHash)
-		n.successors.Store(&atomicVNodeList{Nodes: succList})
+		n.successors.Store(&succList)
 
 		n.Logger.Info("Discovered new successors via Stablize",
 			zap.Uint64s("successors", v2d(succList)),
@@ -106,7 +118,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 		err = fmt.Errorf("no successor found for k = %d", k)
 		return
 	}
-	old := n.fingers[k].Swap(&atomicVNode{Node: f}).(*atomicVNode).Node
+	old := *n.fingers[k].Swap(&f)
 	if old == nil || old.ID() != f.ID() {
 		updated = true
 	}
@@ -115,7 +127,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 
 func (n *LocalNode) fixFinger() error {
 	fixed := make([]int, 0)
-	for k := chord.MaxFingerEntries; k >= 1; k-- {
+	for k := 1; k <= chord.MaxFingerEntries; k++ {
 		changed, err := n.fixK(k)
 		if err != nil {
 			continue
@@ -191,6 +203,10 @@ func (n *LocalNode) periodicFixFingers() {
 }
 
 func (n *LocalNode) startTasks() {
+	// run once
+	n.stabilize()
+	n.fixFinger()
+	// then run periodically
 	go n.periodicStablize()
 	go n.periodicPredecessorCheck()
 	go n.periodicFixFingers()

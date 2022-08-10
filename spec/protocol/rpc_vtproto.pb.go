@@ -72,6 +72,18 @@ func (m *RPC_Request) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0xa2
 	}
+	if m.MembershipRequest != nil {
+		size, err := m.MembershipRequest.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x3
+		i--
+		dAtA[i] = 0x92
+	}
 	if m.KvRequest != nil {
 		size, err := m.KvRequest.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -211,6 +223,18 @@ func (m *RPC_Response) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x6
 		i--
 		dAtA[i] = 0xa2
+	}
+	if m.MembershipResponse != nil {
+		size, err := m.MembershipResponse.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x3
+		i--
+		dAtA[i] = 0x92
 	}
 	if m.KvResponse != nil {
 		size, err := m.KvResponse.MarshalToSizedBufferVT(dAtA[:i])
@@ -423,6 +447,10 @@ func (m *RPC_Request) SizeVT() (n int) {
 		l = m.KvRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
+	if m.MembershipRequest != nil {
+		l = m.MembershipRequest.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
 	if m.GetNodesRequest != nil {
 		l = m.GetNodesRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
@@ -473,6 +501,10 @@ func (m *RPC_Response) SizeVT() (n int) {
 	}
 	if m.KvResponse != nil {
 		l = m.KvResponse.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
+	if m.MembershipResponse != nil {
+		l = m.MembershipResponse.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
 	if m.GetNodesResponse != nil {
@@ -815,6 +847,42 @@ func (m *RPC_Request) UnmarshalVT(dAtA []byte) error {
 				m.KvRequest = &KVRequest{}
 			}
 			if err := m.KvRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 50:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MembershipRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.MembershipRequest == nil {
+				m.MembershipRequest = &MembershipChangeRequest{}
+			}
+			if err := m.MembershipRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1224,6 +1292,42 @@ func (m *RPC_Response) UnmarshalVT(dAtA []byte) error {
 				m.KvResponse = &KVResponse{}
 			}
 			if err := m.KvResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 50:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MembershipResponse", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.MembershipResponse == nil {
+				m.MembershipResponse = &MembershipChangeResponse{}
+			}
+			if err := m.MembershipResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

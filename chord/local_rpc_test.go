@@ -176,6 +176,41 @@ func TestLocalRPC(t *testing.T) {
 			},
 		},
 
+		{
+			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
+			MembershipRequest: &protocol.MembershipChangeRequest{
+				Op: protocol.MembershipChangeOperation_JOIN_REQUEST,
+				Joiner: &protocol.Node{
+					Id: chord.Random(),
+				},
+			},
+		},
+
+		{
+			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
+			MembershipRequest: &protocol.MembershipChangeRequest{
+				Op: protocol.MembershipChangeOperation_JOIN_FINISH,
+			},
+		},
+
+		// need to unlock first then test lock
+		{
+			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
+			MembershipRequest: &protocol.MembershipChangeRequest{
+				Op: protocol.MembershipChangeOperation_LOCK_PREDECESSOR,
+				Successor: &protocol.Node{
+					Id: chord.Random(),
+				},
+			},
+		},
+
+		{
+			Kind: protocol.RPC_MEMBERSHIP_CHANGE,
+			MembershipRequest: &protocol.MembershipChangeRequest{
+				Op: protocol.MembershipChangeOperation_JOIN_FINISH,
+			},
+		},
+
 		// since we don't have a valid ring, if we call NOTIFY before KV operations,
 		// then none of the KV operations will succeed
 		{
@@ -198,7 +233,7 @@ func TestLocalRPC(t *testing.T) {
 		as.NoError(err)
 	}
 
-	node.Stop()
+	node.Leave()
 
 	_, err = errorMapper(caller.Call(ctx, &protocol.RPC_Request{}))
 	as.ErrorIs(err, chord.ErrNodeGone)

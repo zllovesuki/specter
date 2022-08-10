@@ -20,6 +20,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type MembershipChangeOperation int32
+
+const (
+	MembershipChangeOperation_UNKNOWN_CHANGE   MembershipChangeOperation = 0
+	MembershipChangeOperation_JOIN_REQUEST     MembershipChangeOperation = 1
+	MembershipChangeOperation_LOCK_PREDECESSOR MembershipChangeOperation = 2
+	MembershipChangeOperation_JOIN_FINISH      MembershipChangeOperation = 3
+)
+
+// Enum value maps for MembershipChangeOperation.
+var (
+	MembershipChangeOperation_name = map[int32]string{
+		0: "UNKNOWN_CHANGE",
+		1: "JOIN_REQUEST",
+		2: "LOCK_PREDECESSOR",
+		3: "JOIN_FINISH",
+	}
+	MembershipChangeOperation_value = map[string]int32{
+		"UNKNOWN_CHANGE":   0,
+		"JOIN_REQUEST":     1,
+		"LOCK_PREDECESSOR": 2,
+		"JOIN_FINISH":      3,
+	}
+)
+
+func (x MembershipChangeOperation) Enum() *MembershipChangeOperation {
+	p := new(MembershipChangeOperation)
+	*p = x
+	return p
+}
+
+func (x MembershipChangeOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MembershipChangeOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_spec_proto_chord_proto_enumTypes[0].Descriptor()
+}
+
+func (MembershipChangeOperation) Type() protoreflect.EnumType {
+	return &file_spec_proto_chord_proto_enumTypes[0]
+}
+
+func (x MembershipChangeOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MembershipChangeOperation.Descriptor instead.
+func (MembershipChangeOperation) EnumDescriptor() ([]byte, []int) {
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{0}
+}
+
 type IdentityRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -530,6 +582,126 @@ func (x *GetSuccessorsResponse) GetSuccessors() []*Node {
 	return nil
 }
 
+type MembershipChangeRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Op MembershipChangeOperation `protobuf:"varint,1,opt,name=op,proto3,enum=protocol.MembershipChangeOperation" json:"op,omitempty"`
+	// used by RequestToJoin
+	Joiner *Node `protobuf:"bytes,2,opt,name=joiner,proto3" json:"joiner,omitempty"`
+	// used by LockPredecessor
+	Successor *Node `protobuf:"bytes,3,opt,name=successor,proto3" json:"successor,omitempty"`
+}
+
+func (x *MembershipChangeRequest) Reset() {
+	*x = MembershipChangeRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_chord_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MembershipChangeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MembershipChangeRequest) ProtoMessage() {}
+
+func (x *MembershipChangeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_chord_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MembershipChangeRequest.ProtoReflect.Descriptor instead.
+func (*MembershipChangeRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MembershipChangeRequest) GetOp() MembershipChangeOperation {
+	if x != nil {
+		return x.Op
+	}
+	return MembershipChangeOperation_UNKNOWN_CHANGE
+}
+
+func (x *MembershipChangeRequest) GetJoiner() *Node {
+	if x != nil {
+		return x.Joiner
+	}
+	return nil
+}
+
+func (x *MembershipChangeRequest) GetSuccessor() *Node {
+	if x != nil {
+		return x.Successor
+	}
+	return nil
+}
+
+type MembershipChangeResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Predecessor *Node   `protobuf:"bytes,1,opt,name=predecessor,proto3" json:"predecessor,omitempty"`
+	Successors  []*Node `protobuf:"bytes,2,rep,name=successors,proto3" json:"successors,omitempty"`
+}
+
+func (x *MembershipChangeResponse) Reset() {
+	*x = MembershipChangeResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_chord_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MembershipChangeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MembershipChangeResponse) ProtoMessage() {}
+
+func (x *MembershipChangeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_chord_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MembershipChangeResponse.ProtoReflect.Descriptor instead.
+func (*MembershipChangeResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_chord_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MembershipChangeResponse) GetPredecessor() *Node {
+	if x != nil {
+		return x.Predecessor
+	}
+	return nil
+}
+
+func (x *MembershipChangeResponse) GetSuccessors() []*Node {
+	if x != nil {
+		return x.Successors
+	}
+	return nil
+}
+
 var File_spec_proto_chord_proto protoreflect.FileDescriptor
 
 var file_spec_proto_chord_proto_rawDesc = []byte{
@@ -568,10 +740,35 @@ var file_spec_proto_chord_proto_rawDesc = []byte{
 	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2e, 0x0a, 0x0a, 0x73, 0x75, 0x63, 0x63, 0x65,
 	0x73, 0x73, 0x6f, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72,
 	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x0a, 0x73, 0x75, 0x63,
-	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x42, 0x25, 0x48, 0x01, 0x5a, 0x21, 0x6b, 0x6f, 0x6e,
-	0x2e, 0x6e, 0x65, 0x63, 0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72,
-	0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x22, 0xa4, 0x01, 0x0a, 0x17, 0x4d, 0x65, 0x6d, 0x62,
+	0x65, 0x72, 0x73, 0x68, 0x69, 0x70, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x33, 0x0a, 0x02, 0x6f, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x23, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4d, 0x65, 0x6d, 0x62, 0x65,
+	0x72, 0x73, 0x68, 0x69, 0x70, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x4f, 0x70, 0x65, 0x72, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x52, 0x02, 0x6f, 0x70, 0x12, 0x26, 0x0a, 0x06, 0x6a, 0x6f, 0x69, 0x6e,
+	0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x06, 0x6a, 0x6f, 0x69, 0x6e, 0x65, 0x72,
+	0x12, 0x2c, 0x0a, 0x09, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e,
+	0x6f, 0x64, 0x65, 0x52, 0x09, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x22, 0x7c,
+	0x0a, 0x18, 0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x73, 0x68, 0x69, 0x70, 0x43, 0x68, 0x61, 0x6e,
+	0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x30, 0x0a, 0x0b, 0x70, 0x72,
+	0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52,
+	0x0b, 0x70, 0x72, 0x65, 0x64, 0x65, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x12, 0x2e, 0x0a, 0x0a,
+	0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65,
+	0x52, 0x0a, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x73, 0x2a, 0x68, 0x0a, 0x19,
+	0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x73, 0x68, 0x69, 0x70, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65,
+	0x4f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x12, 0x0a, 0x0e, 0x55, 0x4e, 0x4b,
+	0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x10, 0x00, 0x12, 0x10, 0x0a,
+	0x0c, 0x4a, 0x4f, 0x49, 0x4e, 0x5f, 0x52, 0x45, 0x51, 0x55, 0x45, 0x53, 0x54, 0x10, 0x01, 0x12,
+	0x14, 0x0a, 0x10, 0x4c, 0x4f, 0x43, 0x4b, 0x5f, 0x50, 0x52, 0x45, 0x44, 0x45, 0x43, 0x45, 0x53,
+	0x53, 0x4f, 0x52, 0x10, 0x02, 0x12, 0x0f, 0x0a, 0x0b, 0x4a, 0x4f, 0x49, 0x4e, 0x5f, 0x46, 0x49,
+	0x4e, 0x49, 0x53, 0x48, 0x10, 0x03, 0x42, 0x25, 0x48, 0x01, 0x5a, 0x21, 0x6b, 0x6f, 0x6e, 0x2e,
+	0x6e, 0x65, 0x63, 0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2f,
+	0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -586,33 +783,42 @@ func file_spec_proto_chord_proto_rawDescGZIP() []byte {
 	return file_spec_proto_chord_proto_rawDescData
 }
 
-var file_spec_proto_chord_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_spec_proto_chord_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_spec_proto_chord_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_spec_proto_chord_proto_goTypes = []interface{}{
-	(*IdentityRequest)(nil),        // 0: protocol.IdentityRequest
-	(*IdentityResponse)(nil),       // 1: protocol.IdentityResponse
-	(*PingRequest)(nil),            // 2: protocol.PingRequest
-	(*PingResponse)(nil),           // 3: protocol.PingResponse
-	(*NotifyRequest)(nil),          // 4: protocol.NotifyRequest
-	(*NotifyResponse)(nil),         // 5: protocol.NotifyResponse
-	(*FindSuccessorRequest)(nil),   // 6: protocol.FindSuccessorRequest
-	(*FindSuccessorResponse)(nil),  // 7: protocol.FindSuccessorResponse
-	(*GetPredecessorRequest)(nil),  // 8: protocol.GetPredecessorRequest
-	(*GetPredecessorResponse)(nil), // 9: protocol.GetPredecessorResponse
-	(*GetSuccessorsRequest)(nil),   // 10: protocol.GetSuccessorsRequest
-	(*GetSuccessorsResponse)(nil),  // 11: protocol.GetSuccessorsResponse
-	(*Node)(nil),                   // 12: protocol.Node
+	(MembershipChangeOperation)(0),   // 0: protocol.MembershipChangeOperation
+	(*IdentityRequest)(nil),          // 1: protocol.IdentityRequest
+	(*IdentityResponse)(nil),         // 2: protocol.IdentityResponse
+	(*PingRequest)(nil),              // 3: protocol.PingRequest
+	(*PingResponse)(nil),             // 4: protocol.PingResponse
+	(*NotifyRequest)(nil),            // 5: protocol.NotifyRequest
+	(*NotifyResponse)(nil),           // 6: protocol.NotifyResponse
+	(*FindSuccessorRequest)(nil),     // 7: protocol.FindSuccessorRequest
+	(*FindSuccessorResponse)(nil),    // 8: protocol.FindSuccessorResponse
+	(*GetPredecessorRequest)(nil),    // 9: protocol.GetPredecessorRequest
+	(*GetPredecessorResponse)(nil),   // 10: protocol.GetPredecessorResponse
+	(*GetSuccessorsRequest)(nil),     // 11: protocol.GetSuccessorsRequest
+	(*GetSuccessorsResponse)(nil),    // 12: protocol.GetSuccessorsResponse
+	(*MembershipChangeRequest)(nil),  // 13: protocol.MembershipChangeRequest
+	(*MembershipChangeResponse)(nil), // 14: protocol.MembershipChangeResponse
+	(*Node)(nil),                     // 15: protocol.Node
 }
 var file_spec_proto_chord_proto_depIdxs = []int32{
-	12, // 0: protocol.IdentityResponse.identity:type_name -> protocol.Node
-	12, // 1: protocol.NotifyRequest.predecessor:type_name -> protocol.Node
-	12, // 2: protocol.FindSuccessorResponse.successor:type_name -> protocol.Node
-	12, // 3: protocol.GetPredecessorResponse.predecessor:type_name -> protocol.Node
-	12, // 4: protocol.GetSuccessorsResponse.successors:type_name -> protocol.Node
-	5,  // [5:5] is the sub-list for method output_type
-	5,  // [5:5] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	15, // 0: protocol.IdentityResponse.identity:type_name -> protocol.Node
+	15, // 1: protocol.NotifyRequest.predecessor:type_name -> protocol.Node
+	15, // 2: protocol.FindSuccessorResponse.successor:type_name -> protocol.Node
+	15, // 3: protocol.GetPredecessorResponse.predecessor:type_name -> protocol.Node
+	15, // 4: protocol.GetSuccessorsResponse.successors:type_name -> protocol.Node
+	0,  // 5: protocol.MembershipChangeRequest.op:type_name -> protocol.MembershipChangeOperation
+	15, // 6: protocol.MembershipChangeRequest.joiner:type_name -> protocol.Node
+	15, // 7: protocol.MembershipChangeRequest.successor:type_name -> protocol.Node
+	15, // 8: protocol.MembershipChangeResponse.predecessor:type_name -> protocol.Node
+	15, // 9: protocol.MembershipChangeResponse.successors:type_name -> protocol.Node
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_spec_proto_chord_proto_init() }
@@ -766,19 +972,44 @@ func file_spec_proto_chord_proto_init() {
 				return nil
 			}
 		}
+		file_spec_proto_chord_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MembershipChangeRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_chord_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MembershipChangeResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_spec_proto_chord_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_spec_proto_chord_proto_goTypes,
 		DependencyIndexes: file_spec_proto_chord_proto_depIdxs,
+		EnumInfos:         file_spec_proto_chord_proto_enumTypes,
 		MessageInfos:      file_spec_proto_chord_proto_msgTypes,
 	}.Build()
 	File_spec_proto_chord_proto = out.File

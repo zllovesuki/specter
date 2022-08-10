@@ -31,7 +31,7 @@ Similar to t, specter also:
 | **Component**  | Status | Description                                               |
 |----------------|--------|-----------------------------------------------------------|
 | Chord DHT      | Stable | Chord implementation is stable to be used as a dependency |
-| Chord KV       | Beta*  | Key consistency is maintained when independent Join/Leave is happening while concurrent KV operations are inprogress. However, concurrent Join/Leave behavior is currently undefined               |
+| Chord KV       | Beta*  | Key consistency is maintained when independent Join/Leave is happening while concurrent KV operations are inprogress. However, concurrent Join/Leave behavior is currently untested               |
 | Tunnel Core    | Beta   | Storage format is subjected to change                     |
 | Tunnel Gateway | Alpha  |                                                           |
 | Server         | Beta   |                                                           |
@@ -50,7 +50,11 @@ The following should be installed on your machine:
 - [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
 - [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
 
-Run `make dev` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
+Run `make dev-server-acme` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
+
+Run `make dev-validate` to verify that all nodes have the same certificate (validate atomic ring maintenance).
+
+Run `make dev-client` to start a demo nginx server as proxy target, and a specter client connected to the cluster.
 
 For changes unrelated to KV, `make test` should be sufficient. Any changes to KV must pass `make concurrency_test`.
 
@@ -62,3 +66,4 @@ Chord:
 
 Key Consistency:
 - Inspiraion on join/leave KV correctness: [Atomic Data Access in Distributed Hash Tables](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.71.6111&rep=rep1&type=pdf)
+- Partial atomic ring maintenance implementation: [Atomic Ring Maintenance for Distributed Hash Table](https://www.diva-portal.org/smash/get/diva2:1041775/FULLTEXT01.pdf), full dissertation is available [here](https://www.diva-portal.org/smash/get/diva2:1041220/FULLTEXT01.pdf)

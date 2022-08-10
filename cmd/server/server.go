@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"kon.nect.sh/specter/acme/storage"
 	"kon.nect.sh/specter/chord"
 	ds "kon.nect.sh/specter/dev-support/server"
 	"kon.nect.sh/specter/kv/memory"
@@ -215,8 +216,17 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 		magic := configACME(ctx, logger)
 		return &ACMEProvider{
 			Config: magic,
-			InitializeFn: func() {
+			InitializeFn: func(kv chordSpec.KV) error {
+				kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
+					RetryInterval: time.Second * 3,
+					LeaseTTL:      time.Minute,
+				})
+				if err != nil {
+					return err
+				}
+				magic.Storage = kvStore
 				magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain})
+				return nil
 			},
 		}
 	} else {
@@ -306,7 +316,7 @@ func cmdServer(ctx *cli.Context) error {
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
 	})
-	defer chordNode.Stop()
+	defer chordNode.Leave()
 
 	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:   tunLogger,
@@ -336,6 +346,10 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	defer gw.Close()
 
+	go alpnMux.Accept(ctx.Context)
+	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
+	go chordNode.HandleRPC(ctx.Context)
+
 	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
@@ -353,11 +367,10 @@ func cmdServer(ctx *cli.Context) error {
 		}
 	}
 
-	certProvider.Initialize(chordNode)
+	if err := certProvider.Initialize(chordNode); err != nil {
+		return fmt.Errorf("failed to initialize cert provider: %w", err)
+	}
 
-	go alpnMux.Accept(ctx.Context)
-	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
-	go chordNode.HandleRPC(ctx.Context)
 	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
 	go tunServer.HandleRPC(ctx.Context)
 	go tunServer.Accept(ctx.Context)
@@ -373,11 +386,11 @@ func cmdServer(ctx *cli.Context) error {
 
 type ACMEProvider struct {
 	*certmagic.Config
-	InitializeFn func()
+	InitializeFn func(chordSpec.KV) error
 }
 
-func (a *ACMEProvider) Initialize(node chordSpec.KV) {
-	a.InitializeFn()
+func (a *ACMEProvider) Initialize(node chordSpec.KV) error {
+	return a.InitializeFn(node)
 }
 
 var _ cipher.CertProvider = (*ACMEProvider)(nil)

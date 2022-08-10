@@ -21,7 +21,8 @@ func (m *MemoryKV) Get(key []byte) ([]byte, error) {
 func (m *MemoryKV) Delete(key []byte) error {
 	v, _ := m.fetchVal(key)
 	curr := v.simple.Load()
-	if !v.simple.CompareAndSwap(curr, new([]byte)) {
+	var empty []byte
+	if !v.simple.CompareAndSwap(curr, &empty) {
 		return chord.ErrKVSimpleConflict
 	}
 	return nil

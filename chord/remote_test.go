@@ -95,6 +95,15 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.Release([]byte("lease"), 0)
 	as.ErrorContains(err, e.Error())
 
+	_, _, err = r.RequestToJoin(p)
+	as.ErrorContains(err, e.Error())
+
+	err = r.LockPredecessor(p)
+	as.ErrorContains(err, e.Error())
+
+	err = r.FinishJoin()
+	as.ErrorContains(err, e.Error())
+
 	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
 		SimpleValue:    []byte("v"),
 		PrefixChildren: [][]byte{[]byte("c")},

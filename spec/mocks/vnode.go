@@ -136,6 +136,25 @@ func (n *VNode) GetPredecessor() (chord.VNode, error) {
 	return v.(chord.VNode), e
 }
 
-func (n *VNode) Stop() {
-	n.Called()
+func (n *VNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
+	args := n.Called(joiner)
+	p := args.Get(0)
+	s := args.Get(1)
+	e := args.Error(2)
+	if e != nil {
+		return nil, nil, e
+	}
+	return p.(chord.VNode), s.([]chord.VNode), e
+}
+
+func (n *VNode) LockPredecessor(successor chord.VNode) error {
+	args := n.Called(successor)
+	e := args.Error(0)
+	return e
+}
+
+func (n *VNode) FinishJoin() error {
+	args := n.Called()
+	e := args.Error(0)
+	return e
 }

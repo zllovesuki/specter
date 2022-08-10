@@ -107,18 +107,6 @@ func fsck(as *require.Assertions, nodes []*LocalNode) {
 	}
 }
 
-func kvFsck(kv chord.KVProvider, low, high uint64) bool {
-	valid := true
-
-	keys := kv.RangeKeys(0, 0)
-	for _, key := range keys {
-		if !chord.Between(low, chord.Hash(key), high, true) {
-			valid = false
-		}
-	}
-	return valid
-}
-
 func TestKeyTransferOut(t *testing.T) {
 	as := require.New(t)
 
@@ -141,7 +129,7 @@ func TestKeyTransferOut(t *testing.T) {
 
 	leavingKeys := randomNode.kv.RangeKeys(0, 0)
 
-	randomNode.Stop()
+	randomNode.Leave()
 	<-time.After(waitInterval)
 
 	c := make([]*LocalNode, 0)
@@ -183,7 +171,7 @@ func TestKeyTransferIn(t *testing.T) {
 	seedCfg.Identity.Id = (1 << chord.MaxFingerEntries) / 2 // halfway
 	seed := NewLocalNode(seedCfg)
 	as.NoError(seed.Create())
-	defer seed.Stop()
+	defer seed.Leave()
 	waitRing(as, seed)
 
 	keys, values := makeKV(400, 8)
@@ -197,7 +185,7 @@ func TestKeyTransferIn(t *testing.T) {
 	n1Cfg.Identity.Id = (1 << chord.MaxFingerEntries) / 4 // 1 quarter
 	n1 := NewLocalNode(n1Cfg)
 	as.NoError(n1.Join(seed))
-	defer n1.Stop()
+	defer n1.Leave()
 	waitRing(as, n1)
 
 	<-time.After(waitInterval * 2)
@@ -215,7 +203,7 @@ func TestKeyTransferIn(t *testing.T) {
 	n2Cfg.Identity.Id = ((1 << chord.MaxFingerEntries) / 4) + ((1 << chord.MaxFingerEntries) / 2) // 3 quarter
 	n2 := NewLocalNode(n2Cfg)
 	as.NoError(n2.Join(seed))
-	defer n2.Stop()
+	defer n2.Leave()
 	waitRing(as, n2)
 
 	keys = n2.kv.RangeKeys(0, 0)
@@ -359,7 +347,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
 
 	for i := 0; i < numNodes; i++ {
-		nodes[i].Stop()
+		nodes[i].Leave()
 	}
 }
 
@@ -408,7 +396,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 
 	// kill every node except the first node
 	for i := 1; i < numNodes; i++ {
-		nodes[i].Stop()
+		nodes[i].Leave()
 	}
 
 	<-syncA

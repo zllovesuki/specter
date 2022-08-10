@@ -28,6 +28,8 @@ message RPC {
 
         IDENTITY = 10;
 
+        MEMBERSHIP_CHANGE = 11;
+
         // tunnel
         GET_NODES = 100;
         PUBLISH_TUNNEL = 101;
@@ -52,6 +54,8 @@ message RPC {
 
         KVRequest kvRequest = 41;
 
+        MembershipChangeRequest membershipRequest = 50;
+
         GetNodesRequest getNodesRequest = 100;
         PublishTunnelRequest publishTunnelRequest = 101;
     }
@@ -70,6 +74,8 @@ message RPC {
         GetSuccessorsResponse getSuccessorsResponse = 30;
 
         KVResponse kvResponse = 41;
+        
+        MembershipChangeResponse membershipResponse = 50;
 
         GetNodesResponse getNodesResponse = 100;
         PublishTunnelResponse publishTunnelResponse = 101;

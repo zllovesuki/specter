@@ -1,9 +1,11 @@
 package memory
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"kon.nect.sh/specter/spec/chord"
 )
 
 func TestCollisionPutGet(t *testing.T) {
@@ -62,4 +64,48 @@ func TestCollisionDelete(t *testing.T) {
 		as.Nil(err)
 		as.Nil(val)
 	}
+}
+
+func TestEmpty(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithHashFn(chord.HashString)
+
+	key := make([]byte, 6)
+	rand.Read(key)
+
+	val, err := kv.Get(key)
+	as.NoError(err)
+	as.Nil(val)
+
+	err = kv.Put(key, []byte("v"))
+	as.NoError(err)
+
+	val, err = kv.Get(key)
+	as.NoError(err)
+	as.NotNil(val)
+
+	err = kv.Delete(key)
+	as.NoError(err)
+
+	val, err = kv.Get(key)
+	as.NoError(err)
+	as.Nil(val)
+
+	keys := kv.RangeKeys(0, 0)
+	exp := kv.Export(keys)
+
+	kv2 := WithHashFn(chord.HashString)
+	as.NoError(kv2.Import(keys, exp))
+
+	val, err = kv2.Get(key)
+	as.NoError(err)
+	as.Nil(val)
+
+	err = kv2.Put(key, []byte{})
+	as.NoError(err)
+
+	val, err = kv2.Get(key)
+	as.NoError(err)
+	as.NotNil(val)
 }

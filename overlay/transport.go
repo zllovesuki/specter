@@ -19,10 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	CONNECT_TIMEOUT = time.Second * 3
-)
-
 var (
 	ErrClosed   = fmt.Errorf("transport is already closed")
 	ErrNoDirect = fmt.Errorf("cannot open direct quic connection without address")
@@ -86,7 +82,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnect
 
 	t.Logger.Debug("Creating new QUIC connection", zap.Any("peer", peer))
 
-	dialCtx, dialCancel := context.WithTimeout(ctx, CONNECT_TIMEOUT)
+	dialCtx, dialCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer dialCancel()
 
 	q, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
@@ -104,7 +100,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnect
 	return q, nil
 }
 
-func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (q quic.Connection, stream quic.Stream, err error) {
+func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Stream_Type) (q quic.EarlyConnection, stream quic.Stream, err error) {
 	// defer func() {
 	// 	if err != nil {
 	// 		t.Logger.Error("Dialing new stream", zap.Error(err), zap.String("type", sType.String()), zap.String("addr", peer.GetAddress()))
@@ -116,7 +112,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 		return nil, nil, fmt.Errorf("creating quic connection: %w", err)
 	}
 
-	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
+	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
 	stream, err = q.OpenStreamSync(openCtx)
@@ -127,7 +123,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 	rr := &protocol.Stream{
 		Type: sType,
 	}
-	stream.SetDeadline(time.Now().Add(time.Second))
+	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
 	err = rpc.Send(stream, rr)
 	if err != nil {
 		return
@@ -155,16 +151,18 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 	}
 	rUnlock()
 
-	// t.logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
+	// t.Logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
 
 	unlock := t.rpcMu.Lock(rpcMapKey)
-	defer unlock()
+	defer func() {
+		unlock()
+	}()
 
 	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
 		return r, nil
 	}
 
-	// t.logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
+	// t.Logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
 	if err != nil {
@@ -260,7 +258,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 		Identity: t.Endpoint,
 	}
 
-	s.SetDeadline(time.Now().Add(time.Second))
+	s.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
 	err := rpc.Send(s, rr)
 	if err != nil {
 		return nil, false, err
@@ -283,7 +281,9 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 	rKey := makeQKey(rr.GetIdentity())
 
 	unlock := t.qMu.Lock(rKey)
-	defer unlock()
+	defer func() {
+		unlock()
+	}()
 
 	sQ, loaded := t.qMap.LoadOrStoreLazy(rKey, func() *nodeConnection {
 		return &nodeConnection{
@@ -306,7 +306,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 }
 
 func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
-	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
+	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
 	stream, err := q.AcceptStream(openCtx)
@@ -332,7 +332,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic
 }
 
 func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
-	openCtx, openCancel := context.WithTimeout(ctx, time.Second)
+	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
 	stream, err := q.OpenStreamSync(openCtx)
@@ -358,7 +358,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 }
 
 func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *protocol.Node, dir string) {
-	t.Logger.Debug("Starting goroutines to handle incoming streams and datagrams", zap.String("direction", dir), zap.String("key", makeQKey(peer)))
+	t.Logger.Debug("Starting goroutines to handle streams and datagrams", zap.String("direction", dir), zap.String("key", makeQKey(peer)))
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
 }
@@ -446,7 +446,7 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 	}()
 
 	rr := &protocol.Stream{}
-	stream.SetDeadline(time.Now().Add(time.Second))
+	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
 	err = rpc.Receive(stream, rr)
 	if err != nil {
 		return

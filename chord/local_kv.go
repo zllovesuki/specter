@@ -27,13 +27,19 @@ func kvMiddleware[V any](
 		return zeroV, err
 	}
 	if succ.ID() == n.ID() {
+		// maybe we are joining
+		state := n.state.Get()
+		if state != chord.Active {
+			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))
+			return zeroV, chord.ErrKVStaleOwnership
+		}
 		if !n.surrogateMu.TryRLock() {
 			// this is to avoid caller timing out RPC call
 			return zeroV, chord.ErrKVPendingTransfer
 		}
 		defer n.surrogateMu.RUnlock()
 		if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
-			n.Logger.Debug("KV Ownership moved", zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
+			n.Logger.Debug("KV Ownership moved", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 			return zeroV, chord.ErrKVStaleOwnership
 		}
 		return handler(n.kv, false, id)
@@ -137,8 +143,12 @@ func (n *LocalNode) Release(lease []byte, token uint64) error {
 }
 
 func (n *LocalNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	if !n.isRunning.Load() {
+	state := n.state.Get()
+	switch state {
+	case chord.Inactive, chord.Leaving, chord.Left:
 		return chord.ErrNodeGone
+	case chord.Transferring:
+		return chord.ErrKVStaleOwnership
 	}
 	n.surrogateMu.Lock()
 	defer n.surrogateMu.Unlock()

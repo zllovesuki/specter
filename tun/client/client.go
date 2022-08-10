@@ -53,11 +53,11 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, s
 	return c, nil
 }
 
-func (c *Client) forward(ctx context.Context, remote net.Conn) {
+func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
 	dialer := &net.Dialer{
 		Timeout: time.Second * 3,
 	}
-	local, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:3000")
+	local, err := dialer.DialContext(ctx, "tcp", dest)
 	if err != nil {
 		c.logger.Error("forwarding connection", zap.Error(err))
 		remote.Close()
@@ -93,9 +93,9 @@ func (c *Client) PublishTunnel(ctx context.Context, servers []*protocol.Node) (s
 	return resp.GetPublishTunnelResponse().GetHostname(), nil
 }
 
-func (c *Client) Tunnel(ctx context.Context, hostname string) {
+func (c *Client) Tunnel(ctx context.Context, hostname string, dest string) {
 	overwrite := false
-	u, err := url.Parse("http://127.0.0.1:3000")
+	u, err := url.Parse(dest)
 	if err != nil {
 		c.logger.Fatal("parsing forwarding target", zap.Error(err))
 	}
@@ -131,11 +131,12 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 	}
 	proxy.ErrorLog = zap.NewStdLog(c.logger)
 
-	accepter := &acceptor.HTTP2Acceptor{}
+	accepter := acceptor.NewH2Acceptor(nil)
 	h2s := &http2.Server{}
 	forwarder := &http.Server{
-		Handler:  h2c.NewHandler(proxy, h2s),
-		ErrorLog: zap.NewStdLog(c.logger),
+		Handler:           h2c.NewHandler(proxy, h2s),
+		ErrorLog:          zap.NewStdLog(c.logger),
+		ReadHeaderTimeout: time.Second * 15,
 	}
 	go func() {
 		forwarder.Serve(accepter)
@@ -149,11 +150,12 @@ func (c *Client) Tunnel(ctx context.Context, hostname string) {
 				delegation.Connection.Close()
 				return
 			}
+			c.logger.Info("new connection", zap.String("link", link.String()))
 			switch link.GetAlpn() {
 			case protocol.Link_HTTP:
 				accepter.Handle(delegation.Connection)
 			case protocol.Link_TCP:
-				c.forward(ctx, delegation.Connection)
+				c.forward(ctx, delegation.Connection, u.Host)
 			default:
 				c.logger.Error("unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
 				delegation.Connection.Close()
