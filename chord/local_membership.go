@@ -156,20 +156,28 @@ func (n *LocalNode) Leave() {
 	var err error
 	for {
 		succ, err = n.executeLeave()
-		if err != nil && !chord.ErrorIsRetryable(err) {
+		if err != nil {
 			n.Logger.Warn("Unable to leave, retrying", zap.Error(err))
 			<-time.After(n.StablizeInterval)
 			continue
 		}
 		break
 	}
+	n.Logger.Info("Sending advisory to update pointers and releasing membership locks")
 
 	// release membership locks
-	prev := n.getPredecessor()
-	prev.FinishLeave(true, false)
-	n.state.Set(chord.Left)
-	if succ != nil {
-		succ.FinishLeave(false, true)
+	pre := n.getPredecessor()
+	if pre != nil && pre.ID() != n.ID() {
+		if succ != nil {
+			if err := succ.Notify(pre); err != nil { // notify successor to update predecessor pointer
+				n.Logger.Warn("error notifying successor to update", zap.Error(err))
+			}
+		}
+		pre.FinishLeave(true, false) // advisory to let predecessor update successor list
+	}
+	n.state.Set(chord.Left) // release local leave lock
+	if succ != nil {        // successor can be ourself
+		succ.FinishLeave(false, true) // if applicable, release successor leave lock
 	}
 
 	n.surrogateMu.Lock()
@@ -180,6 +188,7 @@ func (n *LocalNode) Leave() {
 	<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
 }
 
+// TODO: re-read the paper and see if we are retying by releasing the acuqired lock, or loop back again
 func (n *LocalNode) executeLeave() (chord.VNode, error) {
 	succ := n.getSuccessor()
 	if succ == nil || succ.ID() == n.ID() {
@@ -191,8 +200,10 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 			return nil, err
 		}
 		if !n.state.Transition(chord.Active, chord.Leaving) {
+			succ.FinishLeave(false, true) // release successor lock and try again
 			return nil, chord.ErrLeaveInvalidState
 		}
+		n.Logger.Info("Leave locks acquired (succ -> self)")
 	} else {
 		if !n.state.Transition(chord.Active, chord.Leaving) {
 			return nil, chord.ErrLeaveInvalidState
@@ -201,9 +212,11 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 			n.state.Set(chord.Active)
 			return nil, err
 		}
+		n.Logger.Info("Leave locks acquired (self -> succ)")
 	}
 	// kv requests are now blocked
 	if err := n.transferKeysDownward(succ); err != nil {
+		n.state.Set(chord.Active)
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
 		return nil, err
 	}
