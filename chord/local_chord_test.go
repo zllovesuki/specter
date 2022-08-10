@@ -211,16 +211,21 @@ func TestLotsOfNodes(t *testing.T) {
 	}
 }
 
-func TestHandler(t *testing.T) {
+func TestStatsSummaryHandler(t *testing.T) {
 	as := require.New(t)
+
 	node := NewLocalNode(devConfig(as))
 	as.NoError(node.Create())
 	defer node.Leave()
 
-	rec := httptest.NewRecorder()
-	node.StatsHandler(rec, nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(node.StatsHandler)
 
-	resp := rec.Result()
+	req, err := http.NewRequest("GET", "/", nil)
+	as.NoError(err)
+	handler.ServeHTTP(rr, req)
+
+	resp := rr.Result()
 	defer resp.Body.Close()
 
 	as.Equal(http.StatusOK, resp.StatusCode)
@@ -229,4 +234,30 @@ func TestHandler(t *testing.T) {
 	body.ReadFrom(resp.Body)
 
 	as.Contains(body.String(), "Active")
+}
+
+func TestStatsKeyHandler(t *testing.T) {
+	as := require.New(t)
+
+	node := NewLocalNode(devConfig(as))
+	as.NoError(node.Create())
+	defer node.Leave()
+
+	node.kv.Put([]byte("hi"), []byte("hello"))
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(node.StatsHandler)
+
+	req, err := http.NewRequest("GET", "/?key=hi", nil)
+	as.NoError(err)
+	handler.ServeHTTP(rr, req)
+
+	resp := rr.Result()
+	defer resp.Body.Close()
+
+	as.Equal(http.StatusOK, resp.StatusCode)
+
+	var body bytes.Buffer
+	body.ReadFrom(resp.Body)
+
+	as.Equal("hello", body.String())
 }
