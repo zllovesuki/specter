@@ -147,9 +147,11 @@ func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
 }
 
 func (n *LocalNode) Leave() {
-	if n.state.Get() == chord.Leaving || n.state.Get() == chord.Left {
+	switch n.state.Get() {
+	case chord.Inactive, chord.Leaving, chord.Left:
 		return
 	}
+
 	n.Logger.Info("Requesting to leave chord ring")
 
 	var succ chord.VNode
@@ -209,7 +211,7 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 			return nil, chord.ErrLeaveInvalidState
 		}
 		if err := succ.RequestToLeave(n); err != nil {
-			n.state.Set(chord.Active)
+			n.state.Set(chord.Active) // release local lock and try again
 			return nil, err
 		}
 		n.Logger.Info("Leave locks acquired (self -> succ)")

@@ -36,8 +36,6 @@ services:
   srva:
     image: specter
     restart: unless-stopped
-    depends_on:
-      - seed
     ports:
       - "2113:1113/udp"
       - "2113:1113/tcp"
@@ -53,8 +51,6 @@ services:
   srvb:
     image: specter
     restart: unless-stopped
-    depends_on:
-      - seed
     ports:
       - "3113:1113/udp"
       - "3113:1113/tcp"
@@ -70,8 +66,6 @@ services:
   srvc:
     image: specter
     restart: unless-stopped
-    depends_on:
-      - seed
     ports:
       - "4113:1113/udp"
       - "4113:1113/tcp"
@@ -87,8 +81,6 @@ services:
   srvd:
     image: specter
     restart: unless-stopped
-    depends_on:
-      - seed
     ports:
       - "5113:1113/udp"
       - "5113:1113/tcp"
