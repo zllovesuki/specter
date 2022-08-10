@@ -64,7 +64,7 @@ func (n *LocalNode) stabilize() error {
 	for len(succList) > 0 {
 		head := succList[0]
 		if head == nil {
-			return fmt.Errorf("no more successors for candidate, node is potentially partitioned")
+			return chord.ErrNodeNoSuccessor
 		}
 		newSucc, spErr := head.GetPredecessor()
 		newSuccList, nsErr := head.GetSuccessors()

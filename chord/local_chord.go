@@ -16,21 +16,31 @@ func (n *LocalNode) ID() uint64 {
 func (n *LocalNode) Identity() *protocol.Node {
 	return n.NodeConfig.Identity
 }
-
-func (n *LocalNode) Ping() error {
+func (n *LocalNode) checkNodeState(leavingIsError bool) error {
 	state := n.state.Get()
 	switch state {
 	case chord.Inactive:
 		return chord.ErrNodeNotStarted
-	case chord.Leaving, chord.Left:
+	case chord.Leaving:
+		// get around during leaving routine, successor will ping us
+		// before replacing their predecessor pointer to our predecessor
+		if !leavingIsError {
+			return nil
+		}
+		return chord.ErrNodeGone
+	case chord.Left:
 		return chord.ErrNodeGone
 	default:
 		return nil
 	}
 }
 
+func (n *LocalNode) Ping() error {
+	return n.checkNodeState(true)
+}
+
 func (n *LocalNode) Notify(predecessor chord.VNode) error {
-	if err := n.Ping(); err != nil {
+	if err := n.checkNodeState(false); err != nil {
 		return err
 	}
 	var old chord.VNode
@@ -92,7 +102,7 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	if err := n.Ping(); err != nil {
+	if err := n.checkNodeState(false); err != nil {
 		return nil, err
 	}
 	pre := n.getPredecessor()
@@ -159,7 +169,7 @@ func (n *LocalNode) getSuccessors() []chord.VNode {
 }
 
 func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
-	if err := n.Ping(); err != nil {
+	if err := n.checkNodeState(false); err != nil {
 		return nil, err
 	}
 
@@ -174,7 +184,7 @@ func (n *LocalNode) getPredecessor() chord.VNode {
 }
 
 func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
-	if err := n.Ping(); err != nil {
+	if err := n.checkNodeState(false); err != nil {
 		return nil, err
 	}
 	return n.getPredecessor(), nil

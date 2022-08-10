@@ -37,7 +37,7 @@ func (n *LocalNode) HandleRPC(ctx context.Context) {
 }
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	if err := n.Ping(); err != nil {
+	if err := n.checkNodeState(false); err != nil {
 		return nil, err
 	}
 

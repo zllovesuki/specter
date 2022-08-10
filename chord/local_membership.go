@@ -50,9 +50,13 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 
 	n.startTasks()
 
-	predecessor.FinishJoin(true, false)   // advisory to let predecessor update successor list
-	n.state.Set(chord.Active)             // release local join lock
-	successors[0].FinishJoin(false, true) // release successor join lock
+	if err := predecessor.FinishJoin(true, false); err != nil { // advisory to let predecessor update successor list
+		n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
+	}
+	n.state.Set(chord.Active)                                     // release local join lock
+	if err := successors[0].FinishJoin(false, true); err != nil { // release successor join lock
+		n.Logger.Warn("error releasing join lock in successor", zap.Error(err))
+	}
 
 	return nil
 }
@@ -153,6 +157,9 @@ func (n *LocalNode) Leave() {
 	}
 
 	n.Logger.Info("Requesting to leave chord ring")
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
+	n.surrogate = n.Identity()
 
 	var succ chord.VNode
 	var err error
@@ -170,21 +177,16 @@ func (n *LocalNode) Leave() {
 	// release membership locks
 	pre := n.getPredecessor()
 	if pre != nil && pre.ID() != n.ID() {
-		if succ != nil {
-			if err := succ.Notify(pre); err != nil { // notify successor to update predecessor pointer
-				n.Logger.Warn("error notifying successor to update", zap.Error(err))
-			}
+		if err := pre.FinishLeave(true, false); err != nil { // advisory to let predecessor update successor list
+			n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
 		}
-		pre.FinishLeave(true, false) // advisory to let predecessor update successor list
 	}
 	n.state.Set(chord.Left) // release local leave lock
-	if succ != nil {        // successor can be ourself
-		succ.FinishLeave(false, true) // if applicable, release successor leave lock
+	if succ != nil {
+		if err := succ.FinishLeave(false, true); err != nil { // if applicable, release successor leave lock
+			n.Logger.Warn("error releasing leave lock in successor", zap.Error(err))
+		}
 	}
-
-	n.surrogateMu.Lock()
-	n.surrogate = n.Identity()
-	n.surrogateMu.Unlock()
 
 	close(n.stopCh)
 	<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
@@ -202,7 +204,9 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 			return nil, err
 		}
 		if !n.state.Transition(chord.Active, chord.Leaving) {
-			succ.FinishLeave(false, true) // release successor lock and try again
+			if err := succ.FinishLeave(false, true); err != nil { // release successor lock and try again
+				n.Logger.Warn("error releasing leave lock in successor", zap.Error(err))
+			}
 			return nil, chord.ErrLeaveInvalidState
 		}
 		n.Logger.Info("Leave locks acquired (succ -> self)")
@@ -216,11 +220,10 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 		}
 		n.Logger.Info("Leave locks acquired (self -> succ)")
 	}
+
 	// kv requests are now blocked
 	if err := n.transferKeysDownward(succ); err != nil {
-		n.state.Set(chord.Active)
 		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
-		return nil, err
 	}
 
 	return succ, nil
