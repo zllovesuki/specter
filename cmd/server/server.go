@@ -14,7 +14,7 @@ import (
 
 	"kon.nect.sh/specter/acme/storage"
 	"kon.nect.sh/specter/chord"
-	ds "kon.nect.sh/specter/dev-support/server"
+	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/overlay"
 	chordSpec "kon.nect.sh/specter/spec/chord"

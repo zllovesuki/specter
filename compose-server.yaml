@@ -14,7 +14,7 @@ services:
     networks:
       - specter
     volumes:
-      - ./dev-support/pebble:/pebble:ro
+      - ./dev/pebble:/pebble:ro
 
   seed:
     image: specter

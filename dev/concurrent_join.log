@@ -1,0 +1,945 @@
+docker compose -f compose-server.yaml up
+WARN[0000] Found orphan containers ([specter-validator-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up.
+[+] Running 6/0
+ ⠿ Container specter-srvb-1    Created                                                                                                                                                                                                                                                           0.0s
+ ⠿ Container specter-srva-1    Created                                                                                                                                                                                                                                                           0.0s
+ ⠿ Container specter-srvd-1    Created                                                                                                                                                                                                                                                           0.0s
+ ⠿ Container specter-pebble-1  Created                                                                                                                                                                                                                                                           0.0s
+ ⠿ Container specter-seed-1    Created                                                                                                                                                                                                                                                           0.0s
+ ⠿ Container specter-srvc-1    Created                                                                                                                                                                                                                                                           0.0s
+Attaching to specter-pebble-1, specter-seed-1, specter-srva-1, specter-srvb-1, specter-srvc-1, specter-srvd-1
+specter-pebble-1  | Pebble 2022/08/10 21:44:50 Starting Pebble ACME server
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Generated new root issuer CN=Pebble Root CA 495692 with serial 6906bbb859466b21 and SKI 9e0833985e25ac1637e01feee59d491384978f37
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Generated new intermediate issuer CN=Pebble Intermediate CA 582eef with serial 7d9c38c2b607853a and SKI 3f1396bf52da3b3982c24e4a9e9bf8aea93fcc3e
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Generated issuance chain: Pebble Root CA 495692 -> Pebble Intermediate CA 582eef
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Using system DNS resolver for ACME challenges
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Disabling random VA sleeps
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Disabling VA challenge requests. VA always returns valid
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Configured to reject 5% of good nonces
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Configured to attempt authz reuse for each identifier 50% of the time
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Configured to show 3 orders per page
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Management interface listening on: 0.0.0.0:15000
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Root CA certificate available at: https://0.0.0.0:15000/roots/0
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 Listening on: 0.0.0.0:14000
+specter-pebble-1  | Pebble 2022/08/10 21:44:51 ACME directory available at: https://0.0.0.0:14000/dir
+specter-srva-1    | 2022-08-10T21:44:51.313Z    INFO    server/server.go:215    Using certmagic as cert provider        {"email": "admin@example.com", "challenger": "hostedacme.com"}
+specter-srva-1    | 2022-08-10T21:44:51.321Z    INFO    quic-go@v0.28.1/packet_handler_map.go:142       failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size for details.
+specter-srva-1    | 2022-08-10T21:44:51.322Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "chord", "node": 37795961421988, "listen": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:44:51.322Z    INFO    overlay/alpn_mux.go:85  alpn muxer started      {"component": "alpnMux", "protos": ["h3", "h3-29", "specter-chord/1", "specter-tcp/1", "specter-tun/1"]}
+specter-srva-1    | 2022-08-10T21:44:51.322Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 37795961421988, "peer": "address:\"seed:1113\" unknown:true"}
+specter-srvb-1    | 2022-08-10T21:44:52.005Z    INFO    server/server.go:215    Using certmagic as cert provider        {"email": "admin@example.com", "challenger": "hostedacme.com"}
+specter-srvb-1    | 2022-08-10T21:44:52.008Z    INFO    quic-go@v0.28.1/packet_handler_map.go:142       failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size for details.
+specter-srvb-1    | 2022-08-10T21:44:52.009Z    INFO    overlay/alpn_mux.go:85  alpn muxer started      {"component": "alpnMux", "protos": ["h3", "h3-29", "specter-chord/1", "specter-tcp/1", "specter-tun/1"]}
+specter-srvb-1    | 2022-08-10T21:44:52.010Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "chord", "node": 84671371534117, "listen": "172.22.0.4:1113"}
+specter-srvb-1    | 2022-08-10T21:44:52.009Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 84671371534117, "peer": "address:\"seed:1113\" unknown:true"}
+specter-srvd-1    | 2022-08-10T21:44:52.639Z    INFO    server/server.go:215    Using certmagic as cert provider        {"email": "admin@example.com", "challenger": "hostedacme.com"}
+specter-srvd-1    | 2022-08-10T21:44:52.647Z    INFO    quic-go@v0.28.1/packet_handler_map.go:142       failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size for details.
+specter-srvd-1    | 2022-08-10T21:44:52.649Z    INFO    overlay/alpn_mux.go:85  alpn muxer started      {"component": "alpnMux", "protos": ["h3", "h3-29", "specter-chord/1", "specter-tcp/1", "specter-tun/1"]}
+specter-srvd-1    | 2022-08-10T21:44:52.649Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "chord", "node": 76056495571947, "listen": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:44:52.649Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 76056495571947, "peer": "address:\"seed:1113\" unknown:true"}
+specter-srvc-1    | 2022-08-10T21:44:53.418Z    INFO    server/server.go:215    Using certmagic as cert provider        {"email": "admin@example.com", "challenger": "hostedacme.com"}
+specter-srvc-1    | 2022-08-10T21:44:53.427Z    INFO    quic-go@v0.28.1/packet_handler_map.go:142       failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size for details.
+specter-srvc-1    | 2022-08-10T21:44:53.428Z    INFO    overlay/alpn_mux.go:85  alpn muxer started      {"component": "alpnMux", "protos": ["h3", "h3-29", "specter-chord/1", "specter-tcp/1", "specter-tun/1"]}
+specter-srvc-1    | 2022-08-10T21:44:53.428Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "chord", "node": 118605669798269, "listen": "172.22.0.6:1113"}
+specter-srvc-1    | 2022-08-10T21:44:53.428Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 118605669798269, "peer": "address:\"seed:1113\" unknown:true"}
+specter-seed-1    | 2022-08-10T21:44:54.231Z    INFO    server/server.go:215    Using certmagic as cert provider        {"email": "admin@example.com", "challenger": "hostedacme.com"}
+specter-seed-1    | 2022-08-10T21:44:54.237Z    INFO    quic-go@v0.28.1/packet_handler_map.go:142       failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size for details.
+specter-seed-1    | 2022-08-10T21:44:54.239Z    INFO    chord/local_membership.go:17    Creating new Chord ring {"component": "chord", "node": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:54.239Z    INFO    overlay/alpn_mux.go:85  alpn muxer started      {"component": "alpnMux", "protos": ["h3", "h3-29", "specter-chord/1", "specter-tcp/1", "specter-tun/1"]}
+specter-seed-1    | 2022-08-10T21:44:54.239Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "chord", "node": 272898810982308, "listen": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.239Z    INFO    chord/local_chord.go:69 Discovered new predecessor via Notify   {"component": "chord", "node": 272898810982308, "previous": "nil", "predecessor": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:54.239Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 272898810982308, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]}
+specter-seed-1    | 2022-08-10T21:44:54.240Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-seed-1    | 2022-08-10T21:44:54.240Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key"}
+specter-seed-1    | 2022-08-10T21:44:54.240Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key"}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    INFO    gateway/gateway.go:114  gateway server started  {"component": "gateway"}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "exists": false}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "tun", "node": 55853783565444, "listen": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.241Z    INFO    server/server.go:47     publishing identities to chord  {"component": "tun", "node": 55853783565444}
+specter-seed-1    | 2022-08-10T21:44:54.242Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/chord/seed:1113/272898810982308", "id": 35134149804376}
+specter-seed-1    | 2022-08-10T21:44:54.242Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1333181507267158217", "id": 81406019167879}
+specter-seed-1    | 2022-08-10T21:44:54.242Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/tunnel/seed:1113/55853783565444", "id": 245607335684585}
+specter-seed-1    | 2022-08-10T21:44:54.242Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1333181507267158217", "id": 81406019167879}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "rw_test_1333181507267158217", "val_length": 10240}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    INFO    server/resolve.go:45    identities published on chord   {"component": "tun", "node": 55853783565444, "chord": "/identities/chord/seed:1113/272898810982308", "tun": "/identities/tunnel/seed:1113/55853783565444"}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "exists": false}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   chord/local_kv.go:75    KV Delete       {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1333181507267158217", "id": 81406019167879}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    INFO    server/server.go:52     specter server started  {"component": "tun", "node": 55853783565444}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    INFO    obtain  certmagic@v0.16.2/config.go:466 acquiring lock  {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_dev.con.nect.sh", "id": 158622818693899}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    DEBUG   storage/chord.go:62     Lease acquired  {"component": "storage", "key": "issue_cert_dev.con.nect.sh", "lease": 1660167954243819400}
+specter-seed-1    | 2022-08-10T21:44:54.243Z    INFO    obtain  certmagic@v0.16.2/config.go:489 lock acquired   {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1993065010604600790", "id": 278672947863643}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1993065010604600790", "id": 278672947863643}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "rw_test_1993065010604600790", "val_length": 10240}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   chord/local_kv.go:75    KV Delete       {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_1993065010604600790", "id": 278672947863643}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    INFO    obtain  certmagic@v0.16.2/config.go:466 acquiring lock  {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_*.dev.con.nect.sh", "id": 1553179569973}
+specter-seed-1    | 2022-08-10T21:44:54.244Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-seed-1    | 2022-08-10T21:44:54.245Z    DEBUG   storage/chord.go:62     Lease acquired  {"component": "storage", "key": "issue_cert_*.dev.con.nect.sh", "lease": 1660167954245079422}
+specter-seed-1    | 2022-08-10T21:44:54.245Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "exists": false}
+specter-seed-1    | 2022-08-10T21:44:54.245Z    INFO    obtain  certmagic@v0.16.2/config.go:489 lock acquired   {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.245Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-seed-1    | 2022-08-10T21:44:54.245Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key"}
+specter-seed-1    | 2022-08-10T21:44:54.246Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-seed-1    | 2022-08-10T21:44:54.246Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "exists": false}
+specter-seed-1    | 2022-08-10T21:44:54.246Z    DEBUG   obtain  certmagic@v0.16.2/config.go:528 trying issuer 1/1       {"component": "acme", "issuer": "pebble:14000-dir"}
+specter-seed-1    | 2022-08-10T21:44:54.247Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-seed-1    | 2022-08-10T21:44:54.247Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key"}
+specter-seed-1    | 2022-08-10T21:44:54.247Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.json", "id": 120038001843607}
+specter-seed-1    | 2022-08-10T21:44:54.247Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "acme/pebble-14000-dir/users/admin@example.com/admin.json"}
+specter-seed-1    | 2022-08-10T21:44:54.248Z    DEBUG   obtain  certmagic@v0.16.2/config.go:528 trying issuer 1/1       {"component": "acme", "issuer": "pebble:14000-dir"}
+specter-seed-1    | 2022-08-10T21:44:54.248Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.json", "id": 120038001843607}
+specter-seed-1    | 2022-08-10T21:44:54.248Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "acme/pebble-14000-dir/users/admin@example.com/admin.json"}
+specter-seed-1    | 2022-08-10T21:44:54.271Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-seed-1    | 2022-08-10T21:44:54.271Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-seed-1    | 2022-08-10T21:44:54.272Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvd:1113/76056495571947"}
+specter-seed-1    | 2022-08-10T21:44:54.272Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvd:1113/76056495571947"}
+specter-srvc-1    | 2022-08-10T21:44:54.272Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvc-1    | 2022-08-10T21:44:54.272Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvc-1    | 2022-08-10T21:44:54.273Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 118605669798269, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:40104"}
+specter-srvc-1    | 2022-08-10T21:44:54.273Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:40104", "pov": "transport_dial"}
+specter-srvd-1    | 2022-08-10T21:44:54.273Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 76056495571947, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvd-1    | 2022-08-10T21:44:54.273Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 76056495571947, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvd-1    | 2022-08-10T21:44:54.273Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 76056495571947, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:45994"}
+specter-srvd-1    | 2022-08-10T21:44:54.273Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:45994", "pov": "transport_dial"}
+specter-seed-1    | 2022-08-10T21:44:54.274Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 272898810982308, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:40104", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.275Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:40104", "local": "172.22.0.7:1113", "pov": "local_rpc"}
+specter-seed-1    | 2022-08-10T21:44:54.275Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 272898810982308, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:45994", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.275Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:45994", "local": "172.22.0.7:1113", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:44:54.276Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 118605669798269, "attempt": 1, "via": "seed:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.276Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-seed-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-seed-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 272898810982308, "key": "srvc:1113/118605669798269"}
+specter-seed-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srva:1113/37795961421988"}
+specter-seed-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "srva:1113/37795961421988"}
+specter-srvb-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvb-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-srvd-1    | 2022-08-10T21:44:54.277Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 76056495571947, "attempt": 1, "via": "seed:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.277Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 272898810982308, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:40104", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.278Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:40104", "local": "172.22.0.7:1113", "pov": "transport_dial"}
+specter-srvb-1    | 2022-08-10T21:44:54.278Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 84671371534117, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:50905"}
+specter-srva-1    | 2022-08-10T21:44:54.278Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 37795961421988, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-seed-1    | 2022-08-10T21:44:54.278Z    INFO    chord/local_membership.go:106   incoming join request   {"component": "chord", "node": 272898810982308, "joiner": 118605669798269}
+specter-srvb-1    | 2022-08-10T21:44:54.278Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:50905", "pov": "transport_dial"}
+specter-srva-1    | 2022-08-10T21:44:54.278Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 37795961421988, "direction": "outgoing", "key": "seed:1113/272898810982308"}
+specter-seed-1    | 2022-08-10T21:44:54.278Z    INFO    chord/local_chord.go:220        transferring keys to new predecessor    {"component": "chord", "node": 272898810982308, "predecessor": 118605669798269, "num_keys": 2}
+specter-srva-1    | 2022-08-10T21:44:54.278Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 37795961421988, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:48724"}
+specter-srva-1    | 2022-08-10T21:44:54.278Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "address:\"seed:1113\" unknown:true", "remote": "172.22.0.7:1113", "local": "[::]:48724", "pov": "transport_dial"}
+specter-seed-1    | 2022-08-10T21:44:54.278Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 272898810982308, "key": "srvd:1113/76056495571947"}
+specter-seed-1    | 2022-08-10T21:44:54.278Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 272898810982308, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:50905", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.279Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:50905", "local": "172.22.0.7:1113", "pov": "local_rpc"}
+specter-seed-1    | 2022-08-10T21:44:54.279Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 272898810982308, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:45994", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.279Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:45994", "local": "172.22.0.7:1113", "pov": "transport_dial"}
+specter-seed-1    | 2022-08-10T21:44:54.279Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 272898810982308, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:48724", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.279Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:48724", "local": "172.22.0.7:1113", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:44:54.279Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 118605669798269, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:40104"}
+specter-srvc-1    | 2022-08-10T21:44:54.280Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:40104", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:44:54.281Z    DEBUG   chord/local_kv.go:154   KV Import       {"component": "chord", "node": 118605669798269, "num_keys": 2}
+specter-srvb-1    | 2022-08-10T21:44:54.281Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 84671371534117, "attempt": 1, "via": "seed:1113"}
+specter-srva-1    | 2022-08-10T21:44:54.281Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 37795961421988, "attempt": 1, "via": "seed:1113"}
+specter-srvd-1    | 2022-08-10T21:44:54.281Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 76056495571947, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:45994"}
+specter-srvd-1    | 2022-08-10T21:44:54.281Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:45994", "pov": "local_rpc"}
+specter-seed-1    | 2022-08-10T21:44:54.281Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 272898810982308, "joiner": 76056495571947}
+specter-seed-1    | 2022-08-10T21:44:54.282Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 272898810982308, "key": "srvb:1113/84671371534117"}
+specter-srvc-1    | 2022-08-10T21:44:54.282Z    INFO    chord/local_membership.go:46    Successfully joined Chord ring  {"component": "chord", "node": 118605669798269, "predecessor": 272898810982308, "successor": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:54.282Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 272898810982308, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:50905", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.282Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:50905", "local": "172.22.0.7:1113", "pov": "transport_dial"}
+specter-seed-1    | 2022-08-10T21:44:54.282Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 272898810982308, "joiner": 84671371534117}
+specter-seed-1    | 2022-08-10T21:44:54.282Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 272898810982308, "key": "srva:1113/37795961421988"}
+specter-srvd-1    | 2022-08-10T21:44:54.283Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 76056495571947, "error": "node cannot handle join request at the moment"}
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srvd-1    |     /app/chord/local_membership.go:73
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-seed-1    | 2022-08-10T21:44:54.283Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 272898810982308, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:48724", "local": "172.22.0.7:1113"}
+specter-srvd-1    |     /app/chord/local_membership.go:35
+specter-seed-1    | 2022-08-10T21:44:54.283Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:48724", "local": "172.22.0.7:1113", "pov": "transport_dial"}
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvd-1    |     /app/cmd/server/server.go:365
+specter-srvd-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvd-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvd-1    | main.main
+specter-srvd-1    |     /app/main.go:66
+specter-srvd-1    | runtime.main
+specter-seed-1    | 2022-08-10T21:44:54.283Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 272898810982308, "joiner": 37795961421988}
+specter-srvd-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvb-1    | 2022-08-10T21:44:54.283Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 84671371534117, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:50905"}
+specter-srvb-1    | 2022-08-10T21:44:54.283Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 84671371534117, "error": "node cannot handle join request at the moment"}
+specter-srvb-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srvb-1    |     /app/chord/local_membership.go:73
+specter-srvb-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-srvb-1    |     /app/chord/local_membership.go:35
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvb-1    |     /app/cmd/server/server.go:365
+specter-srvb-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvb-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvb-1    | main.main
+specter-srvb-1    |     /app/main.go:66
+specter-srvb-1    | runtime.main
+specter-srvb-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvb-1    | 2022-08-10T21:44:54.283Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:50905", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:44:54.283Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 37795961421988, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:48724"}
+specter-srva-1    | 2022-08-10T21:44:54.283Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:48724", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:44:54.284Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 118605669798269, "peer": "id:118605669798269 address:\"srvc:1113\""}
+specter-srva-1    | 2022-08-10T21:44:54.284Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 37795961421988, "error": "node cannot handle join request at the moment"}
+specter-srva-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srva-1    |     /app/chord/local_membership.go:73
+specter-srva-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-srva-1    |     /app/chord/local_membership.go:35
+specter-srva-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srva-1    |     /app/cmd/server/server.go:365
+specter-srva-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srva-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srva-1    | main.main
+specter-srva-1    |     /app/main.go:66
+specter-srva-1    | runtime.main
+specter-srva-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvc-1    | 2022-08-10T21:44:54.298Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 118605669798269, "direction": "incoming"}
+specter-srvc-1    | 2022-08-10T21:44:54.298Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 118605669798269, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvc-1    | 2022-08-10T21:44:54.299Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 118605669798269, "direction": "outgoing"}
+specter-srvc-1    | 2022-08-10T21:44:54.299Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 118605669798269, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:1113", "local": "[::]:48888"}
+specter-srvc-1    | 2022-08-10T21:44:54.299Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:1113", "local": "[::]:48888", "pov": "transport_dial"}
+specter-srvc-1    | 2022-08-10T21:44:54.300Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 118605669798269, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:48888", "local": "172.22.0.6:1113"}
+specter-srvc-1    | 2022-08-10T21:44:54.300Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:48888", "local": "172.22.0.6:1113", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:44:54.304Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 118605669798269, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]}
+specter-seed-1    | 2022-08-10T21:44:54.305Z    INFO    chord/local_membership.go:128   Join completed, joiner has requested to update pointers {"component": "chord", "node": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:54.307Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 272898810982308, "peer": "id:272898810982308 address:\"seed:1113\""}
+specter-seed-1    | 2022-08-10T21:44:54.320Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 272898810982308, "direction": "incoming"}
+specter-seed-1    | 2022-08-10T21:44:54.321Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 272898810982308, "direction": "incoming", "key": "seed:1113/272898810982308"}
+specter-seed-1    | 2022-08-10T21:44:54.321Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 272898810982308, "direction": "outgoing"}
+specter-seed-1    | 2022-08-10T21:44:54.321Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 272898810982308, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:46326"}
+specter-seed-1    | 2022-08-10T21:44:54.321Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:1113", "local": "[::]:46326", "pov": "transport_dial"}
+specter-seed-1    | 2022-08-10T21:44:54.321Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 272898810982308, "successors": [118605669798269, 272898810982308]}
+specter-seed-1    | 2022-08-10T21:44:54.322Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 272898810982308, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:46326", "local": "172.22.0.7:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.322Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 272898810982308, "peer": "id:272898810982308 address:\"seed:1113\"", "remote": "172.22.0.7:46326", "local": "172.22.0.7:1113", "pov": "local_rpc"}
+specter-seed-1    | 2022-08-10T21:44:54.324Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 272898810982308, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]}
+specter-seed-1    | 2022-08-10T21:44:54.325Z    INFO    chord/local_membership.go:133   Join completed, joiner has requested to release membership lock {"component": "chord", "node": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:54.327Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srvc-1    | 2022-08-10T21:44:54.328Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key"}
+specter-srvc-1    | 2022-08-10T21:44:54.329Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srvc-1    | 2022-08-10T21:44:54.330Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key"}
+specter-srvc-1    | 2022-08-10T21:44:54.330Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-srvc-1    | 2022-08-10T21:44:54.331Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "exists": false}
+specter-srvc-1    | 2022-08-10T21:44:54.331Z    INFO    server/server.go:47     publishing identities to chord  {"component": "tun", "node": 39139998456636}
+specter-srvc-1    | 2022-08-10T21:44:54.331Z    INFO    gateway/gateway.go:114  gateway server started  {"component": "gateway"}
+specter-srvc-1    | 2022-08-10T21:44:54.332Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "tun", "node": 39139998456636, "listen": "172.22.0.6:1113"}
+specter-seed-1    | 2022-08-10T21:44:54.333Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/chord/srvc:1113/118605669798269", "id": 156688365253593}
+specter-seed-1    | 2022-08-10T21:44:54.334Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_3357026795434388694", "id": 233274510560744}
+specter-seed-1    | 2022-08-10T21:44:54.334Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-seed-1    | 2022-08-10T21:44:54.334Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/tunnel/srvc:1113/39139998456636", "id": 118707640652433}
+specter-srvc-1    | 2022-08-10T21:44:54.335Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "exists": false}
+specter-seed-1    | 2022-08-10T21:44:54.336Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_3357026795434388694", "id": 233274510560744}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    INFO    server/resolve.go:45    identities published on chord   {"component": "tun", "node": 39139998456636, "chord": "/identities/chord/srvc:1113/118605669798269", "tun": "/identities/tunnel/srvc:1113/39139998456636"}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    INFO    server/server.go:52     specter server started  {"component": "tun", "node": 39139998456636}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/rw_test_3681851601800274235", "id": 24279433460816}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/rw_test_3681851601800274235", "id": 24279433460816}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "rw_test_3681851601800274235", "val_length": 10240}
+specter-srvc-1    | 2022-08-10T21:44:54.336Z    DEBUG   chord/local_kv.go:75    KV Delete       {"component": "chord", "node": 118605669798269, "key": "/acme-storage/rw_test_3681851601800274235", "id": 24279433460816}
+specter-srvc-1    | 2022-08-10T21:44:54.337Z    INFO    obtain  certmagic@v0.16.2/config.go:466 acquiring lock  {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:44:54.337Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 118605669798269, "lease": "/acme-storage/issue_cert_*.dev.con.nect.sh", "id": 1553179569973}
+specter-srvc-1    | 2022-08-10T21:44:54.337Z    DEBUG   storage/chord.go:58     Lease acquire conflict, retrying        {"component": "storage", "key": "issue_cert_*.dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:44:54.337Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "rw_test_3357026795434388694", "val_length": 10240}
+specter-seed-1    | 2022-08-10T21:44:54.338Z    DEBUG   chord/local_kv.go:75    KV Delete       {"component": "chord", "node": 272898810982308, "key": "/acme-storage/rw_test_3357026795434388694", "id": 233274510560744}
+specter-srvc-1    | 2022-08-10T21:44:54.339Z    INFO    obtain  certmagic@v0.16.2/config.go:466 acquiring lock  {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.340Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_dev.con.nect.sh", "id": 158622818693899}
+specter-srvc-1    | 2022-08-10T21:44:54.341Z    ERROR   chord/remote.go:342     remote KV Acquire RPC   {"component": "chord", "node": 118605669798269, "peer": "id:272898810982308 address:\"seed:1113\"", "error": "lease has not expired or was acquired by a different requester"}
+specter-srvc-1    | kon.nect.sh/specter/chord.(*RemoteNode).Acquire
+specter-srvc-1    |     /app/chord/remote.go:342
+specter-srvc-1    | kon.nect.sh/specter/chord.(*LocalNode).Acquire.func1
+specter-srvc-1    |     /app/chord/local_kv.go:120
+specter-srvc-1    | kon.nect.sh/specter/chord.kvMiddleware[...]
+specter-srvc-1    |     /app/chord/local_kv.go:47
+specter-srvc-1    | kon.nect.sh/specter/chord.(*LocalNode).Acquire
+specter-srvc-1    |     /app/chord/local_kv.go:115
+specter-srvc-1    | kon.nect.sh/specter/acme/storage.(*ChordStorage).Lock.func1
+specter-srvc-1    |     /app/acme/storage/chord.go:54
+specter-srvc-1    | kon.nect.sh/specter/acme/storage.retrier[...]
+specter-srvc-1    |     /app/acme/storage/chord.go:197
+specter-srvc-1    | kon.nect.sh/specter/acme/storage.(*ChordStorage).Lock
+specter-srvc-1    |     /app/acme/storage/chord.go:53
+specter-srvc-1    | github.com/caddyserver/certmagic.acquireLock
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/storage.go:237
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).obtainCert
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:471
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).ObtainCertAsync
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:443
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).manageOne.func1
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:340
+specter-srvc-1    | github.com/caddyserver/certmagic.(*jobManager).worker
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/async.go:73
+specter-srvc-1    | 2022-08-10T21:44:54.341Z    DEBUG   storage/chord.go:58     Lease acquire conflict, retrying        {"component": "storage", "key": "issue_cert_dev.con.nect.sh"}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 GET /dir -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.360Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "GET", "url": "https://pebble:14000/dir", "headers": {"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["391"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"]}, "status_code": 200}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 HEAD /nonce-plz -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 HEAD /nonce-plz -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.362Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "HEAD", "url": "https://pebble:14000/nonce-plz", "headers": {"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["baY2_KuxqWkmrf2JCr5CUA"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.362Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "HEAD", "url": "https://pebble:14000/nonce-plz", "headers": {"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["9DwRJfIxvyVTrPBBa1WwKw"]}, "status_code": 200}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /sign-me-up -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /sign-me-up -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 1 accounts in memory
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 2 accounts in memory
+specter-seed-1    | 2022-08-10T21:44:54.364Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/sign-me-up", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["304"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-account/1"],"Replay-Nonce":["T4YIp3HBhdI73rv8iZmYWQ"]}, "status_code": 201}
+specter-seed-1    | 2022-08-10T21:44:54.365Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/sign-me-up", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["304"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-account/2"],"Replay-Nonce":["az2uYQCsvLaBvsz2YXb-IQ"]}, "status_code": 201}
+specter-seed-1    | 2022-08-10T21:44:54.366Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.json", "id": 120038001843607}
+specter-seed-1    | 2022-08-10T21:44:54.366Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.json", "id": 120038001843607}
+specter-srvc-1    | 2022-08-10T21:44:54.367Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.key", "id": 78087505213661}
+specter-srvc-1    | 2022-08-10T21:44:54.367Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/acme/pebble-14000-dir/users/admin@example.com/admin.key", "id": 78087505213661}
+specter-seed-1    | 2022-08-10T21:44:54.367Z    INFO    certmagic@v0.16.2/acmeclient.go:264     waiting on internal rate limiter        {"component": "issuer", "identifiers": ["dev.con.nect.sh"], "ca": "https://pebble:14000/dir", "account": "admin@example.com"}
+specter-seed-1    | 2022-08-10T21:44:54.368Z    INFO    certmagic@v0.16.2/acmeclient.go:275     done waiting on internal rate limiter   {"component": "issuer", "identifiers": ["dev.con.nect.sh"], "ca": "https://pebble:14000/dir", "account": "admin@example.com"}
+specter-seed-1    | 2022-08-10T21:44:54.368Z    INFO    certmagic@v0.16.2/acmeclient.go:264     waiting on internal rate limiter        {"component": "issuer", "identifiers": ["*.dev.con.nect.sh"], "ca": "https://pebble:14000/dir", "account": "admin@example.com"}
+specter-seed-1    | 2022-08-10T21:44:54.368Z    INFO    certmagic@v0.16.2/acmeclient.go:275     done waiting on internal rate limiter   {"component": "issuer", "identifiers": ["*.dev.con.nect.sh"], "ca": "https://pebble:14000/dir", "account": "admin@example.com"}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /order-plz -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /order-plz -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 1 authorizations in the db
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Added order "TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y" to the db
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 1 orders in the db
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 2 authorizations in the db
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Added order "g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g" to the db
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 There are now 2 orders in the db
+specter-seed-1    | 2022-08-10T21:44:54.370Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/order-plz", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["372"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-order/TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y"],"Replay-Nonce":["Bmt6KgqLJVu3n7DJBkJoAw"]}, "status_code": 201}
+specter-seed-1    | 2022-08-10T21:44:54.371Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/order-plz", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["374"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-order/g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g"],"Replay-Nonce":["3D9WwfJJIeg2B2rWwvD_ng"]}, "status_code": 201}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /authZ/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /authZ/ -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.373Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/authZ/2kaN2IMcuSwGh1uwxQDUXAUYwmo3ZF49TTk6grmb_Oc", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["857"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["eUlA1Nc8FcYTeJCsp9r97A"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.373Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/authZ/lmo2PRPdt0AUJGfd2LpS5jfM4Cwt-w75SvOo11ncV2M", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["416"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["uRIODJvsm3tWswHr0ZEejw"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   acme_client     acmez@v1.0.4/client.go:473      no solver configured    {"component": "issuer", "challenge_type": "http-01"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    INFO    acme_client     acmez@v1.0.4/client.go:391      trying to solve challenge       {"component": "issuer", "identifier": "dev.con.nect.sh", "challenge_type": "dns-01", "ca": "https://pebble:14000/dir"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    INFO    acme_client     acmez@v1.0.4/client.go:391      trying to solve challenge       {"component": "issuer", "identifier": "*.dev.con.nect.sh", "challenge_type": "dns-01", "ca": "https://pebble:14000/dir"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   server/server.go:37     solver present challenge        {"challenge": {"type":"dns-01","url":"https://pebble:14000/chalZ/ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w","status":"pending","token":"20v3UYR0yN_vR3MOk8dXhkAuBXTQsabG3kOFdynroCE","keyAuthorization":"20v3UYR0yN_vR3MOk8dXhkAuBXTQsabG3kOFdynroCE.6OcYnmN1prPEKH2iLPo_Vf8LkvwxFq1w5IycaT31mVc","identifier":{"type":"dns","value":"dev.con.nect.sh"}}}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   acme_client     acmez@v1.0.4/client.go:422      waiting for solver before continuing    {"component": "issuer", "identifier": "dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   server/server.go:37     solver present challenge        {"challenge": {"type":"dns-01","url":"https://pebble:14000/chalZ/P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI","status":"pending","token":"Ea5hI2kIzZ7N6mKKmWpZ291ZSxjyMzPM8k9fCl17hOs","keyAuthorization":"Ea5hI2kIzZ7N6mKKmWpZ291ZSxjyMzPM8k9fCl17hOs.76WOGII2iNU29e4Z2xLX02HF2Npi4_P0ZWqNV9cNOGc","identifier":{"type":"dns","value":"dev.con.nect.sh"}}}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   acme_client     acmez@v1.0.4/client.go:428      done waiting for solver {"component": "issuer", "identifier": "dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   acme_client     acmez@v1.0.4/client.go:422      waiting for solver before continuing    {"component": "issuer", "identifier": "*.dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-seed-1    | 2022-08-10T21:44:54.374Z    DEBUG   acme_client     acmez@v1.0.4/client.go:428      done waiting for solver {"component": "issuer", "identifier": "*.dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /chalZ/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /chalZ/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Pulled a task from the Tasks queue: &va.vaTask{Identifier:acme.Identifier{Type:"dns", Value:"dev.con.nect.sh"}, Challenge:(*core.Challenge)(0xc0002ba3c0), Account:(*core.Account)(0xc00007c300)}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Starting 3 validations.
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Pulled a task from the Tasks queue: &va.vaTask{Identifier:acme.Identifier{Type:"dns", Value:"dev.con.nect.sh"}, Challenge:(*core.Challenge)(0xc0004fe5a0), Account:(*core.Account)(0xc000502360)}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Starting 3 validations.
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 authz 2kaN2IMcuSwGh1uwxQDUXAUYwmo3ZF49TTk6grmb_Oc set VALID by completed challenge ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 PEBBLE_VA_ALWAYS_VALID is enabled. Skipping real validation of challenge P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 authz lmo2PRPdt0AUJGfd2LpS5jfM4Cwt-w75SvOo11ncV2M set VALID by completed challenge P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI
+specter-seed-1    | 2022-08-10T21:44:54.376Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/chalZ/ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["190"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\"","<https://pebble:14000/authZ/2kaN2IMcuSwGh1uwxQDUXAUYwmo3ZF49TTk6grmb_Oc>;rel=\"up\""],"Replay-Nonce":["zviCwIqsGI-MmBDYyZyICA"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.376Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/chalZ/P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["190"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\"","<https://pebble:14000/authZ/lmo2PRPdt0AUJGfd2LpS5jfM4Cwt-w75SvOo11ncV2M>;rel=\"up\""],"Replay-Nonce":["k95dBt_h7OqcXN1WMh__AA"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.376Z    DEBUG   acme_client     acmez@v1.0.4/client.go:445      challenge accepted      {"component": "issuer", "identifier": "dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-seed-1    | 2022-08-10T21:44:54.377Z    DEBUG   acme_client     acmez@v1.0.4/client.go:445      challenge accepted      {"component": "issuer", "identifier": "*.dev.con.nect.sh", "challenge_type": "dns-01"}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /authZ/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /authZ/ -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.630Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/authZ/lmo2PRPdt0AUJGfd2LpS5jfM4Cwt-w75SvOo11ncV2M", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["458"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["Ma5MNkohy_e-UAyA8FqOXg"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.630Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/authZ/2kaN2IMcuSwGh1uwxQDUXAUYwmo3ZF49TTk6grmb_Oc", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["437"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["ouOfiDC6oYmkyPB9DoVrhg"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.631Z    DEBUG   server/server.go:42     solver cleanup challenge        {"challenge": {"type":"dns-01","url":"https://pebble:14000/chalZ/ctKCu6ZpgoxYaDKT8ZCexWO2xLRo1YmqdTomuqvVl9w","status":"pending","token":"20v3UYR0yN_vR3MOk8dXhkAuBXTQsabG3kOFdynroCE","keyAuthorization":"20v3UYR0yN_vR3MOk8dXhkAuBXTQsabG3kOFdynroCE.6OcYnmN1prPEKH2iLPo_Vf8LkvwxFq1w5IycaT31mVc","identifier":{"type":"dns","value":"dev.con.nect.sh"}}}
+specter-seed-1    | 2022-08-10T21:44:54.631Z    INFO    acme_client     acmez@v1.0.4/client.go:548      authorization finalized {"component": "issuer", "identifier": "dev.con.nect.sh", "authz_status": "valid"}
+specter-seed-1    | 2022-08-10T21:44:54.631Z    DEBUG   server/server.go:42     solver cleanup challenge        {"challenge": {"type":"dns-01","url":"https://pebble:14000/chalZ/P7H-MueOyrRVBchqxwwapsjbDAU_eNQWtB8Rq2QkMXI","status":"pending","token":"Ea5hI2kIzZ7N6mKKmWpZ291ZSxjyMzPM8k9fCl17hOs","keyAuthorization":"Ea5hI2kIzZ7N6mKKmWpZ291ZSxjyMzPM8k9fCl17hOs.76WOGII2iNU29e4Z2xLX02HF2Npi4_P0ZWqNV9cNOGc","identifier":{"type":"dns","value":"dev.con.nect.sh"}}}
+specter-seed-1    | 2022-08-10T21:44:54.631Z    INFO    acme_client     acmez@v1.0.4/client.go:161      validations succeeded; finalizing order {"component": "issuer", "order": "https://pebble:14000/my-order/TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y"}
+specter-seed-1    | 2022-08-10T21:44:54.631Z    INFO    acme_client     acmez@v1.0.4/client.go:548      authorization finalized {"component": "issuer", "identifier": "*.dev.con.nect.sh", "authz_status": "valid"}
+specter-seed-1    | 2022-08-10T21:44:54.632Z    INFO    acme_client     acmez@v1.0.4/client.go:161      validations succeeded; finalizing order {"component": "issuer", "order": "https://pebble:14000/my-order/g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g"}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /finalize-order/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /finalize-order/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Order TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y is fully authorized. Processing finalization
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Order g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g is fully authorized. Processing finalization
+specter-seed-1    | 2022-08-10T21:44:54.635Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/finalize-order/TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["375"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-order/TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y"],"Replay-Nonce":["VTldRNnK7sXzOgzQxygpFg"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.635Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/finalize-order/g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["377"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Location":["https://pebble:14000/my-order/g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g"],"Replay-Nonce":["d4FFaHV78M4xtglIaqNh-g"]}, "status_code": 200}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Issued certificate serial 608a266feb64d81c for order TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 Issued certificate serial 1a7320f4ed427dc1 for order g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /my-order/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /my-order/ -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.890Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/my-order/g9sBG5fa9ZlZWy5Xis-tNGrbZPyzMRFRYlyMVj3Qr_g", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["437"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["3wzYP5ES-T-1rgBxatNSKA"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.890Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/my-order/TnG_Krv-_uu2L33IhdNQgFOZ74xAKwZmBgFa2hf8_2Y", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["435"],"Content-Type":["application/json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["LRcSLoCg15iZfcdbhOa3-g"]}, "status_code": 200}
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /certZ/ -> calling handler()
+specter-pebble-1  | Pebble 2022/08/10 21:44:54 POST /certZ/ -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:54.893Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/certZ/1a7320f4ed427dc1", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["2172"],"Content-Type":["application/pem-certificate-chain; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["Gogw6it3p49bnhU_pCe7ow"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:54.893Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/certZ/608a266feb64d81c", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["147"],"Content-Type":["application/problem+json; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:54 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["uic6vxRfu8NqiY2lCWii9g"]}, "status_code": 400}
+specter-seed-1    | 2022-08-10T21:44:54.894Z    INFO    acme_client     acmez@v1.0.4/client.go:181      successfully downloaded available certificate chains    {"component": "issuer", "count": 1, "first_url": "https://pebble:14000/certZ/1a7320f4ed427dc1"}
+specter-seed-1    | 2022-08-10T21:44:54.894Z    DEBUG   acme_client     acme/http.go:99 server rejected our nonce; retrying     {"component": "issuer", "detail": "JWS has an invalid anti-replay nonce: LRcSLoCg15iZfcdbhOa3-g", "error": "HTTP 400 urn:ietf:params:acme:error:badNonce - JWS has an invalid anti-replay nonce: LRcSLoCg15iZfcdbhOa3-g"}
+specter-srvc-1    | 2022-08-10T21:44:54.896Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-seed-1    | 2022-08-10T21:44:54.897Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-seed-1    | 2022-08-10T21:44:54.897Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-seed-1    | 2022-08-10T21:44:54.897Z    INFO    obtain  certmagic@v0.16.2/config.go:583 certificate obtained successfully       {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:54.897Z    INFO    obtain  certmagic@v0.16.2/config.go:477 releasing lock  {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:44:54.899Z    DEBUG   chord/local_kv.go:138   KV Release      {"component": "chord", "node": 118605669798269, "lease": "/acme-storage/issue_cert_*.dev.con.nect.sh", "id": 1553179569973}
+specter-srvc-1    | 2022-08-10T21:44:54.901Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-seed-1    | 2022-08-10T21:44:54.902Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "val_length": 227}
+specter-seed-1    | 2022-08-10T21:44:54.903Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-seed-1    | 2022-08-10T21:44:54.903Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "val_length": 2172}
+specter-seed-1    | 2022-08-10T21:44:54.904Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-seed-1    | 2022-08-10T21:44:54.905Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "val_length": 116}
+specter-seed-1    | 2022-08-10T21:44:54.905Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/wildcard_.dev.con.nect.sh-5b1526fa", "id": 235326812376913}
+specter-seed-1    | 2022-08-10T21:44:54.906Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/wildcard_.dev.con.nect.sh-5b1526fa"}
+specter-seed-1    | 2022-08-10T21:44:54.906Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [*.dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["*.dev.con.nect.sh"]}
+specter-seed-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).manageOne.func1
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:347
+specter-seed-1    | github.com/caddyserver/certmagic.(*jobManager).worker
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/async.go:73
+specter-pebble-1  | Pebble 2022/08/10 21:44:55 POST /certZ/ -> calling handler()
+specter-seed-1    | 2022-08-10T21:44:55.147Z    DEBUG   acme_client     acme/http.go:270        http request    {"component": "issuer", "method": "POST", "url": "https://pebble:14000/certZ/608a266feb64d81c", "headers": {"Content-Type":["application/jose+json"],"User-Agent":["CertMagic acmez (linux; amd64)"]}, "response_headers": {"Cache-Control":["public, max-age=0, no-cache"],"Content-Length":["2164"],"Content-Type":["application/pem-certificate-chain; charset=utf-8"],"Date":["Wed, 10 Aug 2022 21:44:55 GMT"],"Link":["<https://pebble:14000/dir>;rel=\"index\""],"Replay-Nonce":["WH3RamnYqIi-kl-uH26dVQ"]}, "status_code": 200}
+specter-seed-1    | 2022-08-10T21:44:55.148Z    INFO    acme_client     acmez@v1.0.4/client.go:181      successfully downloaded available certificate chains    {"component": "issuer", "count": 1, "first_url": "https://pebble:14000/certZ/608a266feb64d81c"}
+specter-seed-1    | 2022-08-10T21:44:55.150Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srvc-1    | 2022-08-10T21:44:55.152Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-seed-1    | 2022-08-10T21:44:55.153Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-seed-1    | 2022-08-10T21:44:55.154Z    INFO    obtain  certmagic@v0.16.2/config.go:583 certificate obtained successfully       {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:55.154Z    INFO    obtain  certmagic@v0.16.2/config.go:477 releasing lock  {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:44:55.154Z    DEBUG   chord/local_kv.go:138   KV Release      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_dev.con.nect.sh", "id": 158622818693899}
+specter-seed-1    | 2022-08-10T21:44:55.154Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-seed-1    | 2022-08-10T21:44:55.155Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "val_length": 227}
+specter-srvc-1    | 2022-08-10T21:44:55.156Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-seed-1    | 2022-08-10T21:44:55.158Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "val_length": 2164}
+specter-seed-1    | 2022-08-10T21:44:55.159Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-seed-1    | 2022-08-10T21:44:55.159Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "val_length": 114}
+specter-seed-1    | 2022-08-10T21:44:55.161Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/dev.con.nect.sh-dba4b941", "id": 159017762380566}
+specter-seed-1    | 2022-08-10T21:44:55.162Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/dev.con.nect.sh-dba4b941"}
+specter-seed-1    | 2022-08-10T21:44:55.162Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["dev.con.nect.sh"]}
+specter-seed-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-seed-1    | github.com/caddyserver/certmagic.(*Config).manageOne.func1
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:347
+specter-seed-1    | github.com/caddyserver/certmagic.(*jobManager).worker
+specter-seed-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/async.go:73
+specter-srvb-1    | 2022-08-10T21:44:59.284Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 84671371534117, "attempt": 2, "via": "seed:1113"}
+specter-srvd-1    | 2022-08-10T21:44:59.285Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 76056495571947, "attempt": 2, "via": "seed:1113"}
+specter-srva-1    | 2022-08-10T21:44:59.284Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 37795961421988, "attempt": 2, "via": "seed:1113"}
+specter-srvc-1    | 2022-08-10T21:44:59.289Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 118605669798269, "peer": "id:76056495571947 address:\"srvd:1113\""}
+specter-srvc-1    | 2022-08-10T21:44:59.289Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 118605669798269, "peer": "id:37795961421988 address:\"srva:1113\""}
+specter-srvc-1    | 2022-08-10T21:44:59.289Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 118605669798269, "peer": "id:84671371534117 address:\"srvb:1113\""}
+specter-srva-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srva-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvd-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvd-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvb-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 84671371534117, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvb-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 84671371534117, "direction": "incoming", "key": "srvc:1113/118605669798269"}
+specter-srvc-1    | 2022-08-10T21:44:59.311Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srvd:1113/76056495571947"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srvd:1113/76056495571947"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srvb:1113/84671371534117"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 118605669798269, "direction": "outgoing", "key": "srvb:1113/84671371534117"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 118605669798269, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:59629"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:59629", "pov": "transport_dial"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 118605669798269, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:39301"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    INFO    chord/local_membership.go:106   incoming join request   {"component": "chord", "node": 118605669798269, "joiner": 37795961421988}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 118605669798269, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57845"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    INFO    chord/local_chord.go:220        transferring keys to new predecessor    {"component": "chord", "node": 118605669798269, "predecessor": 37795961421988, "num_keys": 2}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:39301", "pov": "transport_dial"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57845", "pov": "transport_dial"}
+specter-srvc-1    | 2022-08-10T21:44:59.312Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 118605669798269, "successors": [272898810982308, 118605669798269]}
+specter-srva-1    | 2022-08-10T21:44:59.313Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 37795961421988, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:59629", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:44:59.313Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:59629", "local": "172.22.0.3:1113", "pov": "local_rpc"}
+specter-srvd-1    | 2022-08-10T21:44:59.313Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 76056495571947, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:39301", "local": "172.22.0.5:1113"}
+specter-srvb-1    | 2022-08-10T21:44:59.313Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 84671371534117, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:57845", "local": "172.22.0.4:1113"}
+specter-srvd-1    | 2022-08-10T21:44:59.313Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:39301", "local": "172.22.0.5:1113", "pov": "local_rpc"}
+specter-srvb-1    | 2022-08-10T21:44:59.313Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:57845", "local": "172.22.0.4:1113", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:44:59.313Z    DEBUG   chord/local_kv.go:154   KV Import       {"component": "chord", "node": 37795961421988, "num_keys": 2}
+specter-srvc-1    | 2022-08-10T21:44:59.314Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 118605669798269, "joiner": 76056495571947}
+specter-srvc-1    | 2022-08-10T21:44:59.315Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 118605669798269, "joiner": 84671371534117}
+specter-srva-1    | 2022-08-10T21:44:59.316Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 37795961421988, "key": "srvc:1113/118605669798269"}
+specter-srvd-1    | 2022-08-10T21:44:59.316Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 76056495571947, "error": "node cannot handle join request at the moment"}
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srvd-1    |     /app/chord/local_membership.go:73
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-srvd-1    |     /app/chord/local_membership.go:35
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvb-1    | 2022-08-10T21:44:59.316Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 84671371534117, "error": "node cannot handle join request at the moment"}
+specter-srva-1    | 2022-08-10T21:44:59.316Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 37795961421988, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:59629", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:44:59.317Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:59629", "local": "172.22.0.3:1113", "pov": "transport_dial"}
+specter-srvd-1    |     /app/cmd/server/server.go:365
+specter-srvb-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srvb-1    |     /app/chord/local_membership.go:73
+specter-srvb-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-srvd-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvb-1    |     /app/chord/local_membership.go:35
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvb-1    |     /app/cmd/server/server.go:365
+specter-srvb-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvb-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvb-1    | main.main
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvb-1    |     /app/main.go:66
+specter-srvb-1    | runtime.main
+specter-srvb-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvd-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvd-1    | main.main
+specter-srvd-1    |     /app/main.go:66
+specter-srvd-1    | runtime.main
+specter-srvd-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:44:59.317Z    INFO    chord/local_membership.go:46    Successfully joined Chord ring  {"component": "chord", "node": 37795961421988, "predecessor": 272898810982308, "successor": 118605669798269}
+specter-srvc-1    | 2022-08-10T21:44:59.317Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 118605669798269, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:59629"}
+specter-srvc-1    | 2022-08-10T21:44:59.317Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:59629", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:44:59.319Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 37795961421988, "peer": "id:37795961421988 address:\"srva:1113\""}
+specter-srva-1    | 2022-08-10T21:44:59.333Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 37795961421988, "direction": "incoming"}
+specter-srva-1    | 2022-08-10T21:44:59.333Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srva:1113/37795961421988"}
+specter-srva-1    | 2022-08-10T21:44:59.334Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 37795961421988, "direction": "outgoing"}
+specter-srva-1    | 2022-08-10T21:44:59.334Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 37795961421988, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:41221"}
+specter-srva-1    | 2022-08-10T21:44:59.334Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:41221", "pov": "transport_dial"}
+specter-srva-1    | 2022-08-10T21:44:59.335Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 37795961421988, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:41221", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:44:59.335Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:41221", "local": "172.22.0.3:1113", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:44:59.340Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 37795961421988, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]}
+specter-seed-1    | 2022-08-10T21:44:59.341Z    INFO    chord/local_membership.go:128   Join completed, joiner has requested to update pointers {"component": "chord", "node": 272898810982308}
+specter-seed-1    | 2022-08-10T21:44:59.345Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 272898810982308, "successors": [37795961421988, 118605669798269, 272898810982308]}
+specter-seed-1    | 2022-08-10T21:44:59.348Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 272898810982308, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]}
+specter-srvc-1    | 2022-08-10T21:44:59.350Z    INFO    chord/local_membership.go:133   Join completed, joiner has requested to release membership lock {"component": "chord", "node": 118605669798269}
+specter-seed-1    | 2022-08-10T21:44:59.353Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srva-1    | 2022-08-10T21:44:59.353Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "val_length": 227}
+specter-srvc-1    | 2022-08-10T21:44:59.354Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 118605669798269, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-srva-1    | 2022-08-10T21:44:59.355Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "val_length": 2164}
+specter-seed-1    | 2022-08-10T21:44:59.357Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-srva-1    | 2022-08-10T21:44:59.358Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "val_length": 114}
+specter-seed-1    | 2022-08-10T21:44:59.361Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/dev.con.nect.sh-dba4b941", "id": 159017762380566}
+specter-srva-1    | 2022-08-10T21:44:59.362Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/dev.con.nect.sh-dba4b941"}
+specter-srva-1    | 2022-08-10T21:44:59.363Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["dev.con.nect.sh"]}
+specter-srva-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srva-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srva-1    |     /app/cmd/server/server.go:228
+specter-srva-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srva-1    |     /app/cmd/server/server.go:393
+specter-srva-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srva-1    |     /app/cmd/server/server.go:370
+specter-srva-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srva-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srva-1    | main.main
+specter-srva-1    |     /app/main.go:66
+specter-srva-1    | runtime.main
+specter-srva-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:44:59.363Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 37795961421988, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srva-1    | 2022-08-10T21:44:59.363Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "val_length": 227}
+specter-seed-1    | 2022-08-10T21:44:59.365Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-srva-1    | 2022-08-10T21:44:59.366Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "val_length": 2172}
+specter-seed-1    | 2022-08-10T21:44:59.368Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-srva-1    | 2022-08-10T21:44:59.369Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "val_length": 116}
+specter-seed-1    | 2022-08-10T21:44:59.372Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/wildcard_.dev.con.nect.sh-5b1526fa", "id": 235326812376913}
+specter-srva-1    | 2022-08-10T21:44:59.373Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/wildcard_.dev.con.nect.sh-5b1526fa"}
+specter-srva-1    | 2022-08-10T21:44:59.373Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [*.dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["*.dev.con.nect.sh"]}
+specter-srva-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srva-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srva-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srva-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srva-1    |     /app/cmd/server/server.go:228
+specter-srva-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srva-1    |     /app/cmd/server/server.go:393
+specter-srva-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srva-1    |     /app/cmd/server/server.go:370
+specter-srva-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srva-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srva-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srva-1    | main.main
+specter-srva-1    |     /app/main.go:66
+specter-srva-1    | runtime.main
+specter-srva-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:44:59.374Z    INFO    server/server.go:47     publishing identities to chord  {"component": "tun", "node": 62009066160596}
+specter-srva-1    | 2022-08-10T21:44:59.374Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "tun", "node": 62009066160596, "listen": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:44:59.374Z    INFO    gateway/gateway.go:114  gateway server started  {"component": "gateway"}
+specter-seed-1    | 2022-08-10T21:44:59.376Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/chord/srva:1113/37795961421988", "id": 199074408259398}
+specter-srva-1    | 2022-08-10T21:44:59.377Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 37795961421988, "key": "/identities/tunnel/srva:1113/62009066160596", "id": 31061415177225}
+specter-srva-1    | 2022-08-10T21:44:59.377Z    INFO    server/resolve.go:45    identities published on chord   {"component": "tun", "node": 62009066160596, "chord": "/identities/chord/srva:1113/37795961421988", "tun": "/identities/tunnel/srva:1113/62009066160596"}
+specter-srva-1    | 2022-08-10T21:44:59.377Z    INFO    server/server.go:52     specter server started  {"component": "tun", "node": 62009066160596}
+specter-srvb-1    | 2022-08-10T21:45:04.317Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 84671371534117, "attempt": 3, "via": "seed:1113"}
+specter-srvd-1    | 2022-08-10T21:45:04.317Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 76056495571947, "attempt": 3, "via": "seed:1113"}
+specter-srvc-1    | 2022-08-10T21:45:04.321Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 118605669798269, "successors": [272898810982308, 37795961421988, 118605669798269]}
+specter-srvc-1    | 2022-08-10T21:45:04.321Z    INFO    chord/local_membership.go:106   incoming join request   {"component": "chord", "node": 118605669798269, "joiner": 84671371534117}
+specter-srvc-1    | 2022-08-10T21:45:04.322Z    INFO    chord/local_chord.go:220        transferring keys to new predecessor    {"component": "chord", "node": 118605669798269, "predecessor": 84671371534117, "num_keys": 2}
+specter-srvb-1    | 2022-08-10T21:45:04.325Z    DEBUG   chord/local_kv.go:154   KV Import       {"component": "chord", "node": 84671371534117, "num_keys": 2}
+specter-srvb-1    | 2022-08-10T21:45:04.330Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 84671371534117, "peer": "id:37795961421988 address:\"srva:1113\""}
+specter-srvc-1    | 2022-08-10T21:45:04.332Z    INFO    chord/local_membership.go:93    rejecting join request because current state is not Active      {"component": "chord", "node": 118605669798269, "joiner": 76056495571947}
+specter-srvd-1    | 2022-08-10T21:45:04.334Z    ERROR   chord/local_membership.go:73    error trying to join ring, retrying     {"component": "chord", "node": 76056495571947, "error": "node cannot handle join request at the moment"}
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).executeJoin
+specter-srvd-1    |     /app/chord/local_membership.go:73
+specter-srvd-1    | kon.nect.sh/specter/chord.(*LocalNode).Join
+specter-srvd-1    |     /app/chord/local_membership.go:35
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvd-1    |     /app/cmd/server/server.go:365
+specter-srvd-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvd-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvd-1    | main.main
+specter-srvd-1    |     /app/main.go:66
+specter-srvd-1    | runtime.main
+specter-srvd-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:45:04.346Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 37795961421988, "peer": "id:84671371534117 address:\"srvb:1113\""}
+specter-srva-1    | 2022-08-10T21:45:04.350Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-srva-1    | 2022-08-10T21:45:04.350Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-srvb-1    | 2022-08-10T21:45:04.350Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srvb-1    | 2022-08-10T21:45:04.350Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srvb-1    | 2022-08-10T21:45:04.351Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 84671371534117, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:55060"}
+specter-srvb-1    | 2022-08-10T21:45:04.351Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:55060", "pov": "transport_dial"}
+specter-srvb-1    | 2022-08-10T21:45:04.351Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 84671371534117, "key": "srvc:1113/118605669798269"}
+specter-srvb-1    | 2022-08-10T21:45:04.352Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 84671371534117, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:57845", "local": "172.22.0.4:1113"}
+specter-srvb-1    | 2022-08-10T21:45:04.352Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:57845", "local": "172.22.0.4:1113", "pov": "transport_dial"}
+specter-srva-1    | 2022-08-10T21:45:04.352Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 37795961421988, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:55060", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:45:04.352Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:55060", "local": "172.22.0.3:1113", "pov": "local_rpc"}
+specter-srvb-1    | 2022-08-10T21:45:04.352Z    INFO    chord/local_membership.go:46    Successfully joined Chord ring  {"component": "chord", "node": 84671371534117, "predecessor": 37795961421988, "successor": 118605669798269}
+specter-srvc-1    | 2022-08-10T21:45:04.353Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 118605669798269, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57845"}
+specter-srvc-1    | 2022-08-10T21:45:04.353Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57845", "pov": "local_rpc"}
+specter-srvb-1    | 2022-08-10T21:45:04.354Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 84671371534117, "peer": "id:84671371534117 address:\"srvb:1113\""}
+specter-srvb-1    | 2022-08-10T21:45:04.360Z    DEBUG   overlay/transport.go:295        reusing quic connection {"component": "chord", "node": 84671371534117, "direction": "incoming", "key": "srva:1113/37795961421988"}
+specter-srva-1    | 2022-08-10T21:45:04.361Z    DEBUG   overlay/transport.go:295        reusing quic connection {"component": "chord", "node": 37795961421988, "direction": "outgoing", "key": "srvb:1113/84671371534117"}
+specter-srva-1    | 2022-08-10T21:45:04.362Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 37795961421988, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:55060", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:45:04.362Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:55060", "local": "172.22.0.3:1113", "pov": "transport_dial"}
+specter-srvb-1    | 2022-08-10T21:45:04.363Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 84671371534117, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:55060"}
+specter-srvb-1    | 2022-08-10T21:45:04.363Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:55060", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:45:04.365Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 37795961421988, "successors": [84671371534117, 118605669798269, 272898810982308, 37795961421988]}
+specter-srvb-1    | 2022-08-10T21:45:04.368Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 84671371534117, "direction": "incoming"}
+specter-srvb-1    | 2022-08-10T21:45:04.368Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 84671371534117, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-srvb-1    | 2022-08-10T21:45:04.368Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 84671371534117, "direction": "outgoing"}
+specter-srvb-1    | 2022-08-10T21:45:04.369Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 84671371534117, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57442"}
+specter-srvb-1    | 2022-08-10T21:45:04.369Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:1113", "local": "[::]:57442", "pov": "transport_dial"}
+specter-srvb-1    | 2022-08-10T21:45:04.369Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 84671371534117, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:57442", "local": "172.22.0.4:1113"}
+specter-srvb-1    | 2022-08-10T21:45:04.369Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:57442", "local": "172.22.0.4:1113", "pov": "local_rpc"}
+specter-srvb-1    | 2022-08-10T21:45:04.377Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 84671371534117, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]}
+specter-srva-1    | 2022-08-10T21:45:04.379Z    INFO    chord/local_membership.go:128   Join completed, joiner has requested to update pointers {"component": "chord", "node": 37795961421988}
+specter-srva-1    | 2022-08-10T21:45:04.386Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 37795961421988, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]}
+specter-srvc-1    | 2022-08-10T21:45:04.388Z    INFO    chord/local_membership.go:133   Join completed, joiner has requested to release membership lock {"component": "chord", "node": 118605669798269}
+specter-seed-1    | 2022-08-10T21:45:04.391Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srvb-1    | 2022-08-10T21:45:04.392Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "val_length": 227}
+specter-srvb-1    | 2022-08-10T21:45:04.392Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 84671371534117, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-srvb-1    | 2022-08-10T21:45:04.392Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "val_length": 2164}
+specter-seed-1    | 2022-08-10T21:45:04.395Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-srvb-1    | 2022-08-10T21:45:04.396Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "val_length": 114}
+specter-seed-1    | 2022-08-10T21:45:04.399Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/dev.con.nect.sh-dba4b941", "id": 159017762380566}
+specter-srvb-1    | 2022-08-10T21:45:04.400Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/dev.con.nect.sh-dba4b941"}
+specter-srvb-1    | 2022-08-10T21:45:04.401Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["dev.con.nect.sh"]}
+specter-srvb-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srvb-1    |     /app/cmd/server/server.go:228
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srvb-1    |     /app/cmd/server/server.go:393
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvb-1    |     /app/cmd/server/server.go:370
+specter-srvb-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvb-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvb-1    | main.main
+specter-srvb-1    |     /app/main.go:66
+specter-srvb-1    | runtime.main
+specter-srvb-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:45:04.404Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 37795961421988, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srvb-1    | 2022-08-10T21:45:04.404Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "val_length": 227}
+specter-seed-1    | 2022-08-10T21:45:04.407Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-srvb-1    | 2022-08-10T21:45:04.407Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "val_length": 2172}
+specter-seed-1    | 2022-08-10T21:45:04.410Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-srvb-1    | 2022-08-10T21:45:04.410Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "val_length": 116}
+specter-seed-1    | 2022-08-10T21:45:04.414Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/wildcard_.dev.con.nect.sh-5b1526fa", "id": 235326812376913}
+specter-srvb-1    | 2022-08-10T21:45:04.414Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/wildcard_.dev.con.nect.sh-5b1526fa"}
+specter-srvb-1    | 2022-08-10T21:45:04.415Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [*.dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["*.dev.con.nect.sh"]}
+specter-srvb-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srvb-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srvb-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srvb-1    |     /app/cmd/server/server.go:228
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srvb-1    |     /app/cmd/server/server.go:393
+specter-srvb-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvb-1    |     /app/cmd/server/server.go:370
+specter-srvb-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvb-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvb-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvb-1    | main.main
+specter-srvb-1    |     /app/main.go:66
+specter-srvb-1    | runtime.main
+specter-srvb-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvb-1    | 2022-08-10T21:45:04.415Z    INFO    server/server.go:47     publishing identities to chord  {"component": "tun", "node": 263818634048197}
+specter-srvb-1    | 2022-08-10T21:45:04.415Z    INFO    gateway/gateway.go:114  gateway server started  {"component": "gateway"}
+specter-srvb-1    | 2022-08-10T21:45:04.415Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "tun", "node": 263818634048197, "listen": "172.22.0.4:1113"}
+specter-seed-1    | 2022-08-10T21:45:04.419Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/chord/srvb:1113/84671371534117", "id": 223804790890153}
+specter-srvb-1    | 2022-08-10T21:45:04.419Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 84671371534117, "key": "/identities/tunnel/srvb:1113/263818634048197", "id": 53649091253522}
+specter-srvb-1    | 2022-08-10T21:45:04.420Z    INFO    server/resolve.go:45    identities published on chord   {"component": "tun", "node": 263818634048197, "chord": "/identities/chord/srvb:1113/84671371534117", "tun": "/identities/tunnel/srvb:1113/263818634048197"}
+specter-srvb-1    | 2022-08-10T21:45:04.420Z    INFO    server/server.go:52     specter server started  {"component": "tun", "node": 263818634048197}
+specter-seed-1    | 2022-08-10T21:45:06.253Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 272898810982308, "fixed": [47]}
+specter-seed-1    | 2022-08-10T21:45:09.262Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 272898810982308, "successors": [37795961421988, 84671371534117, 118605669798269, 272898810982308]}
+specter-srvc-1    | 2022-08-10T21:45:09.331Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 118605669798269, "successors": [272898810982308, 37795961421988, 84671371534117, 118605669798269]}
+specter-srvd-1    | 2022-08-10T21:45:09.338Z    INFO    chord/local_membership.go:64    Joining Chord ring      {"component": "chord", "node": 76056495571947, "attempt": 4, "via": "seed:1113"}
+specter-srvb-1    | 2022-08-10T21:45:09.343Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 84671371534117, "peer": "id:76056495571947 address:\"srvd:1113\""}
+specter-srvd-1    | 2022-08-10T21:45:09.357Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-srvd-1    | 2022-08-10T21:45:09.357Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srvb:1113/84671371534117"}
+specter-srvb-1    | 2022-08-10T21:45:09.357Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "srvd:1113/76056495571947"}
+specter-srvb-1    | 2022-08-10T21:45:09.358Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 84671371534117, "direction": "outgoing", "key": "srvd:1113/76056495571947"}
+specter-srvb-1    | 2022-08-10T21:45:09.358Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 84671371534117, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:60950"}
+specter-srvb-1    | 2022-08-10T21:45:09.358Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:60950", "pov": "transport_dial"}
+specter-srvb-1    | 2022-08-10T21:45:09.358Z    INFO    chord/local_membership.go:106   incoming join request   {"component": "chord", "node": 84671371534117, "joiner": 76056495571947}
+specter-srvb-1    | 2022-08-10T21:45:09.358Z    INFO    chord/local_chord.go:220        transferring keys to new predecessor    {"component": "chord", "node": 84671371534117, "predecessor": 76056495571947, "num_keys": 2}
+specter-srvd-1    | 2022-08-10T21:45:09.359Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 76056495571947, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:60950", "local": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:45:09.359Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:60950", "local": "172.22.0.5:1113", "pov": "local_rpc"}
+specter-srvd-1    | 2022-08-10T21:45:09.360Z    DEBUG   chord/local_kv.go:154   KV Import       {"component": "chord", "node": 76056495571947, "num_keys": 2}
+specter-srvd-1    | 2022-08-10T21:45:09.362Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 76056495571947, "peer": "id:37795961421988 address:\"srva:1113\""}
+specter-srva-1    | 2022-08-10T21:45:09.369Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\""}
+specter-srva-1    | 2022-08-10T21:45:09.378Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvd:1113/76056495571947"}
+specter-srvd-1    | 2022-08-10T21:45:09.379Z    DEBUG   overlay/transport.go:299        saving quic connection for reuse        {"component": "chord", "node": 76056495571947, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srvd-1    | 2022-08-10T21:45:09.379Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 76056495571947, "direction": "outgoing", "key": "srva:1113/37795961421988"}
+specter-srva-1    | 2022-08-10T21:45:09.379Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 37795961421988, "direction": "incoming", "key": "srvd:1113/76056495571947"}
+specter-srvd-1    | 2022-08-10T21:45:09.380Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 76056495571947, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:46805"}
+specter-srvd-1    | 2022-08-10T21:45:09.380Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:46805", "pov": "transport_dial"}
+specter-srvd-1    | 2022-08-10T21:45:09.380Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 76056495571947, "key": "srvb:1113/84671371534117"}
+specter-srvd-1    | 2022-08-10T21:45:09.380Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 76056495571947, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:60950", "local": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:45:09.380Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:84671371534117 address:\"srvb:1113\"", "remote": "172.22.0.4:60950", "local": "172.22.0.5:1113", "pov": "transport_dial"}
+specter-srva-1    | 2022-08-10T21:45:09.380Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:46805", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:45:09.381Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:46805", "local": "172.22.0.3:1113", "pov": "local_rpc"}
+specter-srvd-1    | 2022-08-10T21:45:09.381Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 76056495571947, "key": "srvc:1113/118605669798269"}
+specter-srvd-1    | 2022-08-10T21:45:09.381Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 76056495571947, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:39301", "local": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:45:09.381Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:118605669798269 address:\"srvc:1113\"", "remote": "172.22.0.6:39301", "local": "172.22.0.5:1113", "pov": "transport_dial"}
+specter-srvd-1    | 2022-08-10T21:45:09.381Z    INFO    chord/local_membership.go:46    Successfully joined Chord ring  {"component": "chord", "node": 76056495571947, "predecessor": 37795961421988, "successor": 84671371534117}
+specter-srvb-1    | 2022-08-10T21:45:09.381Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 84671371534117, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:60950"}
+specter-srvb-1    | 2022-08-10T21:45:09.382Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 84671371534117, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:60950", "pov": "local_rpc"}
+specter-srvc-1    | 2022-08-10T21:45:09.382Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 118605669798269, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:39301"}
+specter-srvc-1    | 2022-08-10T21:45:09.382Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 118605669798269, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:39301", "pov": "local_rpc"}
+specter-srvd-1    | 2022-08-10T21:45:09.383Z    DEBUG   overlay/transport.go:83 Creating new QUIC connection    {"component": "chord", "node": 76056495571947, "peer": "id:76056495571947 address:\"srvd:1113\""}
+specter-srvd-1    | 2022-08-10T21:45:09.385Z    DEBUG   overlay/transport.go:295        reusing quic connection {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srva:1113/37795961421988"}
+specter-srva-1    | 2022-08-10T21:45:09.386Z    ERROR   chord/remote.go:207     creating new RemoteNode {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\"", "error": "dialing stream: creating quic connection: reading RPC message buffer size: Application error 0x0: A previous connection was reused"}
+specter-srva-1    | kon.nect.sh/specter/chord.(*RemoteNode).GetPredecessor
+specter-srva-1    |     /app/chord/remote.go:207
+specter-srva-1    | kon.nect.sh/specter/chord.(*LocalNode).stabilize
+specter-srva-1    |     /app/chord/local_tasks.go:69
+specter-srva-1    | kon.nect.sh/specter/chord.(*LocalNode).periodicStablize
+specter-srva-1    |     /app/chord/local_tasks.go:171
+specter-srvb-1    | 2022-08-10T21:45:09.388Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 84671371534117, "successors": [118605669798269, 272898810982308, 37795961421988, 84671371534117]}
+specter-srva-1    | 2022-08-10T21:45:09.388Z    DEBUG   chord/local_tasks.go:84 Skipping over successor {"component": "chord", "node": 37795961421988, "head": 84671371534117, "succ": [84671371534117, 118605669798269, 272898810982308, 37795961421988]}
+specter-srvd-1    | 2022-08-10T21:45:09.397Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 76056495571947, "direction": "incoming"}
+specter-srvd-1    | 2022-08-10T21:45:09.397Z    DEBUG   overlay/transport.go:361        Starting goroutines to handle streams and datagrams     {"component": "chord", "node": 76056495571947, "direction": "incoming", "key": "srvd:1113/76056495571947"}
+specter-srvd-1    | 2022-08-10T21:45:09.397Z    DEBUG   overlay/transport.go:274        connecting to ourself, skipping connection reuse        {"component": "chord", "node": 76056495571947, "direction": "outgoing"}
+specter-srvd-1    | 2022-08-10T21:45:09.398Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 76056495571947, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:58010"}
+specter-srvd-1    | 2022-08-10T21:45:09.398Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:1113", "local": "[::]:58010", "pov": "transport_dial"}
+specter-srvd-1    | 2022-08-10T21:45:09.399Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 76056495571947, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:58010", "local": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:45:09.399Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:58010", "local": "172.22.0.5:1113", "pov": "local_rpc"}
+specter-srvd-1    | 2022-08-10T21:45:09.408Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 76056495571947, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]}
+specter-srva-1    | 2022-08-10T21:45:09.409Z    INFO    chord/local_membership.go:128   Join completed, joiner has requested to update pointers {"component": "chord", "node": 37795961421988}
+specter-srva-1    | 2022-08-10T21:45:09.410Z    DEBUG   overlay/transport.go:74 Reusing quic connection from reuseMap   {"component": "chord", "node": 37795961421988, "key": "srvd:1113/76056495571947"}
+specter-srva-1    | 2022-08-10T21:45:09.411Z    DEBUG   overlay/transport.go:177        Created new RPC Stream  {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:46805", "local": "172.22.0.3:1113"}
+specter-srva-1    | 2022-08-10T21:45:09.411Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 37795961421988, "peer": "id:76056495571947 address:\"srvd:1113\"", "remote": "172.22.0.5:46805", "local": "172.22.0.3:1113", "pov": "transport_dial"}
+specter-srvd-1    | 2022-08-10T21:45:09.411Z    DEBUG   chord/local_rpc.go:26   New incoming RPC Stream {"component": "chord", "node": 76056495571947, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:46805"}
+specter-srvd-1    | 2022-08-10T21:45:09.411Z    DEBUG   rpc/rpc.go:65   Creating new RPC handler        {"component": "chord", "node": 76056495571947, "peer": "id:37795961421988 address:\"srva:1113\"", "remote": "172.22.0.3:1113", "local": "[::]:46805", "pov": "local_rpc"}
+specter-srva-1    | 2022-08-10T21:45:09.413Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 37795961421988, "successors": [76056495571947, 84671371534117, 118605669798269, 272898810982308]}
+specter-srva-1    | 2022-08-10T21:45:09.419Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 37795961421988, "fixed": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]}
+specter-srvb-1    | 2022-08-10T21:45:09.421Z    INFO    chord/local_membership.go:133   Join completed, joiner has requested to release membership lock {"component": "chord", "node": 84671371534117}
+specter-seed-1    | 2022-08-10T21:45:09.423Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srvd-1    | 2022-08-10T21:45:09.424Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "val_length": 227}
+specter-srvd-1    | 2022-08-10T21:45:09.424Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 76056495571947, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-srvd-1    | 2022-08-10T21:45:09.424Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "val_length": 2164}
+specter-seed-1    | 2022-08-10T21:45:09.426Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-srvd-1    | 2022-08-10T21:45:09.427Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "val_length": 114}
+specter-seed-1    | 2022-08-10T21:45:09.430Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/dev.con.nect.sh-dba4b941", "id": 159017762380566}
+specter-srvd-1    | 2022-08-10T21:45:09.431Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/dev.con.nect.sh-dba4b941"}
+specter-srvd-1    | 2022-08-10T21:45:09.431Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["dev.con.nect.sh"]}
+specter-srvd-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srvd-1    |     /app/cmd/server/server.go:228
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srvd-1    |     /app/cmd/server/server.go:393
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvd-1    |     /app/cmd/server/server.go:370
+specter-srvd-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvd-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvd-1    | main.main
+specter-srvd-1    |     /app/main.go:66
+specter-srvd-1    | runtime.main
+specter-srvd-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srva-1    | 2022-08-10T21:45:09.434Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 37795961421988, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srvd-1    | 2022-08-10T21:45:09.434Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "val_length": 227}
+specter-seed-1    | 2022-08-10T21:45:09.436Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-srvd-1    | 2022-08-10T21:45:09.437Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "val_length": 2172}
+specter-seed-1    | 2022-08-10T21:45:09.439Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-srvd-1    | 2022-08-10T21:45:09.440Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "val_length": 116}
+specter-seed-1    | 2022-08-10T21:45:09.443Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/wildcard_.dev.con.nect.sh-5b1526fa", "id": 235326812376913}
+specter-srvd-1    | 2022-08-10T21:45:09.444Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/wildcard_.dev.con.nect.sh-5b1526fa"}
+specter-srvd-1    | 2022-08-10T21:45:09.444Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [*.dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["*.dev.con.nect.sh"]}
+specter-srvd-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).manageOne
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:331
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).manageAll
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:320
+specter-srvd-1    | github.com/caddyserver/certmagic.(*Config).ManageAsync
+specter-srvd-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:279
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.configCertProvider.func1
+specter-srvd-1    |     /app/cmd/server/server.go:228
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.(*ACMEProvider).Initialize
+specter-srvd-1    |     /app/cmd/server/server.go:393
+specter-srvd-1    | kon.nect.sh/specter/cmd/server.cmdServer
+specter-srvd-1    |     /app/cmd/server/server.go:370
+specter-srvd-1    | github.com/urfave/cli/v2.(*Command).Run
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/command.go:169
+specter-srvd-1    | github.com/urfave/cli/v2.(*App).RunContext
+specter-srvd-1    |     /go/pkg/mod/github.com/urfave/cli/v2@v2.11.1/app.go:378
+specter-srvd-1    | main.main
+specter-srvd-1    |     /app/main.go:66
+specter-srvd-1    | runtime.main
+specter-srvd-1    |     /usr/local/go/src/runtime/proc.go:250
+specter-srvd-1    | 2022-08-10T21:45:09.445Z    INFO    server/server.go:47     publishing identities to chord  {"component": "tun", "node": 220377913337845}
+specter-srvd-1    | 2022-08-10T21:45:09.445Z    INFO    overlay/transport.go:374        Accepting connections   {"component": "tun", "node": 220377913337845, "listen": "172.22.0.5:1113"}
+specter-srvd-1    | 2022-08-10T21:45:09.445Z    INFO    gateway/gateway.go:114  gateway server started  {"component": "gateway"}
+specter-seed-1    | 2022-08-10T21:45:09.447Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/chord/srvd:1113/76056495571947", "id": 204256089064141}
+specter-seed-1    | 2022-08-10T21:45:09.449Z    DEBUG   chord/local_kv.go:54    KV Put  {"component": "chord", "node": 272898810982308, "key": "/identities/tunnel/srvd:1113/220377913337845", "id": 217967739459279}
+specter-srvd-1    | 2022-08-10T21:45:09.450Z    INFO    server/resolve.go:45    identities published on chord   {"component": "tun", "node": 220377913337845, "chord": "/identities/chord/srvd:1113/76056495571947", "tun": "/identities/tunnel/srvd:1113/220377913337845"}
+specter-srvd-1    | 2022-08-10T21:45:09.450Z    INFO    server/server.go:52     specter server started  {"component": "tun", "node": 220377913337845}
+specter-seed-1    | 2022-08-10T21:45:12.259Z    INFO    chord/local_tasks.go:140        FingerTable entries updated     {"component": "chord", "node": 272898810982308, "fixed": [47]}
+specter-seed-1    | 2022-08-10T21:45:14.271Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 272898810982308, "successors": [37795961421988, 76056495571947, 84671371534117, 118605669798269]}
+specter-srvc-1    | 2022-08-10T21:45:14.341Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 118605669798269, "successors": [272898810982308, 37795961421988, 76056495571947, 84671371534117]}
+specter-srvb-1    | 2022-08-10T21:45:14.396Z    INFO    chord/local_tasks.go:95 Discovered new successors via Stablize  {"component": "chord", "node": 84671371534117, "successors": [118605669798269, 272898810982308, 37795961421988, 76056495571947]}
+specter-srva-1    | 2022-08-10T21:45:24.341Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 37795961421988, "lease": "/acme-storage/issue_cert_*.dev.con.nect.sh", "id": 1553179569973}
+specter-srvc-1    | 2022-08-10T21:45:24.343Z    DEBUG   storage/chord.go:62     Lease acquired  {"component": "storage", "key": "issue_cert_*.dev.con.nect.sh", "lease": 1660167984341888156}
+specter-srvc-1    | 2022-08-10T21:45:24.343Z    INFO    obtain  certmagic@v0.16.2/config.go:489 lock acquired   {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:45:24.343Z    DEBUG   chord/local_kv.go:118   KV Acquire      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_dev.con.nect.sh", "id": 158622818693899}
+specter-srvc-1    | 2022-08-10T21:45:24.344Z    DEBUG   storage/chord.go:62     Lease acquired  {"component": "storage", "key": "issue_cert_dev.con.nect.sh", "lease": 1660167984343630359}
+specter-srvc-1    | 2022-08-10T21:45:24.345Z    INFO    obtain  certmagic@v0.16.2/config.go:489 lock acquired   {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:45:24.345Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-srvc-1    | 2022-08-10T21:45:24.346Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "exists": true}
+specter-srva-1    | 2022-08-10T21:45:24.349Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 37795961421988, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srvc-1    | 2022-08-10T21:45:24.350Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "exists": true}
+specter-srvd-1    | 2022-08-10T21:45:24.351Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 76056495571947, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-seed-1    | 2022-08-10T21:45:24.352Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-srvc-1    | 2022-08-10T21:45:24.352Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "exists": true}
+specter-srvc-1    | 2022-08-10T21:45:24.352Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "exists": true}
+specter-srvc-1    | 2022-08-10T21:45:24.353Z    INFO    obtain  certmagic@v0.16.2/config.go:496 certificate already exists in storage   {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:45:24.353Z    INFO    obtain  certmagic@v0.16.2/config.go:477 releasing lock  {"component": "acme", "identifier": "*.dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:45:24.353Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srvc-1    | 2022-08-10T21:45:24.355Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "exists": true}
+specter-srva-1    | 2022-08-10T21:45:24.356Z    DEBUG   chord/local_kv.go:138   KV Release      {"component": "chord", "node": 37795961421988, "lease": "/acme-storage/issue_cert_*.dev.con.nect.sh", "id": 1553179569973}
+specter-seed-1    | 2022-08-10T21:45:24.356Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-srvc-1    | 2022-08-10T21:45:24.357Z    DEBUG   storage/chord.go:152    Exists  {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "exists": true}
+specter-srvc-1    | 2022-08-10T21:45:24.357Z    INFO    obtain  certmagic@v0.16.2/config.go:496 certificate already exists in storage   {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:45:24.357Z    INFO    obtain  certmagic@v0.16.2/config.go:477 releasing lock  {"component": "acme", "identifier": "dev.con.nect.sh"}
+specter-seed-1    | 2022-08-10T21:45:24.358Z    DEBUG   chord/local_kv.go:138   KV Release      {"component": "chord", "node": 272898810982308, "lease": "/acme-storage/issue_cert_dev.con.nect.sh", "id": 158622818693899}
+specter-seed-1    | 2022-08-10T21:45:24.359Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "id": 179364425046919}
+specter-srva-1    | 2022-08-10T21:45:24.360Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 37795961421988, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "id": 37624296909630}
+specter-srvc-1    | 2022-08-10T21:45:24.360Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.key", "val_length": 227}
+specter-srvc-1    | 2022-08-10T21:45:24.361Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.key", "val_length": 227}
+specter-seed-1    | 2022-08-10T21:45:24.361Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "id": 169844222509893}
+specter-srvc-1    | 2022-08-10T21:45:24.362Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.crt", "val_length": 2172}
+specter-seed-1    | 2022-08-10T21:45:24.363Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "id": 264402947476177}
+specter-srvd-1    | 2022-08-10T21:45:24.364Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 76056495571947, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "id": 53321444973030}
+specter-srvc-1    | 2022-08-10T21:45:24.364Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/wildcard_.dev.con.nect.sh/wildcard_.dev.con.nect.sh.json", "val_length": 116}
+specter-srvc-1    | 2022-08-10T21:45:24.365Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.crt", "val_length": 2164}
+specter-seed-1    | 2022-08-10T21:45:24.366Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "id": 272673322735340}
+specter-seed-1    | 2022-08-10T21:45:24.366Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/wildcard_.dev.con.nect.sh-5b1526fa", "id": 235326812376913}
+specter-srvc-1    | 2022-08-10T21:45:24.366Z    DEBUG   storage/chord.go:131    Load returned something {"component": "storage", "key": "certificates/pebble-14000-dir/dev.con.nect.sh/dev.con.nect.sh.json", "val_length": 114}
+specter-srvc-1    | 2022-08-10T21:45:24.367Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/wildcard_.dev.con.nect.sh-5b1526fa"}
+specter-srvc-1    | 2022-08-10T21:45:24.368Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [*.dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["*.dev.con.nect.sh"]}
+specter-srvc-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-seed-1    | 2022-08-10T21:45:24.368Z    DEBUG   chord/local_kv.go:65    KV Get  {"component": "chord", "node": 272898810982308, "key": "/acme-storage/ocsp/dev.con.nect.sh-dba4b941", "id": 159017762380566}
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).manageOne.func1
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:347
+specter-srvc-1    | github.com/caddyserver/certmagic.(*jobManager).worker
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/async.go:73
+specter-srvc-1    | 2022-08-10T21:45:24.368Z    DEBUG   storage/chord.go:128    Load returned not found {"component": "storage", "key": "ocsp/dev.con.nect.sh-dba4b941"}
+specter-srvc-1    | 2022-08-10T21:45:24.369Z    WARN    certmagic@v0.16.2/certificates.go:222   stapling OCSP   {"component": "acme", "error": "no OCSP stapling for [dev.con.nect.sh]: no OCSP server specified in certificate", "identifiers": ["dev.con.nect.sh"]}
+specter-srvc-1    | github.com/caddyserver/certmagic.Config.makeCertificateWithOCSP
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:222
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).loadManagedCertificate
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:137
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).CacheManagedCertificate
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/certificates.go:120
+specter-srvc-1    | github.com/caddyserver/certmagic.(*Config).manageOne.func1
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/config.go:347
+specter-srvc-1    | github.com/caddyserver/certmagic.(*jobManager).worker
+specter-srvc-1    |     /go/pkg/mod/github.com/caddyserver/certmagic@v0.16.2/async.go:73
+specter-seed-1    | 2022-08-10T21:45:46.273Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:170      choosing certificate    {"component": "acme", "identifier": "dev.con.nect.sh", "num_choices": 1}
+specter-seed-1    | 2022-08-10T21:45:46.273Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:177      default certificate selection results   {"component": "acme", "identifier": "dev.con.nect.sh", "subjects": ["dev.con.nect.sh"], "managed": true, "issuer_key": "pebble:14000-dir", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-seed-1    | 2022-08-10T21:45:46.273Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:246      matched certificate in cache    {"component": "acme", "subjects": ["dev.con.nect.sh"], "managed": true, "expiration": "2027-08-10T21:44:54.000Z", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-seed-1    | 2022-08-10T21:45:46.276Z    DEBUG   gateway/gateway.go:204  forwarding apex connection      {"component": "gateway", "via-quic": false, "proto": "", "hostname": "dev.con.nect.sh"}
+specter-srva-1    | 2022-08-10T21:45:46.279Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:170      choosing certificate    {"component": "acme", "identifier": "dev.con.nect.sh", "num_choices": 1}
+specter-srva-1    | 2022-08-10T21:45:46.279Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:177      default certificate selection results   {"component": "acme", "identifier": "dev.con.nect.sh", "subjects": ["dev.con.nect.sh"], "managed": true, "issuer_key": "pebble:14000-dir", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srva-1    | 2022-08-10T21:45:46.279Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:246      matched certificate in cache    {"component": "acme", "subjects": ["dev.con.nect.sh"], "managed": true, "expiration": "2027-08-10T21:44:54.000Z", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srva-1    | 2022-08-10T21:45:46.281Z    DEBUG   gateway/gateway.go:204  forwarding apex connection      {"component": "gateway", "via-quic": false, "proto": "", "hostname": "dev.con.nect.sh"}
+specter-srvb-1    | 2022-08-10T21:45:46.285Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:170      choosing certificate    {"component": "acme", "identifier": "dev.con.nect.sh", "num_choices": 1}
+specter-srvb-1    | 2022-08-10T21:45:46.285Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:177      default certificate selection results   {"component": "acme", "identifier": "dev.con.nect.sh", "subjects": ["dev.con.nect.sh"], "managed": true, "issuer_key": "pebble:14000-dir", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvb-1    | 2022-08-10T21:45:46.286Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:246      matched certificate in cache    {"component": "acme", "subjects": ["dev.con.nect.sh"], "managed": true, "expiration": "2027-08-10T21:44:54.000Z", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvb-1    | 2022-08-10T21:45:46.289Z    DEBUG   gateway/gateway.go:204  forwarding apex connection      {"component": "gateway", "via-quic": false, "proto": "", "hostname": "dev.con.nect.sh"}
+specter-srvc-1    | 2022-08-10T21:45:46.293Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:170      choosing certificate    {"component": "acme", "identifier": "dev.con.nect.sh", "num_choices": 1}
+specter-srvc-1    | 2022-08-10T21:45:46.293Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:177      default certificate selection results   {"component": "acme", "identifier": "dev.con.nect.sh", "subjects": ["dev.con.nect.sh"], "managed": true, "issuer_key": "pebble:14000-dir", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvc-1    | 2022-08-10T21:45:46.293Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:246      matched certificate in cache    {"component": "acme", "subjects": ["dev.con.nect.sh"], "managed": true, "expiration": "2027-08-10T21:44:54.000Z", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvc-1    | 2022-08-10T21:45:46.295Z    DEBUG   gateway/gateway.go:204  forwarding apex connection      {"component": "gateway", "via-quic": false, "proto": "", "hostname": "dev.con.nect.sh"}
+specter-srvd-1    | 2022-08-10T21:45:46.298Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:170      choosing certificate    {"component": "acme", "identifier": "dev.con.nect.sh", "num_choices": 1}
+specter-srvd-1    | 2022-08-10T21:45:46.299Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:177      default certificate selection results   {"component": "acme", "identifier": "dev.con.nect.sh", "subjects": ["dev.con.nect.sh"], "managed": true, "issuer_key": "pebble:14000-dir", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvd-1    | 2022-08-10T21:45:46.299Z    DEBUG   handshake       certmagic@v0.16.2/handshake.go:246      matched certificate in cache    {"component": "acme", "subjects": ["dev.con.nect.sh"], "managed": true, "expiration": "2027-08-10T21:44:54.000Z", "hash": "f22c171626df87089536371a4215bee92d01527061481dcf67c4a9a2c2252d68"}
+specter-srvd-1    | 2022-08-10T21:45:46.300Z    DEBUG   gateway/gateway.go:204  forwarding apex connection      {"component": "gateway", "via-quic": false, "proto": "", "hostname": "dev.con.nect.sh"}

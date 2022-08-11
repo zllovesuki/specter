@@ -21,9 +21,9 @@ type LocalNode struct {
 	lastStabilized *atom.Time
 	surrogate      *protocol.Node
 	stopCh         chan struct{}
+	state          *nodeState
 	fingers        []atomic.Pointer[chord.VNode]
 	NodeConfig
-	state chord.State
 }
 
 var _ chord.VNode = (*LocalNode)(nil)
@@ -34,7 +34,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	}
 	n := &LocalNode{
 		NodeConfig:     conf,
-		state:          chord.Inactive,
+		state:          NewNodeState(chord.Inactive),
 		succListHash:   atom.NewUint64(conf.Identity.GetId()),
 		kv:             conf.KVProvider,
 		fingers:        make([]atomic.Pointer[chord.VNode], chord.MaxFingerEntries+1),

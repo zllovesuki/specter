@@ -5,7 +5,7 @@ RUN apt install ca-certificates gcc
 WORKDIR /app
 COPY . .
 
-RUN cat /etc/ssl/certs/ca-certificates.crt /app/dev-support/pebble/certs/cert.pem > /app/ca-certificates.crt
+RUN cat /etc/ssl/certs/ca-certificates.crt /app/dev/pebble/certs/cert.pem > /app/ca-certificates.crt
 
 ARG TARGETOS
 ARG TARGETARCH

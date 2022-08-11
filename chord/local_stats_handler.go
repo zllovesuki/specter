@@ -3,6 +3,9 @@ package chord
 import (
 	"fmt"
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -24,7 +27,8 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 		return
 	}
 
-	fmt.Fprintf(w, "Current state: %s\n", n.state.String())
+	fmt.Fprintf(w, "Current state: %s\n", n.state.Get().String())
+	fmt.Fprintf(w, "State history: %v\n", n.state.History())
 	fmt.Fprintf(w, "---\n")
 
 	nodesTable := tablewriter.NewWriter(w)
@@ -33,7 +37,7 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	nodesTable.Append([]string{"Local", fmt.Sprintf("%v", n.ID()), n.Identity().GetAddress()})
 
 	for _, succ := range succList {
-		nodesTable.Append([]string{fmt.Sprintf("(Successor; L = %d)", chord.ExtendedSuccessorEntries), fmt.Sprintf("%v", succ.ID()), succ.Identity().GetAddress()})
+		nodesTable.Append([]string{fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries), fmt.Sprintf("%v", succ.ID()), succ.Identity().GetAddress()})
 	}
 	nodesTable.SetCaption(true, fmt.Sprintf("(stablized: %s)", n.lastStabilized.Load().Round(time.Second).String()))
 	nodesTable.SetAutoMergeCells(true)
@@ -45,18 +49,27 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	finger := n.fingerTrace()
 	fingerTable := tablewriter.NewWriter(w)
 	fingerTable.SetHeader([]string{"Range", "ID"})
+	rows := make([][]string, 0)
 	for r, id := range finger {
-		fingerTable.Append([]string{r, id})
+		rows = append(rows, []string{r, id})
 	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i][0], rows[j][0]
+		aParts, bParts := strings.Split(a, "/"), strings.Split(b, "/")
+		aMin, _ := strconv.ParseInt(aParts[0], 10, 64)
+		bMin, _ := strconv.ParseInt(bParts[0], 10, 64)
+		return aMin < bMin
+	})
 	fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", uint64(1<<chord.MaxFingerEntries)))
 	fingerTable.SetAutoMergeCells(true)
 	fingerTable.SetRowLine(true)
+	fingerTable.AppendBulk(rows)
 	fingerTable.Render()
 
 	fmt.Fprintf(w, "---\n")
 
 	keysTable := tablewriter.NewWriter(w)
-	keysTable.SetHeader([]string{"hash(key)", "key", "simple", "prefix", "lease"})
+	keysTable.SetHeader([]string{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
 
 	keys := n.kv.RangeKeys(0, 0)
 	exp := n.kv.Export(keys)
@@ -64,21 +77,20 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 		plain := exp[i].GetSimpleValue()
 		children := exp[i].GetPrefixChildren()
 		lease := exp[i].GetLeaseToken()
-		raw := []any{
-			chord.Hash(key),
-			string(key),
-			plain != nil,
-			len(children),
-			lease,
+
+		id := chord.Hash(key)
+		ownership := ""
+		if !chord.Between(pre.ID(), id, n.ID(), true) {
+			ownership = "X"
 		}
+		raw := []any{ownership, id, string(key), len(plain), len(children), lease}
 		row := make([]string, len(raw))
 		for i, r := range raw {
 			row[i] = fmt.Sprintf("%v", r)
 		}
 		keysTable.Append(row)
 	}
-	good := kvFsck(n.kv, pre.ID(), n.ID())
-	keysTable.SetCaption(true, fmt.Sprintf("(fsck: %v)", good))
+	keysTable.SetCaption(true, "(X in owner column indicates incorrect owner)")
 	keysTable.SetAutoMergeCells(true)
 	keysTable.SetRowLine(true)
 	keysTable.Render()

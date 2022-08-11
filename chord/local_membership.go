@@ -5,12 +5,17 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/util"
 
 	"go.uber.org/zap"
 )
 
+const (
+	maxAttempts = 10
+)
+
 func (n *LocalNode) Create() error {
-	if !n.state.Transition(chord.Inactive, chord.Active) {
+	if !n.state.Transition(chord.Inactive, chord.Joining) {
 		return fmt.Errorf("node is not inactive")
 	}
 
@@ -22,6 +27,8 @@ func (n *LocalNode) Create() error {
 
 	n.startTasks()
 
+	n.state.Set(chord.Active)
+
 	return nil
 }
 
@@ -30,11 +37,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		return fmt.Errorf("node is not inactive")
 	}
 
-	n.Logger.Info("Joining Chord ring",
-		zap.String("via", peer.Identity().GetAddress()),
-	)
-
-	predecessor, successors, err := peer.RequestToJoin(n)
+	predecessor, successors, err := n.executeJoin(peer)
 	if err != nil {
 		n.state.Set(chord.Inactive)
 		return err
@@ -46,9 +49,9 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	n.predecessor = predecessor
 	n.predecessorMu.Unlock()
 
-	n.Logger.Info("Successfully joined Chord ring", zap.Uint64("predecessor", predecessor.ID()), zap.Uint64("successor", successors[0].ID()))
-
 	n.startTasks()
+
+	n.Logger.Info("Successfully joined Chord ring", zap.Uint64("predecessor", predecessor.ID()), zap.Uint64("successor", successors[0].ID()))
 
 	if err := predecessor.FinishJoin(true, false); err != nil { // advisory to let predecessor update successor list
 		n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
@@ -59,6 +62,25 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	}
 
 	return nil
+}
+
+func (n *LocalNode) executeJoin(peer chord.VNode) (chord.VNode, []chord.VNode, error) {
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		n.Logger.Info("Joining Chord ring",
+			zap.Int("attempt", attempt),
+			zap.String("via", peer.Identity().GetAddress()),
+		)
+		predecessor, successors, err := peer.RequestToJoin(n)
+		if err == nil {
+			return predecessor, successors, nil
+		}
+		lastErr = err
+		n.Logger.Error("error trying to join ring, retrying", zap.Error(err))
+		<-time.After(util.RandomTimeRange(n.StablizeInterval * 2))
+	}
+	n.Logger.Error("Unable to join ring: out of attempts", zap.Error(lastErr))
+	return nil, nil, lastErr
 }
 
 func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
@@ -117,7 +139,7 @@ func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 	if release {
 		n.Logger.Info("Join completed, joiner has requested to release membership lock")
 		if !n.state.Transition(chord.Transferring, chord.Active) {
-			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.String()))
+			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.Get().String()))
 			return chord.ErrJoinInvalidState
 		}
 	}
@@ -143,7 +165,7 @@ func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
 	if release {
 		n.Logger.Info("Leave completed, leaver has requested to release membership lock")
 		if !n.state.Transition(chord.Transferring, chord.Active) {
-			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.String()))
+			n.Logger.Error("Unable to release membership lock", zap.String("state", n.state.Get().String()))
 			return chord.ErrLeaveInvalidState
 		}
 	}
@@ -155,23 +177,29 @@ func (n *LocalNode) Leave() {
 	case chord.Inactive, chord.Leaving, chord.Left:
 		return
 	}
+	defer func() {
+		close(n.stopCh)
+		<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
+	}()
 
 	n.Logger.Info("Requesting to leave chord ring")
-	n.surrogateMu.Lock()
-	defer n.surrogateMu.Unlock()
-	n.surrogate = n.Identity()
 
 	var succ chord.VNode
 	var err error
-	for {
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		succ, err = n.executeLeave()
 		if err != nil {
 			n.Logger.Warn("Unable to leave, retrying", zap.Error(err))
-			<-time.After(n.StablizeInterval)
+			<-time.After(util.RandomTimeRange(n.StablizeInterval * 2))
 			continue
 		}
 		break
 	}
+	if err != nil {
+		n.Logger.Error("Unable to leave ring: out of attempts", zap.Error(err))
+		return
+	}
+
 	n.Logger.Info("Sending advisory to update pointers and releasing membership locks")
 
 	// release membership locks
@@ -187,18 +215,16 @@ func (n *LocalNode) Leave() {
 			n.Logger.Warn("error releasing leave lock in successor", zap.Error(err))
 		}
 	}
-
-	close(n.stopCh)
-	<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
 }
 
-// TODO: re-read the paper and see if we are retying by releasing the acuqired lock, or loop back again
 func (n *LocalNode) executeLeave() (chord.VNode, error) {
 	succ := n.getSuccessor()
 	if succ == nil || succ.ID() == n.ID() {
 		n.Logger.Debug("Skipping key transfer to successor because successor is either nil or ourself")
 		return nil, nil
 	}
+
+	// paper calls for asymmetric locking, and release locks when we are retrying
 	if n.ID() > succ.ID() {
 		if err := succ.RequestToLeave(n); err != nil {
 			return nil, err
@@ -220,6 +246,10 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 		}
 		n.Logger.Info("Leave locks acquired (self -> succ)")
 	}
+
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
+	n.surrogate = n.Identity()
 
 	// kv requests are now blocked
 	if err := n.transferKeysDownward(succ); err != nil {

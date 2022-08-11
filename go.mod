@@ -3,6 +3,7 @@ module kon.nect.sh/specter
 go 1.18
 
 require (
+	github.com/CAFxX/atomic128 v0.2.0
 	github.com/caddyserver/certmagic v0.16.2
 	github.com/golang/protobuf v1.5.2
 	github.com/libp2p/go-buffer-pool v0.1.0
@@ -22,8 +23,6 @@ require (
 	google.golang.org/protobuf v1.28.1
 	kon.nect.sh/challenger v1.0.1
 )
-
-require github.com/rivo/uniseg v0.2.0 // indirect
 
 require (
 	github.com/cheekybits/genny v1.0.0 // indirect
@@ -45,6 +44,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect

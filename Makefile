@@ -126,6 +126,6 @@ certs:
 	# Verify node CSR
 	openssl req -text -in certs/node.csr -noout -verify
 	# Sign and generate node certificate
-	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev-support/openssl.txt
+	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev/openssl.txt
 
 .PHONY: all

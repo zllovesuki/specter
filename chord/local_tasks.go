@@ -97,7 +97,7 @@ func (n *LocalNode) stabilize() error {
 		)
 	}
 
-	if modified && len(succList) > 0 {
+	if modified && len(succList) > 0 && n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
 		succ := succList[0]
 		if err := succ.Notify(n); err != nil {
 			n.Logger.Error("Error notifying successor about us", zap.Uint64("successor", succ.ID()), zap.Error(err))

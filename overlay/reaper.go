@@ -6,16 +6,13 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/util"
 
 	"go.uber.org/zap"
 )
 
-func randomTimeRange(t time.Duration) time.Duration {
-	return time.Duration(rand.Int63n(int64(t*2)-int64(t)) + int64(t))
-}
-
 func (t *QUIC) reaper(ctx context.Context) {
-	timer := time.NewTimer(quicConfig.MaxIdleTimeout)
+	timer := time.NewTimer(util.RandomTimeRange(quicConfig.HandshakeIdleTimeout))
 
 	d := &protocol.Datagram{
 		Type: protocol.Datagram_ALIVE,
@@ -57,7 +54,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 				}
 			}
 
-			timer.Reset(randomTimeRange(quicConfig.MaxIdleTimeout / 2))
+			timer.Reset(util.RandomTimeRange(quicConfig.MaxIdleTimeout))
 		}
 	}
 }
