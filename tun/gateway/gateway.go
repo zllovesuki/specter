@@ -22,32 +22,29 @@ import (
 )
 
 type GatewayConfig struct {
-	Logger       *zap.Logger
 	Tun          tun.Server
 	H2Listener   net.Listener
 	H3Listener   quic.EarlyListener
+	Logger       *zap.Logger
 	StatsHandler http.HandlerFunc
 	RootDomain   string
-	GatewayPort  int
 	AdminUser    string
 	AdminPass    string
+	GatewayPort  int
 }
 
 type Gateway struct {
-	GatewayConfig
-	apexServer *apexServer
-	altHeaders string
-
+	apexServer          *apexServer
 	http2TunnelAcceptor *acceptor.HTTP2Acceptor
 	http3TunnelAcceptor *acceptor.HTTP3Acceptor
-
-	http2ApexAcceptor *acceptor.HTTP2Acceptor
-	http3ApexAcceptor *acceptor.HTTP3Acceptor
-
-	h2ApexServer   *http.Server
-	h2TunnelServer *http.Server
-	h3ApexServer   *http3.Server
-	h3TunnelServer *http3.Server
+	http2ApexAcceptor   *acceptor.HTTP2Acceptor
+	http3ApexAcceptor   *acceptor.HTTP3Acceptor
+	h2ApexServer        *http.Server
+	h2TunnelServer      *http.Server
+	h3ApexServer        *http3.Server
+	h3TunnelServer      *http3.Server
+	altHeaders          string
+	GatewayConfig
 }
 
 func New(conf GatewayConfig) (*Gateway, error) {

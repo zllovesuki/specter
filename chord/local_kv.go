@@ -27,7 +27,7 @@ func kvMiddleware[V any](
 		return zeroV, err
 	}
 	if succ.ID() == n.ID() {
-		// maybe we are joining
+		// maybe we are joining or leaving
 		state := n.state.Get()
 		if state != chord.Active {
 			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))

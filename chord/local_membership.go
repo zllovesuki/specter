@@ -75,6 +75,10 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (chord.VNode, []chord.VNode, e
 		if err == nil {
 			return predecessor, successors, nil
 		}
+		// do not retry if non-retryable
+		if !chord.ErrorIsRetryable(err) {
+			return nil, nil, err
+		}
 		lastErr = err
 		n.Logger.Error("error trying to join ring, retrying", zap.Error(err))
 		<-time.After(util.RandomTimeRange(n.StablizeInterval * 2))

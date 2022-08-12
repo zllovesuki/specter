@@ -25,7 +25,7 @@ func main() {
 		Version:         Build,
 		HideHelpCommand: true,
 		Copyright:       "miragespace.com, licensed under MIT.",
-		Description:     "specter, a distributed networking and KV toolkit",
+		Description:     "like ngrok, but ambitious and also with DHT for flavor",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "verbose",

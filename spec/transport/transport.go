@@ -9,13 +9,13 @@ import (
 )
 
 type StreamDelegate struct {
-	Connection net.Conn
 	Identity   *protocol.Node
+	Connection net.Conn
 }
 
 type DatagramDelegate struct {
-	Buffer   []byte
 	Identity *protocol.Node
+	Buffer   []byte
 }
 
 type Transport interface {

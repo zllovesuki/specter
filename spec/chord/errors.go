@@ -26,12 +26,12 @@ var (
 
 func ErrorIsRetryable(err error) bool {
 	switch err {
-	case ErrNodeGone, ErrKVStaleOwnership, ErrKVPendingTransfer,
+	case ErrKVStaleOwnership, ErrKVPendingTransfer,
 		ErrJoinInvalidState, ErrJoinTransferFailure,
 		ErrLeaveInvalidState, ErrLeaveTransferFailure:
 		return true
 
-	case ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
+	case ErrNodeGone, ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
 		ErrKVSimpleConflict, ErrKVPrefixConflict, ErrKVLeaseConflict,
 		ErrKVLeaseExpired, ErrKVLeaseInvalidTTL:
 		fallthrough

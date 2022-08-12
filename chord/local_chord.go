@@ -61,7 +61,11 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 
 	n.predecessorMu.Lock()
 	defer n.predecessorMu.Unlock()
+
 	old = n.predecessor
+	if old != nil && old.ID() == predecessor.ID() {
+		return nil
+	}
 
 	if old == nil {
 		new = predecessor

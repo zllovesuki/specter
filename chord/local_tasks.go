@@ -1,13 +1,11 @@
 package chord
 
 import (
-	"encoding/binary"
 	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 
-	"github.com/zeebo/xxh3"
 	"go.uber.org/zap"
 )
 
@@ -41,19 +39,15 @@ func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
 	return list
 }
 
-// previous implementation uses XOR, which becomes an issues when the succList
-// becomes cyclical, causing succList never gets updated
 func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
-	hasher := xxh3.New()
-	b := make([]byte, 8)
+	xor := n.ID()
 	for _, node := range nodes {
 		if node == nil {
 			continue
 		}
-		binary.BigEndian.PutUint64(b, node.ID())
-		hasher.Write(b)
+		xor ^= node.ID()
 	}
-	return hasher.Sum64()
+	return xor
 }
 
 // routine based on pseudo code from the paper "How to Make Chord Correct"
@@ -143,20 +137,24 @@ func (n *LocalNode) fixFinger() error {
 }
 
 func (n *LocalNode) checkPredecessor() error {
-	n.predecessorMu.Lock()
-	defer n.predecessorMu.Unlock()
-
+	n.predecessorMu.RLock()
 	pre := n.predecessor
+	n.predecessorMu.RUnlock()
 	if pre == nil || pre.ID() == n.ID() {
 		return nil
 	}
 
 	err := pre.Ping()
 	if err != nil {
-		n.predecessor = nil
-		n.Logger.Info("Discovered dead predecessor",
-			zap.Uint64("old", pre.ID()),
-		)
+		n.predecessorMu.Lock()
+		if n.predecessor == pre {
+			n.predecessor = nil
+			n.Logger.Info("Discovered dead predecessor",
+				zap.Uint64("old", pre.ID()),
+				zap.String("new", "nil"),
+			)
+		}
+		n.predecessorMu.Unlock()
 	}
 	return err
 }

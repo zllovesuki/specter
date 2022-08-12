@@ -8,9 +8,7 @@ import (
 
 type CertProviderFunc func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 
-// ideally we want to storage certificates within the chord DHT, but I need to solve
-// the issues of non-atomic access
 type CertProvider interface {
-	Initialize(node chord.KV) error
+	Initialize(kv chord.KV) error
 	GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error)
 }
