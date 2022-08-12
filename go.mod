@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/CAFxX/atomic128 v0.2.0
 	github.com/caddyserver/certmagic v0.16.2
+	github.com/go-chi/chi/v5 v5.0.7
 	github.com/golang/protobuf v1.5.2
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/lucas-clemente/quic-go v0.28.1
@@ -29,7 +30,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
