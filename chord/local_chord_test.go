@@ -218,6 +218,9 @@ func TestStatsSummaryHandler(t *testing.T) {
 	as.NoError(node.Create())
 	defer node.Leave()
 
+	testKey := "helloworld"
+	node.kv.Put([]byte(testKey), []byte("bye"))
+
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(node.StatsHandler)
 
@@ -234,6 +237,7 @@ func TestStatsSummaryHandler(t *testing.T) {
 	body.ReadFrom(resp.Body)
 
 	as.Contains(body.String(), "Active")
+	as.Contains(body.String(), testKey)
 }
 
 func TestStatsKeyHandler(t *testing.T) {
@@ -243,11 +247,13 @@ func TestStatsKeyHandler(t *testing.T) {
 	as.NoError(node.Create())
 	defer node.Leave()
 
-	node.kv.Put([]byte("hi"), []byte("hello"))
+	testKey := "helloworld"
+	node.kv.Put([]byte(testKey), []byte("hello"))
+
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(node.StatsHandler)
 
-	req, err := http.NewRequest("GET", "/?key=hi", nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/?key=%s", testKey), nil)
 	as.NoError(err)
 	handler.ServeHTTP(rr, req)
 

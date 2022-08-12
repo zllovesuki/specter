@@ -19,6 +19,11 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+const (
+	testRenewalKey = "ll"
+	testReleaseKey = "lll"
+)
+
 func TestLocalRPC(t *testing.T) {
 	as := require.New(t)
 
@@ -32,11 +37,18 @@ func TestLocalRPC(t *testing.T) {
 
 	tp := new(mocks.Transport)
 
+	kv := memory.WithHashFn(chord.HashString)
+	testRenewalToken, err := kv.Acquire([]byte(testRenewalKey), time.Second)
+	as.NoError(err)
+
+	testReleaseToken, err := kv.Acquire([]byte(testReleaseKey), time.Second)
+	as.NoError(err)
+
 	node := NewLocalNode(NodeConfig{
 		Logger:                   logger,
 		Identity:                 identity,
 		Transport:                tp,
-		KVProvider:               memory.WithHashFn(chord.HashString),
+		KVProvider:               kv,
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
@@ -172,6 +184,29 @@ func TestLocalRPC(t *testing.T) {
 				Key: []byte("l"),
 				Lease: &protocol.KVLease{
 					Ttl: durationpb.New(time.Second),
+				},
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:  protocol.KVOperation_LEASE_RENEWAL,
+				Key: []byte(testRenewalKey),
+				Lease: &protocol.KVLease{
+					Token: testRenewalToken,
+					Ttl:   durationpb.New(time.Second),
+				},
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
+				Op:  protocol.KVOperation_LEASE_RELEASE,
+				Key: []byte(testReleaseKey),
+				Lease: &protocol.KVLease{
+					Token: testReleaseToken,
 				},
 			},
 		},
