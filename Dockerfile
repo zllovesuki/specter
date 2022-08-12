@@ -8,7 +8,7 @@ COPY . .
 ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
-    go build -tags 'osusergo netgo urfave_cli_no_docs' \
+    go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' \
     -ldflags "-s -w -extldflags -static -X=main.Build=`git rev-parse --short HEAD`" \
     -o bin/specter .
 

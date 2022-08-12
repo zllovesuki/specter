@@ -84,15 +84,3 @@ func (n *LocalNode) ringTrace() string {
 
 	return sb.String()
 }
-
-func kvFsck(kv chord.KVProvider, low, high uint64) bool {
-	valid := true
-
-	keys := kv.RangeKeys(0, 0)
-	for _, key := range keys {
-		if !chord.Between(low, chord.Hash(key), high, true) {
-			valid = false
-		}
-	}
-	return valid
-}

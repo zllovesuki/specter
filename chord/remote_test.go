@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/mocks"
+	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/stretchr/testify/mock"

@@ -10,7 +10,7 @@ import (
 
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/mocks"
+	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"

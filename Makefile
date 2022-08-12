@@ -8,7 +8,7 @@ PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 COUNT=5
 GOARM=7
 GOAMD64=v3
-GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs'
+GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
 LDFLAGS=-ldflags "-s -w -extldflags -static -X=main.Build=$(BUILD)"
 TIMEOUT=180s
 

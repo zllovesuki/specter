@@ -18,7 +18,7 @@ import (
 
 	"kon.nect.sh/specter/overlay"
 	"kon.nect.sh/specter/spec/cipher"
-	"kon.nect.sh/specter/spec/mocks"
+	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
