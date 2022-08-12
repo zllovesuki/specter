@@ -7,9 +7,8 @@ import (
 )
 
 type KeyedRWMutex struct {
-	mutexes *skipmap.StringMap[*sync.RWMutex]
-
 	noCopy
+	mutexes *skipmap.StringMap[*sync.RWMutex]
 }
 
 func NewKeyedRWMutex() *KeyedRWMutex {

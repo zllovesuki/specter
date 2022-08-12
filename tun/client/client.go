@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/rpc"
-	"kon.nect.sh/specter/spec/acceptor"
 	"kon.nect.sh/specter/spec/protocol"
 	rpcSpec "kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util/acceptor"
 
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"kon.nect.sh/specter/spec/acceptor"
+	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/zhangyunhao116/skipmap"

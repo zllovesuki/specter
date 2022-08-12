@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/acceptor"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway/httprate"
+	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/lucas-clemente/quic-go"

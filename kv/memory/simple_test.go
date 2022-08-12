@@ -2,11 +2,35 @@ package memory
 
 import (
 	"crypto/rand"
+	"hash/fnv"
+	"strconv"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"kon.nect.sh/specter/spec/chord"
+
+	"github.com/stretchr/testify/assert"
 )
+
+const (
+	collisionRing = 8
+	keyPrefix     = "k"
+	valPrefix     = "val"
+)
+
+func collisionHash(s string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64() % collisionRing
+}
+
+func ks(p string, i int) []byte {
+	var sb strings.Builder
+	sb.WriteString(p)
+	sb.WriteString("/")
+	sb.WriteString(strconv.FormatInt(int64(i), 10))
+	return []byte(sb.String())
+}
 
 func TestCollisionPutGet(t *testing.T) {
 	as := assert.New(t)

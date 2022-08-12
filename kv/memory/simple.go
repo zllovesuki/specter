@@ -4,6 +4,8 @@ import "kon.nect.sh/specter/spec/chord"
 
 var _ chord.SimpleKV = (*MemoryKV)(nil)
 
+var empty []byte
+
 func (m *MemoryKV) Put(key, value []byte) error {
 	v, _ := m.fetchVal(key)
 	curr := v.simple.Load()
@@ -21,7 +23,6 @@ func (m *MemoryKV) Get(key []byte) ([]byte, error) {
 func (m *MemoryKV) Delete(key []byte) error {
 	v, _ := m.fetchVal(key)
 	curr := v.simple.Load()
-	var empty []byte
 	if !v.simple.CompareAndSwap(curr, &empty) {
 		return chord.ErrKVSimpleConflict
 	}

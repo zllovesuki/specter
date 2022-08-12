@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/rpc"
-	"kon.nect.sh/specter/spec/atomic"
 	"kon.nect.sh/specter/spec/protocol"
 	rpcSpec "kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/util/atomic"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/zhangyunhao116/skipmap"
