@@ -21,7 +21,7 @@ func (n *LocalNode) Create() error {
 
 	n.Logger.Info("Creating new Chord ring")
 
-	successors := makeList(n, []chord.VNode{})
+	successors := makeSuccList(n, []chord.VNode{})
 	n.succListHash.Store(n.hash(successors))
 	n.successors.Store(&successors)
 
@@ -131,7 +131,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	n.surrogate = joiner.Identity()
 	joined = true
 
-	return prevPredecessor, makeList(n, n.getSuccessors()), nil
+	return prevPredecessor, makeSuccList(n, n.getSuccessors()), nil
 }
 
 func (n *LocalNode) FinishJoin(stablize bool, release bool) error {

@@ -1,11 +1,13 @@
 package chord
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 
+	"github.com/zeebo/xxh3"
 	"go.uber.org/zap"
 )
 
@@ -20,39 +22,44 @@ func v2d(n []chord.VNode) []uint64 {
 	return x
 }
 
-func makeList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
-	list := make([]chord.VNode, chord.ExtendedSuccessorEntries+1)
-	list[0] = immediate
-	copy(list[1:], successors)
-	// deduplicate VNodes
+// make successor list that will not have duplicate VNodes
+func makeSuccList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
+	succList := []chord.VNode{immediate}
 	seen := make(map[uint64]bool)
-	for i, succ := range list {
-		if succ == nil {
-			continue
+	seen[immediate.ID()] = true
+
+	for _, succ := range successors {
+		if len(succList) >= chord.ExtendedSuccessorEntries+1 {
+			break
 		}
-		if seen[succ.ID()] {
-			list[i] = nil
+		if succ == nil || seen[succ.ID()] {
 			continue
 		}
 		seen[succ.ID()] = true
+		succList = append(succList, succ)
 	}
-	return list
+	return succList
 }
 
+// it is not safe to use xor under any ciscumstances as long as
+// we have the possbility of cyclical ring that will have ourself
+// in the successor list
 func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
-	xor := n.ID()
+	hasher := xxh3.New()
+	buf := make([]byte, 8)
 	for _, node := range nodes {
 		if node == nil {
 			continue
 		}
-		xor ^= node.ID()
+		binary.BigEndian.PutUint64(buf, node.ID())
+		hasher.Write(buf)
 	}
-	return xor
+	return hasher.Sum64()
 }
 
 // routine based on pseudo code from the paper "How to Make Chord Correct"
 func (n *LocalNode) stabilize() error {
-	succList, _ := n.GetSuccessors()
+	succList := n.getSuccessors()
 	modified := false
 
 	for len(succList) > 0 {
@@ -63,13 +70,13 @@ func (n *LocalNode) stabilize() error {
 		newSucc, spErr := head.GetPredecessor()
 		newSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			succList = makeList(head, newSuccList)
+			succList = makeSuccList(head, newSuccList)
 			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
 				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					succList = makeList(newSucc, newSuccList)
+					succList = makeSuccList(newSucc, newSuccList)
 					modified = true
 				}
 			}
