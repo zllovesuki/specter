@@ -1,6 +1,6 @@
 module kon.nect.sh/specter
 
-go 1.18
+go 1.19
 
 require (
 	github.com/CAFxX/atomic128 v0.2.0
@@ -16,10 +16,10 @@ require (
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
 	github.com/zhangyunhao116/skipset v0.12.1
-	go.uber.org/atomic v1.9.0
+	go.uber.org/atomic v1.10.0
 	go.uber.org/goleak v1.1.12
 	go.uber.org/zap v1.22.0
-	golang.org/x/net v0.0.0-20220809012201-f428fae20770
+	golang.org/x/net v0.0.0-20220811182439-13a9a731de15
 	google.golang.org/protobuf v1.28.1
 	kon.nect.sh/challenger v1.0.1
 )
@@ -44,7 +44,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rivo/uniseg v0.3.4 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
@@ -53,7 +53,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/text v0.3.8-0.20211004125949-5bd84dd9b33b // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect

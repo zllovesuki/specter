@@ -134,7 +134,7 @@ func (r *RPC) Start(ctx context.Context) {
 }
 
 func (r *RPC) Close() error {
-	if !r.closed.CAS(false, true) {
+	if !r.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	r.logger.Debug("Closing RPC channel")

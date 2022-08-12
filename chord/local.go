@@ -2,13 +2,12 @@ package chord
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 
-	atom "go.uber.org/atomic"
+	"go.uber.org/atomic"
 )
 
 type LocalNode struct {
@@ -17,8 +16,8 @@ type LocalNode struct {
 	surrogateMu    sync.RWMutex
 	kv             chord.KVProvider
 	predecessor    chord.VNode
-	succListHash   *atom.Uint64
-	lastStabilized *atom.Time
+	succListHash   *atomic.Uint64
+	lastStabilized *atomic.Time
 	surrogate      *protocol.Node
 	stopCh         chan struct{}
 	state          *nodeState
@@ -35,10 +34,10 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	n := &LocalNode{
 		NodeConfig:     conf,
 		state:          NewNodeState(chord.Inactive),
-		succListHash:   atom.NewUint64(conf.Identity.GetId()),
+		succListHash:   atomic.NewUint64(conf.Identity.GetId()),
 		kv:             conf.KVProvider,
 		fingers:        make([]atomic.Pointer[chord.VNode], chord.MaxFingerEntries+1),
-		lastStabilized: atom.NewTime(time.Time{}),
+		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
 	}
 	var emptyNode chord.VNode

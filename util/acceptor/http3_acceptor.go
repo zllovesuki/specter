@@ -9,10 +9,10 @@ import (
 )
 
 type HTTP3Acceptor struct {
-	conn    chan quic.EarlyConnection
 	parent  quic.EarlyListener
-	closed  atomic.Bool
+	conn    chan quic.EarlyConnection
 	closeCh chan struct{}
+	closed  atomic.Bool
 }
 
 var _ quic.EarlyListener = &HTTP3Acceptor{}
@@ -41,7 +41,7 @@ func (h *HTTP3Acceptor) Accept(ctx context.Context) (quic.EarlyConnection, error
 }
 
 func (h *HTTP3Acceptor) Close() error {
-	if !h.closed.CAS(false, true) {
+	if !h.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	close(h.closeCh)

@@ -7,10 +7,10 @@ import (
 )
 
 type HTTP2Acceptor struct {
-	conn    chan net.Conn
 	parent  net.Listener
-	closed  atomic.Bool
+	conn    chan net.Conn
 	closeCh chan struct{}
+	closed  atomic.Bool
 }
 
 var _ net.Listener = &HTTP2Acceptor{}
@@ -37,7 +37,7 @@ func (h *HTTP2Acceptor) Accept() (net.Conn, error) {
 }
 
 func (h *HTTP2Acceptor) Close() error {
-	if !h.closed.CAS(false, true) {
+	if !h.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	close(h.closeCh)

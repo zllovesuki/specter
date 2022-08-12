@@ -364,7 +364,7 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 }
 
 func (t *QUIC) background(ctx context.Context) {
-	if !t.started.CAS(false, true) {
+	if !t.started.CompareAndSwap(false, true) {
 		return
 	}
 	go t.reaper(ctx)
@@ -470,7 +470,7 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 }
 
 func (t *QUIC) Stop() {
-	if !t.closed.CAS(false, true) {
+	if !t.closed.CompareAndSwap(false, true) {
 		return
 	}
 	t.started.Store(false)
