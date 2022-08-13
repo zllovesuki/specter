@@ -44,6 +44,13 @@ message ClientResponse {
     GetNodesResponse nodesResponse = 6;
     GenerateHostnameResponse hostnameResponse = 7;
     PublishTunnelResponse tunnelResponse = 8;
+
+    ClientPingResponse pingResponse = 15;
+}
+
+message ClientPingResponse {
+    Node node = 1;
+    string apex = 2;
 }
 
 message RegisterIdentityRequest {

@@ -134,7 +134,7 @@ func (x Link_ALPN) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Link_ALPN.Descriptor instead.
 func (Link_ALPN) EnumDescriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{12, 0}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{13, 0}
 }
 
 type Tunnel struct {
@@ -351,6 +351,7 @@ type ClientResponse struct {
 	NodesResponse    *GetNodesResponse         `protobuf:"bytes,6,opt,name=nodesResponse,proto3" json:"nodesResponse,omitempty"`
 	HostnameResponse *GenerateHostnameResponse `protobuf:"bytes,7,opt,name=hostnameResponse,proto3" json:"hostnameResponse,omitempty"`
 	TunnelResponse   *PublishTunnelResponse    `protobuf:"bytes,8,opt,name=tunnelResponse,proto3" json:"tunnelResponse,omitempty"`
+	PingResponse     *ClientPingResponse       `protobuf:"bytes,15,opt,name=pingResponse,proto3" json:"pingResponse,omitempty"`
 }
 
 func (x *ClientResponse) Reset() {
@@ -413,6 +414,68 @@ func (x *ClientResponse) GetTunnelResponse() *PublishTunnelResponse {
 	return nil
 }
 
+func (x *ClientResponse) GetPingResponse() *ClientPingResponse {
+	if x != nil {
+		return x.PingResponse
+	}
+	return nil
+}
+
+type ClientPingResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Node *Node  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Apex string `protobuf:"bytes,2,opt,name=apex,proto3" json:"apex,omitempty"`
+}
+
+func (x *ClientPingResponse) Reset() {
+	*x = ClientPingResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tun_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ClientPingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClientPingResponse) ProtoMessage() {}
+
+func (x *ClientPingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tun_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClientPingResponse.ProtoReflect.Descriptor instead.
+func (*ClientPingResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ClientPingResponse) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *ClientPingResponse) GetApex() string {
+	if x != nil {
+		return x.Apex
+	}
+	return ""
+}
+
 type RegisterIdentityRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -424,7 +487,7 @@ type RegisterIdentityRequest struct {
 func (x *RegisterIdentityRequest) Reset() {
 	*x = RegisterIdentityRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[4]
+		mi := &file_spec_proto_tun_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -437,7 +500,7 @@ func (x *RegisterIdentityRequest) String() string {
 func (*RegisterIdentityRequest) ProtoMessage() {}
 
 func (x *RegisterIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[4]
+	mi := &file_spec_proto_tun_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -450,7 +513,7 @@ func (x *RegisterIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterIdentityRequest.ProtoReflect.Descriptor instead.
 func (*RegisterIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{4}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RegisterIdentityRequest) GetClient() *Node {
@@ -472,7 +535,7 @@ type RegisterIdentityResponse struct {
 func (x *RegisterIdentityResponse) Reset() {
 	*x = RegisterIdentityResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[5]
+		mi := &file_spec_proto_tun_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -485,7 +548,7 @@ func (x *RegisterIdentityResponse) String() string {
 func (*RegisterIdentityResponse) ProtoMessage() {}
 
 func (x *RegisterIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[5]
+	mi := &file_spec_proto_tun_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +561,7 @@ func (x *RegisterIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterIdentityResponse.ProtoReflect.Descriptor instead.
 func (*RegisterIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{5}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RegisterIdentityResponse) GetToken() *ClientToken {
@@ -524,7 +587,7 @@ type GetNodesRequest struct {
 func (x *GetNodesRequest) Reset() {
 	*x = GetNodesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[6]
+		mi := &file_spec_proto_tun_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -537,7 +600,7 @@ func (x *GetNodesRequest) String() string {
 func (*GetNodesRequest) ProtoMessage() {}
 
 func (x *GetNodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[6]
+	mi := &file_spec_proto_tun_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,7 +613,7 @@ func (x *GetNodesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNodesRequest.ProtoReflect.Descriptor instead.
 func (*GetNodesRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{6}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{7}
 }
 
 type GetNodesResponse struct {
@@ -564,7 +627,7 @@ type GetNodesResponse struct {
 func (x *GetNodesResponse) Reset() {
 	*x = GetNodesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[7]
+		mi := &file_spec_proto_tun_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -577,7 +640,7 @@ func (x *GetNodesResponse) String() string {
 func (*GetNodesResponse) ProtoMessage() {}
 
 func (x *GetNodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[7]
+	mi := &file_spec_proto_tun_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +653,7 @@ func (x *GetNodesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNodesResponse.ProtoReflect.Descriptor instead.
 func (*GetNodesResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{7}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetNodesResponse) GetNodes() []*Node {
@@ -609,7 +672,7 @@ type GenerateHostnameRequest struct {
 func (x *GenerateHostnameRequest) Reset() {
 	*x = GenerateHostnameRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[8]
+		mi := &file_spec_proto_tun_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -622,7 +685,7 @@ func (x *GenerateHostnameRequest) String() string {
 func (*GenerateHostnameRequest) ProtoMessage() {}
 
 func (x *GenerateHostnameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[8]
+	mi := &file_spec_proto_tun_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +698,7 @@ func (x *GenerateHostnameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateHostnameRequest.ProtoReflect.Descriptor instead.
 func (*GenerateHostnameRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{8}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{9}
 }
 
 type GenerateHostnameResponse struct {
@@ -649,7 +712,7 @@ type GenerateHostnameResponse struct {
 func (x *GenerateHostnameResponse) Reset() {
 	*x = GenerateHostnameResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[9]
+		mi := &file_spec_proto_tun_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -662,7 +725,7 @@ func (x *GenerateHostnameResponse) String() string {
 func (*GenerateHostnameResponse) ProtoMessage() {}
 
 func (x *GenerateHostnameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[9]
+	mi := &file_spec_proto_tun_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,7 +738,7 @@ func (x *GenerateHostnameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateHostnameResponse.ProtoReflect.Descriptor instead.
 func (*GenerateHostnameResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{9}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GenerateHostnameResponse) GetHostname() string {
@@ -698,7 +761,7 @@ type PublishTunnelRequest struct {
 func (x *PublishTunnelRequest) Reset() {
 	*x = PublishTunnelRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[10]
+		mi := &file_spec_proto_tun_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -711,7 +774,7 @@ func (x *PublishTunnelRequest) String() string {
 func (*PublishTunnelRequest) ProtoMessage() {}
 
 func (x *PublishTunnelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[10]
+	mi := &file_spec_proto_tun_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +787,7 @@ func (x *PublishTunnelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishTunnelRequest.ProtoReflect.Descriptor instead.
 func (*PublishTunnelRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{10}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PublishTunnelRequest) GetHostname() string {
@@ -750,7 +813,7 @@ type PublishTunnelResponse struct {
 func (x *PublishTunnelResponse) Reset() {
 	*x = PublishTunnelResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[11]
+		mi := &file_spec_proto_tun_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -763,7 +826,7 @@ func (x *PublishTunnelResponse) String() string {
 func (*PublishTunnelResponse) ProtoMessage() {}
 
 func (x *PublishTunnelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[11]
+	mi := &file_spec_proto_tun_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +839,7 @@ func (x *PublishTunnelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishTunnelResponse.ProtoReflect.Descriptor instead.
 func (*PublishTunnelResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{11}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{12}
 }
 
 type Link struct {
@@ -791,7 +854,7 @@ type Link struct {
 func (x *Link) Reset() {
 	*x = Link{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[12]
+		mi := &file_spec_proto_tun_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -804,7 +867,7 @@ func (x *Link) String() string {
 func (*Link) ProtoMessage() {}
 
 func (x *Link) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[12]
+	mi := &file_spec_proto_tun_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +880,7 @@ func (x *Link) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Link.ProtoReflect.Descriptor instead.
 func (*Link) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{12}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Link) GetAlpn() Link_ALPN {
@@ -846,7 +909,7 @@ type IdentitiesPair struct {
 func (x *IdentitiesPair) Reset() {
 	*x = IdentitiesPair{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tun_proto_msgTypes[13]
+		mi := &file_spec_proto_tun_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -859,7 +922,7 @@ func (x *IdentitiesPair) String() string {
 func (*IdentitiesPair) ProtoMessage() {}
 
 func (x *IdentitiesPair) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tun_proto_msgTypes[13]
+	mi := &file_spec_proto_tun_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -872,7 +935,7 @@ func (x *IdentitiesPair) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdentitiesPair.ProtoReflect.Descriptor instead.
 func (*IdentitiesPair) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tun_proto_rawDescGZIP(), []int{13}
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *IdentitiesPair) GetChord() *Node {
@@ -950,7 +1013,7 @@ var file_spec_proto_tun_proto_rawDesc = []byte{
 	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68,
 	0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x0d, 0x74,
-	0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0xbb, 0x02, 0x0a,
+	0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0xfd, 0x02, 0x0a,
 	0x0e, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
 	0x4e, 0x0a, 0x10, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f,
 	0x6e, 0x73, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x22, 0x2e, 0x70, 0x72, 0x6f, 0x74,
@@ -970,7 +1033,16 @@ var file_spec_proto_tun_proto_rawDesc = []byte{
 	0x6e, 0x73, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e,
 	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x52, 0x0e, 0x74, 0x75, 0x6e, 0x6e,
-	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x41, 0x0a, 0x17, 0x52, 0x65,
+	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x40, 0x0a, 0x0c, 0x70, 0x69,
+	0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x0f, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x1c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x43, 0x6c, 0x69, 0x65,
+	0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x52, 0x0c,
+	0x70, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x4c, 0x0a, 0x12,
+	0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x22, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65,
+	0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x70, 0x65, 0x78, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x70, 0x65, 0x78, 0x22, 0x41, 0x0a, 0x17, 0x52, 0x65,
 	0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x26, 0x0a, 0x06, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x18,
 	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c,
@@ -1047,7 +1119,7 @@ func file_spec_proto_tun_proto_rawDescGZIP() []byte {
 }
 
 var file_spec_proto_tun_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_spec_proto_tun_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_spec_proto_tun_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_spec_proto_tun_proto_goTypes = []interface{}{
 	(TunnelRPC)(0),                      // 0: protocol.TunnelRPC
 	(Link_ALPN)(0),                      // 1: protocol.Link.ALPN
@@ -1055,46 +1127,49 @@ var file_spec_proto_tun_proto_goTypes = []interface{}{
 	(*ClientToken)(nil),                 // 3: protocol.ClientToken
 	(*ClientRequest)(nil),               // 4: protocol.ClientRequest
 	(*ClientResponse)(nil),              // 5: protocol.ClientResponse
-	(*RegisterIdentityRequest)(nil),     // 6: protocol.RegisterIdentityRequest
-	(*RegisterIdentityResponse)(nil),    // 7: protocol.RegisterIdentityResponse
-	(*GetNodesRequest)(nil),             // 8: protocol.GetNodesRequest
-	(*GetNodesResponse)(nil),            // 9: protocol.GetNodesResponse
-	(*GenerateHostnameRequest)(nil),     // 10: protocol.GenerateHostnameRequest
-	(*GenerateHostnameResponse)(nil),    // 11: protocol.GenerateHostnameResponse
-	(*PublishTunnelRequest)(nil),        // 12: protocol.PublishTunnelRequest
-	(*PublishTunnelResponse)(nil),       // 13: protocol.PublishTunnelResponse
-	(*Link)(nil),                        // 14: protocol.Link
-	(*IdentitiesPair)(nil),              // 15: protocol.IdentitiesPair
-	(*Node)(nil),                        // 16: protocol.Node
-	(*descriptor.EnumValueOptions)(nil), // 17: google.protobuf.EnumValueOptions
+	(*ClientPingResponse)(nil),          // 6: protocol.ClientPingResponse
+	(*RegisterIdentityRequest)(nil),     // 7: protocol.RegisterIdentityRequest
+	(*RegisterIdentityResponse)(nil),    // 8: protocol.RegisterIdentityResponse
+	(*GetNodesRequest)(nil),             // 9: protocol.GetNodesRequest
+	(*GetNodesResponse)(nil),            // 10: protocol.GetNodesResponse
+	(*GenerateHostnameRequest)(nil),     // 11: protocol.GenerateHostnameRequest
+	(*GenerateHostnameResponse)(nil),    // 12: protocol.GenerateHostnameResponse
+	(*PublishTunnelRequest)(nil),        // 13: protocol.PublishTunnelRequest
+	(*PublishTunnelResponse)(nil),       // 14: protocol.PublishTunnelResponse
+	(*Link)(nil),                        // 15: protocol.Link
+	(*IdentitiesPair)(nil),              // 16: protocol.IdentitiesPair
+	(*Node)(nil),                        // 17: protocol.Node
+	(*descriptor.EnumValueOptions)(nil), // 18: google.protobuf.EnumValueOptions
 }
 var file_spec_proto_tun_proto_depIdxs = []int32{
-	16, // 0: protocol.Tunnel.client:type_name -> protocol.Node
-	16, // 1: protocol.Tunnel.chord:type_name -> protocol.Node
-	16, // 2: protocol.Tunnel.tun:type_name -> protocol.Node
+	17, // 0: protocol.Tunnel.client:type_name -> protocol.Node
+	17, // 1: protocol.Tunnel.chord:type_name -> protocol.Node
+	17, // 2: protocol.Tunnel.tun:type_name -> protocol.Node
 	3,  // 3: protocol.ClientRequest.token:type_name -> protocol.ClientToken
 	0,  // 4: protocol.ClientRequest.kind:type_name -> protocol.TunnelRPC
-	6,  // 5: protocol.ClientRequest.registerRequest:type_name -> protocol.RegisterIdentityRequest
-	8,  // 6: protocol.ClientRequest.nodesRequest:type_name -> protocol.GetNodesRequest
-	10, // 7: protocol.ClientRequest.hostnameRequest:type_name -> protocol.GenerateHostnameRequest
-	12, // 8: protocol.ClientRequest.tunnelRequest:type_name -> protocol.PublishTunnelRequest
-	7,  // 9: protocol.ClientResponse.registerResponse:type_name -> protocol.RegisterIdentityResponse
-	9,  // 10: protocol.ClientResponse.nodesResponse:type_name -> protocol.GetNodesResponse
-	11, // 11: protocol.ClientResponse.hostnameResponse:type_name -> protocol.GenerateHostnameResponse
-	13, // 12: protocol.ClientResponse.tunnelResponse:type_name -> protocol.PublishTunnelResponse
-	16, // 13: protocol.RegisterIdentityRequest.client:type_name -> protocol.Node
-	3,  // 14: protocol.RegisterIdentityResponse.token:type_name -> protocol.ClientToken
-	16, // 15: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
-	16, // 16: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
-	1,  // 17: protocol.Link.alpn:type_name -> protocol.Link.ALPN
-	16, // 18: protocol.IdentitiesPair.chord:type_name -> protocol.Node
-	16, // 19: protocol.IdentitiesPair.tun:type_name -> protocol.Node
-	17, // 20: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	20, // [20:21] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	7,  // 5: protocol.ClientRequest.registerRequest:type_name -> protocol.RegisterIdentityRequest
+	9,  // 6: protocol.ClientRequest.nodesRequest:type_name -> protocol.GetNodesRequest
+	11, // 7: protocol.ClientRequest.hostnameRequest:type_name -> protocol.GenerateHostnameRequest
+	13, // 8: protocol.ClientRequest.tunnelRequest:type_name -> protocol.PublishTunnelRequest
+	8,  // 9: protocol.ClientResponse.registerResponse:type_name -> protocol.RegisterIdentityResponse
+	10, // 10: protocol.ClientResponse.nodesResponse:type_name -> protocol.GetNodesResponse
+	12, // 11: protocol.ClientResponse.hostnameResponse:type_name -> protocol.GenerateHostnameResponse
+	14, // 12: protocol.ClientResponse.tunnelResponse:type_name -> protocol.PublishTunnelResponse
+	6,  // 13: protocol.ClientResponse.pingResponse:type_name -> protocol.ClientPingResponse
+	17, // 14: protocol.ClientPingResponse.node:type_name -> protocol.Node
+	17, // 15: protocol.RegisterIdentityRequest.client:type_name -> protocol.Node
+	3,  // 16: protocol.RegisterIdentityResponse.token:type_name -> protocol.ClientToken
+	17, // 17: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
+	17, // 18: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
+	1,  // 19: protocol.Link.alpn:type_name -> protocol.Link.ALPN
+	17, // 20: protocol.IdentitiesPair.chord:type_name -> protocol.Node
+	17, // 21: protocol.IdentitiesPair.tun:type_name -> protocol.Node
+	18, // 22: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	22, // [22:23] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_spec_proto_tun_proto_init() }
@@ -1153,7 +1228,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterIdentityRequest); i {
+			switch v := v.(*ClientPingResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1165,7 +1240,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterIdentityResponse); i {
+			switch v := v.(*RegisterIdentityRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1177,7 +1252,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetNodesRequest); i {
+			switch v := v.(*RegisterIdentityResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1189,7 +1264,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetNodesResponse); i {
+			switch v := v.(*GetNodesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1201,7 +1276,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateHostnameRequest); i {
+			switch v := v.(*GetNodesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1213,7 +1288,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateHostnameResponse); i {
+			switch v := v.(*GenerateHostnameRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1225,7 +1300,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PublishTunnelRequest); i {
+			switch v := v.(*GenerateHostnameResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1237,7 +1312,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PublishTunnelResponse); i {
+			switch v := v.(*PublishTunnelRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1249,7 +1324,7 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Link); i {
+			switch v := v.(*PublishTunnelResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1261,6 +1336,18 @@ func file_spec_proto_tun_proto_init() {
 			}
 		}
 		file_spec_proto_tun_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Link); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tun_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IdentitiesPair); i {
 			case 0:
 				return &v.state
@@ -1279,7 +1366,7 @@ func file_spec_proto_tun_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_spec_proto_tun_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 1,
 			NumServices:   0,
 		},

@@ -34,6 +34,30 @@ jobs:
             ${{ runner.os }}-go-
       - name: Test with Coverage and Race Detector
         run: go test -v -short -race -timeout 120s ./...
+  integration:
+    name: Run Integration Tests
+    runs-on: 'ubuntu-latest'
+    env:
+      GO_RUN_INTEGRATION: "1"
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.19"
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Generate Certificates
+        run: make certs
+      - name: Test with Integrations and Race Detector
+        run: go test -v -short -race -timeout 120s ./...
   coverage:
     name: Update Code Coverage
     runs-on: ubuntu-latest

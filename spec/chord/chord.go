@@ -2,13 +2,8 @@ package chord
 
 import (
 	"math/rand"
-	"time"
 
 	"github.com/zeebo/xxh3"
-)
-
-var (
-	randy = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 const (
@@ -38,7 +33,7 @@ func Modulo(x, y uint64) uint64 {
 }
 
 func Random() uint64 {
-	return randy.Uint64() % mod
+	return rand.Uint64() % mod
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {

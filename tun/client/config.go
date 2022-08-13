@@ -5,9 +5,10 @@ import (
 	"net/url"
 	"os"
 
+	"kon.nect.sh/specter/spec/chord"
+
 	"github.com/zhangyunhao116/skipmap"
 	"gopkg.in/yaml.v3"
-	"kon.nect.sh/specter/spec/chord"
 )
 
 type Tunnel struct {

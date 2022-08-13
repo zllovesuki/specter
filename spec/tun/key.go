@@ -1,32 +1,27 @@
 package tun
 
 import (
-	"strconv"
+	"fmt"
 
 	"kon.nect.sh/specter/spec/protocol"
 )
 
-func BundleKey(hostname string, num int) string {
-	key := "/tunnel/bundle/" + hostname + "/" + strconv.FormatInt(int64(num), 10)
-	return key
-}
-
 func IdentitiesChordKey(chord *protocol.Node) string {
-	key := "/identities/chord/" + chord.GetAddress() + "/" + strconv.FormatUint(chord.GetId(), 10)
-	return key
+	return fmt.Sprintf("/identities/chord/%s/%d", chord.GetAddress(), chord.GetId())
 }
 
 func IdentitiesTunKey(tun *protocol.Node) string {
-	key := "/identities/tunnel/" + tun.GetAddress() + "/" + strconv.FormatUint(tun.GetId(), 10)
-	return key
+	return fmt.Sprintf("/identities/tunnel/%s/%d", tun.GetAddress(), tun.GetId())
+}
+
+func RoutingKey(hostname string, num int) string {
+	return fmt.Sprintf("/tunnel/bundle/%s/%d", hostname, num)
 }
 
 func ClientTokenKey(token *protocol.ClientToken) string {
-	key := "/tunnel/client/token/" + string(token.GetToken())
-	return key
+	return fmt.Sprintf("/tunnel/client/token/%s", token.GetToken())
 }
 
 func ClientHostnamesPrefix(token *protocol.ClientToken) string {
-	key := "/tunnel/client/hostnames/" + string(token.GetToken())
-	return key
+	return fmt.Sprintf("/tunnel/client/hostnames/%s", token.GetToken())
 }

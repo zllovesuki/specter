@@ -31,9 +31,6 @@ type Transport interface {
 	ReceiveDatagram() <-chan *DatagramDelegate
 	SendDatagram(*protocol.Node, []byte) error
 
-	TransportEstablished() <-chan *protocol.Node
-	TransportDestroyed() <-chan *protocol.Node
-
 	Accept(ctx context.Context) error
 
 	Stop()

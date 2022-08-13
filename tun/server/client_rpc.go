@@ -120,7 +120,12 @@ func (s *Server) rpcHandlerMiddlerware(client *protocol.Node) rpcSpec.RPCHandler
 				return nil, fmt.Errorf("registration client is not the same as connected client")
 			}
 		case protocol.TunnelRPC_PING:
-			// skip token check
+			// skip token check if not specified
+			// check if the client does provide one
+			if tReq.GetToken() == nil {
+				break
+			}
+			fallthrough
 		default:
 			token := tReq.GetToken()
 			if token == nil {
@@ -147,7 +152,8 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 
 	switch req.GetKind() {
 	case protocol.TunnelRPC_PING:
-		resp.RegisterResponse = &protocol.RegisterIdentityResponse{
+		resp.PingResponse = &protocol.ClientPingResponse{
+			Node: s.clientTransport.Identity(),
 			Apex: s.rootDomain,
 		}
 
@@ -244,7 +250,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			if err != nil {
 				return nil, err
 			}
-			key := tun.BundleKey(hostname, k+1)
+			key := tun.RoutingKey(hostname, k+1)
 			if err := s.chord.Put([]byte(key), val); err != nil {
 				continue
 			}

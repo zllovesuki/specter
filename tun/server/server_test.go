@@ -20,6 +20,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	testRootDomain = "hello.com"
+)
+
 func assertBytes(got []byte, exp ...[]byte) bool {
 	for _, b := range exp {
 		r := bytes.Compare(got, b)
@@ -38,16 +42,16 @@ func getFixture(as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Trans
 	cht := new(mocks.Transport)
 	clt := new(mocks.Transport)
 
-	s := New(logger, n, clt, cht, "hello")
+	s := New(logger, n, clt, cht, testRootDomain)
 
 	return logger, n, clt, cht, s
 }
 
 func getExpected(link *protocol.Link) [][]byte {
 	return [][]byte{
-		[]byte(tun.BundleKey(link.GetHostname(), 1)),
-		[]byte(tun.BundleKey(link.GetHostname(), 2)),
-		[]byte(tun.BundleKey(link.GetHostname(), 3)),
+		[]byte(tun.RoutingKey(link.GetHostname(), 1)),
+		[]byte(tun.RoutingKey(link.GetHostname(), 2)),
+		[]byte(tun.RoutingKey(link.GetHostname(), 3)),
 	}
 }
 
