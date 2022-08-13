@@ -1,45 +1,50 @@
 package integrations
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"kon.nect.sh/specter/cmd/client"
 	"kon.nect.sh/specter/cmd/server"
-	"kon.nect.sh/specter/cmd/specter"
 
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 const (
+	testBody     = "yay"
 	httpPort     = 49192
 	serverPort   = 21948
 	serverApex   = "dev.con.nect.sh"
-	yamlTemplate = `apex: %s:%d
+	yamlTemplate = `apex: 127.0.0.1:%d
 tunnels:
   - target: http://127.0.0.1:%d
 `
 )
 
-func compileApp(cmd *cli.Command) *cli.App {
+func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
+	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+	observedLogger := zap.New(observedZapCore)
 	return &cli.App{
 		Name: "specter",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "verbose",
-				Value: false,
-				Usage: "enable verbose logging",
-			},
-		},
 		Commands: []*cli.Command{
 			cmd,
 		},
-		Before: specter.ConfigLogger,
-	}
+		Before: func(ctx *cli.Context) error {
+			ctx.App.Metadata["logger"] = observedLogger
+			return nil
+		},
+	}, observedLogs
 }
 
 func TestTunnel(t *testing.T) {
@@ -53,13 +58,12 @@ func TestTunnel(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverApex, serverPort, httpPort))
+	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverPort, httpPort))
 	as.NoError(err)
 	as.NoError(file.Close())
 
 	serverArgs := []string{
 		"specter",
-		"--verbose",
 		"server",
 		"--cert-dir",
 		"../certs",
@@ -71,7 +75,6 @@ func TestTunnel(t *testing.T) {
 
 	clientArgs := []string{
 		"specter",
-		"--verbose",
 		"client",
 		"--insecure",
 		"tunnel",
@@ -85,8 +88,9 @@ func TestTunnel(t *testing.T) {
 	serverReturn := make(chan struct{})
 	clientReturn := make(chan struct{})
 
+	sApp, sLogs := compileApp(server.Cmd)
 	go func() {
-		if err := compileApp(server.Cmd).RunContext(ctx, serverArgs); err != nil {
+		if err := sApp.RunContext(ctx, serverArgs); err != nil {
 			as.NoError(err)
 		}
 		close(serverReturn)
@@ -98,8 +102,18 @@ func TestTunnel(t *testing.T) {
 	case <-time.After(time.Second * 3):
 	}
 
+	started := 0
+	serverLogs := sLogs.All()
+	for _, l := range serverLogs {
+		if strings.Contains(l.Message, "server started") {
+			started++
+		}
+	}
+	as.Equal(2, started, "expecting specter and gateway servers started")
+
+	cApp, cLogs := compileApp(client.Cmd)
 	go func() {
-		if err := compileApp(client.Cmd).RunContext(ctx, clientArgs); err != nil {
+		if err := cApp.RunContext(ctx, clientArgs); err != nil {
 			as.NoError(err)
 		}
 		close(clientReturn)
@@ -110,4 +124,59 @@ func TestTunnel(t *testing.T) {
 		as.FailNow("client returned unexpectedly")
 	case <-time.After(time.Second * 3):
 	}
+
+	go func() {
+		srv := &http.Server{
+			Addr: fmt.Sprintf("127.0.0.1:%d", httpPort),
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(testBody))
+			}),
+		}
+		srv.ListenAndServe()
+	}()
+
+	var hostname string
+	clientLogs := cLogs.All()
+	for _, l := range clientLogs {
+		if !strings.Contains(l.Message, "published") {
+			continue
+		}
+		for _, f := range l.Context {
+			if f.Key != "hostname" {
+				continue
+			}
+			hostname = f.String
+		}
+	}
+	for _, l := range clientLogs {
+		t.Logf("%+v\n", l)
+	}
+	as.NotEmpty(hostname, "hostname for tunnel not found in client log")
+
+	t.Logf("Found hostname %s\n", hostname)
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostname, serverPort), nil)
+	as.NoError(err)
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				dialer := &tls.Dialer{
+					Config: &tls.Config{
+						ServerName:         hostname,
+						InsecureSkipVerify: true,
+					},
+				}
+				return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
+			},
+		},
+		Timeout: time.Second * 3,
+	}
+	resp, err := client.Do(req)
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(resp.Body)
+	as.NoError(err)
+	as.Equal(testBody, buf.String())
 }
