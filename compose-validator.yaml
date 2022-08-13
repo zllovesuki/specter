@@ -6,6 +6,7 @@ services:
     restart: "no"
     networks:
       - specter
+    command: dev.con.nect.sh seed:1113 srva:1113 srvb:1113 srvc:1113 srvd:1113
 
 networks:
   specter:

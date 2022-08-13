@@ -6,21 +6,13 @@ import (
 	"os"
 )
 
-var (
-	nodes = []string{
-		"seed:1113",
-		"srva:1113",
-		"srvb:1113",
-		"srvc:1113",
-		"srvd:1113",
-	}
-)
-
-const (
-	apex = "dev.con.nect.sh"
-)
-
 func main() {
+	if len(os.Args) < 3 {
+		fmt.Printf("missing apex and at least 1 endpoint\n")
+		os.Exit(1)
+	}
+	apex := os.Args[1]
+	nodes := os.Args[2:]
 	tlsCfg := &tls.Config{
 		ServerName:         apex,
 		InsecureSkipVerify: true,
