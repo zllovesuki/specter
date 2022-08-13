@@ -409,7 +409,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
+			// t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
 			return
 		}
 		go t.streamRouter(q, stream, peer)

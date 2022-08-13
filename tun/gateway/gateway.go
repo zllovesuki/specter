@@ -152,6 +152,8 @@ func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnect
 	logger := g.Logger.With(zap.Bool("via-quic", true), zap.String("proto", cs.NegotiatedProtocol))
 
 	switch cs.ServerName {
+	case "":
+		conn.CloseWithError(0, "")
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
 		g.http3ApexAcceptor.Handle(conn)
@@ -197,6 +199,8 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	logger = logger.With(zap.String("proto", cs.NegotiatedProtocol))
 
 	switch cs.ServerName {
+	case "":
+		conn.Close()
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
 		g.http2ApexAcceptor.Handle(conn)
