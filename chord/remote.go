@@ -302,7 +302,7 @@ func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
 		}
 		return nil, err
 	}
-	return rResp.GetKvResponse().GetChildren(), nil
+	return rResp.GetKvResponse().GetKeys(), nil
 }
 
 func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {

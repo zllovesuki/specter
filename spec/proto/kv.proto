@@ -56,7 +56,6 @@ message KVResponse {
     KVLease lease = 5;
 
     repeated bytes keys = 10;
-    repeated bytes children = 11;
 
     repeated KVTransfer values = 20;
 }

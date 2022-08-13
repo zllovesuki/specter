@@ -262,15 +262,6 @@ func (m *KVResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			dAtA[i] = 0xa2
 		}
 	}
-	if len(m.Children) > 0 {
-		for iNdEx := len(m.Children) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Children[iNdEx])
-			copy(dAtA[i:], m.Children[iNdEx])
-			i = encodeVarint(dAtA, i, uint64(len(m.Children[iNdEx])))
-			i--
-			dAtA[i] = 0x5a
-		}
-	}
 	if len(m.Keys) > 0 {
 		for iNdEx := len(m.Keys) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.Keys[iNdEx])
@@ -413,12 +404,6 @@ func (m *KVResponse) SizeVT() (n int) {
 	}
 	if len(m.Keys) > 0 {
 		for _, b := range m.Keys {
-			l = len(b)
-			n += 1 + l + sov(uint64(l))
-		}
-	}
-	if len(m.Children) > 0 {
-		for _, b := range m.Children {
 			l = len(b)
 			n += 1 + l + sov(uint64(l))
 		}
@@ -1074,38 +1059,6 @@ func (m *KVResponse) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Keys = append(m.Keys, make([]byte, postIndex-iNdEx))
 			copy(m.Keys[len(m.Keys)-1], dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 11:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Children", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Children = append(m.Children, make([]byte, postIndex-iNdEx))
-			copy(m.Children[len(m.Children)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 20:
 			if wireType != 2 {
