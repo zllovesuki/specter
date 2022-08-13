@@ -50,7 +50,7 @@ func (h *HTTP3Acceptor) Close() error {
 
 func (h *HTTP3Acceptor) Addr() net.Addr {
 	if h.parent == nil {
-		return nil
+		return emptyAddr
 	}
 	return h.parent.Addr()
 }

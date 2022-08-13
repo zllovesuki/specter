@@ -46,7 +46,7 @@ func (h *HTTP2Acceptor) Close() error {
 
 func (h *HTTP2Acceptor) Addr() net.Addr {
 	if h.parent == nil {
-		return nil
+		return emptyAddr
 	}
 	return h.parent.Addr()
 }
