@@ -30,6 +30,8 @@ type PrefixKV interface {
 	PrefixAppend(prefix []byte, child []byte) error
 	// PrefixList returns the children under the prefix.
 	PrefixList(prefix []byte) (children [][]byte, err error)
+	// PrefixContains checks if the child is in the prefix children
+	PrefixContains(prefix []byte, child []byte) (bool, error)
 	// PrefixRemove removes the matching child under the prefix.
 	// If the child did not exist, this is an no-op
 	PrefixRemove(prefix []byte, child []byte) error

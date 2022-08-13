@@ -16,6 +16,7 @@ enum KVOperation {
     PREFIX_APPEND = 5;
     PREFIX_LIST = 6;
     PREFIX_REMOVE = 7;
+    PREFIX_CONTAINS = 8;
     
     LEASE_ACQUIRE = 10;
     LEASE_RENEWAL = 11;

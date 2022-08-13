@@ -51,6 +51,13 @@ func (n *VNode) PrefixList(prefix []byte) ([][]byte, error) {
 	return v.([][]byte), e
 }
 
+func (n *VNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
+	args := n.Called(prefix, child)
+	v := args.Bool(0)
+	e := args.Error(1)
+	return v, e
+}
+
 func (n *VNode) PrefixRemove(prefix []byte, child []byte) error {
 	args := n.Called(prefix, child)
 	e := args.Error(0)

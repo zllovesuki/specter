@@ -195,6 +195,14 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 				return nil, err
 			}
 			kvResp.Keys = val
+		case protocol.KVOperation_PREFIX_CONTAINS:
+			b, err := n.PrefixContains(kvReq.GetKey(), kvReq.GetValue())
+			if err != nil {
+				return nil, err
+			}
+			if b {
+				kvResp.Value = []byte{1}
+			}
 		case protocol.KVOperation_PREFIX_REMOVE:
 			if err := n.PrefixRemove(kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err

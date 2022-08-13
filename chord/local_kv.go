@@ -100,6 +100,16 @@ func (n *LocalNode) PrefixList(prefix []byte) ([][]byte, error) {
 		})
 }
 
+func (n *LocalNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
+	return kvMiddleware(n, prefix,
+		func(kv chord.KV, remote bool, id uint64) (bool, error) {
+			if !remote {
+				n.Logger.Debug("KV PrefixContains", zap.String("prefix", string(prefix)), zap.Uint64("id", id))
+			}
+			return kv.PrefixContains(prefix, child)
+		})
+}
+
 func (n *LocalNode) PrefixRemove(prefix []byte, child []byte) error {
 	_, err := kvMiddleware(n, prefix,
 		func(kv chord.KV, remote bool, id uint64) (any, error) {

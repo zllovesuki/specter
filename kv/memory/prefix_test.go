@@ -56,6 +56,27 @@ func TestPrefixList(t *testing.T) {
 	as.Equal(numChildren, found, "missing from prefix list")
 }
 
+func TestPrefixContains(t *testing.T) {
+	as := assert.New(t)
+
+	kv := WithHashFn(chord.HashString)
+
+	prefix := make([]byte, 8)
+	child := make([]byte, 16)
+	rand.Read(prefix)
+	rand.Read(child)
+
+	as.NoError(kv.PrefixAppend(prefix, child))
+
+	b, err := kv.PrefixContains(prefix, child)
+	as.NoError(err)
+	as.True(b)
+
+	b, err = kv.PrefixContains(prefix, child[1:])
+	as.NoError(err)
+	as.False(b)
+}
+
 func TestPrefixDelete(t *testing.T) {
 	as := assert.New(t)
 

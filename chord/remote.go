@@ -305,6 +305,27 @@ func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
 	return rResp.GetKvResponse().GetKeys(), nil
 }
 
+func (n *RemoteNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
+	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+	defer cancel()
+
+	rReq := newReq(protocol.RPC_KV)
+	rReq.KvRequest = &protocol.KVRequest{
+		Op:    protocol.KVOperation_PREFIX_CONTAINS,
+		Key:   prefix,
+		Value: child,
+	}
+
+	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	if err != nil {
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("remote KV PrefixContains RPC", zap.String("peer", n.Identity().String()), zap.Error(err))
+		}
+		return false, err
+	}
+	return rResp.GetKvResponse().GetValue() != nil, nil
+}
+
 func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
 	defer cancel()

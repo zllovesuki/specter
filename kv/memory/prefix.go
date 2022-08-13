@@ -26,6 +26,12 @@ func (m *MemoryKV) PrefixList(prefix []byte) ([][]byte, error) {
 	return children, nil
 }
 
+func (m *MemoryKV) PrefixContains(prefix []byte, child []byte) (bool, error) {
+	v, _ := m.fetchVal(prefix)
+
+	return v.children.Contains(string(child)), nil
+}
+
 func (m *MemoryKV) PrefixRemove(prefix []byte, needle []byte) error {
 	v, _ := m.fetchVal(prefix)
 

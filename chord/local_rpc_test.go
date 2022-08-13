@@ -171,6 +171,15 @@ func TestLocalRPC(t *testing.T) {
 		{
 			Kind: protocol.RPC_KV,
 			KvRequest: &protocol.KVRequest{
+				Op:    protocol.KVOperation_PREFIX_CONTAINS,
+				Key:   []byte("p"),
+				Value: []byte("c"),
+			},
+		},
+
+		{
+			Kind: protocol.RPC_KV,
+			KvRequest: &protocol.KVRequest{
 				Op:    protocol.KVOperation_PREFIX_REMOVE,
 				Key:   []byte("p"),
 				Value: []byte("c"),

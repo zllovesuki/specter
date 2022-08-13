@@ -129,6 +129,9 @@ func TestRemoteRPCErrors(t *testing.T) {
 	_, err = r.PrefixList([]byte("prefix"))
 	as.ErrorContains(err, e.Error())
 
+	_, err = r.PrefixContains([]byte("prefix"), []byte("child"))
+	as.ErrorContains(err, e.Error())
+
 	err = r.PrefixRemove([]byte("prefix"), []byte("child"))
 	as.ErrorContains(err, e.Error())
 
