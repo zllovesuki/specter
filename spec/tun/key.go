@@ -20,3 +20,13 @@ func IdentitiesTunKey(tun *protocol.Node) string {
 	key := "/identities/tunnel/" + tun.GetAddress() + "/" + strconv.FormatUint(tun.GetId(), 10)
 	return key
 }
+
+func ClientTokenKey(token *protocol.ClientToken) string {
+	key := "/tunnel/client/token/" + string(token.GetToken())
+	return key
+}
+
+func ClientHostnamesPrefix(token *protocol.ClientToken) string {
+	key := "/tunnel/client/hostnames/" + string(token.GetToken())
+	return key
+}

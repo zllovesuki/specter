@@ -22,6 +22,7 @@ require (
 	go.uber.org/zap v1.22.0
 	golang.org/x/net v0.0.0-20220811182439-13a9a731de15
 	google.golang.org/protobuf v1.28.1
+	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/challenger v1.0.1
 )
 
@@ -59,5 +60,4 @@ require (
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

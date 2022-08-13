@@ -31,8 +31,7 @@ message RPC {
         MEMBERSHIP_CHANGE = 11;
 
         // tunnel
-        GET_NODES = 100;
-        PUBLISH_TUNNEL = 101;
+        CLIENT_REQUEST = 50;
     }
 
     Type type = 1;
@@ -56,8 +55,7 @@ message RPC {
 
         MembershipChangeRequest membershipRequest = 50;
 
-        GetNodesRequest getNodesRequest = 100;
-        PublishTunnelRequest publishTunnelRequest = 101;
+        ClientRequest clientRequest = 60;
     }
 
     message Response {
@@ -77,8 +75,7 @@ message RPC {
         
         MembershipChangeResponse membershipResponse = 50;
 
-        GetNodesResponse getNodesResponse = 100;
-        PublishTunnelResponse publishTunnelResponse = 101;
+        ClientResponse clientResponse = 60;
     }
 
     Request request = 10;

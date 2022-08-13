@@ -1,0 +1,4 @@
+apex: seed:1113
+tunnels:
+  - target: http://nginx:80/
+  - target: tcp://127.0.0.1:3000/

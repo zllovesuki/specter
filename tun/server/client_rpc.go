@@ -2,7 +2,10 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"strings"
 
 	"kon.nect.sh/specter/rpc"
@@ -15,23 +18,32 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ rpcSpec.RPCHandler = (*Server)(nil).rpcHandler
-
 var generator, _ = diceware.NewGenerator(nil)
 
-func uniqueVNodes(nodes []chord.VNode) []chord.VNode {
-	u := make([]chord.VNode, 0)
-	m := make(map[uint64]bool)
+const (
+	testDatagramData = "test"
+)
+
+func uniqueNodes(nodes []*protocol.Node) []*protocol.Node {
+	list := make([]*protocol.Node, 0)
+	seen := make(map[uint64]bool)
 	for _, node := range nodes {
-		if node == nil {
+		if node == nil || seen[node.GetId()] {
 			continue
 		}
-		if _, ok := m[node.ID()]; !ok {
-			m[node.ID()] = true
-			u = append(u, node)
-		}
+		seen[node.GetId()] = true
+		list = append(list, node)
 	}
-	return u
+	return list
+}
+
+func generateToken() ([]byte, error) {
+	b := make([]byte, 32)
+	n, err := io.ReadFull(rand.Reader, b)
+	if n != len(b) || err != nil {
+		return nil, fmt.Errorf("error generating token")
+	}
+	return []byte(base64.StdEncoding.EncodeToString(b)), nil
 }
 
 func (s *Server) HandleRPC(ctx context.Context) {
@@ -50,54 +62,180 @@ func (s *Server) HandleRPC(ctx context.Context) {
 			r := rpc.NewRPC(
 				l.With(zap.String("pov", "client_rpc")),
 				conn,
-				s.rpcHandler)
+				s.rpcHandlerMiddlerware(delegate.Identity))
 			go r.Start(ctx)
 		}
 	}
 }
 
-func (s *Server) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	select {
-	case <-ctx.Done():
-		return nil, fmt.Errorf("server has shutdown")
-	default:
+func (s *Server) saveClientToken(token *protocol.ClientToken, client *protocol.Node) error {
+	val, err := client.MarshalVT()
+	if err != nil {
+		return err
 	}
 
-	resp := &protocol.RPC_Response{}
+	if err := s.chord.Put([]byte(tun.ClientTokenKey(token)), val); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) getClientByToken(token *protocol.ClientToken) (*protocol.Node, error) {
+	val, err := s.chord.Get([]byte(tun.ClientTokenKey(token)))
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return nil, fmt.Errorf("no existing client found with given token")
+	}
+	client := &protocol.Node{}
+	if err := client.UnmarshalVT(val); err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func (s *Server) rpcHandlerMiddlerware(client *protocol.Node) rpcSpec.RPCHandler {
+	return func(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("server has shutdown")
+		default:
+		}
+
+		if req.GetKind() != protocol.RPC_CLIENT_REQUEST {
+			return nil, fmt.Errorf("unknown RPC call: %s", req.GetKind())
+		}
+
+		var verifiedClient *protocol.Node
+		var err error
+
+		tReq := req.GetClientRequest()
+		switch tReq.GetKind() {
+		case protocol.TunnelRPC_IDENTITY:
+			if tReq.GetRegisterRequest().GetClient() == nil {
+				return nil, fmt.Errorf("missing client")
+			}
+			if client.GetId() != tReq.GetRegisterRequest().GetClient().GetId() {
+				return nil, fmt.Errorf("registration client is not the same as connected client")
+			}
+		case protocol.TunnelRPC_PING:
+			// skip token check
+		default:
+			token := tReq.GetToken()
+			if token == nil {
+				return nil, fmt.Errorf("missing token")
+			}
+			verifiedClient, err = s.getClientByToken(token)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		tResp, err := s.rpcHandler(ctx, verifiedClient, tReq)
+		if err != nil {
+			return nil, err
+		}
+		return &protocol.RPC_Response{
+			ClientResponse: tResp,
+		}, nil
+	}
+}
+
+func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, req *protocol.ClientRequest) (*protocol.ClientResponse, error) {
+	resp := &protocol.ClientResponse{}
 
 	switch req.GetKind() {
-	case protocol.RPC_GET_NODES:
+	case protocol.TunnelRPC_PING:
+		resp.RegisterResponse = &protocol.RegisterIdentityResponse{
+			Apex: s.rootDomain,
+		}
+
+	case protocol.TunnelRPC_IDENTITY:
+		client := req.GetRegisterRequest().GetClient()
+
+		err := s.clientTransport.SendDatagram(client, []byte(testDatagramData))
+		if err != nil {
+			return nil, fmt.Errorf("client not connected")
+		}
+
+		b, err := generateToken()
+		if err != nil {
+			return nil, err
+		}
+		token := &protocol.ClientToken{
+			Token: b,
+		}
+
+		if err := s.saveClientToken(token, client); err != nil {
+			return nil, err
+		}
+
+		resp.RegisterResponse = &protocol.RegisterIdentityResponse{
+			Token: token,
+			Apex:  s.rootDomain,
+		}
+
+	case protocol.TunnelRPC_NODES:
 		vnodes := make([]chord.VNode, tun.NumRedundantLinks)
 		vnodes[0] = s.chord
 		successors, _ := s.chord.GetSuccessors()
 		copy(vnodes[1:], successors)
 
 		servers := make([]*protocol.Node, 0)
-		for _, chord := range uniqueVNodes(vnodes) {
+		for _, chord := range vnodes {
+			if chord == nil {
+				continue
+			}
 			identities, err := s.lookupIdentities(tun.IdentitiesChordKey(chord.Identity()))
 			if err != nil {
 				return nil, err
 			}
 			servers = append(servers, identities.GetTun())
 		}
-		resp.GetNodesResponse = &protocol.GetNodesResponse{
+		resp.NodesResponse = &protocol.GetNodesResponse{
 			Nodes: servers,
 		}
 
-	case protocol.RPC_PUBLISH_TUNNEL:
-		requested := req.GetPublishTunnelRequest().GetServers()
+	case protocol.TunnelRPC_HOSTNAME:
+		token := req.GetToken()
+
+		hostname := strings.Join(generator.MustGenerate(5), "-")
+		if err := s.chord.PrefixAppend([]byte(tun.ClientHostnamesPrefix(token)), []byte(hostname)); err != nil {
+			return nil, err
+		}
+
+		resp.HostnameResponse = &protocol.GenerateHostnameResponse{
+			Hostname: hostname,
+		}
+
+	case protocol.TunnelRPC_TUNNEL:
+		token := req.GetToken()
+
+		requested := uniqueNodes(req.GetTunnelRequest().GetServers())
 		if len(requested) > tun.NumRedundantLinks {
 			return nil, fmt.Errorf("too many requested endpoints")
 		}
+		if len(requested) < 1 {
+			return nil, fmt.Errorf("no servers specified in request")
+		}
 
-		hostname := strings.Join(generator.MustGenerate(5), "-")
+		hostname := req.GetTunnelRequest().GetHostname()
+		b, err := s.chord.PrefixContains([]byte(tun.ClientHostnamesPrefix(token)), []byte(hostname))
+		if err != nil {
+			return nil, err
+		}
+		if !b {
+			return nil, fmt.Errorf("hostname %s is not registered", hostname)
+		}
+
 		for k, server := range requested {
 			identities, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
 			if err != nil {
 				return nil, err
 			}
 			bundle := &protocol.Tunnel{
-				Client:   req.GetPublishTunnelRequest().GetClient(),
+				Client:   verifiedClient,
 				Chord:    identities.GetChord(),
 				Tun:      identities.GetTun(),
 				Hostname: hostname,
@@ -111,9 +249,7 @@ func (s *Server) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*pr
 				continue
 			}
 		}
-		resp.PublishTunnelResponse = &protocol.PublishTunnelResponse{
-			Hostname: strings.Join([]string{hostname, s.rootDomain}, "."),
-		}
+		resp.TunnelResponse = &protocol.PublishTunnelResponse{}
 
 	default:
 		s.logger.Warn("Unknown RPC Call", zap.String("kind", req.GetKind().String()))

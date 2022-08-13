@@ -10,9 +10,13 @@ services:
   client:
     image: specter
     restart: unless-stopped
+    depends_on:
+      - nginx
     networks:
       - specter
-    command: --verbose client --insecure --apex seed:1113 --target http://nginx:80/
+    volumes:
+      - ./dev/client:/app/config
+    command: --verbose client --insecure --config /app/config/specter.yaml
 
 networks:
   specter:

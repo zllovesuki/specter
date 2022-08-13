@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -34,6 +36,16 @@ func getVNode(n *protocol.Node) chord.VNode {
 	}
 }
 
+func makeNodes(num int) []*protocol.Node {
+	nodes := make([]*protocol.Node, 0)
+	for i := 0; i < num; i++ {
+		nodes = append(nodes, &protocol.Node{
+			Id: chord.Random(),
+		})
+	}
+	return nodes
+}
+
 func makeNodeList() ([]*protocol.Node, []chord.VNode) {
 	nodes := make([]*protocol.Node, chord.ExtendedSuccessorEntries)
 	list := make([]chord.VNode, chord.ExtendedSuccessorEntries)
@@ -59,6 +71,138 @@ func assertNodes(got, exp []*protocol.Node) bool {
 	return false
 }
 
+func TestRPCRegisterClientOK(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	node.On("Put", mock.Anything, mock.Anything).Return(nil).Once()
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+	clientT.On("SendDatagram",
+		mock.MatchedBy(func(node *protocol.Node) bool {
+			return node.GetId() == cli.GetId()
+		}),
+		mock.MatchedBy(func(b []byte) bool {
+			return bytes.Equal(b, []byte(testDatagramData))
+		}),
+	).Return(nil).Once()
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind: protocol.TunnelRPC_IDENTITY,
+			RegisterRequest: &protocol.RegisterIdentityRequest{
+				Client: cli,
+			},
+		},
+	})
+	as.NoError(err)
+	tResp := resp.GetClientResponse()
+	as.NotNil(tResp.GetRegisterResponse())
+	as.NotNil(tResp.GetRegisterResponse().GetToken())
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
+func TestRPCRegisterClientFailed(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	node.On("Put", mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
+	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(nil).Once()
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	requests := []*protocol.ClientRequest{
+		// missing Client
+		{
+			Kind: protocol.TunnelRPC_IDENTITY,
+			RegisterRequest: &protocol.RegisterIdentityRequest{
+				Client: nil,
+			},
+		},
+
+		// has Client but does not match the connected client
+		{
+			Kind: protocol.TunnelRPC_IDENTITY,
+			RegisterRequest: &protocol.RegisterIdentityRequest{
+				Client: &protocol.Node{
+					Id: chord.Random(),
+				},
+			},
+		},
+
+		// has Client but not connected
+		{
+			Kind: protocol.TunnelRPC_IDENTITY,
+			RegisterRequest: &protocol.RegisterIdentityRequest{
+				Client: cli,
+			},
+		},
+
+		// has Client and connected but KV failed
+		{
+			Kind: protocol.TunnelRPC_IDENTITY,
+			RegisterRequest: &protocol.RegisterIdentityRequest{
+				Client: cli,
+			},
+		},
+	}
+
+	for _, req := range requests {
+		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+			Kind:          protocol.RPC_CLIENT_REQUEST,
+			ClientRequest: req,
+		})
+		as.Error(err)
+		tResp := resp.GetClientResponse()
+		as.Nil(tResp.GetRegisterResponse())
+	}
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
 func TestRPCGetNodes(t *testing.T) {
 	as := require.New(t)
 
@@ -68,7 +212,21 @@ func TestRPCGetNodes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("ID").Return(cht.GetId())
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get",
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+
 	node.On("Identity").Return(cht)
 
 	clientChan := make(chan *transport.StreamDelegate)
@@ -106,20 +264,141 @@ func TestRPCGetNodes(t *testing.T) {
 	go cRPC.Start(ctx)
 
 	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
-		Kind: protocol.RPC_GET_NODES,
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind:  protocol.TunnelRPC_NODES,
+			Token: token,
+		},
 	})
-	as.Nil(err)
-	as.NotNil(resp.GetNodesResponse)
+	as.NoError(err)
+	as.NotNil(resp.ClientResponse)
+	as.NotNil(resp.ClientResponse.NodesResponse)
 
-	as.Len(resp.GetGetNodesResponse().GetNodes(), tun.NumRedundantLinks)
-	as.True(assertNodes(resp.GetGetNodesResponse().GetNodes(), []*protocol.Node{tn}))
+	as.Len(resp.GetClientResponse().GetNodesResponse().GetNodes(), tun.NumRedundantLinks)
+	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn}))
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
 	chordT.AssertExpectations(t)
 }
 
-func TestRPCPublishTunnel(t *testing.T) {
+func TestRPCRequestHostnameOK(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get",
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+	node.On("PrefixAppend",
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.Anything,
+	).Return(nil)
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind:            protocol.TunnelRPC_HOSTNAME,
+			Token:           token,
+			HostnameRequest: &protocol.GenerateHostnameRequest{},
+		},
+	})
+	as.NoError(err)
+	tResp := resp.GetClientResponse()
+	as.NotNil(tResp.GetHostnameResponse())
+	as.NotEmpty(tResp.GetHostnameResponse().GetHostname())
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
+func TestRPCOtherFailed(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	node.On("Get", mock.Anything).Return(nil, nil)
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	requests := []*protocol.ClientRequest{
+		// non-existent token
+		{
+			Kind: protocol.TunnelRPC_HOSTNAME,
+			Token: &protocol.ClientToken{
+				Token: []byte("nah"),
+			},
+			HostnameRequest: &protocol.GenerateHostnameRequest{},
+		},
+	}
+
+	for _, req := range requests {
+		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+			Kind:          protocol.RPC_CLIENT_REQUEST,
+			ClientRequest: req,
+		})
+		as.Error(err)
+		tResp := resp.GetClientResponse()
+		as.Nil(tResp.GetRegisterResponse())
+	}
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+
+}
+
+func TestRPCPublishTunnelOK(t *testing.T) {
 	as := require.New(t)
 
 	logger, node, clientT, chordT, serv := getFixture(as)
@@ -142,20 +421,49 @@ func TestRPCPublishTunnel(t *testing.T) {
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
 
-	node.On("Get", mock.MatchedBy(func(k []byte) bool {
-		exp := make([][]byte, len(nodes)+1)
-		exp[0] = []byte(tun.IdentitiesTunKey(cht))
-		for i := 1; i < len(exp); i++ {
-			exp[i] = []byte(tun.IdentitiesTunKey(nodes[i-1]))
-		}
-		return assertBytes(k, exp...)
-	})).Return(pairBuf, nil)
+	hostname := "test-1234"
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
 
-	node.On("Put", mock.MatchedBy(func(k []byte) bool {
-		return true
-	}), mock.MatchedBy(func(v []byte) bool {
-		return true
-	})).Return(nil)
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get",
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil).Once()
+
+	node.On("Get",
+		mock.MatchedBy(func(k []byte) bool {
+			exp := make([][]byte, len(nodes)+1)
+			exp[0] = []byte(tun.IdentitiesTunKey(cht))
+			for i := 1; i < len(exp); i++ {
+				exp[i] = []byte(tun.IdentitiesTunKey(nodes[i-1]))
+			}
+			return assertBytes(k, exp...)
+		}),
+	).Return(pairBuf, nil)
+
+	node.On("Put",
+		mock.MatchedBy(func(k []byte) bool {
+			return true
+		}), mock.MatchedBy(func(v []byte) bool {
+			return true
+		}),
+	).Return(nil)
+
+	node.On("PrefixContains",
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.MatchedBy(func(child []byte) bool {
+			return bytes.Equal(child, []byte(hostname))
+		}),
+	).Return(true, nil)
 
 	go serv.HandleRPC(ctx)
 
@@ -167,18 +475,117 @@ func TestRPCPublishTunnel(t *testing.T) {
 	cRPC := rpc.NewRPC(logger, c2, nil)
 	go cRPC.Start(ctx)
 
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
-		Kind: protocol.RPC_PUBLISH_TUNNEL,
-		PublishTunnelRequest: &protocol.PublishTunnelRequest{
-			Client:  cli,
-			Servers: nodes[1:],
+	_, err = cRPC.Call(ctx, &protocol.RPC_Request{
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind:  protocol.TunnelRPC_TUNNEL,
+			Token: token,
+			TunnelRequest: &protocol.PublishTunnelRequest{
+				Hostname: hostname,
+				Servers:  nodes,
+			},
 		},
 	})
-	as.Nil(err)
-	as.NotNil(resp.PublishTunnelResponse)
-	as.NotEmpty(resp.GetPublishTunnelResponse().GetHostname())
+	as.NoError(err)
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
 	chordT.AssertExpectations(t)
+}
+
+func TestRPCPublishTunnelFailed(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get",
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+
+	node.On("PrefixContains", mock.Anything, mock.Anything).Return(false, nil).Once()
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	requests := []*protocol.ClientRequest{
+		// missing Token
+		{
+			Kind:          protocol.TunnelRPC_TUNNEL,
+			TunnelRequest: &protocol.PublishTunnelRequest{},
+		},
+
+		// has token but hostname not requested
+		{
+			Kind:  protocol.TunnelRPC_TUNNEL,
+			Token: token,
+			TunnelRequest: &protocol.PublishTunnelRequest{
+				Hostname: "nil",
+				Servers: []*protocol.Node{
+					{
+						Id: chord.Random(),
+					},
+				},
+			},
+		},
+
+		// has token but not enough servers
+		{
+			Kind:  protocol.TunnelRPC_TUNNEL,
+			Token: token,
+			TunnelRequest: &protocol.PublishTunnelRequest{
+				Servers: nil,
+			},
+		},
+
+		// has token but too many servers
+		{
+			Kind:  protocol.TunnelRPC_TUNNEL,
+			Token: token,
+			TunnelRequest: &protocol.PublishTunnelRequest{
+				Servers: makeNodes(tun.NumRedundantLinks * 2),
+			},
+		},
+	}
+
+	for _, req := range requests {
+		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+			Kind:          protocol.RPC_CLIENT_REQUEST,
+			ClientRequest: req,
+		})
+		as.Error(err)
+		tResp := resp.GetClientResponse()
+		as.Nil(tResp.GetRegisterResponse())
+	}
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+
 }

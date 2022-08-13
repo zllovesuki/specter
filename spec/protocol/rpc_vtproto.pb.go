@@ -48,29 +48,17 @@ func (m *RPC_Request) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.PublishTunnelRequest != nil {
-		size, err := m.PublishTunnelRequest.MarshalToSizedBufferVT(dAtA[:i])
+	if m.ClientRequest != nil {
+		size, err := m.ClientRequest.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
 		i -= size
 		i = encodeVarint(dAtA, i, uint64(size))
 		i--
-		dAtA[i] = 0x6
+		dAtA[i] = 0x3
 		i--
-		dAtA[i] = 0xaa
-	}
-	if m.GetNodesRequest != nil {
-		size, err := m.GetNodesRequest.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x6
-		i--
-		dAtA[i] = 0xa2
+		dAtA[i] = 0xe2
 	}
 	if m.MembershipRequest != nil {
 		size, err := m.MembershipRequest.MarshalToSizedBufferVT(dAtA[:i])
@@ -200,29 +188,17 @@ func (m *RPC_Response) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.PublishTunnelResponse != nil {
-		size, err := m.PublishTunnelResponse.MarshalToSizedBufferVT(dAtA[:i])
+	if m.ClientResponse != nil {
+		size, err := m.ClientResponse.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
 		i -= size
 		i = encodeVarint(dAtA, i, uint64(size))
 		i--
-		dAtA[i] = 0x6
+		dAtA[i] = 0x3
 		i--
-		dAtA[i] = 0xaa
-	}
-	if m.GetNodesResponse != nil {
-		size, err := m.GetNodesResponse.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x6
-		i--
-		dAtA[i] = 0xa2
+		dAtA[i] = 0xe2
 	}
 	if m.MembershipResponse != nil {
 		size, err := m.MembershipResponse.MarshalToSizedBufferVT(dAtA[:i])
@@ -451,12 +427,8 @@ func (m *RPC_Request) SizeVT() (n int) {
 		l = m.MembershipRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
-	if m.GetNodesRequest != nil {
-		l = m.GetNodesRequest.SizeVT()
-		n += 2 + l + sov(uint64(l))
-	}
-	if m.PublishTunnelRequest != nil {
-		l = m.PublishTunnelRequest.SizeVT()
+	if m.ClientRequest != nil {
+		l = m.ClientRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
 	if m.unknownFields != nil {
@@ -507,12 +479,8 @@ func (m *RPC_Response) SizeVT() (n int) {
 		l = m.MembershipResponse.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
-	if m.GetNodesResponse != nil {
-		l = m.GetNodesResponse.SizeVT()
-		n += 2 + l + sov(uint64(l))
-	}
-	if m.PublishTunnelResponse != nil {
-		l = m.PublishTunnelResponse.SizeVT()
+	if m.ClientResponse != nil {
+		l = m.ClientResponse.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
 	if m.unknownFields != nil {
@@ -886,9 +854,9 @@ func (m *RPC_Request) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 100:
+		case 60:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GetNodesRequest", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientRequest", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -915,46 +883,10 @@ func (m *RPC_Request) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.GetNodesRequest == nil {
-				m.GetNodesRequest = &GetNodesRequest{}
+			if m.ClientRequest == nil {
+				m.ClientRequest = &ClientRequest{}
 			}
-			if err := m.GetNodesRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 101:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PublishTunnelRequest", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.PublishTunnelRequest == nil {
-				m.PublishTunnelRequest = &PublishTunnelRequest{}
-			}
-			if err := m.PublishTunnelRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.ClientRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1331,9 +1263,9 @@ func (m *RPC_Response) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 100:
+		case 60:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GetNodesResponse", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientResponse", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1360,46 +1292,10 @@ func (m *RPC_Response) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.GetNodesResponse == nil {
-				m.GetNodesResponse = &GetNodesResponse{}
+			if m.ClientResponse == nil {
+				m.ClientResponse = &ClientResponse{}
 			}
-			if err := m.GetNodesResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 101:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PublishTunnelResponse", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.PublishTunnelResponse == nil {
-				m.PublishTunnelResponse = &PublishTunnelResponse{}
-			}
-			if err := m.PublishTunnelResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.ClientResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

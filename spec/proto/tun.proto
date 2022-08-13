@@ -15,21 +15,65 @@ message Tunnel {
     string hostname = 10;
 }
 
+enum TunnelRPC {
+    UNKNOWN_RPC = 0;
+
+    IDENTITY = 1;
+    NODES = 2;
+    HOSTNAME = 3;
+    TUNNEL = 4;
+    PING = 5;
+}
+
+message ClientToken {
+    bytes token = 1;
+}
+
+message ClientRequest {
+    ClientToken token = 1;
+    TunnelRPC kind = 2;
+
+    RegisterIdentityRequest registerRequest = 5;
+    GetNodesRequest nodesRequest = 6;
+    GenerateHostnameRequest hostnameRequest = 7;
+    PublishTunnelRequest tunnelRequest = 8;
+}
+
+message ClientResponse {
+    RegisterIdentityResponse registerResponse = 5;
+    GetNodesResponse nodesResponse = 6;
+    GenerateHostnameResponse hostnameResponse = 7;
+    PublishTunnelResponse tunnelResponse = 8;
+}
+
+message RegisterIdentityRequest {
+    Node client = 1;
+}
+
+message RegisterIdentityResponse {
+    ClientToken token = 1;
+    string apex = 2;
+}
+
 message GetNodesRequest {}
 
 message GetNodesResponse {
     repeated Node nodes = 1;
 }
 
+message GenerateHostnameRequest {}
+
+message GenerateHostnameResponse {
+    string hostname = 1;
+}
+
 message PublishTunnelRequest {
-    Node client = 1;
+    string hostname = 1;
     // servers are tun identities
     repeated Node servers = 2;
 }
 
-message PublishTunnelResponse {
-    string hostname = 1;
-}
+message PublishTunnelResponse {}
 
 extend google.protobuf.EnumValueOptions {
   string alpn_name = 54242;
