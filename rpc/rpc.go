@@ -205,18 +205,16 @@ func Receive(stream io.Reader, rr VTMarshaler) error {
 }
 
 func Send(stream io.Writer, rr VTMarshaler) error {
-	buf, err := rr.MarshalVT()
-	if err != nil {
-		return fmt.Errorf("encoding outbound RPC message: %w", err)
-	}
-
-	l := len(buf)
-
+	l := rr.SizeVT()
 	mb := pool.Get(lengthSize + l)
 	defer pool.Put(mb)
 
 	binary.BigEndian.PutUint64(mb[0:lengthSize], uint64(l))
-	copy(mb[lengthSize:], buf)
+
+	_, err := rr.MarshalToSizedBufferVT(mb[lengthSize:])
+	if err != nil {
+		return fmt.Errorf("encoding outbound RPC message: %w", err)
+	}
 
 	n, err := stream.Write(mb)
 	if err != nil {
