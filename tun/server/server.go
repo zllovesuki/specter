@@ -135,9 +135,10 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	}
 }
 
+// TODO: make this more intelligent.
 func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
-		key := tun.BundleKey(link.GetHostname(), k)
+		key := tun.RoutingKey(link.GetHostname(), k)
 		val, err := s.chord.Get([]byte(key))
 		if err != nil {
 			s.logger.Error("key lookup error", zap.String("key", key), zap.Error(err))

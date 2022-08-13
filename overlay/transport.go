@@ -39,9 +39,6 @@ func NewQUIC(conf TransportConfig) *QUIC {
 		directChan: make(chan *transport.StreamDelegate),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
 
-		estChan: make(chan *protocol.Node),
-		desChan: make(chan *protocol.Node),
-
 		started: uberAtomic.NewBool(false),
 		closed:  uberAtomic.NewBool(false),
 	}
@@ -221,14 +218,6 @@ func (t *QUIC) Direct() <-chan *transport.StreamDelegate {
 	return t.directChan
 }
 
-func (t *QUIC) TransportEstablished() <-chan *protocol.Node {
-	return t.estChan
-}
-
-func (t *QUIC) TransportDestroyed() <-chan *protocol.Node {
-	return t.desChan
-}
-
 func (t *QUIC) SupportDatagram() bool {
 	return quicConfig.EnableDatagrams
 }
@@ -321,10 +310,6 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic
 	}
 
 	if !reused {
-		select {
-		case t.estChan <- c.peer:
-		default:
-		}
 		t.handlePeer(ctx, c.quic, c.peer, "incoming")
 	}
 
@@ -347,10 +332,6 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 	}
 
 	if !reused && c.peer.GetId() != t.Endpoint.GetId() {
-		select {
-		case t.estChan <- c.peer:
-		default:
-		}
 		t.handlePeer(ctx, c.quic, c.peer, "outgoing")
 	}
 
@@ -428,7 +409,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			// t.logger.Error("accepting new stream", zap.Error(err), zap.String("remote", q.RemoteAddr().String()))
+			t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
 			return
 		}
 		go t.streamRouter(q, stream, peer)

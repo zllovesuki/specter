@@ -203,6 +203,130 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	chordT.AssertExpectations(t)
 }
 
+func TestRPCPingOK(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, tn := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+	clientT.On("Identity").Return(tn)
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind: protocol.TunnelRPC_PING,
+		},
+	})
+	as.NoError(err)
+	as.NotNil(resp.GetClientResponse())
+	as.NotNil(resp.GetClientResponse().GetPingResponse())
+
+	r := resp.GetClientResponse().GetPingResponse()
+	as.Equal(testRootDomain, r.GetApex())
+	as.Equal(tn.GetId(), r.GetNode().GetId())
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
+func TestRPCPingConditional(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, _, tn := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get", mock.Anything, mock.Anything).Return(clientBuf, nil).Once()
+	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+	clientT.On("Identity").Return(tn)
+
+	c1, c2 := net.Pipe()
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	tests := []struct {
+		req         *protocol.ClientRequest
+		expectError bool
+	}{
+		{
+			req: &protocol.ClientRequest{
+				Kind: protocol.TunnelRPC_PING,
+			},
+			expectError: false,
+		},
+		{
+			req: &protocol.ClientRequest{
+				Kind: protocol.TunnelRPC_PING,
+				Token: &protocol.ClientToken{
+					Token: []byte("correct"),
+				},
+			},
+			expectError: false,
+		},
+		{
+			req: &protocol.ClientRequest{
+				Kind: protocol.TunnelRPC_PING,
+				Token: &protocol.ClientToken{
+					Token: []byte("incorrect"),
+				},
+			},
+			expectError: true,
+		},
+	}
+
+	for _, req := range tests {
+		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+			Kind:          protocol.RPC_CLIENT_REQUEST,
+			ClientRequest: req.req,
+		})
+		if req.expectError {
+			as.Error(err)
+		} else {
+			as.NoError(err)
+			as.NotNil(resp.GetClientResponse())
+			as.Equal(testRootDomain, resp.GetClientResponse().GetPingResponse().GetApex())
+		}
+	}
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
 func TestRPCGetNodes(t *testing.T) {
 	as := require.New(t)
 

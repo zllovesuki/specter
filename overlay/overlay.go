@@ -40,8 +40,5 @@ type QUIC struct {
 	directChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
 
-	estChan chan *protocol.Node
-	desChan chan *protocol.Node
-
 	TransportConfig
 }

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zhangyunhao116/skipmap"
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
 	rpcSpec "kon.nect.sh/specter/spec/rpc"
@@ -19,52 +18,132 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
 
+	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
-// Tunnel create procedure:
-// client connects to server with random ID (TODO: use delegation so we can generate it)
-// Transport exchanges identities and notify us as part of transport.Delegate
-// at this point, we have a bidirectional Transport with client
-// client then should request X more nodes from us, say 2 successors
-// client then connects to X more nodes
-// all those nodes should also have bidrectional Transport with client
-// client then issue RPC to save 3 copies of (ClientIdentity, ServerIdentity) to DHT
-// keys: chordHash(hostname-[1..3])
-// tunnel is now registered
+const (
+	checkInterval  = time.Second * 30
+	connectTimeout = time.Second * 3
+	rpcTimeout     = time.Second * 5
+)
 
 type Client struct {
 	logger          *zap.Logger
 	serverTransport transport.Transport
-	rpc             rpcSpec.RPC
 	configMu        sync.RWMutex
 	config          *Config
 	rootDomain      *atomic.String
 	proxies         *skipmap.StringMap[*httpProxy]
+	connections     *skipmap.Uint64Map[*connection]
+}
+
+type connection struct {
+	rpc  rpcSpec.RPC
+	peer *protocol.Node
 }
 
 func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config) (*Client, error) {
-	server := &protocol.Node{
-		Address: cfg.Apex,
-	}
-
-	r, err := t.DialRPC(ctx, server, nil)
-	if err != nil {
-		return nil, err
-	}
 	c := &Client{
 		logger:          logger.With(zap.Uint64("id", t.Identity().GetId())),
 		serverTransport: t,
-		rpc:             r,
 		config:          cfg,
 		rootDomain:      atomic.NewString(""),
 		proxies:         skipmap.NewString[*httpProxy](),
+		connections:     skipmap.NewUint64[*connection](),
+	}
+
+	if err := c.openRPC(ctx, &protocol.Node{
+		Address: cfg.Apex,
+	}); err != nil {
+		return nil, fmt.Errorf("error connecting to spex: %w", err)
 	}
 
 	return c, nil
+}
+
+func (c *Client) Initialize(ctx context.Context) error {
+	return c.maintainConnections(ctx)
+}
+
+func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
+	if _, ok := c.connections.Load(node.GetId()); ok {
+		return nil
+	}
+
+	r, err := c.serverTransport.DialRPC(ctx, node, nil)
+	if err != nil {
+		return err
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
+	defer cancel()
+	resp, err := c.Ping(callCtx, r)
+	if err != nil {
+		return err
+	}
+
+	identity := resp.GetNode()
+	c.logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
+	c.connections.Store(identity.GetId(), &connection{
+		rpc:  r,
+		peer: identity,
+	})
+	return nil
+}
+
+func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (*protocol.ClientResponse, error) {
+	var candidate rpcSpec.RPC
+	c.connections.Range(func(id uint64, conn *connection) bool {
+		candidate = conn.rpc
+		return false
+	})
+	if candidate == nil {
+		return nil, fmt.Errorf("no rpc candidates available")
+	}
+	resp, err := candidate.Call(ctx, &protocol.RPC_Request{
+		Kind:          protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: req,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetClientResponse(), nil
+}
+
+func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
+	nodes := make([]*protocol.Node, 0)
+	c.connections.Range(func(id uint64, conn *connection) bool {
+		if len(nodes) < tun.NumRedundantLinks {
+			nodes = append(nodes, conn.peer)
+		}
+		return true
+	})
+	return nodes
+}
+
+func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dead int) {
+	alive = make([]*protocol.Node, 0)
+	c.connections.Range(func(id uint64, conn *connection) bool {
+		func() {
+			callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
+			defer cancel()
+
+			_, err := c.Ping(callCtx, conn.rpc)
+			if err != nil {
+				conn.rpc.Close()
+				c.connections.Delete(id)
+				dead++
+			} else {
+				alive = append(alive, conn.peer)
+			}
+		}()
+		return true
+	})
+	return
 }
 
 func (c *Client) getToken() *protocol.ClientToken {
@@ -76,47 +155,89 @@ func (c *Client) getToken() *protocol.ClientToken {
 	}
 }
 
+func (c *Client) reconnectOnDisconnect(ctx context.Context) {
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_, failed := c.getAliveNodes(ctx)
+			if failed > 0 {
+				c.logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
+				c.maintainConnections(ctx)
+			}
+		}
+	}
+}
+
+func (c *Client) maintainConnections(ctx context.Context) error {
+	callCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
+
+	nodes, err := c.RequestCandidates(callCtx)
+	if err != nil {
+		return err
+	}
+
+	for _, node := range nodes {
+		err := func() error {
+			if err := c.openRPC(ctx, node); err != nil {
+				return fmt.Errorf("connecting to specter server: %w", err)
+			}
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
+	c.SyncConfigTunnels(ctx)
+
+	return nil
+}
+
 func (c *Client) Register(ctx context.Context) error {
 	c.configMu.Lock()
 	defer c.configMu.Unlock()
 
 	if c.config.Token != "" {
-		c.logger.Info("Found existing client token")
-		req := &protocol.RPC_Request{
-			Kind: protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: &protocol.ClientRequest{
-				Kind: protocol.TunnelRPC_PING,
+		req := &protocol.ClientRequest{
+			Kind: protocol.TunnelRPC_PING,
+			Token: &protocol.ClientToken{
+				Token: []byte(c.config.Token),
 			},
 		}
-		resp, err := c.rpc.Call(ctx, req)
+		resp, err := c.rpcCall(ctx, req)
 		if err != nil {
 			return err
 		}
-		root := resp.GetClientResponse().GetRegisterResponse().GetApex()
+		root := resp.GetPingResponse().GetApex()
 		c.rootDomain.Store(root)
+
+		c.logger.Info("Reusing existing client token")
 
 		return nil
 	}
 
-	req := &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: c.serverTransport.Identity(),
-			},
+	req := &protocol.ClientRequest{
+		Kind: protocol.TunnelRPC_IDENTITY,
+		RegisterRequest: &protocol.RegisterIdentityRequest{
+			Client: c.serverTransport.Identity(),
 		},
 	}
-	resp, err := c.rpc.Call(ctx, req)
+	resp, err := c.rpcCall(ctx, req)
 	if err != nil {
 		return err
 	}
-	token := resp.GetClientResponse().GetRegisterResponse().GetToken().GetToken()
-	root := resp.GetClientResponse().GetRegisterResponse().GetApex()
+	token := resp.GetRegisterResponse().GetToken().GetToken()
+	root := resp.GetRegisterResponse().GetApex()
 	c.rootDomain.Store(root)
 	c.config.Token = string(token)
 
-	c.logger.Info("Client registered via apex")
+	c.logger.Info("Client token obtained via apex")
 
 	if err := c.config.writeFile(); err != nil {
 		c.logger.Error("Error saving token to config file", zap.Error(err))
@@ -124,56 +245,49 @@ func (c *Client) Register(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) Ping(ctx context.Context, rpc rpcSpec.RPC) (*protocol.ClientPingResponse, error) {
 	req := &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_PING,
-			Token: c.getToken(),
+			Kind: protocol.TunnelRPC_PING,
 		},
 	}
-	_, err := c.rpc.Call(ctx, req)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Client) RequestHostname(ctx context.Context) (string, error) {
-	req := &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_HOSTNAME,
-			Token: c.getToken(),
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: c.serverTransport.Identity(),
-			},
-		},
-	}
-	resp, err := c.rpc.Call(ctx, req)
-	if err != nil {
-		return "", err
-	}
-	return resp.GetClientResponse().GetHostnameResponse().GetHostname(), nil
-}
-
-func (c *Client) RequestCandidates(ctx context.Context) ([]*protocol.Node, error) {
-	req := &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:         protocol.TunnelRPC_NODES,
-			Token:        c.getToken(),
-			NodesRequest: &protocol.GetNodesRequest{},
-		},
-	}
-	resp, err := c.rpc.Call(ctx, req)
+	resp, err := rpc.Call(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.GetClientResponse().GetNodesResponse().GetNodes(), nil
+	return resp.GetClientResponse().GetPingResponse(), nil
 }
 
-func (c *Client) SyncConfigTunnels(ctx context.Context, connected []*protocol.Node) {
+func (c *Client) RequestHostname(ctx context.Context) (string, error) {
+	req := &protocol.ClientRequest{
+		Kind:  protocol.TunnelRPC_HOSTNAME,
+		Token: c.getToken(),
+		RegisterRequest: &protocol.RegisterIdentityRequest{
+			Client: c.serverTransport.Identity(),
+		},
+	}
+	resp, err := c.rpcCall(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	return resp.GetHostnameResponse().GetHostname(), nil
+}
+
+func (c *Client) RequestCandidates(ctx context.Context) ([]*protocol.Node, error) {
+	req := &protocol.ClientRequest{
+		Kind:         protocol.TunnelRPC_NODES,
+		Token:        c.getToken(),
+		NodesRequest: &protocol.GetNodesRequest{},
+	}
+	resp, err := c.rpcCall(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetNodesResponse().GetNodes(), nil
+}
+
+func (c *Client) SyncConfigTunnels(ctx context.Context) {
 	c.configMu.RLock()
 	tunnels := append([]Tunnel{}, c.config.Tunnels...)
 	c.configMu.RUnlock()
@@ -191,12 +305,14 @@ func (c *Client) SyncConfigTunnels(ctx context.Context, connected []*protocol.No
 		}
 	}
 
+	connected := c.getConnectedNodes(ctx)
+
 	for _, tunnel := range tunnels {
 		if tunnel.Hostname == "" {
 			continue
 		}
 		if err := c.PublishTunnel(ctx, tunnel.Hostname, connected); err != nil {
-			c.logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Error(err))
+			c.logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
 			continue
 		}
 		c.logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, c.rootDomain.Load())), zap.String("target", tunnel.Target))
@@ -212,18 +328,15 @@ func (c *Client) SyncConfigTunnels(ctx context.Context, connected []*protocol.No
 }
 
 func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) error {
-	req := &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_TUNNEL,
-			Token: c.getToken(),
-			TunnelRequest: &protocol.PublishTunnelRequest{
-				Hostname: hostname,
-				Servers:  connected,
-			},
+	req := &protocol.ClientRequest{
+		Kind:  protocol.TunnelRPC_TUNNEL,
+		Token: c.getToken(),
+		TunnelRequest: &protocol.PublishTunnelRequest{
+			Hostname: hostname,
+			Servers:  connected,
 		},
 	}
-	_, err := c.rpc.Call(ctx, req)
+	_, err := c.rpcCall(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -232,6 +345,8 @@ func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected [
 
 func (c *Client) Accept(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
+
+	go c.reconnectOnDisconnect(ctx)
 
 	for delegation := range c.serverTransport.Direct() {
 		go func(delegation *transport.StreamDelegate) {
@@ -264,6 +379,19 @@ func (c *Client) Accept(ctx context.Context) {
 			}
 		}(delegation)
 	}
+}
+
+func (c *Client) Close() {
+	c.proxies.Range(func(key string, proxy *httpProxy) bool {
+		c.logger.Info("Shutting down proxy", zap.String("hostname", key))
+		proxy.acceptor.Close()
+		return true
+	})
+	c.connections.Range(func(key uint64, conn *connection) bool {
+		c.logger.Info("Closing connection with specter server", zap.String("addr", conn.peer.GetAddress()))
+		conn.rpc.Close()
+		return true
+	})
 }
 
 func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
