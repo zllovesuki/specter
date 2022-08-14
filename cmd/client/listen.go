@@ -2,11 +2,12 @@ package client
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -76,14 +77,8 @@ func handleConnections(logger *zap.Logger, listener net.Listener, dial transport
 			}
 
 			go func() {
-				_, err := local.ReadFrom(remote)
-				if err != nil {
-					logger.Error("error piping to target", zap.Error(err))
-				}
-			}()
-			go func() {
-				_, err := io.Copy(remote, local)
-				if err != nil {
+				errChan := tun.Pipe(remote, local)
+				for err := range errChan {
 					logger.Error("error piping to target", zap.Error(err))
 				}
 			}()

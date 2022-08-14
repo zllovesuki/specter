@@ -58,17 +58,11 @@ func cmdConnect(ctx *cli.Context) error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		_, err := io.Copy(os.Stdout, rw)
-		if err != nil {
+		errCh := tun.Pipe(os.Stdout, rw)
+		for err := range errCh {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM
-		}
-	}()
-	go func() {
-		_, err := io.Copy(rw, os.Stdin)
-		if err != nil {
-			logger.Error("error piping to target", zap.Error(err))
-			sigs <- syscall.SIGTERM
+			return
 		}
 	}()
 
@@ -85,7 +79,7 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error sending status check: %w", err)
 	}
-
+	status.Reset()
 	err = rpc.Receive(rw, status)
 	if err != nil {
 		return nil, fmt.Errorf("error receiving checking status: %w", err)
