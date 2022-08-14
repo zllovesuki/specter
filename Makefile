@@ -58,7 +58,13 @@ all: proto test clean release
 release: $(PLATFORMS) android
 
 $(PLATFORMS):
-	GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
+	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
+
+upx: release
+	-find ./bin -type f -exec upx --best --lzma {} +
+
+docker:
+	docker buildx build -t specter:$(BUILD) -f Dockerfile .
 
 android:
 	CC=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang CXX=$(NDK_PATH)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ CGO_ENABLED=1 GOARCH=arm64 GOOS=android go build $(GOTAGS) $(LDFLAGS) -o bin/specter-android-arm64 .
