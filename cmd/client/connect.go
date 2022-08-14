@@ -58,11 +58,17 @@ func cmdConnect(ctx *cli.Context) error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		errCh := tun.Pipe(os.Stdout, rw)
-		for err := range errCh {
+		_, err := io.Copy(os.Stdout, rw)
+		if err != nil {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM
-			return
+		}
+	}()
+	go func() {
+		_, err := io.Copy(rw, os.Stdin)
+		if err != nil {
+			logger.Error("error piping to target", zap.Error(err))
+			sigs <- syscall.SIGTERM
 		}
 	}()
 
