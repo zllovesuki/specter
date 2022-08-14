@@ -128,4 +128,9 @@ certs:
 	# Sign and generate node certificate
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev/openssl.txt
 
+licenses:
+	go-licenses save kon.nect.sh/specter --save_path=./licenses
+	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt
+	-rm -rf ./licenses
+
 .PHONY: all

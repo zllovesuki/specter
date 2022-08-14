@@ -22,7 +22,7 @@ var (
 		Usage:           fmt.Sprintf("build for %s on %s", runtime.GOARCH, runtime.GOOS),
 		Version:         Build,
 		HideHelpCommand: true,
-		Copyright:       "miragespace.com, licensed under MIT.",
+		Copyright:       "miragespace.com, licensed under MIT.\nSee https://github.com/zllovesuki/specter/blob/main/ThirdPartyLicenses.txt for third-party licenses.",
 		Description:     "like ngrok, but ambitious and also with DHT for flavor",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
