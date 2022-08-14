@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -23,12 +24,12 @@ import (
 
 const (
 	testBody     = "yay"
-	httpPort     = 49192
 	serverPort   = 21948
 	serverApex   = "dev.con.nect.sh"
 	yamlTemplate = `apex: 127.0.0.1:%d
 tunnels:
-  - target: http://127.0.0.1:%d
+  - target: %s
+  - target: %s
 `
 )
 
@@ -44,6 +45,7 @@ func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
 			ctx.App.Metadata["logger"] = observedLogger
 			return nil
 		},
+		Metadata: make(map[string]interface{}),
 	}, observedLogs
 }
 
@@ -54,11 +56,24 @@ func TestTunnel(t *testing.T) {
 
 	as := require.New(t)
 
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(testBody))
+	}))
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	defer ts.Close()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	as.NoError(err)
+	defer listener.Close()
+
+	tcpTarget := listener.Addr().String()
+
 	file, err := os.CreateTemp("", "client")
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverPort, httpPort))
+	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverPort, ts.URL, fmt.Sprintf("tcp://%s", tcpTarget)))
 	as.NoError(err)
 	as.NoError(file.Close())
 
@@ -99,7 +114,7 @@ func TestTunnel(t *testing.T) {
 	select {
 	case <-serverReturn:
 		as.FailNow("server returned unexpectedly")
-	case <-time.After(time.Second * 3):
+	case <-time.After(time.Second * 2):
 	}
 
 	started := 0
@@ -113,6 +128,7 @@ func TestTunnel(t *testing.T) {
 
 	cApp, cLogs := compileApp(client.Cmd)
 	go func() {
+		cApp.Metadata["apexOverride"] = serverApex
 		if err := cApp.RunContext(ctx, clientArgs); err != nil {
 			as.NoError(err)
 		}
@@ -122,61 +138,106 @@ func TestTunnel(t *testing.T) {
 	select {
 	case <-clientReturn:
 		as.FailNow("client returned unexpectedly")
-	case <-time.After(time.Second * 3):
+	case <-time.After(time.Second * 2):
 	}
 
-	go func() {
-		srv := &http.Server{
-			Addr: fmt.Sprintf("127.0.0.1:%d", httpPort),
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(testBody))
-			}),
-		}
-		srv.ListenAndServe()
-	}()
-
-	var hostname string
+	hostMap := make(map[string]string)
 	clientLogs := cLogs.All()
 	for _, l := range clientLogs {
 		if !strings.Contains(l.Message, "published") {
 			continue
 		}
+		var hostname string
+		var proto string
 		for _, f := range l.Context {
-			if f.Key != "hostname" {
-				continue
+			switch f.Key {
+			case "hostname":
+				hostname = f.String
+			case "target":
+				if strings.Contains(f.String, "http") {
+					proto = "http"
+				}
+				if strings.Contains(f.String, "tcp") {
+					proto = "tcp"
+				}
 			}
-			hostname = f.String
+		}
+		if hostname != "" && proto != "" {
+			hostMap[proto] = hostname
 		}
 	}
-	for _, l := range clientLogs {
-		t.Logf("%+v\n", l)
-	}
-	as.NotEmpty(hostname, "hostname for tunnel not found in client log")
 
-	t.Logf("Found hostname %s\n", hostname)
+	as.Equal(2, len(hostMap), "hostname for tunnels not found in client log")
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostname, serverPort), nil)
+	t.Logf("Found hostnames %v\n", hostMap)
+
+	// ====== HTTP TUNNEL ======
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostMap["http"], serverPort), nil)
 	as.NoError(err)
-	client := &http.Client{
+
+	cfg := &tls.Config{
+		ServerName:         hostMap["http"],
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"h2"},
+	}
+	httpClient := &http.Client{
 		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
+			TLSClientConfig:   cfg,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				dialer := &tls.Dialer{
-					Config: &tls.Config{
-						ServerName:         hostname,
-						InsecureSkipVerify: true,
-					},
+					Config: cfg,
 				}
 				return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
 			},
 		},
-		Timeout: time.Second * 3,
+		Timeout: time.Second * 2,
 	}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	as.NoError(err)
 	defer resp.Body.Close()
+
+	as.True(resp.ProtoAtLeast(2, 0))
 
 	var buf bytes.Buffer
 	_, err = buf.ReadFrom(resp.Body)
 	as.NoError(err)
 	as.Equal(testBody, buf.String())
+
+	// ====== TCP TUNNEL ======
+
+	connectArgs := []string{
+		"specter",
+		"client",
+		"--insecure",
+		"connect",
+		fmt.Sprintf("127.0.0.1:%d", serverPort),
+	}
+
+	connectReturn := make(chan struct{})
+
+	xApp, xLogs := compileApp(client.Cmd)
+	go func() {
+		xApp.Metadata["connectOverride"] = hostMap["tcp"]
+		if err := xApp.RunContext(ctx, connectArgs); err != nil {
+			as.NoError(err)
+		}
+		close(connectReturn)
+	}()
+
+	select {
+	case <-connectReturn:
+		as.FailNow("connect returned unexpectedly")
+	case <-time.After(time.Second * 3):
+	}
+
+	connected := false
+	connectLogs := xLogs.All()
+	for _, l := range connectLogs {
+		if strings.Contains(l.Message, "established") {
+			connected = true
+		}
+	}
+	as.True(connected, "expecting tunnel established")
 }

@@ -23,8 +23,8 @@ func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, a
 			tun.ALPN(protocol.Link_SPECTER_TUN),
 		},
 	}
-	if devApexOverride != "" {
-		clientTLSConf.ServerName = devApexOverride
+	if v, ok := ctx.App.Metadata["apexOverride"]; ok {
+		clientTLSConf.ServerName = v.(string)
 	}
 	return overlay.NewQUIC(overlay.TransportConfig{
 		Logger: logger,

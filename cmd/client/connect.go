@@ -136,10 +136,10 @@ func quicDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (trans
 			tun.ALPN(protocol.Link_TCP),
 		},
 	}
-	if devApexOverride != "" {
-		clientTLSConf.ServerName = devApexOverride
+	// used in integration test
+	if v, ok := ctx.App.Metadata["connectOverride"]; ok {
+		clientTLSConf.ServerName = v.(string)
 	}
-
 	q, err := quic.DialAddrEarlyContext(ctx.Context, parsed.String(), clientTLSConf, &quic.Config{
 		KeepAlivePeriod:      time.Second * 5,
 		HandshakeIdleTimeout: time.Second * 3,

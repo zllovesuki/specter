@@ -69,9 +69,16 @@ var Cmd = &cli.Command{
 			Action: cmdListen,
 		},
 	},
+	Before: func(ctx *cli.Context) error {
+		if devApexOverride != "" {
+			ctx.App.Metadata["apexOverride"] = devApexOverride
+		}
+		return nil
+	},
 }
 
 var (
+	// used in dev-client docker image
 	devApexOverride = ""
 )
 
