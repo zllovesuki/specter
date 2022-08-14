@@ -11,9 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
-	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
@@ -42,7 +41,7 @@ type Client struct {
 }
 
 type connection struct {
-	rpc  rpcSpec.RPC
+	rpc  rpc.RPC
 	peer *protocol.Node
 }
 
@@ -96,7 +95,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 }
 
 func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (*protocol.ClientResponse, error) {
-	var candidate rpcSpec.RPC
+	var candidate rpc.RPC
 	c.connections.Range(func(id uint64, conn *connection) bool {
 		candidate = conn.rpc
 		return false
@@ -245,7 +244,7 @@ func (c *Client) Register(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Ping(ctx context.Context, rpc rpcSpec.RPC) (*protocol.ClientPingResponse, error) {
+func (c *Client) Ping(ctx context.Context, rpc rpc.RPC) (*protocol.ClientPingResponse, error) {
 	req := &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{

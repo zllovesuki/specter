@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/overlay"
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/cipher"
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/lucas-clemente/quic-go"

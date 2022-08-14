@@ -121,7 +121,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 		Type: sType,
 	}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.Send(stream, rr)
+	err = rpcSpec.Send(stream, rr)
 	if err != nil {
 		return
 	}
@@ -248,12 +248,12 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 	}
 
 	s.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err := rpc.Send(s, rr)
+	err := rpcSpec.Send(s, rr)
 	if err != nil {
 		return nil, false, err
 	}
 	rr.Reset()
-	err = rpc.Receive(s, rr)
+	err = rpcSpec.Receive(s, rr)
 	if err != nil {
 		return nil, false, err
 	}
@@ -428,7 +428,7 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 
 	rr := &protocol.Stream{}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.Receive(stream, rr)
+	err = rpcSpec.Receive(stream, rr)
 	if err != nil {
 		return
 	}

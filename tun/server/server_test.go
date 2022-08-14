@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 

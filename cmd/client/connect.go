@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/lucas-clemente/quic-go"

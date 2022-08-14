@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -10,15 +9,9 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 
-	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-)
-
-const (
-	// uint64
-	lengthSize = 8
 )
 
 var (
@@ -79,7 +72,7 @@ func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandle
 func (r *RPC) Start(ctx context.Context) {
 	for {
 		rr := protocol.RPCFromVTPool()
-		if err := Receive(r.stream, rr); err != nil {
+		if err := rpc.Receive(r.stream, rr); err != nil {
 			// r.logger.Error("RPC receive read error", zap.Error(err))
 			r.Close()
 			return
@@ -123,7 +116,7 @@ func (r *RPC) Start(ctx context.Context) {
 				rr.Request = nil
 				rr.Type = protocol.RPC_REPLY
 
-				if err := Send(r.stream, rr); err != nil {
+				if err := rpc.Send(r.stream, rr); err != nil {
 					// r.logger.Error("RPC receiver send error", zap.Error(err))
 					r.Close()
 				}
@@ -160,7 +153,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 	r.rMap.Store(rNum, rC)
 	defer r.rMap.Delete(rNum)
 
-	if err := Send(r.stream, rr); err != nil {
+	if err := rpc.Send(r.stream, rr); err != nil {
 		r.Close()
 		return nil, err
 	}
@@ -174,55 +167,4 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 		}
 		return rs.rr, nil
 	}
-}
-
-func Receive(stream io.Reader, rr VTMarshaler) error {
-	sb := pool.Get(lengthSize)
-	defer pool.Put(sb)
-
-	n, err := io.ReadFull(stream, sb)
-	if err != nil {
-		return fmt.Errorf("reading RPC message buffer size: %w", err)
-	}
-	if n != lengthSize {
-		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", lengthSize, n)
-	}
-
-	ms := binary.BigEndian.Uint64(sb)
-
-	mb := pool.Get(int(ms))
-	defer pool.Put(mb)
-
-	n, err = io.ReadFull(stream, mb)
-	if err != nil {
-		return fmt.Errorf("reading RPC message: %w", err)
-	}
-	if ms != uint64(n) {
-		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", ms, n)
-	}
-
-	return rr.UnmarshalVT(mb)
-}
-
-func Send(stream io.Writer, rr VTMarshaler) error {
-	l := rr.SizeVT()
-	mb := pool.Get(lengthSize + l)
-	defer pool.Put(mb)
-
-	binary.BigEndian.PutUint64(mb[0:lengthSize], uint64(l))
-
-	_, err := rr.MarshalToSizedBufferVT(mb[lengthSize:])
-	if err != nil {
-		return fmt.Errorf("encoding outbound RPC message: %w", err)
-	}
-
-	n, err := stream.Write(mb)
-	if err != nil {
-		return fmt.Errorf("sending RPC message: %w", err)
-	}
-	if n != lengthSize+l {
-		return fmt.Errorf("expected %d bytes sent but %d bytes was sent", l, n)
-	}
-
-	return nil
 }

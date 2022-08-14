@@ -3,8 +3,8 @@ package tun
 import (
 	"io"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 )
 
 const (
@@ -23,7 +23,7 @@ func SendStatusProto(dest io.Writer, err error) {
 }
 
 func DrainStatusProto(src io.Reader) (err error) {
-	b := make([]byte, 8)
+	b := make([]byte, rpc.LengthSize)
 	_, err = io.ReadFull(src, b)
 	return
 }
