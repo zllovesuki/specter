@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/overlay"
+	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/cipher"
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
@@ -329,8 +330,15 @@ func TestH2TCPNotFound(t *testing.T) {
 	})).Return(nil, tun.ErrDestinationNotFound)
 
 	dialer := getDialer(tun.ALPN(protocol.Link_TCP), testHost)
-	_, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	stream, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	as.NoError(err)
+
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(stream, status)
+	as.NoError(err)
+	err = rpc.Receive(stream, status)
+	as.NoError(err)
+	as.False(status.Ok)
 
 	<-time.After(time.Millisecond * 100)
 
@@ -358,8 +366,12 @@ func TestH3TCPNotFound(t *testing.T) {
 	b, err := conn.OpenStreamSync(ctx)
 	as.NoError(err)
 
-	_, err = b.Write([]byte("a"))
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(b, status)
 	as.NoError(err)
+	err = rpc.Receive(b, status)
+	as.NoError(err)
+	as.False(status.Ok)
 
 	<-time.After(time.Millisecond * 100)
 
@@ -396,6 +408,13 @@ func TestH2TCPFound(t *testing.T) {
 	dialer := getDialer(tun.ALPN(protocol.Link_TCP), testHost)
 	conn, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	as.NoError(err)
+
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(conn, status)
+	as.NoError(err)
+	err = rpc.Receive(conn, status)
+	as.NoError(err)
+	as.True(status.Ok)
 
 	buf := make([]byte, bufLength)
 
@@ -446,6 +465,13 @@ func TestH3TCPFound(t *testing.T) {
 	defer cancel()
 	stream, err := conn.OpenStreamSync(ctx)
 	as.NoError(err)
+
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(stream, status)
+	as.NoError(err)
+	err = rpc.Receive(stream, status)
+	as.NoError(err)
+	as.True(status.Ok)
 
 	buf := make([]byte, bufLength)
 

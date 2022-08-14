@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway/httprate"
@@ -147,31 +148,31 @@ func (g *Gateway) acceptHTTP3(ctx context.Context) {
 	}
 }
 
-func (g *Gateway) handleH3Connection(ctx context.Context, conn quic.EarlyConnection) {
-	cs := conn.ConnectionState().TLS
+func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection) {
+	cs := q.ConnectionState().TLS
 	logger := g.Logger.With(zap.Bool("via-quic", true), zap.String("proto", cs.NegotiatedProtocol))
 
 	switch cs.ServerName {
 	case "":
-		conn.CloseWithError(0, "")
+		q.CloseWithError(0, "")
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
-		g.http3ApexAcceptor.Handle(conn)
+		g.http3ApexAcceptor.Handle(q)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tun.ALPN(protocol.Link_TCP):
 			for {
-				stream, err := conn.AcceptStream(ctx)
+				stream, err := q.AcceptStream(ctx)
 				if err != nil {
 					return
 				}
 				logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
-				go g.handleH3Stream(ctx, cs.ServerName, stream)
+				go g.handleH3Stream(ctx, cs.ServerName, q, stream)
 			}
 		default:
 			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
-			g.http3TunnelAcceptor.Handle(conn)
+			g.http3TunnelAcceptor.Handle(q)
 		}
 	}
 }
@@ -208,8 +209,8 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tun.ALPN(protocol.Link_TCP):
-			g.Logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
-			err = g.forwardTCP(ctx, cs.ServerName, conn)
+			logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
+			err = g.forwardTCP(ctx, cs.ServerName, conn.RemoteAddr().String(), conn)
 		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
 			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
 			g.http2TunnelAcceptor.Handle(conn)
@@ -219,27 +220,54 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	}
 }
 
-func (g *Gateway) handleH3Stream(ctx context.Context, host string, stream quic.Stream) {
+func (g *Gateway) handleH3Stream(ctx context.Context, host string, q quic.EarlyConnection, stream quic.Stream) {
 	var err error
 	defer func() {
 		if err != nil {
-			g.Logger.Debug("handle connection failure", zap.Error(err), zap.Bool("via-quic", true))
+			g.Logger.Debug("handle connection failure", zap.Bool("via-quic", true), zap.Error(err))
 			stream.Close()
 		}
 	}()
-	err = g.forwardTCP(ctx, host, stream)
+	err = g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream)
 }
 
-func (g *Gateway) forwardTCP(ctx context.Context, host string, conn io.ReadWriteCloser) error {
+func sendStatusProto(dest io.Writer, err error) {
+	status := &protocol.TunnelStatus{
+		Ok: true,
+	}
+	if err != nil {
+		status.Ok = false
+		status.Error = err.Error()
+	}
+	rpc.Send(dest, status)
+}
+
+func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn io.ReadWriteCloser) error {
 	var c net.Conn
+	var err error
+	defer func() {
+		sendStatusProto(conn, err)
+		if err == nil {
+			go tun.Pipe(conn, c)
+		}
+	}()
+
+	// because of quic's early connection, the client need to "poke" us before
+	// we can actually accept a stream, despite .OpenStreamSync
+	poke := &protocol.TunnelStatus{}
+	err = rpc.Receive(conn, poke)
+	if err != nil {
+		return err
+	}
+
 	parts := strings.SplitN(host, ".", 2)
-	c, err := g.Tun.Dial(ctx, &protocol.Link{
+	c, err = g.Tun.Dial(ctx, &protocol.Link{
 		Alpn:     protocol.Link_TCP,
 		Hostname: parts[0],
+		Remote:   remote,
 	})
 	if err != nil {
 		return err
 	}
-	go tun.Pipe(conn, c)
 	return nil
 }

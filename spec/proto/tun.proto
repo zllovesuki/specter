@@ -99,9 +99,15 @@ message Link {
 
     ALPN alpn = 1;
     string hostname = 2;
+    string remote = 3;
 }
 
 message IdentitiesPair {
     Node chord = 1;
     Node tun = 2;
+}
+
+message TunnelStatus {
+    bool ok = 1;
+    string error = 2;
 }

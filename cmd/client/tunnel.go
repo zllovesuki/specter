@@ -2,11 +2,8 @@ package client
 
 import (
 	"crypto/tls"
-	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"kon.nect.sh/specter/overlay"
@@ -17,36 +14,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
-
-var (
-	devApexOverride = ""
-)
-
-type parsedApex struct {
-	host string
-	port int
-}
-
-func (p *parsedApex) String() string {
-	return fmt.Sprintf("%s:%d", p.host, p.port)
-}
-
-func parseApex(apex string) (*parsedApex, error) {
-	port := 443
-	i := strings.Index(apex, ":")
-	if i != -1 {
-		nP, err := strconv.ParseInt(apex[i+1:], 0, 32)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing port number: %w", err)
-		}
-		apex = apex[:i]
-		port = int(nP)
-	}
-	return &parsedApex{
-		host: apex,
-		port: port,
-	}, nil
-}
 
 func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *parsedApex) *overlay.QUIC {
 	clientTLSConf := &tls.Config{

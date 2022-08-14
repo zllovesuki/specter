@@ -23,6 +23,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
+	"kon.nect.sh/specter/util"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez"
@@ -59,7 +60,7 @@ var Cmd = &cli.Command{
 		&cli.StringFlag{
 			Name:        "listen-addr",
 			Aliases:     []string{"listen"},
-			DefaultText: fmt.Sprintf("%s:443", GetOutboundIP().String()),
+			DefaultText: fmt.Sprintf("%s:443", util.GetOutboundIP().String()),
 			Usage:       "address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP",
 			Required:    true,
 		},
@@ -394,15 +395,3 @@ func (a *ACMEProvider) Initialize(node chordSpec.KV) error {
 }
 
 var _ cipher.CertProvider = (*ACMEProvider)(nil)
-
-func GetOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "1.1.1.1:53")
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP
-}

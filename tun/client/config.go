@@ -80,6 +80,8 @@ func (c *Config) writeFile() error {
 		return fmt.Errorf("error opening config file for writing: %w", err)
 	}
 	defer f.Close()
+	defer f.Sync()
+
 	encoder := yaml.NewEncoder(f)
 	encoder.SetIndent(2)
 	defer encoder.Close()

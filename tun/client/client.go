@@ -364,7 +364,10 @@ func (c *Client) Accept(ctx context.Context) {
 				return
 			}
 
-			c.logger.Info("incoming connection", zap.Any("link", link))
+			c.logger.Info("Incoming connection from gateway",
+				zap.String("protocol", link.Alpn.String()),
+				zap.String("hostname", link.Hostname),
+				zap.String("remote", link.Remote))
 
 			switch link.GetAlpn() {
 			case protocol.Link_HTTP:
