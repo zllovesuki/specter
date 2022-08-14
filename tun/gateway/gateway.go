@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway/httprate"
@@ -244,8 +243,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 
 	// because of quic's early connection, the client need to "poke" us before
 	// we can actually accept a stream, despite .OpenStreamSync
-	poke := &protocol.TunnelStatus{}
-	err = rpc.Receive(conn, poke)
+	err = tun.DrainStatusProto(conn)
 	if err != nil {
 		return err
 	}

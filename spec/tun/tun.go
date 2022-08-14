@@ -21,3 +21,9 @@ func SendStatusProto(dest io.Writer, err error) {
 	}
 	rpc.Send(dest, status)
 }
+
+func DrainStatusProto(src io.Reader) (err error) {
+	b := make([]byte, 8)
+	_, err = io.ReadFull(src, b)
+	return
+}
