@@ -231,25 +231,15 @@ func (g *Gateway) handleH3Stream(ctx context.Context, host string, q quic.EarlyC
 	err = g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream)
 }
 
-func sendStatusProto(dest io.Writer, err error) {
-	status := &protocol.TunnelStatus{
-		Ok: true,
-	}
-	if err != nil {
-		status.Ok = false
-		status.Error = err.Error()
-	}
-	rpc.Send(dest, status)
-}
-
 func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn io.ReadWriteCloser) error {
 	var c net.Conn
 	var err error
 	defer func() {
-		sendStatusProto(conn, err)
-		if err == nil {
-			go tun.Pipe(conn, c)
+		if err != nil {
+			tun.SendStatusProto(conn, err)
+			return
 		}
+		go tun.Pipe(conn, c)
 	}()
 
 	// because of quic's early connection, the client need to "poke" us before

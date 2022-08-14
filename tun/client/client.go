@@ -404,9 +404,11 @@ func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
 	local, err := dialer.DialContext(ctx, "tcp", dest)
 	if err != nil {
 		c.logger.Error("forwarding connection", zap.Error(err))
+		tun.SendStatusProto(remote, err)
 		remote.Close()
 		return
 	}
+	tun.SendStatusProto(remote, nil)
 	tun.Pipe(remote, local)
 }
 

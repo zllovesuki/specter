@@ -390,6 +390,8 @@ func TestH2TCPFound(t *testing.T) {
 	c1, c2 := net.Pipe()
 
 	go func() {
+		tun.SendStatusProto(c2, nil)
+
 		buf := make([]byte, bufLength)
 		n, err := io.ReadFull(c2, buf)
 		as.NoError(err)
@@ -442,6 +444,8 @@ func TestH3TCPFound(t *testing.T) {
 	c1, c2 := net.Pipe()
 
 	go func() {
+		tun.SendStatusProto(c2, nil)
+
 		buf := make([]byte, bufLength)
 		n, err := io.ReadFull(c2, buf)
 		as.NoError(err)
