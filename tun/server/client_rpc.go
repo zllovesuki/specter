@@ -235,15 +235,21 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			return nil, fmt.Errorf("hostname %s is not registered", hostname)
 		}
 
+		identities := make([]*protocol.IdentitiesPair, len(requested))
 		for k, server := range requested {
-			identities, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
+			identity, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
 			if err != nil {
 				return nil, err
 			}
+			identities[k] = identity
+		}
+
+		published := make([]*protocol.Node, 0)
+		for k, identity := range identities {
 			bundle := &protocol.Tunnel{
 				Client:   verifiedClient,
-				Chord:    identities.GetChord(),
-				Tun:      identities.GetTun(),
+				Chord:    identity.GetChord(),
+				Tun:      identity.GetTun(),
 				Hostname: hostname,
 			}
 			val, err := bundle.MarshalVT()
@@ -254,8 +260,11 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			if err := s.chord.Put([]byte(key), val); err != nil {
 				continue
 			}
+			published = append(published, identity.GetTun())
 		}
-		resp.TunnelResponse = &protocol.PublishTunnelResponse{}
+		resp.TunnelResponse = &protocol.PublishTunnelResponse{
+			Published: published,
+		}
 
 	default:
 		s.logger.Warn("Unknown RPC Call", zap.String("kind", req.GetKind().String()))

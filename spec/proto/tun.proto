@@ -80,7 +80,9 @@ message PublishTunnelRequest {
     repeated Node servers = 2;
 }
 
-message PublishTunnelResponse {}
+message PublishTunnelResponse {
+    repeated Node published = 1;
+}
 
 extend google.protobuf.EnumValueOptions {
   string alpn_name = 54242;

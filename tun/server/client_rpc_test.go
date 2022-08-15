@@ -599,7 +599,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	cRPC := rpc.NewRPC(logger, c2, nil)
 	go cRPC.Start(ctx)
 
-	_, err = cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind:  protocol.TunnelRPC_TUNNEL,
@@ -611,6 +611,10 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		},
 	})
 	as.NoError(err)
+	as.NotNil(resp.GetClientResponse())
+	tResp := resp.GetClientResponse()
+	as.NotNil(tResp.GetTunnelResponse())
+	as.Len(tResp.GetTunnelResponse().GetPublished(), len(nodes))
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)

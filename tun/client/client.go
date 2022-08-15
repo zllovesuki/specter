@@ -305,16 +305,18 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 	}
 
 	connected := c.getConnectedNodes(ctx)
+	apex := c.rootDomain.Load()
 
 	for _, tunnel := range tunnels {
 		if tunnel.Hostname == "" {
 			continue
 		}
-		if err := c.PublishTunnel(ctx, tunnel.Hostname, connected); err != nil {
+		published, err := c.PublishTunnel(ctx, tunnel.Hostname, connected)
+		if err != nil {
 			c.logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
 			continue
 		}
-		c.logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, c.rootDomain.Load())), zap.String("target", tunnel.Target))
+		c.logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, apex)), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
 	}
 
 	c.configMu.Lock()
@@ -326,7 +328,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 	c.configMu.Unlock()
 }
 
-func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) error {
+func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
 	req := &protocol.ClientRequest{
 		Kind:  protocol.TunnelRPC_TUNNEL,
 		Token: c.getToken(),
@@ -335,11 +337,11 @@ func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected [
 			Servers:  connected,
 		},
 	}
-	_, err := c.rpcCall(ctx, req)
+	resp, err := c.rpcCall(ctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return resp.GetTunnelResponse().GetPublished(), nil
 }
 
 func (c *Client) Accept(ctx context.Context) {
