@@ -10,11 +10,9 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/zhangyunhao116/skipmap"
-	"go.uber.org/zap"
 )
 
 type ALPNMux struct {
-	logger   *zap.Logger
 	listener quic.EarlyListener
 	mux      *skipmap.StringMap[*protoCfg]
 }
@@ -24,10 +22,9 @@ type protoCfg struct {
 	tls      *tls.Config
 }
 
-func NewMux(logger *zap.Logger, addr string) (*ALPNMux, error) {
+func NewMux(addr string) (*ALPNMux, error) {
 	a := &ALPNMux{
-		logger: logger,
-		mux:    skipmap.NewString[*protoCfg](),
+		mux: skipmap.NewString[*protoCfg](),
 	}
 	listener, err := quic.ListenAddrEarly(addr, &tls.Config{
 		GetConfigForClient: a.getConfigForClient,
@@ -77,12 +74,6 @@ func (a *ALPNMux) With(baseCfg *tls.Config, protos ...string) quic.EarlyListener
 }
 
 func (a *ALPNMux) Accept(ctx context.Context) {
-	protos := make([]string, 0)
-	a.mux.Range(func(proto string, _ *protoCfg) bool {
-		protos = append(protos, proto)
-		return true
-	})
-	a.logger.Info("alpn muxer started", zap.Strings("protos", protos))
 	for {
 		conn, err := a.listener.Accept(ctx)
 		if err != nil {

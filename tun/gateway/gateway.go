@@ -47,7 +47,7 @@ type Gateway struct {
 	GatewayConfig
 }
 
-func New(conf GatewayConfig) (*Gateway, error) {
+func New(conf GatewayConfig) *Gateway {
 	g := &Gateway{
 		GatewayConfig:       conf,
 		http2TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
@@ -78,13 +78,11 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		Handler:           proxy,
 	}
 	g.h3ApexServer = &http3.Server{
-		Port:            conf.GatewayPort,
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         apex,
 	}
 	g.h3TunnelServer = &http3.Server{
-		Port:            conf.GatewayPort,
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         proxy,
@@ -93,7 +91,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 	if conf.AdminUser == "" || conf.AdminPass == "" {
 		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
 	}
-	return g, nil
+	return g
 }
 
 func (g *Gateway) apexMux() http.Handler {

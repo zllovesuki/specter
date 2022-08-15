@@ -261,45 +261,32 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("error loading certificates from directory: %w", err)
 	}
 
-	certProvider := configCertProvider(ctx, logger)
-
 	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
-	})
-
-	gwTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
-		tun.ALPN(protocol.Link_HTTP2),
-		tun.ALPN(protocol.Link_HTTP),
-		tun.ALPN(protocol.Link_TCP),
-		tun.ALPN(protocol.Link_UNKNOWN),
 	})
 
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
 	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
-	muxLogger := logger.With(zap.String("component", "alpnMux"))
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	gwH2Listener, err := tls.Listen("tcp", addr, gwTLSConf)
+	tcpListener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("error setting up gateway http2 listener: %w", err)
 	}
-	defer gwH2Listener.Close()
+	defer tcpListener.Close()
 
-	alpnMux, err := overlay.NewMux(muxLogger, addr)
+	alpnMux, err := overlay.NewMux(addr)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}
 	defer alpnMux.Close()
 
-	// handles h3, h3-29, and specter-tcp/1
-	gwH3Listener := alpnMux.With(gwTLSConf, append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
-
-	// handles specter-tun/1
-	clientListener := alpnMux.With(gwTLSConf, tun.ALPN(protocol.Link_SPECTER_TUN))
+	go alpnMux.Accept(ctx.Context)
 
 	// handles specter-chord/1
 	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
+	defer chordListener.Close()
 
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:    chordLogger,
@@ -325,29 +312,6 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer clientTransport.Stop()
 
-	rootDomain := ctx.String("apex")
-	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
-	defer tunServer.Stop()
-
-	// TODO: use advertise?
-	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
-	gw, err := gateway.New(gateway.GatewayConfig{
-		Logger:       gwLogger,
-		Tun:          tunServer,
-		H2Listener:   gwH2Listener,
-		H3Listener:   gwH3Listener,
-		StatsHandler: chordNode.StatsHandler,
-		RootDomain:   rootDomain,
-		GatewayPort:  gwPort,
-		AdminUser:    ctx.String("auth_user"),
-		AdminPass:    ctx.String("auth_pass"),
-	})
-	if err != nil {
-		return fmt.Errorf("error starting gateway server: %w", err)
-	}
-	defer gw.Close()
-
-	go alpnMux.Accept(ctx.Context)
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 	go chordNode.HandleRPC(ctx.Context)
 
@@ -368,9 +332,48 @@ func cmdServer(ctx *cli.Context) error {
 		}
 	}
 
+	certProvider := configCertProvider(ctx, logger)
+
 	if err := certProvider.Initialize(chordNode); err != nil {
 		return fmt.Errorf("failed to initialize cert provider: %w", err)
 	}
+
+	gwTLSConf := cipher.GetGatewayTLSConfig(certProvider.GetCertificate, []string{
+		tun.ALPN(protocol.Link_HTTP2),
+		tun.ALPN(protocol.Link_HTTP),
+		tun.ALPN(protocol.Link_TCP),
+		tun.ALPN(protocol.Link_UNKNOWN),
+	})
+
+	gwH2Listener := tls.NewListener(tcpListener, gwTLSConf)
+	defer gwH2Listener.Close()
+
+	// handles h3, h3-29, and specter-tcp/1
+	gwH3Listener := alpnMux.With(gwTLSConf, append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+	defer gwH3Listener.Close()
+
+	// handles specter-tun/1
+	clientListener := alpnMux.With(gwTLSConf, tun.ALPN(protocol.Link_SPECTER_TUN))
+	defer clientListener.Close()
+
+	rootDomain := ctx.String("apex")
+	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
+	defer tunServer.Stop()
+
+	// TODO: use advertise?
+	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
+	gw := gateway.New(gateway.GatewayConfig{
+		Logger:       gwLogger,
+		Tun:          tunServer,
+		H2Listener:   gwH2Listener,
+		H3Listener:   gwH3Listener,
+		StatsHandler: chordNode.StatsHandler,
+		RootDomain:   rootDomain,
+		GatewayPort:  gwPort,
+		AdminUser:    ctx.String("auth_user"),
+		AdminPass:    ctx.String("auth_pass"),
+	})
+	defer gw.Close()
 
 	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
 	go tunServer.HandleRPC(ctx.Context)

@@ -103,7 +103,7 @@ func getH1Client(host string, port int) *http.Client {
 		Transport: &http.Transport{
 			ForceAttemptHTTP2: false,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return getDialer("", host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+				return getDialer("http/1.1", host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 			},
 		},
 	}
@@ -140,7 +140,7 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 	h2, port := getH2Listener(as)
 
 	ss := generateTLSConfig([]string{})
-	alpnMux, err := overlay.NewMux(logger, fmt.Sprintf("127.0.0.1:%d", port))
+	alpnMux, err := overlay.NewMux(fmt.Sprintf("127.0.0.1:%d", port))
 	as.NoError(err)
 
 	h3 := alpnMux.With(cipher.GetGatewayTLSConfig(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -163,8 +163,7 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 		},
 	}
 
-	g, err := New(conf)
-	as.NoError(err)
+	g := New(conf)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go g.Start(ctx)
