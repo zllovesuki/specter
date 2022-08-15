@@ -68,13 +68,14 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		MaxIdleTimeout:       time.Second * 60,
 	}
 	apex := g.apexMux()
+	proxy := g.httpHandler()
 	g.h2ApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           g.httpHandler(false),
+		Handler:           proxy,
 	}
 	g.h3ApexServer = &http3.Server{
 		Port:            conf.GatewayPort,
@@ -86,7 +87,7 @@ func New(conf GatewayConfig) (*Gateway, error) {
 		Port:            conf.GatewayPort,
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
-		Handler:         g.httpHandler(true),
+		Handler:         proxy,
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {

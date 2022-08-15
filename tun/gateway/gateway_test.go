@@ -98,8 +98,9 @@ func getH2Client(host string, port int) *http.Client {
 	return &http.Client{
 		Timeout: time.Second,
 		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return getDialer(tun.ALPN(protocol.Link_HTTP), host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+				return getDialer(tun.ALPN(protocol.Link_HTTP2), host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 			},
 		},
 	}
@@ -268,7 +269,12 @@ func TestH2HTTPFound(t *testing.T) {
 
 	c := getH2Client(testHost, port)
 
-	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s", testHost, testDomain), nil)
+	as.NoError(err)
+
+	req.Host = "fail.com"
+
+	resp, err := c.Do(req)
 	as.NoError(err)
 	defer resp.Body.Close()
 
@@ -303,7 +309,12 @@ func TestH3HTTPFound(t *testing.T) {
 
 	c := getH3Client(testHost, port)
 
-	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s", testHost, testDomain), nil)
+	as.NoError(err)
+
+	req.Host = "fail.com"
+
+	resp, err := c.Do(req)
 	as.NoError(err)
 	defer resp.Body.Close()
 

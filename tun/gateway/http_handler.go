@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	bufferSize = 1024 * 16
+	bufferSize        = 1024 * 16
+	invalidServerName = "gotofail.xxx"
 )
 
 var delHeaders = []string{
@@ -30,36 +31,31 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
-func (g *Gateway) httpHandler(h3 bool) http.Handler {
+func (g *Gateway) httpHandler() http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			req.URL.Scheme = "http"
-			if h3 {
-				req.URL.Host = req.Host // req.Host is the ServerName (:authority)
-			} else {
-				req.URL.Host = req.TLS.ServerName
-			}
+			req.URL.Scheme = "https"
+			req.URL.Host = req.TLS.ServerName
 			for _, header := range delHeaders {
 				req.Header.Del(header)
 			}
 		},
 		Transport: &http2.Transport{
-			AllowHTTP:       true,
 			ReadIdleTimeout: time.Second * 30,
-			DialTLS: func(network, addr string, _ *tls.Config) (net.Conn, error) {
-				parts := strings.SplitN(addr, ".", 2)
-				g.Logger.Debug("dialing to client via overlay", zap.Bool("via-quic", h3), zap.String("hostname", parts[0]), zap.String("addr", addr))
-				return g.Tun.Dial(context.Background(), &protocol.Link{
+			DialTLSContext: func(ctx context.Context, _, _ string, cfg *tls.Config) (net.Conn, error) {
+				parts := strings.SplitN(cfg.ServerName, ".", 2)
+				g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", parts[0]), zap.String("tls.ServerName", cfg.ServerName))
+				return g.Tun.Dial(ctx, &protocol.Link{
 					Alpn:     protocol.Link_HTTP,
 					Hostname: parts[0],
 				})
 			},
 		},
 		BufferPool:   NewBufferPool(bufferSize),
-		ErrorHandler: g.errorHandler(h3),
+		ErrorHandler: g.errorHandler,
 		ModifyResponse: func(r *http.Response) error {
 			r.Header.Del("alt-svc")
-			g.appendHeaders(h3)(r.Header)
+			g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 			return nil
 		},
 		ErrorLog: func() *log.Logger {
@@ -69,30 +65,28 @@ func (g *Gateway) httpHandler(h3 bool) http.Handler {
 	}
 }
 
-func (g *Gateway) errorHandler(h3 bool) func(w http.ResponseWriter, r *http.Request, e error) {
-	return func(w http.ResponseWriter, r *http.Request, e error) {
-		g.appendHeaders(h3)(w.Header())
+func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) {
+	g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
 
-		if errors.Is(e, tun.ErrDestinationNotFound) {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.URL.Hostname())
-			return
-		}
-
-		g.Logger.Debug("forwarding http/https request", zap.Error(e))
-
-		if tun.IsTimeout(e) {
-			w.WriteHeader(http.StatusGatewayTimeout)
-			fmt.Fprintf(w, "Destination %s is taking too long to respond.", r.URL.Hostname())
-			return
-		}
-		if errors.Is(e, context.Canceled) {
-			// this is expected
-			return
-		}
-
-		g.Logger.Error("forwarding to client", zap.Error(e))
-		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
+	if errors.Is(e, tun.ErrDestinationNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.URL.Hostname())
+		return
 	}
+
+	g.Logger.Debug("forwarding http/https request", zap.Error(e))
+
+	if tun.IsTimeout(e) {
+		w.WriteHeader(http.StatusGatewayTimeout)
+		fmt.Fprintf(w, "Destination %s is taking too long to respond.", r.URL.Hostname())
+		return
+	}
+	if errors.Is(e, context.Canceled) {
+		// this is expected
+		return
+	}
+
+	g.Logger.Error("forwarding to client", zap.Error(e))
+	w.WriteHeader(http.StatusServiceUnavailable)
+	fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
 }
