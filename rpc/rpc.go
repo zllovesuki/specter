@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	ErrClosed      = fmt.Errorf("RPC channel already closed")
-	ErrNoHandler   = fmt.Errorf("RPC channel has no request handler")
-	ErrInvalidRing = fmt.Errorf("RPC calls to an invalid ring, expected m = %d", chord.MaxFingerEntries)
+	ErrClosed      = fmt.Errorf("rpc: channel already closed")
+	ErrNoHandler   = fmt.Errorf("rpc: channel has no request handler")
+	ErrInvalidRing = fmt.Errorf("rpc: calls to an invalid ring, expected m = %d", chord.MaxFingerEntries)
 )
 
 var _ rpc.RPC = (*RPC)(nil)

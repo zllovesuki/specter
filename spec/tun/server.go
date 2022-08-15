@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrDestinationNotFound = fmt.Errorf("tunnel not found on chord")
+	ErrDestinationNotFound = fmt.Errorf("tun: tunnel not found on chord")
 )
 
 type Server interface {
