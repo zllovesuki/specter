@@ -180,7 +180,7 @@ func TestKeyTransferIn(t *testing.T) {
 	as := require.New(t)
 
 	seedCfg := devConfig(as)
-	seedCfg.Identity.Id = (1 << chord.MaxFingerEntries) / 2 // halfway
+	seedCfg.Identity.Id = chord.MaxIdentitifer / 2 // halfway
 	seed := NewLocalNode(seedCfg)
 	as.NoError(seed.Create())
 	defer seed.Leave()
@@ -194,7 +194,7 @@ func TestKeyTransferIn(t *testing.T) {
 	}
 
 	n1Cfg := devConfig(as)
-	n1Cfg.Identity.Id = (1 << chord.MaxFingerEntries) / 4 // 1 quarter
+	n1Cfg.Identity.Id = chord.MaxIdentitifer / 4 // 1 quarter
 	n1 := NewLocalNode(n1Cfg)
 	as.NoError(n1.Join(seed))
 	defer n1.Leave()
@@ -212,7 +212,7 @@ func TestKeyTransferIn(t *testing.T) {
 	fsck(as, []*LocalNode{n1, seed})
 
 	n2Cfg := devConfig(as)
-	n2Cfg.Identity.Id = ((1 << chord.MaxFingerEntries) / 4) + ((1 << chord.MaxFingerEntries) / 2) // 3 quarter
+	n2Cfg.Identity.Id = (chord.MaxIdentitifer / 4 * 3) // 3 quarter
 	n2 := NewLocalNode(n2Cfg)
 	as.NoError(n2.Join(seed))
 	defer n2.Leave()

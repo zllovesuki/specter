@@ -12,28 +12,28 @@ const (
 	// Also known as L in the second paper
 	ExtendedSuccessorEntries = 3
 
-	mod = (1 << MaxFingerEntries)
+	MaxIdentitifer = (1 << (MaxFingerEntries - 1))
 )
 
 func Hash(b []byte) uint64 {
 	hasher := xxh3.New()
 	hasher.Write(b)
-	return hasher.Sum64() % mod
+	return hasher.Sum64() % MaxIdentitifer
 }
 
 func HashString(key string) uint64 {
 	hasher := xxh3.New()
 	hasher.WriteString(key)
-	return hasher.Sum64() % mod
+	return hasher.Sum64() % MaxIdentitifer
 }
 
 func Modulo(x, y uint64) uint64 {
 	// split (x + y) % m into (x % m + y % m) % m to avoid overflow
-	return (x%mod + y%mod) % mod
+	return (x%MaxIdentitifer + y%MaxIdentitifer) % MaxIdentitifer
 }
 
 func Random() uint64 {
-	return rand.Uint64() % mod
+	return rand.Uint64() % MaxIdentitifer
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {
