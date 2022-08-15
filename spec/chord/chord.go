@@ -21,12 +21,6 @@ func Hash(b []byte) uint64 {
 	return hasher.Sum64() % MaxIdentitifer
 }
 
-func HashString(key string) uint64 {
-	hasher := xxh3.New()
-	hasher.WriteString(key)
-	return hasher.Sum64() % MaxIdentitifer
-}
-
 func Modulo(x, y uint64) uint64 {
 	// split (x + y) % m into (x % m + y % m) % m to avoid overflow
 	return (x%MaxIdentitifer + y%MaxIdentitifer) % MaxIdentitifer

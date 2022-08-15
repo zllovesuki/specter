@@ -13,7 +13,7 @@ import (
 func TestPrefixAppend(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	prefix := make([]byte, 8)
 	child := make([]byte, 16)
@@ -27,7 +27,7 @@ func TestPrefixAppend(t *testing.T) {
 func TestPrefixList(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	numChildren := 32
 	prefix := make([]byte, 8)
@@ -59,7 +59,7 @@ func TestPrefixList(t *testing.T) {
 func TestPrefixContains(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	prefix := make([]byte, 8)
 	child := make([]byte, 16)
@@ -80,7 +80,7 @@ func TestPrefixContains(t *testing.T) {
 func TestPrefixDelete(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	numChildren := 32
 	prefix := make([]byte, 8)
@@ -129,7 +129,7 @@ func TestPrefixDelete(t *testing.T) {
 func TestSharedKeyspace(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)

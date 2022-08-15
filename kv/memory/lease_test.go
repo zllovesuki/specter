@@ -13,7 +13,7 @@ import (
 func TestAcquireMutualExclusion(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -30,7 +30,7 @@ func TestAcquireMutualExclusion(t *testing.T) {
 func TestAcquireExpired(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -48,7 +48,7 @@ func TestAcquireExpired(t *testing.T) {
 func TestRenewValid(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -70,7 +70,7 @@ func TestRenewValid(t *testing.T) {
 func TestRenewExpired(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -99,7 +99,7 @@ func TestRenewExpired(t *testing.T) {
 func TestTTLGuard(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)

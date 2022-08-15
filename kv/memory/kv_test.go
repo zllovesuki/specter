@@ -14,7 +14,7 @@ import (
 func TestAllKeys(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
@@ -33,7 +33,7 @@ func TestAllKeys(t *testing.T) {
 func TestOrderedKeys(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
@@ -58,7 +58,7 @@ func TestOrderedKeys(t *testing.T) {
 func TestLocalOperations(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	num := 32
 	length := 8
@@ -89,7 +89,7 @@ func TestLocalOperations(t *testing.T) {
 func TestComplexImportExport(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -116,7 +116,7 @@ func TestComplexImportExport(t *testing.T) {
 	keys := kv.RangeKeys(0, 0)
 	exp := kv.Export(keys)
 
-	kv2 := WithHashFn(chord.HashString)
+	kv2 := WithHashFn(chord.Hash)
 	as.NoError(kv2.Import(keys, exp))
 
 	val, err = kv2.Get(key)

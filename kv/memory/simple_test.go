@@ -18,9 +18,9 @@ const (
 	valPrefix     = "val"
 )
 
-func collisionHash(s string) uint64 {
+func collisionHash(s []byte) uint64 {
 	h := fnv.New64a()
-	h.Write([]byte(s))
+	h.Write(s)
 	return h.Sum64() % collisionRing
 }
 
@@ -93,7 +93,7 @@ func TestCollisionDelete(t *testing.T) {
 func TestEmpty(t *testing.T) {
 	as := assert.New(t)
 
-	kv := WithHashFn(chord.HashString)
+	kv := WithHashFn(chord.Hash)
 
 	key := make([]byte, 6)
 	rand.Read(key)
@@ -119,7 +119,7 @@ func TestEmpty(t *testing.T) {
 	keys := kv.RangeKeys(0, 0)
 	exp := kv.Export(keys)
 
-	kv2 := WithHashFn(chord.HashString)
+	kv2 := WithHashFn(chord.Hash)
 	as.NoError(kv2.Import(keys, exp))
 
 	val, err = kv2.Get(key)

@@ -37,7 +37,7 @@ func TestLocalRPC(t *testing.T) {
 
 	tp := new(mocks.Transport)
 
-	kv := memory.WithHashFn(chord.HashString)
+	kv := memory.WithHashFn(chord.Hash)
 	testRenewalToken, err := kv.Acquire([]byte(testRenewalKey), time.Second)
 	as.NoError(err)
 

@@ -299,7 +299,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
-		KVProvider:               memory.WithHashFn(chordSpec.HashString),
+		KVProvider:               memory.WithHashFn(chordSpec.Hash),
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,

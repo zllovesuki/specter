@@ -10,7 +10,7 @@ import (
 	"github.com/zhangyunhao116/skipset"
 )
 
-type HashFn func(string) uint64
+type HashFn func([]byte) uint64
 
 type MemoryKV struct {
 	s      *skipmap.Uint64Map[*skipmap.StringMap[*kvValue]]
@@ -57,8 +57,8 @@ func WithHashFn(fn HashFn) *MemoryKV {
 }
 
 func (m *MemoryKV) fetchVal(key []byte) (*kvValue, bool) {
+	p := m.hashFn(key)
 	sKey := string(key)
-	p := m.hashFn(sKey)
 
 	kMap, _ := m.s.LoadOrStoreLazy(p, newInnerMapFunc)
 	return kMap.LoadOrStoreLazy(sKey, newValueFunc)
@@ -66,8 +66,8 @@ func (m *MemoryKV) fetchVal(key []byte) (*kvValue, bool) {
 
 // delete plain and prefix keyspaces
 func (m *MemoryKV) deleteAll(key []byte) {
+	p := m.hashFn(key)
 	sKey := string(key)
-	p := m.hashFn(sKey)
 
 	if kMap, ok := m.s.Load(p); ok {
 		kMap.Delete(sKey)
