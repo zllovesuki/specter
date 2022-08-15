@@ -26,10 +26,9 @@ type RPC interface {
 }
 
 func Receive(stream io.Reader, rr VTMarshaler) error {
-	sb := pool.Get(LengthSize)
-	defer pool.Put(sb)
+	var sb [LengthSize]byte
 
-	n, err := io.ReadFull(stream, sb)
+	n, err := io.ReadFull(stream, sb[:])
 	if err != nil {
 		return fmt.Errorf("reading RPC message buffer size: %w", err)
 	}
@@ -37,7 +36,7 @@ func Receive(stream io.Reader, rr VTMarshaler) error {
 		return fmt.Errorf("expected %d bytes to be read but %d bytes was read", LengthSize, n)
 	}
 
-	ms := binary.BigEndian.Uint32(sb)
+	ms := binary.BigEndian.Uint32(sb[:])
 
 	mb := pool.Get(int(ms))
 	defer pool.Put(mb)

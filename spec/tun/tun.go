@@ -23,7 +23,7 @@ func SendStatusProto(dest io.Writer, err error) {
 }
 
 func DrainStatusProto(src io.Reader) (err error) {
-	b := make([]byte, rpc.LengthSize)
-	_, err = io.ReadFull(src, b)
+	var b [rpc.LengthSize]byte
+	_, err = io.ReadFull(src, b[:])
 	return
 }
