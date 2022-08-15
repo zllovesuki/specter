@@ -327,6 +327,78 @@ func TestRPCPingConditional(t *testing.T) {
 	chordT.AssertExpectations(t)
 }
 
+func TestRPCGetNodesUnique(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(as)
+	cli, cht, tn := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	node.On("Get",
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+
+	node.On("ID").Return(cht.GetId())
+	node.On("Identity").Return(cht)
+
+	clientChan := make(chan *transport.StreamDelegate)
+	clientT.On("RPC").Return(clientChan)
+
+	c1, c2 := net.Pipe()
+
+	pair := &protocol.IdentitiesPair{
+		Chord: cht,
+		Tun:   tn,
+	}
+	pairBuf, err := pair.MarshalVT()
+	as.Nil(err)
+
+	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
+	node.On("Get", mock.Anything).Return(pairBuf, nil)
+
+	go serv.HandleRPC(ctx)
+
+	clientChan <- &transport.StreamDelegate{
+		Connection: c1,
+		Identity:   cli,
+	}
+
+	cRPC := rpc.NewRPC(logger, c2, nil)
+	go cRPC.Start(ctx)
+
+	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		Kind: protocol.RPC_CLIENT_REQUEST,
+		ClientRequest: &protocol.ClientRequest{
+			Kind:  protocol.TunnelRPC_NODES,
+			Token: token,
+		},
+	})
+	as.NoError(err)
+	as.NotNil(resp.ClientResponse)
+	as.NotNil(resp.ClientResponse.NodesResponse)
+
+	// should only have ourself
+	as.Len(resp.GetClientResponse().GetNodesResponse().GetNodes(), 1)
+	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn}))
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
 func TestRPCGetNodes(t *testing.T) {
 	as := require.New(t)
 
@@ -351,6 +423,7 @@ func TestRPCGetNodes(t *testing.T) {
 		}),
 	).Return(clientBuf, nil)
 
+	node.On("ID").Return(cht.GetId())
 	node.On("Identity").Return(cht)
 
 	clientChan := make(chan *transport.StreamDelegate)
@@ -399,7 +472,8 @@ func TestRPCGetNodes(t *testing.T) {
 	as.NotNil(resp.ClientResponse.NodesResponse)
 
 	as.Len(resp.GetClientResponse().GetNodesResponse().GetNodes(), tun.NumRedundantLinks)
-	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn}))
+	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn, nodes[0], nodes[1]}))
+	as.False(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{nodes[2]}))
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)

@@ -183,10 +183,12 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 		}
 
 	case protocol.TunnelRPC_NODES:
-		vnodes := make([]chord.VNode, tun.NumRedundantLinks)
-		vnodes[0] = s.chord
-		successors, _ := s.chord.GetSuccessors()
-		copy(vnodes[1:], successors)
+		successors, err := s.chord.GetSuccessors()
+		if err != nil {
+			return nil, err
+		}
+
+		vnodes := chord.MakeSuccList(s.chord, successors, tun.NumRedundantLinks)
 
 		servers := make([]*protocol.Node, 0)
 		for _, chord := range vnodes {

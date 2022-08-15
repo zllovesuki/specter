@@ -44,3 +44,22 @@ func Between(low, target, high uint64, inclusive bool) bool {
 		return low < target || target < high || (inclusive && target == high)
 	}
 }
+
+// make successor list that will not have duplicate VNodes
+func MakeSuccList(immediate VNode, successors []VNode, maxLen int) []VNode {
+	succList := []VNode{immediate}
+	seen := make(map[uint64]bool)
+	seen[immediate.ID()] = true
+
+	for _, succ := range successors {
+		if len(succList) >= maxLen {
+			break
+		}
+		if succ == nil || seen[succ.ID()] {
+			continue
+		}
+		seen[succ.ID()] = true
+		succList = append(succList, succ)
+	}
+	return succList
+}

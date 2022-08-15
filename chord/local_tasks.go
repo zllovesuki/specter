@@ -22,25 +22,6 @@ func v2d(n []chord.VNode) []uint64 {
 	return x
 }
 
-// make successor list that will not have duplicate VNodes
-func makeSuccList(immediate chord.VNode, successors []chord.VNode) []chord.VNode {
-	succList := []chord.VNode{immediate}
-	seen := make(map[uint64]bool)
-	seen[immediate.ID()] = true
-
-	for _, succ := range successors {
-		if len(succList) >= chord.ExtendedSuccessorEntries+1 {
-			break
-		}
-		if succ == nil || seen[succ.ID()] {
-			continue
-		}
-		seen[succ.ID()] = true
-		succList = append(succList, succ)
-	}
-	return succList
-}
-
 // it is not safe to use xor under any ciscumstances as long as
 // we have the possbility of cyclical ring that will have ourself
 // in the successor list
@@ -70,13 +51,13 @@ func (n *LocalNode) stabilize() error {
 		newSucc, spErr := head.GetPredecessor()
 		newSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			succList = makeSuccList(head, newSuccList)
+			succList = chord.MakeSuccList(head, newSuccList, chord.ExtendedSuccessorEntries+1)
 			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
 				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					succList = makeSuccList(newSucc, newSuccList)
+					succList = chord.MakeSuccList(newSucc, newSuccList, chord.ExtendedSuccessorEntries+1)
 					modified = true
 				}
 			}
