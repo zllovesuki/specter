@@ -79,18 +79,33 @@ func getDialer(proto string, sn string) *tls.Dialer {
 	if sn != "" {
 		sni = sn + "." + testDomain
 	}
-	return &tls.Dialer{
+	dialer := &tls.Dialer{
 		Config: &tls.Config{
 			ServerName:         sni,
 			InsecureSkipVerify: true,
-			NextProtos:         []string{proto},
 		},
 	}
+	if proto != "" {
+		dialer.Config.NextProtos = []string{proto}
+	}
+	return dialer
 }
 
 func getQuicDialer(proto string, sn string) func(context.Context, string) (quic.EarlyConnection, error) {
 	return func(ctx context.Context, addr string) (quic.EarlyConnection, error) {
 		return quic.DialAddrEarlyContext(ctx, addr, getDialer(proto, sn).Config, nil)
+	}
+}
+
+func getH1Client(host string, port int) *http.Client {
+	return &http.Client{
+		Timeout: time.Second,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: false,
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return getDialer("", host).DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+			},
+		},
 	}
 }
 
@@ -246,6 +261,46 @@ func serveMiniClient(ch chan net.Conn, resp string) {
 		Handler: h2c.NewHandler(h, h2s),
 	}
 	h1.Serve(&miniClient{c: ch})
+}
+
+func TestH1HTTPFound(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+	testResponse := "this is fine"
+
+	c1, c2 := net.Pipe()
+	ch := make(chan net.Conn, 1)
+	go serveMiniClient(ch, testResponse)
+	defer close(ch)
+	ch <- c2
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
+	})).Return(c1, nil)
+
+	c := getH1Client(testHost, port)
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s", testHost, testDomain), nil)
+	as.NoError(err)
+
+	req.Host = "fail.com"
+
+	resp, err := c.Do(req)
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.Contains(string(b), testResponse)
+	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("false", resp.Header.Get("http3"))
+
+	mockS.AssertExpectations(t)
 }
 
 func TestH2HTTPFound(t *testing.T) {
