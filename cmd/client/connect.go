@@ -14,6 +14,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/libp2p/go-yamux/v3"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -117,14 +118,32 @@ func tlsDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transp
 			tun.ALPN(protocol.Link_TCP),
 		},
 	}
+	// used in integration test
+	if v, ok := ctx.App.Metadata["connectOverride"]; ok {
+		clientTLSConf.ServerName = v.(string)
+	}
+
 	dialer := &tls.Dialer{
 		Config: clientTLSConf,
 	}
-	return func() (io.ReadWriteCloser, error) {
-		openCtx, cancel := context.WithTimeout(ctx.Context, time.Second*3)
-		defer cancel()
 
-		return dialer.DialContext(openCtx, "tcp", parsed.String())
+	openCtx, cancel := context.WithTimeout(ctx.Context, time.Second*3)
+	defer cancel()
+
+	conn, err := dialer.DialContext(openCtx, "tcp", parsed.String())
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := yamux.DefaultConfig()
+	cfg.LogOutput = io.Discard
+	session, err := yamux.Client(conn, cfg, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return func() (io.ReadWriteCloser, error) {
+		return session.OpenStream(ctx.Context)
 	}, nil
 }
 

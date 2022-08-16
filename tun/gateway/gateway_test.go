@@ -23,6 +23,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/libp2p/go-yamux/v3"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/stretchr/testify/mock"
@@ -395,7 +396,17 @@ func TestH2TCPNotFound(t *testing.T) {
 	})).Return(nil, tun.ErrDestinationNotFound)
 
 	dialer := getDialer(tun.ALPN(protocol.Link_TCP), testHost)
-	stream, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	conn, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	as.NoError(err)
+
+	cfg := yamux.DefaultConfig()
+	cfg.LogOutput = io.Discard
+	session, err := yamux.Client(conn, cfg, nil)
+	as.NoError(err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := session.OpenStream(ctx)
 	as.NoError(err)
 
 	status := &protocol.TunnelStatus{}
@@ -476,21 +487,31 @@ func TestH2TCPFound(t *testing.T) {
 	conn, err := dialer.DialContext(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	as.NoError(err)
 
-	status := &protocol.TunnelStatus{}
-	err = rpc.Send(conn, status)
+	cfg := yamux.DefaultConfig()
+	cfg.LogOutput = io.Discard
+	session, err := yamux.Client(conn, cfg, nil)
 	as.NoError(err)
-	err = rpc.Receive(conn, status)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := session.OpenStream(ctx)
+	as.NoError(err)
+
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(stream, status)
+	as.NoError(err)
+	err = rpc.Receive(stream, status)
 	as.NoError(err)
 	as.True(status.Ok)
 
 	buf := make([]byte, bufLength)
 
 	rand.Read(buf)
-	n, err := conn.Write(buf)
+	n, err := stream.Write(buf)
 	as.NoError(err)
 	as.Equal(bufLength, n)
 
-	n, err = io.ReadFull(conn, buf)
+	n, err = io.ReadFull(stream, buf)
 	as.NoError(err)
 	as.Equal(bufLength, n)
 

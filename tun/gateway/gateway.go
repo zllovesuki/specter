@@ -3,7 +3,6 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/libp2p/go-yamux/v3"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"go.uber.org/zap"
@@ -148,85 +148,86 @@ func (g *Gateway) acceptHTTP3(ctx context.Context) {
 
 func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection) {
 	cs := q.ConnectionState().TLS
-	logger := g.Logger.With(zap.Bool("via-quic", true), zap.String("proto", cs.NegotiatedProtocol))
+	logger := g.Logger.With(zap.Bool("via-quic", true),
+		zap.String("proto", cs.NegotiatedProtocol),
+		zap.String("tls.ServerName", cs.ServerName),
+	)
 
 	switch cs.ServerName {
 	case "":
 		q.CloseWithError(0, "")
 	case g.RootDomain:
-		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
+		logger.Debug("forwarding apex connection")
 		g.http3ApexAcceptor.Handle(q)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tun.ALPN(protocol.Link_TCP):
-			for {
-				stream, err := q.AcceptStream(ctx)
-				if err != nil {
-					return
-				}
-				logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
-				go g.handleH3Stream(ctx, cs.ServerName, q, stream)
-			}
+			g.handleH3Multiplex(ctx, logger, q, cs.ServerName)
 		default:
-			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
+			logger.Debug("forwarding http connection")
 			g.http3TunnelAcceptor.Handle(q)
 		}
 	}
 }
 
-func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
-	var err error
-	logger := g.Logger.With(zap.Bool("via-quic", false))
-
-	defer func() {
+func (g *Gateway) handleH3Multiplex(ctx context.Context, logger *zap.Logger, q quic.EarlyConnection, host string) {
+	for {
+		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			logger.Debug("handle connection failure", zap.Error(err))
-			conn.Close()
+			return
 		}
-	}()
+		logger.Debug("forwarding tcp connection")
+		go g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream)
+	}
+}
 
-	hsCtx, hsCancel := context.WithTimeout(ctx, time.Second)
-	defer hsCancel()
-
-	err = conn.HandshakeContext(hsCtx)
-	if err != nil {
+func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
+	hsCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	defer cancel()
+	if err := conn.HandshakeContext(hsCtx); err != nil {
+		conn.Close()
 		return
 	}
 
 	cs := conn.ConnectionState()
-	logger = logger.With(zap.String("proto", cs.NegotiatedProtocol))
+	logger := g.Logger.With(zap.Bool("via-quic", false),
+		zap.String("proto", cs.NegotiatedProtocol),
+		zap.String("tls.ServerName", cs.ServerName))
 
 	switch cs.ServerName {
 	case "":
 		conn.Close()
 	case g.RootDomain:
-		logger.Debug("forwarding apex connection", zap.String("hostname", cs.ServerName))
+		logger.Debug("forwarding apex connection")
 		g.http2ApexAcceptor.Handle(conn)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
 		case tun.ALPN(protocol.Link_TCP):
-			logger.Debug("forwarding tcp connection", zap.String("hostname", cs.ServerName))
-			err = g.forwardTCP(ctx, cs.ServerName, conn.RemoteAddr().String(), conn)
-		case tun.ALPN(protocol.Link_UNKNOWN), tun.ALPN(protocol.Link_HTTP), tun.ALPN(protocol.Link_HTTP2):
-			logger.Debug("forwarding http connection", zap.String("hostname", cs.ServerName))
-			g.http2TunnelAcceptor.Handle(conn)
+			cfg := yamux.DefaultConfig()
+			cfg.LogOutput = io.Discard
+			session, err := yamux.Server(conn, cfg, nil)
+			if err != nil {
+				return
+			}
+			g.handleH2Multiplex(ctx, logger, session, cs.ServerName)
 		default:
-			err = fmt.Errorf("unknown alpn proposal")
+			logger.Debug("forwarding http connection")
+			g.http2TunnelAcceptor.Handle(conn)
 		}
 	}
 }
 
-func (g *Gateway) handleH3Stream(ctx context.Context, host string, q quic.EarlyConnection, stream quic.Stream) {
-	var err error
-	defer func() {
+func (g *Gateway) handleH2Multiplex(ctx context.Context, logger *zap.Logger, session *yamux.Session, host string) {
+	for {
+		stream, err := session.AcceptStream()
 		if err != nil {
-			g.Logger.Debug("handle connection failure", zap.Bool("via-quic", true), zap.Error(err))
-			stream.Close()
+			return
 		}
-	}()
-	err = g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream)
+		logger.Debug("forwarding tcp connection")
+		go g.forwardTCP(ctx, host, session.RemoteAddr().String(), stream)
+	}
 }
 
 func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn io.ReadWriteCloser) error {

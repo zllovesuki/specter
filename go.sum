@@ -110,6 +110,8 @@ github.com/zhangyunhao116/skipmap v0.9.1 h1:w9ei+cnzgl6TodHGDk+VXurlZfIonyB8X5mp
 github.com/zhangyunhao116/skipmap v0.9.1/go.mod h1:lr61q2jYDJMUFuSivumPxAJxygEkwXfSfIocXu6Qqxg=
 github.com/zhangyunhao116/skipset v0.12.1 h1:M2jfN/HrVNpm09YzyKypJBRAbHdfkT0nxnycSiiYJto=
 github.com/zhangyunhao116/skipset v0.12.1/go.mod h1:rUzqz6HEqu70eHS0Jr8bGEbaggULWcvSDrHRe7/4wAA=
+github.com/zllovesuki/go-yamux/v3 v3.1.3-0.20220816032912-3af9e3dc83d3 h1:qfLhFBdj93ZSLnSimFm6iSbdprw+lBvqDxNBiIhushI=
+github.com/zllovesuki/go-yamux/v3 v3.1.3-0.20220816032912-3af9e3dc83d3/go.mod h1:KM4e3zrxVOq+h7KtcZlDYbT1xCci79Tw8t09e+VMQhk=
 github.com/zllovesuki/quic-go v0.24.1-0.20220815035734-ecd9144c72d3 h1:pNCfYJ8Fo96di3345SXZT4Ast5xMPBvQlX0iHT1SRYQ=
 github.com/zllovesuki/quic-go v0.24.1-0.20220815035734-ecd9144c72d3/go.mod h1:CTcNfLYJS2UuRNB+zcNlgvkjBhxX6Hm3WUxxAQx2mgE=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=

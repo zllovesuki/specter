@@ -44,7 +44,7 @@ var Cmd = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
 					Name:  "tcp",
-					Usage: "fallback to connect to gateway via TCP instead of QUIC",
+					Usage: "fallback to connect to gateway via TLS/TCP instead of QUIC",
 				},
 			},
 			Action: cmdConnect,
@@ -56,7 +56,7 @@ var Cmd = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
 					Name:  "tcp",
-					Usage: "fallback to connect to gateway via TCP instead of QUIC. This is not recommended in listener mode.",
+					Usage: "fallback to connect to gateway via TLS/TCP instead of QUIC.",
 				},
 				&cli.StringFlag{
 					Name:        "listen",
