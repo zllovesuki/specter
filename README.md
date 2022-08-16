@@ -30,14 +30,14 @@ Similar to t, specter also:
 
 ## Status
 
-| **Component**  | Status | Description                                                |
-|----------------|--------|------------------------------------------------------------|
-| Chord DHT      | Stable | Chord implementation is stable to be used as a dependency  |
-| Chord KV       | Beta   | Key consistency is maintained during concurrent Join/Leave |
-| Tunnel Core    | Beta   | Storage format is subjected to change                      |
-| Tunnel Gateway | Alpha  |                                                            |
-| Server         | Beta   |                                                            |
-| Client         | Alpha  |                                                            |
+| **Component**  | Status | Description                                                 |
+|----------------|--------|-------------------------------------------------------------|
+| Chord DHT      | Stable | Chord implementation is stable to be used as a dependency   |
+| Chord KV       | Beta   | Key consistency is maintained during concurrent Join/Leave  |
+| Tunnel Core    | Beta   | Storage format is subjected to change                       |
+| Tunnel Gateway | Beta   | Unified multiplexing for TLS and QUIC with status feedback  |
+| Server         | Beta   | Server now supports persisting client tunnels               |
+| Client         | Beta   | Client can publish multiple tunnels with redundant links    |
 
 ## Roadmap
 
@@ -71,3 +71,6 @@ Key Consistency:
 - Partial atomic ring maintenance implementation: [Atomic Ring Maintenance for Distributed Hash Table](https://www.diva-portal.org/smash/get/diva2:1041775/FULLTEXT01.pdf), full dissertation is available [here](https://www.diva-portal.org/smash/get/diva2:1041220/FULLTEXT01.pdf)
     - We can see it in action in [concurrent_join.log](dev/concurrent_join.log) where the concurrent join attempt is blocked and asked to try again.
     - This is a departure from the paper where it asks for a lock queue.
+
+KV Persistence:
+- Inspired by Redis' AOF format, by appending log when mutation occurs, and replay mutation logs on start-up to restore state: [Redis persistence](https://redis.io/docs/manual/persistence/)

@@ -1,4 +1,13 @@
-version: '3.9`'
+version: '3.9'
+
+# Note:
+# 1. seed node should always be the first node to start, and the last node to stop.
+# Otherwise, kv data will become inconsistent (node crashing is okay).
+# 2. Default stop timeout is 10s, however we need much longer for all the nodes to
+# leave the ring gracefully (transferring keys to successor).
+# 3. To validate, `make dev-validate` should return the same serials in-between start
+# and stop. Also, /_internal/stats should not have keys that are belonging to the 
+# invalid owner.
 
 services:
   # simulate let's encrypt acme
@@ -19,6 +28,7 @@ services:
   seed:
     image: specter
     restart: unless-stopped
+    stop_grace_period: 120s
     depends_on:
       - pebble
     ports:
@@ -26,72 +36,96 @@ services:
       - "1113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+      - seed_kv:/app/data
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --cert-dir /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
+    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
     image: specter
     restart: unless-stopped
+    stop_grace_period: 120s
+    depends_on:
+      - seed
     ports:
       - "2113:1113/udp"
       - "2113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+      - srva_kv:/app/data
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --cert-dir /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter
     restart: unless-stopped
+    stop_grace_period: 120s
+    depends_on:
+      - seed
     ports:
       - "3113:1113/udp"
       - "3113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+      - srvb_kv:/app/data
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --cert-dir /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvc:
     image: specter
     restart: unless-stopped
+    stop_grace_period: 120s
+    depends_on:
+      - seed
     ports:
       - "4113:1113/udp"
       - "4113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+      - srvc_kv:/app/data
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --cert-dir /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvd:
     image: specter
     restart: unless-stopped
+    stop_grace_period: 120s
+    depends_on:
+      - seed
     ports:
       - "5113:1113/udp"
       - "5113:1113/tcp"
     volumes:
       - ./certs:/certs:ro
+      - srvd_kv:/app/data
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --cert-dir /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+
+volumes:
+  seed_kv:
+  srva_kv:
+  srvb_kv:
+  srvc_kv:
+  srvd_kv:
 
 networks:
   specter:

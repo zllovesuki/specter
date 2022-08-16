@@ -253,5 +253,8 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 		return fmt.Errorf("storing KV to successor: %w", err)
 	}
 
+	// TODO: remove this when we implement replication
+	n.kv.RemoveKeys(keys)
+
 	return nil
 }
