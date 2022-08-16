@@ -74,3 +74,17 @@ func (d *DiskKV) appendLog(mut *proto.Mutation) error {
 	d.counter += 1
 	return nil
 }
+
+func (d *DiskKV) rollbackOne(mut *proto.Mutation, err error) {
+	d.logger.Warn("Rolling back last mutation because of an error",
+		zap.String("mutation", mut.GetType().String()),
+		zap.Uint64("truncate", d.counter-2),
+		zap.Uint64("index", d.counter-1),
+		zap.Error(err),
+	)
+	d.counter -= 1
+	if err := d.log.TruncateBack(d.counter - 1); err != nil {
+		d.logger.Error("Error applying rollback to the last mutation",
+			zap.Error(err))
+	}
+}

@@ -2,6 +2,7 @@ package aof
 
 import (
 	"fmt"
+	"io/fs"
 	"sync"
 	"time"
 
@@ -93,7 +94,6 @@ func (d *DiskKV) Start() {
 
 	d.logger.Info("Periodically flushing logs to disk", zap.Duration("interval", d.flushInterval))
 
-	var err error
 	for {
 		select {
 		case <-d.closeCh:
@@ -103,11 +103,19 @@ func (d *DiskKV) Start() {
 				d.logger.Error("Error flushing logs periodically", zap.Error(err))
 			}
 		case m := <-d.queue:
-			err = d.appendLog(m.mut)
-			if err == nil {
-				err = d.handleMutation(m.mut)
+			var mutError error
+			if logError := d.appendLog(m.mut); logError == nil {
+				mutError = d.handleMutation(m.mut)
+				if mutError != nil {
+					d.rollbackOne(m.mut, mutError)
+				}
+			} else {
+				d.logger.Error("Error appending mutation log",
+					zap.String("mutation", m.mut.GetType().String()),
+					zap.Error(logError))
+				mutError = fs.ErrInvalid
 			}
-			m.err <- err
+			m.err <- mutError
 		}
 	}
 }

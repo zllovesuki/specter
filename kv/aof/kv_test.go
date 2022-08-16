@@ -297,3 +297,48 @@ func TestVolatile(t *testing.T) {
 
 	kv.Stop()
 }
+
+func TestConflictRollback(t *testing.T) {
+	as := require.New(t)
+	logger, err := zap.NewDevelopment()
+	as.NoError(err)
+
+	dir1, err := os.MkdirTemp("", "aof")
+	as.NoError(err)
+	defer os.RemoveAll(dir1)
+
+	cfg1 := Config{
+		Logger:        logger,
+		HasnFn:        chord.Hash,
+		DataDir:       dir1,
+		FlushInterval: time.Millisecond * 500,
+	}
+
+	kv, err := New(cfg1)
+	as.NoError(err)
+	go kv.Start()
+
+	err = kv.PrefixAppend([]byte("prefix"), []byte("child"))
+	as.NoError(err)
+	err = kv.PrefixAppend([]byte("prefix"), []byte("child"))
+	as.ErrorIs(err, chord.ErrKVPrefixConflict)
+
+	err = kv.PrefixAppend([]byte("prefix"), []byte("grandchild"))
+	as.NoError(err)
+
+	kv.Stop()
+
+	kv, err = New(cfg1)
+	as.NoError(err)
+	go kv.Start()
+
+	has, err := kv.PrefixContains([]byte("prefix"), []byte("child"))
+	as.NoError(err)
+	as.True(has)
+
+	has, err = kv.PrefixContains([]byte("prefix"), []byte("grandchild"))
+	as.NoError(err)
+	as.True(has)
+
+	kv.Stop()
+}
