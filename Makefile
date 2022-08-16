@@ -79,6 +79,16 @@ proto:
 		--go-vtproto_opt=pool=kon.nect.sh/specter/spec/protocol.RPC \
 		./spec/proto/*.proto
 
+proto_aof_kv:
+	protoc \
+		--go_opt=module=kon.nect.sh/specter \
+		--go-vtproto_opt=module=kon.nect.sh/specter \
+		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
+		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
+		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
+		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.Mutation \
+		./kv/aof/proto/*.proto
+
 dep:
 	go install golang.org/x/tools/cmd/stringer@latest
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
