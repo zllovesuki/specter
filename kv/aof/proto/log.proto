@@ -1,0 +1,17 @@
+syntax = "proto3";
+package proto;
+
+option optimize_for = SPEED;
+option go_package = "kon.nect.sh/specter/kv/aof/proto";
+
+enum LogVersion {
+    UNKNOWN_VERSION = 0;
+
+    // uncompressed
+    V1 = 1;
+}
+
+message LogEntry {
+    LogVersion version = 1;
+    bytes data = 2;
+}

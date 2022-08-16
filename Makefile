@@ -89,6 +89,7 @@ proto_aof_kv:
 		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
 		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
 		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.Mutation \
+		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.LogEntry \
 		./kv/aof/proto/*.proto
 
 dep:
