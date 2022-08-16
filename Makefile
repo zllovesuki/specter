@@ -92,6 +92,9 @@ proto_aof_kv:
 		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.LogEntry \
 		./kv/aof/proto/*.proto
 
+benchmark_kv:
+	go test -benchmem -bench=. -benchtime=10s -cpu 1,2,4 ./kv
+
 dep:
 	go install golang.org/x/tools/cmd/stringer@latest
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
