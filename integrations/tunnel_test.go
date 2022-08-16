@@ -56,6 +56,12 @@ func TestTunnel(t *testing.T) {
 
 	as := require.New(t)
 
+	// ====== SETUP DEPENDENCIES ======
+
+	dir, err := os.MkdirTemp("", "integration")
+	as.NoError(err)
+	defer os.RemoveAll(dir)
+
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(testBody))
 	}))
@@ -77,11 +83,15 @@ func TestTunnel(t *testing.T) {
 	as.NoError(err)
 	as.NoError(file.Close())
 
+	// ====== START SERVER AND CLIENT ======
+
 	serverArgs := []string{
 		"specter",
 		"server",
 		"--cert-dir",
 		"../certs",
+		"--data-dir",
+		dir,
 		"--listen",
 		fmt.Sprintf("127.0.0.1:%d", serverPort),
 		"--apex",
