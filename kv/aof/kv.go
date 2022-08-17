@@ -3,6 +3,7 @@ package aof
 import (
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	LogDir = "wal"
+)
+
 type DiskKV struct {
 	writeBarrier  sync.RWMutex
 	logger        *zap.Logger
@@ -23,6 +28,7 @@ type DiskKV struct {
 	log           *wal.Log
 	closeCh       chan struct{}
 	closed        *atomic.Bool
+	cfg           Config
 	counter       uint64
 	flushInterval time.Duration
 }
@@ -55,13 +61,16 @@ type mutationReq struct {
 	err chan error
 }
 
-var _ chord.KVProvider = (*DiskKV)(nil)
+func logPath(dir string) string {
+	return filepath.Join(dir, LogDir)
+}
 
 func New(cfg Config) (*DiskKV, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	l, err := wal.Open(cfg.DataDir, &wal.Options{
+	// store log to wal/ subdirectory to support future snapshot
+	l, err := wal.Open(logPath(cfg.DataDir), &wal.Options{
 		SegmentSize:      2 * 1024 * 1024, // 2MB
 		SegmentCacheSize: 4,               // 8MB
 		LogFormat:        wal.Binary,
@@ -79,6 +88,7 @@ func New(cfg Config) (*DiskKV, error) {
 		closeCh:       make(chan struct{}),
 		closed:        atomic.NewBool(false),
 		flushInterval: cfg.FlushInterval,
+		cfg:           cfg,
 	}
 	d.logger.Info("Using append only log for kv storage", zap.String("dir", cfg.DataDir))
 
@@ -138,3 +148,5 @@ func (d *DiskKV) Stop() {
 		d.logger.Error("Error closing log file", zap.Error(err))
 	}
 }
+
+var _ chord.KVProvider = (*DiskKV)(nil)
