@@ -21,6 +21,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type DeadlineReadWriteCloser interface {
+	io.ReadWriteCloser
+	SetReadDeadline(time.Time) error
+}
+
 type GatewayConfig struct {
 	Tun          tun.Server
 	H2Listener   net.Listener
@@ -116,6 +121,14 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
 	go g.h3ApexServer.ServeListener(g.http3ApexAcceptor)
 	go g.acceptHTTP3(ctx)
+
+	<-ctx.Done()
+
+	g.h2TunnelServer.Close()
+	g.h2ApexServer.Close()
+	g.h3TunnelServer.Close()
+	g.h3ApexServer.Close()
+
 }
 
 func (g *Gateway) Close() {
@@ -177,8 +190,11 @@ func (g *Gateway) handleH3Multiplex(ctx context.Context, logger *zap.Logger, q q
 		if err != nil {
 			return
 		}
-		logger.Debug("forwarding tcp connection")
-		go g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream)
+		go func(stream DeadlineReadWriteCloser) {
+			if err := g.forwardTCP(ctx, host, q.RemoteAddr().String(), stream); err == nil {
+				logger.Debug("forwarding tcp connection")
+			}
+		}(stream)
 	}
 }
 
@@ -225,12 +241,15 @@ func (g *Gateway) handleH2Multiplex(ctx context.Context, logger *zap.Logger, ses
 		if err != nil {
 			return
 		}
-		logger.Debug("forwarding tcp connection")
-		go g.forwardTCP(ctx, host, session.RemoteAddr().String(), stream)
+		go func(stream DeadlineReadWriteCloser) {
+			if err := g.forwardTCP(ctx, host, session.RemoteAddr().String(), stream); err == nil {
+				logger.Debug("forwarding tcp connection")
+			}
+		}(stream)
 	}
 }
 
-func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn io.ReadWriteCloser) error {
+func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn DeadlineReadWriteCloser) error {
 	var c net.Conn
 	var err error
 	defer func() {
@@ -243,10 +262,12 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 
 	// because of quic's early connection, the client need to "poke" us before
 	// we can actually accept a stream, despite .OpenStreamSync
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	err = tun.DrainStatusProto(conn)
 	if err != nil {
 		return err
 	}
+	conn.SetReadDeadline(time.Time{})
 
 	parts := strings.SplitN(host, ".", 2)
 	c, err = g.Tun.Dial(ctx, &protocol.Link{

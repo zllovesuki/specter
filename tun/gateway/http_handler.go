@@ -70,19 +70,20 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 
 	if errors.Is(e, tun.ErrDestinationNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.URL.Hostname())
+		fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.TLS.ServerName)
 		return
 	}
 
-	g.Logger.Debug("forwarding http/https request", zap.Error(e))
+	if errors.Is(e, context.Canceled) {
+		// this is expected
+		return
+	}
+
+	g.Logger.Debug("error forwarding http/https request", zap.Error(e))
 
 	if tun.IsTimeout(e) {
 		w.WriteHeader(http.StatusGatewayTimeout)
 		fmt.Fprintf(w, "Destination %s is taking too long to respond.", r.URL.Hostname())
-		return
-	}
-	if errors.Is(e, context.Canceled) {
-		// this is expected
 		return
 	}
 

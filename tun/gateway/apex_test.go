@@ -136,3 +136,25 @@ func TestInternalDisabled(t *testing.T) {
 
 	mockS.AssertExpectations(t)
 }
+
+func TestLogo(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	c := getH3Client("", port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s/quic.png", testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.EqualValues(quicPng, b)
+	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("true", resp.Header.Get("http3"))
+
+	mockS.AssertExpectations(t)
+}
