@@ -38,12 +38,14 @@ yeet-server:
 	docker compose -f compose-server.yaml stop
 	docker compose -f compose-server.yaml rm
 	docker image prune -f
+	docker volume prune -f
 
 yeet-client:
 	docker compose -f compose-client.yaml down
 	docker compose -f compose-client.yaml stop
 	docker compose -f compose-client.yaml rm
 	docker image prune -f
+	docker volume prune -f
 
 buildx-validator:
 	docker buildx build -t validator -f Dockerfile.validator .
@@ -78,6 +80,20 @@ proto:
 		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
 		--go-vtproto_opt=pool=kon.nect.sh/specter/spec/protocol.RPC \
 		./spec/proto/*.proto
+
+proto_aof_kv:
+	protoc \
+		--go_opt=module=kon.nect.sh/specter \
+		--go-vtproto_opt=module=kon.nect.sh/specter \
+		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
+		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
+		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
+		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.Mutation \
+		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.LogEntry \
+		./kv/aof/proto/*.proto
+
+benchmark_kv:
+	go test -benchmem -bench=. -benchtime=10s -cpu 1,2,4 ./kv
 
 dep:
 	go install golang.org/x/tools/cmd/stringer@latest

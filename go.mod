@@ -14,6 +14,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.0
+	github.com/tidwall/wal v1.1.7
 	github.com/urfave/cli/v2 v2.11.2
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
@@ -51,6 +52,10 @@ require (
 	github.com/rivo/uniseg v0.3.4 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/tidwall/gjson v1.10.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/tinylru v1.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

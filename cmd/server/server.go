@@ -15,7 +15,7 @@ import (
 	"kon.nect.sh/specter/acme/storage"
 	"kon.nect.sh/specter/chord"
 	ds "kon.nect.sh/specter/dev/server"
-	"kon.nect.sh/specter/kv/memory"
+	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
 	chordSpec "kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
@@ -42,9 +42,16 @@ var Cmd = &cli.Command{
 	ArgsUsage: " ",
 	Flags: []cli.Flag{
 		&cli.PathFlag{
-			Name: "cert-dir",
-			Usage: `location to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes
+			Name:    "cert-dir",
+			Aliases: []string{"cert"},
+			Usage: `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes
 			Warning: do not use certificates issued by public CA, otherwise anyone can join your specter network`,
+			Required: true,
+		},
+		&cli.PathFlag{
+			Name:     "data-dir",
+			Aliases:  []string{"data"},
+			Usage:    "path to directory that will be used for persisting non-volatile KV data",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -247,12 +254,29 @@ func cmdServer(ctx *cli.Context) error {
 		advertise = ctx.String("advertise-addr")
 	}
 
+	kvProvider, err := aof.New(aof.Config{
+		Logger:        logger.With(zap.String("component", "kv")),
+		HasnFn:        chordSpec.Hash,
+		DataDir:       ctx.String("data-dir"),
+		FlushInterval: time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("initializing kv storage: %w", err)
+	}
+	defer kvProvider.Stop()
+
+	// TODO: make these less dependent on changeable parameters
+	chordName := fmt.Sprintf("chord://%s", advertise)
+	tunnelName := fmt.Sprintf("tunnel://%s", advertise)
+
+	logger.Info("Using advertise addresses as identities", zap.String("chord", chordName), zap.String("tunnel", tunnelName))
+
 	chordIdentity := &protocol.Node{
-		Id:      chordSpec.Random(),
+		Id:      chordSpec.Hash([]byte(chordName)),
 		Address: advertise,
 	}
 	serverIdentity := &protocol.Node{
-		Id:      chordSpec.Random(),
+		Id:      chordSpec.Hash([]byte(tunnelName)),
 		Address: advertise,
 	}
 
@@ -299,7 +323,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		Transport:                chordTransport,
-		KVProvider:               memory.WithHashFn(chordSpec.Hash),
+		KVProvider:               kvProvider,
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
@@ -314,6 +338,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 	go chordNode.HandleRPC(ctx.Context)
+	go kvProvider.Start()
 
 	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {

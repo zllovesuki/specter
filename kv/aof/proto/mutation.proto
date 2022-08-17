@@ -1,0 +1,31 @@
+syntax = "proto3";
+package proto;
+
+option optimize_for = SPEED;
+option go_package = "kon.nect.sh/specter/kv/aof/proto";
+
+import "spec/proto/kv.proto";
+
+enum MutationType {
+    UNKNOWN_TYPE = 0;
+
+    SIMPLE_PUT = 1;
+    SIMPLE_DELETE = 3;
+
+    PREFIX_APPEND = 5;
+    PREFIX_REMOVE = 7;
+
+    IMPORT = 20;
+    REMOVE_KEYS = 21;
+}
+
+message Mutation {
+    MutationType type = 1;
+
+    bytes key = 2;
+    bytes value = 3;
+
+    repeated bytes keys = 10;
+
+    repeated protocol.KVTransfer values = 20;
+}

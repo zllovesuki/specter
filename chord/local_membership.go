@@ -214,7 +214,7 @@ func (n *LocalNode) Leave() {
 		}
 	}
 	n.state.Set(chord.Left) // release local leave lock
-	if succ != nil {
+	if succ != nil && succ.ID() != n.ID() {
 		if err := succ.FinishLeave(false, true); err != nil { // if applicable, release successor leave lock
 			n.Logger.Warn("error releasing leave lock in successor", zap.Error(err))
 		}
@@ -222,9 +222,16 @@ func (n *LocalNode) Leave() {
 }
 
 func (n *LocalNode) executeLeave() (chord.VNode, error) {
+	pre := n.getPredecessor()
+	if pre == nil {
+		return nil, fmt.Errorf("retrying on nil predecessor")
+	}
 	succ := n.getSuccessor()
-	if succ == nil || succ.ID() == n.ID() {
-		n.Logger.Debug("Skipping key transfer to successor because successor is either nil or ourself")
+	if succ == nil {
+		return nil, chord.ErrNodeNoSuccessor
+	}
+	if pre.ID() == n.ID() && succ.ID() == n.ID() {
+		n.Logger.Debug("Skipping key transfer to successor because we are the only one left")
 		return nil, nil
 	}
 
@@ -253,12 +260,19 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 
 	n.surrogateMu.Lock()
 	defer n.surrogateMu.Unlock()
-	n.surrogate = n.Identity()
 
 	// kv requests are now blocked
 	if err := n.transferKeysDownward(succ); err != nil {
-		n.Logger.Error("Transfering KV to successor", zap.Error(err), zap.Uint64("successor", succ.ID()))
+		n.Logger.Error("Transfering KV to successor", zap.Uint64("successor", succ.ID()), zap.Error(err))
+		// release held lock and try again
+		n.state.Set(chord.Active)
+		if err := succ.FinishLeave(false, true); err != nil {
+			n.Logger.Warn("error releasing leave lock in successor", zap.Error(err))
+		}
+		return nil, err
 	}
+
+	n.surrogate = n.Identity()
 
 	return succ, nil
 }
