@@ -227,6 +227,9 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 		return nil, fmt.Errorf("retrying on nil predecessor")
 	}
 	succ := n.getSuccessor()
+	if succ == nil {
+		return nil, chord.ErrNodeNoSuccessor
+	}
 	if pre.ID() == n.ID() && succ.ID() == n.ID() {
 		n.Logger.Debug("Skipping key transfer to successor because we are the only one left")
 		return nil, nil
