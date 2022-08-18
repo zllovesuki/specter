@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
@@ -227,6 +228,12 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 		if len(requested) < 1 {
 			return nil, fmt.Errorf("no servers specified in request")
 		}
+
+		lease, err := s.chord.Acquire([]byte(tun.ClientLeaseKey(token)), time.Second*30)
+		if err != nil {
+			return nil, fmt.Errorf("error acquiring token: %w", err)
+		}
+		defer s.chord.Release([]byte(tun.ClientLeaseKey(token)), lease)
 
 		hostname := req.GetTunnelRequest().GetHostname()
 		b, err := s.chord.PrefixContains([]byte(tun.ClientHostnamesPrefix(token)), []byte(hostname))

@@ -646,6 +646,21 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		}),
 	).Return(pairBuf, nil)
 
+	fakeLease := uint64(1234)
+	node.On("Acquire",
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		mock.Anything,
+	).Return(fakeLease, nil)
+
+	node.On("Release",
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		fakeLease,
+	).Return(nil)
+
 	node.On("Put",
 		mock.MatchedBy(func(k []byte) bool {
 			return true
@@ -720,6 +735,21 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	).Return(clientBuf, nil)
 
 	node.On("PrefixContains", mock.Anything, mock.Anything).Return(false, nil).Once()
+
+	fakeLease := uint64(1234)
+	node.On("Acquire",
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		mock.Anything,
+	).Return(fakeLease, nil).Once()
+
+	node.On("Release",
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		fakeLease,
+	).Return(nil).Once()
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("RPC").Return(clientChan)

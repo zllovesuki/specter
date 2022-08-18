@@ -25,3 +25,7 @@ func ClientTokenKey(token *protocol.ClientToken) string {
 func ClientHostnamesPrefix(token *protocol.ClientToken) string {
 	return fmt.Sprintf("/tunnel/client/hostnames/%s", token.GetToken())
 }
+
+func ClientLeaseKey(token *protocol.ClientToken) string {
+	return fmt.Sprintf("/tunnel/client/lease/%s", token.GetToken())
+}
