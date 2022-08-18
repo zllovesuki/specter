@@ -1,10 +1,12 @@
 package tun
 
 import (
+	"errors"
 	"io"
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 )
 
 const (
@@ -12,11 +14,14 @@ const (
 )
 
 func SendStatusProto(dest io.Writer, err error) {
-	status := &protocol.TunnelStatus{
-		Ok: true,
-	}
+	status := &protocol.TunnelStatus{}
 	if err != nil {
-		status.Ok = false
+		if errors.Is(err, ErrTunnelClientNotConnected) ||
+			errors.Is(err, transport.ErrNoDirect) {
+			status.Status = protocol.TunnelStatusCode_NO_DIRECT
+		} else {
+			status.Status = protocol.TunnelStatusCode_UKNOWN_ERROR
+		}
 		status.Error = err.Error()
 	}
 	rpc.Send(dest, status)

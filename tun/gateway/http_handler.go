@@ -70,7 +70,13 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 
 	if errors.Is(e, tun.ErrDestinationNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Destination %s not found on the Chord network.", r.TLS.ServerName)
+		fmt.Fprintf(w, "Destination %s not found on the specter network.", r.TLS.ServerName)
+		return
+	}
+
+	if errors.Is(e, tun.ErrTunnelClientNotConnected) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintf(w, "Destination %s is not connected to specter network.", r.TLS.ServerName)
 		return
 	}
 
@@ -88,6 +94,6 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 	}
 
 	g.Logger.Error("forwarding to client", zap.Error(e))
-	w.WriteHeader(http.StatusServiceUnavailable)
+	w.WriteHeader(http.StatusBadGateway)
 	fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
 }

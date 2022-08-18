@@ -180,6 +180,9 @@ func TestLookupSuccessRemote(t *testing.T) {
 		err := rpc.Receive(c2, bundle)
 		as.Nil(err)
 
+		// remote node need to send feedback
+		tun.SendStatusProto(c2, nil)
+
 		// then receive the link information
 		l := &protocol.Link{}
 		err = rpc.Receive(c2, l)

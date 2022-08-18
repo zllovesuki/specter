@@ -104,7 +104,7 @@ func getConnection(dial transportDialer) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !status.Ok {
+	if status.GetStatus() != protocol.TunnelStatusCode_STATUS_OK {
 		return nil, fmt.Errorf("error opening tunnel: %s", status.Error)
 	}
 	return rw, nil

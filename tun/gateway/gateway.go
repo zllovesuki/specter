@@ -255,6 +255,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	defer func() {
 		if err != nil {
 			tun.SendStatusProto(conn, err)
+			conn.Close()
 			return
 		}
 		go tun.Pipe(conn, c)

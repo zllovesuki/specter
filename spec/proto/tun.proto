@@ -109,7 +109,14 @@ message IdentitiesPair {
     Node tun = 2;
 }
 
+enum TunnelStatusCode {
+    STATUS_OK = 0;
+
+    UKNOWN_ERROR = 1;
+    NO_DIRECT = 2;
+}
+
 message TunnelStatus {
-    bool ok = 1;
-    string error = 2;
+    TunnelStatusCode status = 2;
+    string error = 3;
 }

@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	ErrDestinationNotFound = fmt.Errorf("tun: tunnel not found on chord")
+	ErrDestinationNotFound      = fmt.Errorf("tun: tunnel not found on specter network")
+	ErrTunnelClientNotConnected = fmt.Errorf("tun: tunnel client is not connected to any nodes")
 )
 
 type Server interface {

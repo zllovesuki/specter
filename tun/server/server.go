@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -57,7 +58,7 @@ func (s *Server) Accept(ctx context.Context) {
 			return
 
 		case delegate := <-s.chordTransport.Direct():
-			go s.handleConn(ctx, delegate)
+			go s.handleProxyConn(ctx, delegate)
 
 		case delegate := <-s.clientTransport.Direct():
 			// client uses this to register connection
@@ -67,14 +68,17 @@ func (s *Server) Accept(ctx context.Context) {
 	}
 }
 
-func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDelegate) {
+func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.StreamDelegate) {
 	var err error
 	var clientConn net.Conn
 
 	defer func() {
 		if err != nil {
+			tun.SendStatusProto(delegation.Connection, err)
 			delegation.Connection.Close()
+			return
 		}
+		tun.Pipe(delegation.Connection, clientConn)
 	}()
 
 	bundle := &protocol.Tunnel{}
@@ -102,11 +106,9 @@ func (s *Server) handleConn(ctx context.Context, delegation *transport.StreamDel
 	}
 	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
 	if err != nil {
-		l.Error("dialing connection to connected client")
+		l.Error("dialing connection to connected client", zap.Error(err))
 		return
 	}
-
-	tun.Pipe(delegation.Connection, clientConn)
 }
 
 func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn, error) {
@@ -131,12 +133,25 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 			l.Error("sending remote tunnel negotiation", zap.Error(err))
 			return nil, err
 		}
-		return conn, nil
+		status := &protocol.TunnelStatus{}
+		if err := rpc.Receive(conn, status); err != nil {
+			l.Error("receiving remote tunnel status", zap.Error(err))
+			return nil, err
+		}
+		switch status.GetStatus() {
+		case protocol.TunnelStatusCode_STATUS_OK:
+			return conn, nil
+		case protocol.TunnelStatusCode_NO_DIRECT:
+			return nil, tun.ErrTunnelClientNotConnected
+		default:
+			return nil, fmt.Errorf(status.GetError())
+		}
 	}
 }
 
-// TODO: make this more intelligent.
+// TODO: make routing selection more intelligent
 func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
+	isNoDirect := false
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.RoutingKey(link.GetHostname(), k)
 		val, err := s.chord.Get([]byte(key))
@@ -154,6 +169,9 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 		clientConn, err := s.getConn(ctx, bundle)
 		if err != nil {
 			s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
+			if err == tun.ErrTunnelClientNotConnected {
+				isNoDirect = true
+			}
 			continue
 		}
 		if err := rpc.Send(clientConn, link); err != nil {
@@ -163,6 +181,10 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 		}
 		// TODO: optionally cache the routing information
 		return clientConn, nil
+	}
+
+	if isNoDirect {
+		return nil, tun.ErrTunnelClientNotConnected
 	}
 
 	return nil, tun.ErrDestinationNotFound

@@ -829,17 +829,12 @@ func (m *TunnelStatus) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Error)
 		i = encodeVarint(dAtA, i, uint64(len(m.Error)))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0x1a
 	}
-	if m.Ok {
+	if m.Status != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.Status))
 		i--
-		if m.Ok {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x8
+		dAtA[i] = 0x10
 	}
 	return len(dAtA) - i, nil
 }
@@ -1158,8 +1153,8 @@ func (m *TunnelStatus) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Ok {
-		n += 2
+	if m.Status != 0 {
+		n += 1 + sov(uint64(m.Status))
 	}
 	l = len(m.Error)
 	if l > 0 {
@@ -3011,11 +3006,11 @@ func (m *TunnelStatus) UnmarshalVT(dAtA []byte) error {
 			return fmt.Errorf("proto: TunnelStatus: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
+		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ok", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
 			}
-			var v int
+			m.Status = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -3025,13 +3020,12 @@ func (m *TunnelStatus) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int(b&0x7F) << shift
+				m.Status |= TunnelStatusCode(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Ok = bool(v != 0)
-		case 2:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}

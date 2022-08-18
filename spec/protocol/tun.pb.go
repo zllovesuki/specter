@@ -79,6 +79,55 @@ func (TunnelRPC) EnumDescriptor() ([]byte, []int) {
 	return file_spec_proto_tun_proto_rawDescGZIP(), []int{0}
 }
 
+type TunnelStatusCode int32
+
+const (
+	TunnelStatusCode_STATUS_OK    TunnelStatusCode = 0
+	TunnelStatusCode_UKNOWN_ERROR TunnelStatusCode = 1
+	TunnelStatusCode_NO_DIRECT    TunnelStatusCode = 2
+)
+
+// Enum value maps for TunnelStatusCode.
+var (
+	TunnelStatusCode_name = map[int32]string{
+		0: "STATUS_OK",
+		1: "UKNOWN_ERROR",
+		2: "NO_DIRECT",
+	}
+	TunnelStatusCode_value = map[string]int32{
+		"STATUS_OK":    0,
+		"UKNOWN_ERROR": 1,
+		"NO_DIRECT":    2,
+	}
+)
+
+func (x TunnelStatusCode) Enum() *TunnelStatusCode {
+	p := new(TunnelStatusCode)
+	*p = x
+	return p
+}
+
+func (x TunnelStatusCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TunnelStatusCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_spec_proto_tun_proto_enumTypes[1].Descriptor()
+}
+
+func (TunnelStatusCode) Type() protoreflect.EnumType {
+	return &file_spec_proto_tun_proto_enumTypes[1]
+}
+
+func (x TunnelStatusCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TunnelStatusCode.Descriptor instead.
+func (TunnelStatusCode) EnumDescriptor() ([]byte, []int) {
+	return file_spec_proto_tun_proto_rawDescGZIP(), []int{1}
+}
+
 type Link_ALPN int32
 
 const (
@@ -121,11 +170,11 @@ func (x Link_ALPN) String() string {
 }
 
 func (Link_ALPN) Descriptor() protoreflect.EnumDescriptor {
-	return file_spec_proto_tun_proto_enumTypes[1].Descriptor()
+	return file_spec_proto_tun_proto_enumTypes[2].Descriptor()
 }
 
 func (Link_ALPN) Type() protoreflect.EnumType {
-	return &file_spec_proto_tun_proto_enumTypes[1]
+	return &file_spec_proto_tun_proto_enumTypes[2]
 }
 
 func (x Link_ALPN) Number() protoreflect.EnumNumber {
@@ -974,8 +1023,8 @@ type TunnelStatus struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Ok    bool   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	Status TunnelStatusCode `protobuf:"varint,2,opt,name=status,proto3,enum=protocol.TunnelStatusCode" json:"status,omitempty"`
+	Error  string           `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 }
 
 func (x *TunnelStatus) Reset() {
@@ -1010,11 +1059,11 @@ func (*TunnelStatus) Descriptor() ([]byte, []int) {
 	return file_spec_proto_tun_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *TunnelStatus) GetOk() bool {
+func (x *TunnelStatus) GetStatus() TunnelStatusCode {
 	if x != nil {
-		return x.Ok
+		return x.Status
 	}
-	return false
+	return TunnelStatusCode_STATUS_OK
 }
 
 func (x *TunnelStatus) GetError() string {
@@ -1167,23 +1216,30 @@ var file_spec_proto_tun_proto_rawDesc = []byte{
 	0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52,
 	0x05, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x12, 0x20, 0x0a, 0x03, 0x74, 0x75, 0x6e, 0x18, 0x02, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e,
-	0x6f, 0x64, 0x65, 0x52, 0x03, 0x74, 0x75, 0x6e, 0x22, 0x34, 0x0a, 0x0c, 0x54, 0x75, 0x6e, 0x6e,
-	0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x0e, 0x0a, 0x02, 0x6f, 0x6b, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x08, 0x52, 0x02, 0x6f, 0x6b, 0x12, 0x14, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f,
-	0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x2a, 0x59,
-	0x0a, 0x09, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x50, 0x43, 0x12, 0x0f, 0x0a, 0x0b, 0x55,
-	0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x52, 0x50, 0x43, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08,
-	0x49, 0x44, 0x45, 0x4e, 0x54, 0x49, 0x54, 0x59, 0x10, 0x01, 0x12, 0x09, 0x0a, 0x05, 0x4e, 0x4f,
-	0x44, 0x45, 0x53, 0x10, 0x02, 0x12, 0x0c, 0x0a, 0x08, 0x48, 0x4f, 0x53, 0x54, 0x4e, 0x41, 0x4d,
-	0x45, 0x10, 0x03, 0x12, 0x0a, 0x0a, 0x06, 0x54, 0x55, 0x4e, 0x4e, 0x45, 0x4c, 0x10, 0x04, 0x12,
-	0x08, 0x0a, 0x04, 0x50, 0x49, 0x4e, 0x47, 0x10, 0x05, 0x3a, 0x40, 0x0a, 0x09, 0x61, 0x6c, 0x70,
-	0x6e, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x21, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6e, 0x75, 0x6d, 0x56, 0x61, 0x6c,
-	0x75, 0x65, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0xe2, 0xa7, 0x03, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x08, 0x61, 0x6c, 0x70, 0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x42, 0x25, 0x48, 0x01, 0x5a,
-	0x21, 0x6b, 0x6f, 0x6e, 0x2e, 0x6e, 0x65, 0x63, 0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65,
-	0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x64, 0x65, 0x52, 0x03, 0x74, 0x75, 0x6e, 0x22, 0x58, 0x0a, 0x0c, 0x54, 0x75, 0x6e, 0x6e,
+	0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x32, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
+	0x43, 0x6f, 0x64, 0x65, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x14, 0x0a, 0x05,
+	0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x65, 0x72, 0x72,
+	0x6f, 0x72, 0x2a, 0x59, 0x0a, 0x09, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x50, 0x43, 0x12,
+	0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x52, 0x50, 0x43, 0x10, 0x00,
+	0x12, 0x0c, 0x0a, 0x08, 0x49, 0x44, 0x45, 0x4e, 0x54, 0x49, 0x54, 0x59, 0x10, 0x01, 0x12, 0x09,
+	0x0a, 0x05, 0x4e, 0x4f, 0x44, 0x45, 0x53, 0x10, 0x02, 0x12, 0x0c, 0x0a, 0x08, 0x48, 0x4f, 0x53,
+	0x54, 0x4e, 0x41, 0x4d, 0x45, 0x10, 0x03, 0x12, 0x0a, 0x0a, 0x06, 0x54, 0x55, 0x4e, 0x4e, 0x45,
+	0x4c, 0x10, 0x04, 0x12, 0x08, 0x0a, 0x04, 0x50, 0x49, 0x4e, 0x47, 0x10, 0x05, 0x2a, 0x42, 0x0a,
+	0x10, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64,
+	0x65, 0x12, 0x0d, 0x0a, 0x09, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x4f, 0x4b, 0x10, 0x00,
+	0x12, 0x10, 0x0a, 0x0c, 0x55, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x45, 0x52, 0x52, 0x4f, 0x52,
+	0x10, 0x01, 0x12, 0x0d, 0x0a, 0x09, 0x4e, 0x4f, 0x5f, 0x44, 0x49, 0x52, 0x45, 0x43, 0x54, 0x10,
+	0x02, 0x3a, 0x40, 0x0a, 0x09, 0x61, 0x6c, 0x70, 0x6e, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x21,
+	0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
+	0x2e, 0x45, 0x6e, 0x75, 0x6d, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e,
+	0x73, 0x18, 0xe2, 0xa7, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x61, 0x6c, 0x70, 0x6e, 0x4e,
+	0x61, 0x6d, 0x65, 0x42, 0x25, 0x48, 0x01, 0x5a, 0x21, 0x6b, 0x6f, 0x6e, 0x2e, 0x6e, 0x65, 0x63,
+	0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65,
+	0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -1198,60 +1254,62 @@ func file_spec_proto_tun_proto_rawDescGZIP() []byte {
 	return file_spec_proto_tun_proto_rawDescData
 }
 
-var file_spec_proto_tun_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_spec_proto_tun_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_spec_proto_tun_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_spec_proto_tun_proto_goTypes = []interface{}{
 	(TunnelRPC)(0),                      // 0: protocol.TunnelRPC
-	(Link_ALPN)(0),                      // 1: protocol.Link.ALPN
-	(*Tunnel)(nil),                      // 2: protocol.Tunnel
-	(*ClientToken)(nil),                 // 3: protocol.ClientToken
-	(*ClientRequest)(nil),               // 4: protocol.ClientRequest
-	(*ClientResponse)(nil),              // 5: protocol.ClientResponse
-	(*ClientPingResponse)(nil),          // 6: protocol.ClientPingResponse
-	(*RegisterIdentityRequest)(nil),     // 7: protocol.RegisterIdentityRequest
-	(*RegisterIdentityResponse)(nil),    // 8: protocol.RegisterIdentityResponse
-	(*GetNodesRequest)(nil),             // 9: protocol.GetNodesRequest
-	(*GetNodesResponse)(nil),            // 10: protocol.GetNodesResponse
-	(*GenerateHostnameRequest)(nil),     // 11: protocol.GenerateHostnameRequest
-	(*GenerateHostnameResponse)(nil),    // 12: protocol.GenerateHostnameResponse
-	(*PublishTunnelRequest)(nil),        // 13: protocol.PublishTunnelRequest
-	(*PublishTunnelResponse)(nil),       // 14: protocol.PublishTunnelResponse
-	(*Link)(nil),                        // 15: protocol.Link
-	(*IdentitiesPair)(nil),              // 16: protocol.IdentitiesPair
-	(*TunnelStatus)(nil),                // 17: protocol.TunnelStatus
-	(*Node)(nil),                        // 18: protocol.Node
-	(*descriptor.EnumValueOptions)(nil), // 19: google.protobuf.EnumValueOptions
+	(TunnelStatusCode)(0),               // 1: protocol.TunnelStatusCode
+	(Link_ALPN)(0),                      // 2: protocol.Link.ALPN
+	(*Tunnel)(nil),                      // 3: protocol.Tunnel
+	(*ClientToken)(nil),                 // 4: protocol.ClientToken
+	(*ClientRequest)(nil),               // 5: protocol.ClientRequest
+	(*ClientResponse)(nil),              // 6: protocol.ClientResponse
+	(*ClientPingResponse)(nil),          // 7: protocol.ClientPingResponse
+	(*RegisterIdentityRequest)(nil),     // 8: protocol.RegisterIdentityRequest
+	(*RegisterIdentityResponse)(nil),    // 9: protocol.RegisterIdentityResponse
+	(*GetNodesRequest)(nil),             // 10: protocol.GetNodesRequest
+	(*GetNodesResponse)(nil),            // 11: protocol.GetNodesResponse
+	(*GenerateHostnameRequest)(nil),     // 12: protocol.GenerateHostnameRequest
+	(*GenerateHostnameResponse)(nil),    // 13: protocol.GenerateHostnameResponse
+	(*PublishTunnelRequest)(nil),        // 14: protocol.PublishTunnelRequest
+	(*PublishTunnelResponse)(nil),       // 15: protocol.PublishTunnelResponse
+	(*Link)(nil),                        // 16: protocol.Link
+	(*IdentitiesPair)(nil),              // 17: protocol.IdentitiesPair
+	(*TunnelStatus)(nil),                // 18: protocol.TunnelStatus
+	(*Node)(nil),                        // 19: protocol.Node
+	(*descriptor.EnumValueOptions)(nil), // 20: google.protobuf.EnumValueOptions
 }
 var file_spec_proto_tun_proto_depIdxs = []int32{
-	18, // 0: protocol.Tunnel.client:type_name -> protocol.Node
-	18, // 1: protocol.Tunnel.chord:type_name -> protocol.Node
-	18, // 2: protocol.Tunnel.tun:type_name -> protocol.Node
-	3,  // 3: protocol.ClientRequest.token:type_name -> protocol.ClientToken
+	19, // 0: protocol.Tunnel.client:type_name -> protocol.Node
+	19, // 1: protocol.Tunnel.chord:type_name -> protocol.Node
+	19, // 2: protocol.Tunnel.tun:type_name -> protocol.Node
+	4,  // 3: protocol.ClientRequest.token:type_name -> protocol.ClientToken
 	0,  // 4: protocol.ClientRequest.kind:type_name -> protocol.TunnelRPC
-	7,  // 5: protocol.ClientRequest.registerRequest:type_name -> protocol.RegisterIdentityRequest
-	9,  // 6: protocol.ClientRequest.nodesRequest:type_name -> protocol.GetNodesRequest
-	11, // 7: protocol.ClientRequest.hostnameRequest:type_name -> protocol.GenerateHostnameRequest
-	13, // 8: protocol.ClientRequest.tunnelRequest:type_name -> protocol.PublishTunnelRequest
-	8,  // 9: protocol.ClientResponse.registerResponse:type_name -> protocol.RegisterIdentityResponse
-	10, // 10: protocol.ClientResponse.nodesResponse:type_name -> protocol.GetNodesResponse
-	12, // 11: protocol.ClientResponse.hostnameResponse:type_name -> protocol.GenerateHostnameResponse
-	14, // 12: protocol.ClientResponse.tunnelResponse:type_name -> protocol.PublishTunnelResponse
-	6,  // 13: protocol.ClientResponse.pingResponse:type_name -> protocol.ClientPingResponse
-	18, // 14: protocol.ClientPingResponse.node:type_name -> protocol.Node
-	18, // 15: protocol.RegisterIdentityRequest.client:type_name -> protocol.Node
-	3,  // 16: protocol.RegisterIdentityResponse.token:type_name -> protocol.ClientToken
-	18, // 17: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
-	18, // 18: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
-	18, // 19: protocol.PublishTunnelResponse.published:type_name -> protocol.Node
-	1,  // 20: protocol.Link.alpn:type_name -> protocol.Link.ALPN
-	18, // 21: protocol.IdentitiesPair.chord:type_name -> protocol.Node
-	18, // 22: protocol.IdentitiesPair.tun:type_name -> protocol.Node
-	19, // 23: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	23, // [23:24] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	8,  // 5: protocol.ClientRequest.registerRequest:type_name -> protocol.RegisterIdentityRequest
+	10, // 6: protocol.ClientRequest.nodesRequest:type_name -> protocol.GetNodesRequest
+	12, // 7: protocol.ClientRequest.hostnameRequest:type_name -> protocol.GenerateHostnameRequest
+	14, // 8: protocol.ClientRequest.tunnelRequest:type_name -> protocol.PublishTunnelRequest
+	9,  // 9: protocol.ClientResponse.registerResponse:type_name -> protocol.RegisterIdentityResponse
+	11, // 10: protocol.ClientResponse.nodesResponse:type_name -> protocol.GetNodesResponse
+	13, // 11: protocol.ClientResponse.hostnameResponse:type_name -> protocol.GenerateHostnameResponse
+	15, // 12: protocol.ClientResponse.tunnelResponse:type_name -> protocol.PublishTunnelResponse
+	7,  // 13: protocol.ClientResponse.pingResponse:type_name -> protocol.ClientPingResponse
+	19, // 14: protocol.ClientPingResponse.node:type_name -> protocol.Node
+	19, // 15: protocol.RegisterIdentityRequest.client:type_name -> protocol.Node
+	4,  // 16: protocol.RegisterIdentityResponse.token:type_name -> protocol.ClientToken
+	19, // 17: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
+	19, // 18: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
+	19, // 19: protocol.PublishTunnelResponse.published:type_name -> protocol.Node
+	2,  // 20: protocol.Link.alpn:type_name -> protocol.Link.ALPN
+	19, // 21: protocol.IdentitiesPair.chord:type_name -> protocol.Node
+	19, // 22: protocol.IdentitiesPair.tun:type_name -> protocol.Node
+	1,  // 23: protocol.TunnelStatus.status:type_name -> protocol.TunnelStatusCode
+	20, // 24: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	24, // [24:25] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_spec_proto_tun_proto_init() }
@@ -1459,7 +1517,7 @@ func file_spec_proto_tun_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_spec_proto_tun_proto_rawDesc,
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   16,
 			NumExtensions: 1,
 			NumServices:   0,

@@ -235,6 +235,34 @@ func TestH3HTTPNotFound(t *testing.T) {
 	mockS.AssertExpectations(t)
 }
 
+func TestHTTPNotConnected(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
+	})).Return(nil, tun.ErrTunnelClientNotConnected)
+
+	c := getH3Client(testHost, port)
+
+	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, testDomain))
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+
+	as.Contains(string(b), "not connected")
+	as.NotEmpty(resp.Header.Get("alt-svc"))
+	as.Equal("true", resp.Header.Get("http3"))
+
+	mockS.AssertExpectations(t)
+}
+
 type miniClient struct {
 	c chan net.Conn
 	net.Listener
@@ -414,7 +442,7 @@ func TestH2TCPNotFound(t *testing.T) {
 	as.NoError(err)
 	err = rpc.Receive(stream, status)
 	as.NoError(err)
-	as.False(status.Ok)
+	as.NotEqual(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
 	<-time.After(time.Millisecond * 100)
 
@@ -447,7 +475,40 @@ func TestH3TCPNotFound(t *testing.T) {
 	as.NoError(err)
 	err = rpc.Receive(b, status)
 	as.NoError(err)
-	as.False(status.Ok)
+	as.NotEqual(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
+
+	<-time.After(time.Millisecond * 100)
+
+	mockS.AssertExpectations(t)
+}
+
+func TestTCPNotConnected(t *testing.T) {
+	as := require.New(t)
+
+	port, mockS, done := getStuff(as)
+	defer done()
+
+	testHost := "hello"
+
+	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
+	})).Return(nil, tun.ErrTunnelClientNotConnected)
+
+	dial := getQuicDialer(tun.ALPN(protocol.Link_TCP), testHost)
+	conn, err := dial(context.Background(), fmt.Sprintf("127.0.0.1:%d", port))
+	as.NoError(err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	b, err := conn.OpenStreamSync(ctx)
+	as.NoError(err)
+
+	status := &protocol.TunnelStatus{}
+	err = rpc.Send(b, status)
+	as.NoError(err)
+	err = rpc.Receive(b, status)
+	as.NoError(err)
+	as.Equal(protocol.TunnelStatusCode_NO_DIRECT, status.GetStatus())
 
 	<-time.After(time.Millisecond * 100)
 
@@ -502,7 +563,7 @@ func TestH2TCPFound(t *testing.T) {
 	as.NoError(err)
 	err = rpc.Receive(stream, status)
 	as.NoError(err)
-	as.True(status.Ok)
+	as.Equal(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
 	buf := make([]byte, bufLength)
 
@@ -561,7 +622,7 @@ func TestH3TCPFound(t *testing.T) {
 	as.NoError(err)
 	err = rpc.Receive(stream, status)
 	as.NoError(err)
-	as.True(status.Ok)
+	as.Equal(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
 	buf := make([]byte, bufLength)
 

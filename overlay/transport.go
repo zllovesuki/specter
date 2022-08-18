@@ -19,11 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrClosed   = fmt.Errorf("transport is already closed")
-	ErrNoDirect = fmt.Errorf("cannot open direct quic connection without address")
-)
-
 var _ transport.Transport = (*QUIC)(nil)
 
 func NewQUIC(conf TransportConfig) *QUIC {
@@ -74,7 +69,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnect
 	rUnlock()
 
 	if peer.GetAddress() == "" {
-		return nil, ErrNoDirect
+		return nil, transport.ErrNoDirect
 	}
 
 	t.Logger.Debug("Creating new QUIC connection", zap.Any("peer", peer))
@@ -136,7 +131,7 @@ func (t *QUIC) Identity() *protocol.Node {
 
 func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCHandshakeFunc) (rpcSpec.RPC, error) {
 	if t.closed.Load() {
-		return nil, ErrClosed
+		return nil, transport.ErrClosed
 	}
 
 	rpcMapKey := makeSKey(peer)
@@ -195,7 +190,7 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error) {
 	if t.closed.Load() {
-		return nil, ErrClosed
+		return nil, transport.ErrClosed
 	}
 
 	q, stream, err := t.getS(ctx, peer, protocol.Stream_DIRECT)
