@@ -28,7 +28,7 @@ require (
 	kon.nect.sh/challenger v1.0.1
 )
 
-replace github.com/lucas-clemente/quic-go => github.com/zllovesuki/quic-go v0.24.1-0.20220815035734-ecd9144c72d3
+replace github.com/lucas-clemente/quic-go => github.com/zllovesuki/quic-go v0.28.2-0.20220818043612-4a4c6f455d08
 
 replace github.com/libp2p/go-yamux/v3 => github.com/zllovesuki/go-yamux/v3 v3.1.3-0.20220816032912-3af9e3dc83d3
 
