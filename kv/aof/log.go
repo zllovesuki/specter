@@ -2,11 +2,15 @@ package aof
 
 import (
 	"fmt"
+	"hash/crc64"
 
 	"kon.nect.sh/specter/kv/aof/proto"
 
+	pool "github.com/libp2p/go-buffer-pool"
 	"go.uber.org/zap"
 )
+
+var crcTable = crc64.MakeTable(crc64.ECMA)
 
 func (d *DiskKV) replayLogs() error {
 	index, err := d.log.LastIndex()
@@ -38,6 +42,10 @@ func (d *DiskKV) replayLogs() error {
 }
 
 func (d *DiskKV) decodeEntry(entry *proto.LogEntry, mut *proto.Mutation) (err error) {
+	if entry.GetChecksum() != crc64.Checksum(entry.GetData(), crcTable) {
+		err = fmt.Errorf("log entry checksum does not match, possibly corrupted log")
+		return
+	}
 	switch entry.GetVersion() {
 	case proto.LogVersion_V1:
 		// uncompressed
@@ -49,7 +57,10 @@ func (d *DiskKV) decodeEntry(entry *proto.LogEntry, mut *proto.Mutation) (err er
 }
 
 func (d *DiskKV) appendLog(mut *proto.Mutation) error {
-	mutBuf, err := mut.MarshalVT()
+	mutBuf := pool.Get(mut.SizeVT())
+	defer pool.Put(mutBuf)
+
+	_, err := mut.MarshalToSizedBufferVT(mutBuf)
 	if err != nil {
 		d.logger.Error("Error serializing mutation", zap.String("mutation", mut.GetType().String()), zap.Error(err))
 		return err
@@ -60,8 +71,12 @@ func (d *DiskKV) appendLog(mut *proto.Mutation) error {
 
 	entry.Version = proto.LogVersion_V1
 	entry.Data = mutBuf
+	entry.Checksum = crc64.Checksum(mutBuf, crcTable)
 
-	logBuf, err := entry.MarshalVT()
+	logBuf := pool.Get(entry.SizeVT())
+	defer pool.Put(logBuf)
+
+	_, err = entry.MarshalToSizedBufferVT(logBuf)
 	if err != nil {
 		d.logger.Error("Error serializing log entry", zap.String("version", entry.GetVersion().String()), zap.String("mutation", mut.GetType().String()), zap.Error(err))
 		return err

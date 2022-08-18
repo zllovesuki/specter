@@ -5,14 +5,10 @@ import (
 
 	"kon.nect.sh/specter/kv/aof/proto"
 	"kon.nect.sh/specter/spec/protocol"
-
-	"go.uber.org/zap"
 )
 
 func (d *DiskKV) handleMutation(mut *proto.Mutation) error {
 	var err error
-
-	d.logger.Debug("Handling mutation", zap.String("mutation", mut.GetType().String()))
 
 	switch mut.GetType() {
 	case proto.MutationType_SIMPLE_PUT:

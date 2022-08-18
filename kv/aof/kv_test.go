@@ -2,8 +2,11 @@ package aof
 
 import (
 	"crypto/rand"
+	"io"
 	"io/fs"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -341,4 +344,52 @@ func TestConflictRollback(t *testing.T) {
 	as.True(has)
 
 	kv.Stop()
+}
+
+func TestCorruptedLog(t *testing.T) {
+	as := require.New(t)
+	logger, err := zap.NewDevelopment()
+	as.NoError(err)
+
+	dir1, err := os.MkdirTemp("", "aof")
+	as.NoError(err)
+	defer os.RemoveAll(dir1)
+
+	cfg1 := Config{
+		Logger:        logger,
+		HasnFn:        chord.Hash,
+		DataDir:       dir1,
+		FlushInterval: time.Millisecond * 500,
+	}
+
+	kv, err := New(cfg1)
+	as.NoError(err)
+	go kv.Start()
+
+	err = kv.Put([]byte("key"), []byte("value"))
+	as.NoError(err)
+
+	kv.Stop()
+
+	files, err := ioutil.ReadDir(logPath(dir1))
+	as.NoError(err)
+
+	logFile := files[0]
+	f, err := os.OpenFile(filepath.Join(logPath(dir1), logFile.Name()), os.O_RDWR, logFile.Mode())
+	as.NoError(err)
+
+	buf := make([]byte, logFile.Size())
+	f.Read(buf)
+	t.Log(buf)
+	buf[10] = 0
+	buf[15] = 0
+	t.Log(buf)
+	f.Seek(0, io.SeekStart)
+	f.Write(buf)
+	f.Sync()
+
+	f.Close()
+
+	_, err = New(cfg1)
+	as.Error(err)
 }

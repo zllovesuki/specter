@@ -14,4 +14,6 @@ enum LogVersion {
 message LogEntry {
     LogVersion version = 1;
     bytes data = 2;
+
+    uint64 checksum = 5;
 }
