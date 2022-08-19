@@ -48,21 +48,19 @@ func BenchmarkDiskKVPut(b *testing.B) {
 	}
 	b.Cleanup(kv.Stop)
 
-	keys := make([][]byte, b.N)
-	values := make([][]byte, b.N)
-	for i := 0; i < b.N; i++ {
-		keys[i] = make([]byte, 16)
-		values[i] = make([]byte, 256)
-		rand.Read(keys[i])
-		rand.Read(values[i])
-	}
+	key := make([]byte, 32)
+	value := make([]byte, 256)
 
 	go kv.Start()
 	b.ResetTimer()
 
 	var putErr error
 	for i := 0; i < b.N; i++ {
-		putErr = kv.Put(keys[i], values[i])
+		b.StopTimer()
+		rand.Read(key)
+		rand.Read(value)
+		b.StartTimer()
+		putErr = kv.Put(key, value)
 	}
 	e1 = putErr
 }
@@ -70,20 +68,18 @@ func BenchmarkDiskKVPut(b *testing.B) {
 func BenchmarkMemoryKVPut(b *testing.B) {
 	kv := memory.WithHashFn(chord.Hash)
 
-	keys := make([][]byte, b.N)
-	values := make([][]byte, b.N)
-	for i := 0; i < b.N; i++ {
-		keys[i] = make([]byte, 16)
-		values[i] = make([]byte, 256)
-		rand.Read(keys[i])
-		rand.Read(values[i])
-	}
+	key := make([]byte, 32)
+	value := make([]byte, 256)
 
 	b.ResetTimer()
 
 	var putErr error
 	for i := 0; i < b.N; i++ {
-		putErr = kv.Put(keys[i], values[i])
+		b.StopTimer()
+		rand.Read(key)
+		rand.Read(value)
+		b.StartTimer()
+		putErr = kv.Put(key, value)
 	}
 	e2 = putErr
 }
