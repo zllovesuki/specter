@@ -15,6 +15,4 @@ var (
 
 type Server interface {
 	Dial(context.Context, *protocol.Link) (net.Conn, error)
-	Accept(context.Context)
-	Stop()
 }

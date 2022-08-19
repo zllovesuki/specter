@@ -28,11 +28,3 @@ func (m *TunServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn, er
 	}
 	return c.(net.Conn), e
 }
-
-func (m *TunServer) Accept(ctx context.Context) {
-	m.Called(ctx)
-}
-
-func (m *TunServer) Stop() {
-	m.Called()
-}

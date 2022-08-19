@@ -30,8 +30,4 @@ type Transport interface {
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate
 	SendDatagram(*protocol.Node, []byte) error
-
-	Accept(ctx context.Context) error
-
-	Stop()
 }

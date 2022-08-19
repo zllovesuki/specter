@@ -90,13 +90,3 @@ func (t *Transport) TransportDestroyed() <-chan *protocol.Node {
 	v := args.Get(0)
 	return v.(chan *protocol.Node)
 }
-
-func (t *Transport) Accept(ctx context.Context) error {
-	args := t.Called(ctx)
-	e := args.Error(0)
-	return e
-}
-
-func (t *Transport) Stop() {
-	t.Called()
-}
