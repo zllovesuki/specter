@@ -315,13 +315,11 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
-			time.Sleep(defaultInterval)
 		}
 	}()
 
 	for i := 1; i < numNodes; i++ {
 		as.NoError(nodes[i].Join(nodes[0]))
-		<-time.After(waitInterval)
 	}
 
 	<-syncA
@@ -402,7 +400,6 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
-			time.Sleep(defaultInterval)
 		}
 	}()
 
