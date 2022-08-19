@@ -24,7 +24,7 @@ type DiskKV struct {
 	writeBarrier  sync.RWMutex
 	logger        *zap.Logger
 	memKv         *memory.MemoryKV
-	queue         chan mutationReq
+	queue         chan *mutationReq
 	log           *wal.Log
 	closeCh       chan struct{}
 	closed        *atomic.Bool
@@ -83,7 +83,7 @@ func New(cfg Config) (*DiskKV, error) {
 	d := &DiskKV{
 		logger:        cfg.Logger,
 		memKv:         memory.WithHashFn(cfg.HasnFn),
-		queue:         make(chan mutationReq),
+		queue:         make(chan *mutationReq),
 		log:           l,
 		closeCh:       make(chan struct{}),
 		closed:        atomic.NewBool(false),

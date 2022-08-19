@@ -6,7 +6,7 @@ import (
 
 	"kon.nect.sh/specter/kv/aof/proto"
 
-	pool "github.com/libp2p/go-buffer-pool"
+	bufPool "github.com/libp2p/go-buffer-pool"
 	"go.uber.org/zap"
 )
 
@@ -57,8 +57,8 @@ func (d *DiskKV) decodeEntry(entry *proto.LogEntry, mut *proto.Mutation) (err er
 }
 
 func (d *DiskKV) appendLog(mut *proto.Mutation) error {
-	mutBuf := pool.Get(mut.SizeVT())
-	defer pool.Put(mutBuf)
+	mutBuf := bufPool.Get(mut.SizeVT())
+	defer bufPool.Put(mutBuf)
 
 	_, err := mut.MarshalToSizedBufferVT(mutBuf)
 	if err != nil {
@@ -73,8 +73,8 @@ func (d *DiskKV) appendLog(mut *proto.Mutation) error {
 	entry.Data = mutBuf
 	entry.Checksum = crc64.Checksum(mutBuf, crcTable)
 
-	logBuf := pool.Get(entry.SizeVT())
-	defer pool.Put(logBuf)
+	logBuf := bufPool.Get(entry.SizeVT())
+	defer bufPool.Put(logBuf)
 
 	_, err = entry.MarshalToSizedBufferVT(logBuf)
 	if err != nil {

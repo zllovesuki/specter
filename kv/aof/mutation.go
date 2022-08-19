@@ -2,10 +2,20 @@ package aof
 
 import (
 	"io/fs"
+	"sync"
 
 	"kon.nect.sh/specter/kv/aof/proto"
 	"kon.nect.sh/specter/spec/protocol"
 )
+
+var reqPool = sync.Pool{
+	New: func() any {
+		return &mutationReq{
+			err: make(chan error),
+			mut: proto.MutationFromVTPool(),
+		}
+	},
+}
 
 func (d *DiskKV) handleMutation(mut *proto.Mutation) error {
 	var err error
@@ -33,114 +43,67 @@ func (d *DiskKV) handleMutation(mut *proto.Mutation) error {
 	return err
 }
 
-func (d *DiskKV) Put(key []byte, value []byte) error {
+func (d *DiskKV) mutationHandler(fn func(mut *proto.Mutation)) error {
 	d.writeBarrier.RLock()
 	defer d.writeBarrier.RUnlock()
 	if d.closed.Load() {
 		return fs.ErrClosed
 	}
 
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type:  proto.MutationType_SIMPLE_PUT,
-			Key:   key,
-			Value: value,
-		},
-	}
+	req := reqPool.Get().(*mutationReq)
+	defer func() {
+		req.mut.ResetVT()
+		reqPool.Put(req)
+	}()
+
+	fn(req.mut)
+
 	d.queue <- req
 	return <-req.err
+}
+
+func (d *DiskKV) Put(key []byte, value []byte) error {
+	return d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_SIMPLE_PUT
+		mut.Key = key
+		mut.Value = value
+	})
 }
 
 func (d *DiskKV) Delete(key []byte) error {
-	d.writeBarrier.RLock()
-	defer d.writeBarrier.RUnlock()
-	if d.closed.Load() {
-		return fs.ErrClosed
-	}
-
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type: proto.MutationType_SIMPLE_DELETE,
-			Key:  key,
-		},
-	}
-	d.queue <- req
-	return <-req.err
+	return d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_SIMPLE_DELETE
+		mut.Key = key
+	})
 }
 
 func (d *DiskKV) PrefixAppend(prefix []byte, child []byte) error {
-	d.writeBarrier.RLock()
-	defer d.writeBarrier.RUnlock()
-	if d.closed.Load() {
-		return fs.ErrClosed
-	}
-
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type:  proto.MutationType_PREFIX_APPEND,
-			Key:   prefix,
-			Value: child,
-		},
-	}
-	d.queue <- req
-	return <-req.err
+	return d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_PREFIX_APPEND
+		mut.Key = prefix
+		mut.Value = child
+	})
 }
 
 func (d *DiskKV) PrefixRemove(prefix []byte, child []byte) error {
-	d.writeBarrier.RLock()
-	defer d.writeBarrier.RUnlock()
-	if d.closed.Load() {
-		return fs.ErrClosed
-	}
-
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type:  proto.MutationType_PREFIX_REMOVE,
-			Key:   prefix,
-			Value: child,
-		},
-	}
-	d.queue <- req
-	return <-req.err
+	return d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_PREFIX_REMOVE
+		mut.Key = prefix
+		mut.Value = child
+	})
 }
 
 func (d *DiskKV) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	d.writeBarrier.RLock()
-	defer d.writeBarrier.RUnlock()
-	if d.closed.Load() {
-		return fs.ErrClosed
-	}
-
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type:   proto.MutationType_IMPORT,
-			Keys:   keys,
-			Values: values,
-		},
-	}
-	d.queue <- req
-	return <-req.err
+	return d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_IMPORT
+		mut.Keys = keys
+		mut.Values = values
+	})
 }
 
 func (d *DiskKV) RemoveKeys(keys [][]byte) {
-	d.writeBarrier.RLock()
-	defer d.writeBarrier.RUnlock()
-	if d.closed.Load() {
-		return
-	}
-
-	req := mutationReq{
-		err: make(chan error),
-		mut: &proto.Mutation{
-			Type: proto.MutationType_REMOVE_KEYS,
-			Keys: keys,
-		},
-	}
-	d.queue <- req
-	<-req.err
+	d.mutationHandler(func(mut *proto.Mutation) {
+		mut.Type = proto.MutationType_REMOVE_KEYS
+		mut.Keys = keys
+	})
 }
