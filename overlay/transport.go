@@ -234,7 +234,7 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 		}
 		return r.quic.SendMessage(b)
 	}
-	return fmt.Errorf("peer %s is not registered in transport", qKey)
+	return transport.ErrNoDirect
 }
 
 func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s quic.Stream, dir string) (*nodeConnection, bool, error) {
