@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeebo/xxh3"
+	"kon.nect.sh/specter/spec/chord"
+
+	"github.com/orisano/wyhash"
 )
 
 type LimitCounter interface {
@@ -52,9 +54,9 @@ func newRateLimiter(requestLimit int, windowLength time.Duration, options ...Opt
 }
 
 func LimitCounterKey(key string, window time.Time) uint64 {
-	h := xxh3.New()
-	h.WriteString(key)
-	h.WriteString(fmt.Sprintf("%d", window.Unix()))
+	h := wyhash.New(chord.MaxIdentitifer)
+	h.Write([]byte(key))
+	h.Write([]byte(fmt.Sprintf("%d", window.Unix())))
 	return h.Sum64()
 }
 

@@ -7,7 +7,7 @@ import (
 
 	"kon.nect.sh/specter/spec/chord"
 
-	"github.com/zeebo/xxh3"
+	"github.com/orisano/wyhash"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +26,7 @@ func v2d(n []chord.VNode) []uint64 {
 // we have the possbility of cyclical ring that will have ourself
 // in the successor list
 func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
-	hasher := xxh3.New()
+	hasher := wyhash.New(chord.MaxIdentitifer)
 	buf := make([]byte, 8)
 	for _, node := range nodes {
 		if node == nil {

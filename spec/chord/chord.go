@@ -3,12 +3,12 @@ package chord
 import (
 	"math/rand"
 
-	"github.com/zeebo/xxh3"
+	"github.com/orisano/wyhash"
 )
 
 const (
 	// Also known as m in the original paper
-	MaxFingerEntries = 48
+	MaxFingerEntries = 42
 	// Also known as L in the second paper
 	ExtendedSuccessorEntries = 3
 
@@ -16,9 +16,7 @@ const (
 )
 
 func Hash(b []byte) uint64 {
-	hasher := xxh3.New()
-	hasher.Write(b)
-	return hasher.Sum64() % MaxIdentitifer
+	return wyhash.Sum64(MaxIdentitifer, b) % MaxIdentitifer
 }
 
 func Modulo(x, y uint64) uint64 {

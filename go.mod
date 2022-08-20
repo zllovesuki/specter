@@ -12,11 +12,11 @@ require (
 	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/mholt/acmez v1.0.4
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/orisano/wyhash v1.1.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/wal v1.1.7
 	github.com/urfave/cli/v2 v2.11.2
-	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.9.1
 	github.com/zhangyunhao116/skipset v0.12.1
 	go.uber.org/atomic v1.10.0

@@ -60,7 +60,7 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 		bMin, _ := strconv.ParseInt(bParts[0], 10, 64)
 		return aMin < bMin
 	})
-	fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", uint64(1<<chord.MaxFingerEntries)))
+	fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", chord.MaxIdentitifer))
 	fingerTable.SetAutoMergeCells(true)
 	fingerTable.SetRowLine(true)
 	fingerTable.AppendBulk(rows)

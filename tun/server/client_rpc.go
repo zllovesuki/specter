@@ -59,7 +59,6 @@ func (s *Server) HandleRPC(ctx context.Context) {
 				zap.Any("peer", delegate.Identity),
 				zap.String("remote", conn.RemoteAddr().String()),
 				zap.String("local", conn.LocalAddr().String()))
-			l.Debug("New incoming RPC Stream")
 			r := rpc.NewRPC(
 				l.With(zap.String("pov", "client_rpc")),
 				conn,
