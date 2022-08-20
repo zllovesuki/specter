@@ -12,7 +12,7 @@ const (
 	// Also known as L in the second paper
 	ExtendedSuccessorEntries = 3
 
-	MaxIdentitifer = (1 << MaxFingerEntries) - 1
+	MaxIdentitifer uint64 = (1 << MaxFingerEntries) - 1
 )
 
 func Hash(b []byte) uint64 {
