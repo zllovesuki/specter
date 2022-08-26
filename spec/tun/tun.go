@@ -13,11 +13,15 @@ const (
 	NumRedundantLinks = 3
 )
 
+func IsNoDirect(err error) bool {
+	return errors.Is(err, transport.ErrNoDirect) ||
+		errors.Is(err, ErrTunnelClientNotConnected)
+}
+
 func SendStatusProto(dest io.Writer, err error) {
 	status := &protocol.TunnelStatus{}
 	if err != nil {
-		if errors.Is(err, ErrTunnelClientNotConnected) ||
-			errors.Is(err, transport.ErrNoDirect) {
+		if IsNoDirect(err) {
 			status.Status = protocol.TunnelStatusCode_NO_DIRECT
 		} else {
 			status.Status = protocol.TunnelStatusCode_UKNOWN_ERROR

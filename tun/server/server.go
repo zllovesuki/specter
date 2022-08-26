@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
@@ -73,8 +74,8 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	var clientConn net.Conn
 
 	defer func() {
+		tun.SendStatusProto(delegation.Connection, err)
 		if err != nil {
-			tun.SendStatusProto(delegation.Connection, err)
 			delegation.Connection.Close()
 			return
 		}
@@ -104,10 +105,10 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		err = tun.ErrDestinationNotFound
 		return
 	}
+
 	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
-	if err != nil {
+	if err != nil && !tun.IsNoDirect(err) {
 		l.Error("dialing connection to connected client", zap.Error(err))
-		return
 	}
 }
 
@@ -134,10 +135,12 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 			return nil, err
 		}
 		status := &protocol.TunnelStatus{}
+		conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 		if err := rpc.Receive(conn, status); err != nil {
 			l.Error("receiving remote tunnel status", zap.Error(err))
 			return nil, err
 		}
+		conn.SetReadDeadline(time.Time{})
 		switch status.GetStatus() {
 		case protocol.TunnelStatusCode_STATUS_OK:
 			return conn, nil
@@ -168,9 +171,10 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 		}
 		clientConn, err := s.getConn(ctx, bundle)
 		if err != nil {
-			s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
-			if err == tun.ErrTunnelClientNotConnected {
+			if tun.IsNoDirect(err) {
 				isNoDirect = true
+			} else {
+				s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
 			}
 			continue
 		}

@@ -36,7 +36,7 @@ func assertBytes(got []byte, exp ...[]byte) bool {
 
 func getFixture(as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
 	logger, err := zap.NewDevelopment()
-	as.Nil(err)
+	as.NoError(err)
 
 	n := new(mocks.VNode)
 	cht := new(mocks.Transport)
@@ -108,7 +108,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 		Hostname: link.GetHostname(),
 	}
 	bundleBuf, err := bundle.MarshalVT()
-	as.Nil(err)
+	as.NoError(err)
 
 	expected := getExpected(link)
 
@@ -126,7 +126,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 	go func() {
 		l := &protocol.Link{}
 		err := rpc.Receive(c2, l)
-		as.Nil(err)
+		as.NoError(err)
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
@@ -135,7 +135,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 	})).Return(c1, nil)
 
 	_, err = serv.Dial(context.Background(), link)
-	as.Nil(err)
+	as.NoError(err)
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -159,7 +159,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 		Hostname: link.GetHostname(),
 	}
 	bundleBuf, err := bundle.MarshalVT()
-	as.Nil(err)
+	as.NoError(err)
 
 	expected := getExpected(link)
 
@@ -178,7 +178,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 		// the remote node should receive the bundle
 		bundle := &protocol.Tunnel{}
 		err := rpc.Receive(c2, bundle)
-		as.Nil(err)
+		as.NoError(err)
 
 		// remote node need to send feedback
 		tun.SendStatusProto(c2, nil)
@@ -186,7 +186,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 		// then receive the link information
 		l := &protocol.Link{}
 		err = rpc.Receive(c2, l)
-		as.Nil(err)
+		as.NoError(err)
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
@@ -195,7 +195,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 	})).Return(c1, nil)
 
 	_, err = serv.Dial(context.Background(), link)
-	as.Nil(err)
+	as.NoError(err)
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -262,11 +262,17 @@ func TestHandleRemoteConnection(t *testing.T) {
 	go func() {
 		// the remote should be sending the bundle over
 		err := rpc.Send(c2, bundle)
-		as.Nil(err)
+		as.NoError(err)
+
+		// getConn should check the status
+		x := &protocol.TunnelStatus{}
+		err = rpc.Receive(c2, x)
+		as.NoError(err)
+		as.Equal(protocol.TunnelStatusCode_STATUS_OK, x.GetStatus())
 
 		// now the remote gateway is sending data to us
 		_, err = c2.Write(buf)
-		as.Nil(err)
+		as.NoError(err)
 
 		close(syncA)
 	}()
@@ -277,7 +283,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 		// we should receive data from the remote side
 		b := make([]byte, len(buf))
 		_, err := c4.Read(b)
-		as.Nil(err)
+		as.NoError(err)
 		as.EqualValues(buf, b)
 
 		close(syncB)
@@ -290,7 +296,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 
 	select {
 	case <-syncB:
-	case <-time.After(time.Second):
+	case <-time.After(time.Second * 5):
 		as.FailNow("timeout")
 	}
 
