@@ -38,6 +38,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect

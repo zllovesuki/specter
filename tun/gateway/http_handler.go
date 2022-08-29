@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -32,6 +31,24 @@ var delHeaders = []string{
 }
 
 func (g *Gateway) httpHandler() http.Handler {
+	transport := &http.Transport{
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			parts := strings.SplitN(addr, ".", 2)
+			g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", parts[0]), zap.String("tls.ServerName", addr))
+			return g.Tun.Dial(ctx, &protocol.Link{
+				Alpn:     protocol.Link_HTTP,
+				Hostname: parts[0],
+			})
+		},
+		MaxConnsPerHost:       30,
+		MaxIdleConnsPerHost:   3,
+		IdleConnTimeout:       time.Minute,
+		ResponseHeaderTimeout: time.Second * 30,
+		ExpectContinueTimeout: time.Second * 3,
+	}
+	if err := http2.ConfigureTransport(transport); err != nil {
+		g.Logger.Fatal("error configuring transport", zap.Error(err))
+	}
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "https"
@@ -40,17 +57,7 @@ func (g *Gateway) httpHandler() http.Handler {
 				req.Header.Del(header)
 			}
 		},
-		Transport: &http2.Transport{
-			ReadIdleTimeout: time.Second * 30,
-			DialTLSContext: func(ctx context.Context, _, _ string, cfg *tls.Config) (net.Conn, error) {
-				parts := strings.SplitN(cfg.ServerName, ".", 2)
-				g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", parts[0]), zap.String("tls.ServerName", cfg.ServerName))
-				return g.Tun.Dial(ctx, &protocol.Link{
-					Alpn:     protocol.Link_HTTP,
-					Hostname: parts[0],
-				})
-			},
-		},
+		Transport:    transport,
 		BufferPool:   NewBufferPool(bufferSize),
 		ErrorHandler: g.errorHandler,
 		ModifyResponse: func(r *http.Response) error {

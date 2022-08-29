@@ -16,6 +16,8 @@ import (
 	"kon.nect.sh/specter/cmd/client"
 	"kon.nect.sh/specter/cmd/server"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -24,6 +26,7 @@ import (
 
 const (
 	testBody     = "yay"
+	testRespBody = "cool"
 	serverPort   = 21948
 	serverApex   = "dev.con.nect.sh"
 	yamlTemplate = `apex: 127.0.0.1:%d
@@ -32,6 +35,10 @@ tunnels:
   - target: %s
 `
 )
+
+type TestWsMsg struct {
+	Message string
+}
 
 func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
 	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
@@ -62,9 +69,26 @@ func TestTunnel(t *testing.T) {
 	as.NoError(err)
 	defer os.RemoveAll(dir)
 
-	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	mux := chi.NewRouter()
+	mux.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(testBody))
-	}))
+	})
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		as.NoError(err)
+		defer conn.Close()
+		t := &TestWsMsg{}
+		as.NoError(conn.ReadJSON(t))
+		as.Equal(testBody, t.Message)
+		t.Message = testRespBody
+		as.NoError(conn.WriteJSON(t))
+	})
+
+	ts := httptest.NewUnstartedServer(mux)
 	ts.EnableHTTP2 = true
 	ts.StartTLS()
 	defer ts.Close()
@@ -214,6 +238,32 @@ func TestTunnel(t *testing.T) {
 	_, err = buf.ReadFrom(resp.Body)
 	as.NoError(err)
 	as.Equal(testBody, buf.String())
+
+	// ====== WEBSOCKET TUNNEL ======
+
+	wsCfg := cfg.Clone()
+	wsCfg.NextProtos = []string{"http/1.1"}
+	wsDialer := &websocket.Dialer{
+		TLSClientConfig: wsCfg,
+		NetDialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := &tls.Dialer{
+				Config: wsCfg,
+			}
+			return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
+		},
+	}
+
+	wsConn, _, err := wsDialer.Dial(fmt.Sprintf("wss://%s:%d/ws", hostMap["http"], serverPort), nil)
+	as.NoError(err)
+
+	defer wsConn.Close()
+
+	testMsg := &TestWsMsg{
+		Message: testBody,
+	}
+	as.NoError(wsConn.WriteJSON(testMsg))
+	as.NoError(wsConn.ReadJSON(testMsg))
+	as.Equal(testRespBody, testMsg.Message)
 
 	// ====== TCP TUNNEL ======
 
