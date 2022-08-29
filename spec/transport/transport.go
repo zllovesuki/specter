@@ -3,9 +3,14 @@ package transport
 import (
 	"context"
 	"net"
+	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+)
+
+const (
+	ConnectTimeout = time.Second * 10
 )
 
 type StreamDelegate struct {

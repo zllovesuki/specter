@@ -74,7 +74,7 @@ func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnect
 
 	t.Logger.Debug("Creating new QUIC connection", zap.Any("peer", peer))
 
-	dialCtx, dialCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
+	dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 	defer dialCancel()
 
 	q, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
@@ -104,7 +104,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 		return nil, nil, fmt.Errorf("creating quic connection: %w", err)
 	}
 
-	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
+	openCtx, openCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 	defer openCancel()
 
 	stream, err = q.OpenStreamSync(openCtx)

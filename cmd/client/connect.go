@@ -12,6 +12,7 @@ import (
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/libp2p/go-yamux/v3"
@@ -127,7 +128,7 @@ func tlsDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transp
 		Config: clientTLSConf,
 	}
 
-	openCtx, cancel := context.WithTimeout(ctx.Context, time.Second*3)
+	openCtx, cancel := context.WithTimeout(ctx.Context, transport.ConnectTimeout)
 	defer cancel()
 
 	conn, err := dialer.DialContext(openCtx, "tcp", parsed.String())
