@@ -2,9 +2,9 @@ package gateway
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -50,47 +50,63 @@ func (g *Gateway) overlayDialer(ctx context.Context, _, addr string) (net.Conn, 
 	})
 }
 
-func (g *Gateway) httpHandler() http.Handler {
-	transport := &http.Transport{
-		DialTLSContext:        g.overlayDialer,
-		MaxConnsPerHost:       30,
-		MaxIdleConnsPerHost:   3,
-		IdleConnTimeout:       time.Minute,
-		ResponseHeaderTimeout: time.Second * 30,
-		ExpectContinueTimeout: time.Second * 3,
+func (g *Gateway) proxyDirectory(req *http.Request) {
+	req.URL.Scheme = "https"
+	// most browsers' connection coalescing behavior for http3 is the same as http2,
+	// as they could be reusing the same tcp/quic connection for different hosts.
+	// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
+	// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
+	if req.ProtoAtLeast(2, 0) {
+		req.URL.Host = req.Host
+	} else {
+		req.URL.Host = req.TLS.ServerName
 	}
-	if err := http2.ConfigureTransport(transport); err != nil {
-		g.Logger.Fatal("error configuring transport", zap.Error(err))
+	for _, header := range delHeaders {
+		req.Header.Del(header)
 	}
-	return &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL.Scheme = "https"
-			// most browsers' connection coalescing behavior for http3 is the same as http2,
-			// as they could be reusing the same tcp/quic connection for different hosts.
-			// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
-			// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
-			if req.ProtoAtLeast(2, 0) {
-				req.URL.Host = req.Host
-			} else {
-				req.URL.Host = req.TLS.ServerName
-			}
-			for _, header := range delHeaders {
-				req.Header.Del(header)
-			}
+}
+
+func (g *Gateway) httpHandler() (http.Handler, http.Handler) {
+	bufPool := NewBufferPool(bufferSize)
+	reqHandler := func(r *http.Response) error {
+		r.Header.Del("alt-svc")
+		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
+		return nil
+	}
+	proxyLogger, err := zap.NewStdLogAt(g.Logger, zapcore.ErrorLevel)
+	if err != nil {
+		g.Logger.Fatal("error getting proxy logger", zap.Error(err))
+	}
+
+	h1Proxy := &httputil.ReverseProxy{
+		Director: g.proxyDirectory,
+		Transport: &http.Transport{
+			DialTLSContext:        g.overlayDialer,
+			MaxConnsPerHost:       30,
+			MaxIdleConnsPerHost:   3,
+			IdleConnTimeout:       time.Minute,
+			ResponseHeaderTimeout: time.Second * 30,
+			ExpectContinueTimeout: time.Second * 3,
 		},
-		Transport:    transport,
-		BufferPool:   NewBufferPool(bufferSize),
-		ErrorHandler: g.errorHandler,
-		ModifyResponse: func(r *http.Response) error {
-			r.Header.Del("alt-svc")
-			g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
-			return nil
-		},
-		ErrorLog: func() *log.Logger {
-			l, _ := zap.NewStdLogAt(g.Logger, zapcore.ErrorLevel)
-			return l
-		}(),
+		BufferPool:     bufPool,
+		ErrorHandler:   g.errorHandler,
+		ModifyResponse: reqHandler,
+		ErrorLog:       proxyLogger,
 	}
+	h2Proxy := &httputil.ReverseProxy{
+		Director: g.proxyDirectory,
+		Transport: &http2.Transport{
+			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return g.overlayDialer(ctx, network, addr)
+			},
+			ReadIdleTimeout: time.Minute,
+		},
+		BufferPool:     bufPool,
+		ErrorHandler:   g.errorHandler,
+		ModifyResponse: reqHandler,
+		ErrorLog:       proxyLogger,
+	}
+	return h1Proxy, h2Proxy
 }
 
 func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) {

@@ -40,13 +40,15 @@ type GatewayConfig struct {
 
 type Gateway struct {
 	apexServer          *apexServer
+	http1TunnelAcceptor *acceptor.HTTP2Acceptor
 	http2TunnelAcceptor *acceptor.HTTP2Acceptor
 	http3TunnelAcceptor *acceptor.HTTP3Acceptor
-	http2ApexAcceptor   *acceptor.HTTP2Acceptor
-	http3ApexAcceptor   *acceptor.HTTP3Acceptor
-	h2ApexServer        *http.Server
+	tcpApexAcceptor     *acceptor.HTTP2Acceptor
+	quicApexAcceptor    *acceptor.HTTP3Acceptor
+	tcpApexServer       *http.Server
+	h1TunnelServer      *http.Server
 	h2TunnelServer      *http.Server
-	h3ApexServer        *http3.Server
+	quicApexServer      *http3.Server
 	h3TunnelServer      *http3.Server
 	altHeaders          string
 	GatewayConfig
@@ -55,10 +57,11 @@ type Gateway struct {
 func New(conf GatewayConfig) *Gateway {
 	g := &Gateway{
 		GatewayConfig:       conf,
+		http1TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
 		http2TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
-		http2ApexAcceptor:   acceptor.NewH2Acceptor(conf.H2Listener),
+		tcpApexAcceptor:     acceptor.NewH2Acceptor(conf.H2Listener),
 		http3TunnelAcceptor: acceptor.NewH3Acceptor(conf.H3Listener),
-		http3ApexAcceptor:   acceptor.NewH3Acceptor(conf.H3Listener),
+		quicApexAcceptor:    acceptor.NewH3Acceptor(conf.H3Listener),
 		apexServer: &apexServer{
 			statsHandler: conf.StatsHandler,
 			limiter:      httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
@@ -73,16 +76,20 @@ func New(conf GatewayConfig) *Gateway {
 		MaxIdleTimeout:       time.Second * 60,
 	}
 	apex := g.apexMux()
-	proxy := g.httpHandler()
-	g.h2ApexServer = &http.Server{
+	h1Proxy, h2Proxy := g.httpHandler()
+	g.h1TunnelServer = &http.Server{
+		ReadHeaderTimeout: time.Second * 5,
+		Handler:           h1Proxy,
+	}
+	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           proxy,
+		Handler:           h2Proxy,
 	}
-	g.h3ApexServer = &http3.Server{
+	g.quicApexServer = &http3.Server{
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         apex,
@@ -90,7 +97,7 @@ func New(conf GatewayConfig) *Gateway {
 	g.h3TunnelServer = &http3.Server{
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
-		Handler:         proxy,
+		Handler:         h2Proxy,
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {
@@ -112,33 +119,38 @@ func (g *Gateway) apexMux() http.Handler {
 }
 
 func (g *Gateway) Start(ctx context.Context) {
-	g.Logger.Info("gateway server started")
+	go g.h1TunnelServer.Serve(g.http1TunnelAcceptor)
 
 	go g.h2TunnelServer.Serve(g.http2TunnelAcceptor)
-	go g.h2ApexServer.Serve(g.http2ApexAcceptor)
-	go g.acceptHTTP2(ctx)
+	go g.tcpApexServer.Serve(g.tcpApexAcceptor)
 
 	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
-	go g.h3ApexServer.ServeListener(g.http3ApexAcceptor)
-	go g.acceptHTTP3(ctx)
+	go g.quicApexServer.ServeListener(g.quicApexAcceptor)
+
+	go g.acceptTCP(ctx)
+	go g.acceptQUIC(ctx)
+
+	g.Logger.Info("gateway server started")
 
 	<-ctx.Done()
-
-	g.h2TunnelServer.Close()
-	g.h2ApexServer.Close()
-	g.h3TunnelServer.Close()
-	g.h3ApexServer.Close()
-
 }
 
 func (g *Gateway) Close() {
-	g.h3ApexServer.Close()
-	g.h3TunnelServer.Close()
-	g.http2ApexAcceptor.Close()
+	g.http1TunnelAcceptor.Close()
 	g.http2TunnelAcceptor.Close()
+
+	g.tcpApexAcceptor.Close()
+	g.quicApexAcceptor.Close()
+
+	g.h1TunnelServer.Close()
+	g.h2TunnelServer.Close()
+	g.h3TunnelServer.Close()
+
+	g.tcpApexServer.Close()
+	g.quicApexServer.Close()
 }
 
-func (g *Gateway) acceptHTTP2(ctx context.Context) {
+func (g *Gateway) acceptTCP(ctx context.Context) {
 	for {
 		conn, err := g.H2Listener.Accept()
 		if err != nil {
@@ -149,7 +161,7 @@ func (g *Gateway) acceptHTTP2(ctx context.Context) {
 	}
 }
 
-func (g *Gateway) acceptHTTP3(ctx context.Context) {
+func (g *Gateway) acceptQUIC(ctx context.Context) {
 	for {
 		conn, err := g.H3Listener.Accept(ctx)
 		if err != nil {
@@ -171,7 +183,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection
 		q.CloseWithError(0, "")
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection")
-		g.http3ApexAcceptor.Handle(q)
+		g.quicApexAcceptor.Handle(q)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
@@ -216,7 +228,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 		conn.Close()
 	case g.RootDomain:
 		logger.Debug("forwarding apex connection")
-		g.http2ApexAcceptor.Handle(conn)
+		g.tcpApexAcceptor.Handle(conn)
 	default:
 		// maybe tunnel it
 		switch cs.NegotiatedProtocol {
@@ -228,9 +240,12 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 				return
 			}
 			g.handleH2Multiplex(ctx, logger, session, cs.ServerName)
-		default:
+		case tun.ALPN(protocol.Link_HTTP2):
 			logger.Debug("forwarding http connection")
 			g.http2TunnelAcceptor.Handle(conn)
+		default:
+			logger.Debug("forwarding http connection")
+			g.http1TunnelAcceptor.Handle(conn)
 		}
 	}
 }
