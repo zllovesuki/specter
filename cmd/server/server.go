@@ -233,7 +233,10 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 					return err
 				}
 				magic.Storage = kvStore
-				magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain})
+				if err := magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain}); err != nil {
+					logger.Error("error initializing certmagic", zap.Error(err))
+					return err
+				}
 				return nil
 			},
 		}

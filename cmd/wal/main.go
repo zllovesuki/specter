@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"kon.nect.sh/specter/kv/aof"
@@ -34,18 +35,29 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	go kvProvider.Start()
+
+	defer kvProvider.Stop()
 
 	switch *op {
 	case "list":
 		keys := kvProvider.RangeKeys(0, 0)
-		for _, key := range keys {
-			fmt.Printf("%s\n", key)
+		for _, k := range keys {
+			fmt.Printf("%s\n", k)
 		}
 	case "get":
 		val, err := kvProvider.Get([]byte(*key))
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("%s\n", val)
+		fmt.Printf("%s", val)
+	case "prefix-delete":
+		keys := kvProvider.RangeKeys(0, 0)
+		for _, k := range keys {
+			if strings.HasPrefix(string(k), *key) {
+				fmt.Printf("deleting %s\n", k)
+				kvProvider.Delete(k)
+			}
+		}
 	}
 }

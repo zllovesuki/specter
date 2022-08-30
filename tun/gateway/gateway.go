@@ -48,6 +48,7 @@ type Gateway struct {
 	tcpApexServer       *http.Server
 	h1TunnelServer      *http.Server
 	h2TunnelServer      *http.Server
+	localApexServer     *http.Server
 	quicApexServer      *http3.Server
 	h3TunnelServer      *http3.Server
 	altHeaders          string
@@ -99,6 +100,11 @@ func New(conf GatewayConfig) *Gateway {
 		EnableDatagrams: false,
 		Handler:         h2Proxy,
 	}
+	g.localApexServer = &http.Server{
+		Addr:              "127.0.0.1:9999",
+		ReadHeaderTimeout: time.Second * 5,
+		Handler:           apex,
+	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {
 		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
@@ -130,6 +136,8 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.acceptTCP(ctx)
 	go g.acceptQUIC(ctx)
 
+	go g.localApexServer.ListenAndServe()
+
 	g.Logger.Info("gateway server started")
 
 	<-ctx.Done()
@@ -148,6 +156,8 @@ func (g *Gateway) Close() {
 
 	g.tcpApexServer.Close()
 	g.quicApexServer.Close()
+
+	g.localApexServer.Close()
 }
 
 func (g *Gateway) acceptTCP(ctx context.Context) {
