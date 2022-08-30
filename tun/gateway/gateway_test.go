@@ -355,8 +355,6 @@ func TestH2HTTPFound(t *testing.T) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s", testHost, testDomain), nil)
 	as.NoError(err)
 
-	req.Host = "fail.com"
-
 	resp, err := c.Do(req)
 	as.NoError(err)
 	defer resp.Body.Close()
@@ -394,8 +392,6 @@ func TestH3HTTPFound(t *testing.T) {
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.%s", testHost, testDomain), nil)
 	as.NoError(err)
-
-	req.Host = "fail.com"
 
 	resp, err := c.Do(req)
 	as.NoError(err)

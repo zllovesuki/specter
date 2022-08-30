@@ -30,16 +30,29 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
+func (g *Gateway) overlayDialer(ctx context.Context, _, addr string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	var hostname string
+	parts := strings.SplitN(host, ".", 2)
+	if strings.HasSuffix(parts[1], g.RootDomain) {
+		hostname = parts[0]
+	} else {
+		// TODO: custom hostname support
+		return nil, fmt.Errorf("not implemented")
+	}
+	g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
+	return g.Tun.Dial(ctx, &protocol.Link{
+		Alpn:     protocol.Link_HTTP,
+		Hostname: hostname,
+	})
+}
+
 func (g *Gateway) httpHandler() http.Handler {
 	transport := &http.Transport{
-		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			parts := strings.SplitN(addr, ".", 2)
-			g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", parts[0]), zap.String("tls.ServerName", addr))
-			return g.Tun.Dial(ctx, &protocol.Link{
-				Alpn:     protocol.Link_HTTP,
-				Hostname: parts[0],
-			})
-		},
+		DialTLSContext:        g.overlayDialer,
 		MaxConnsPerHost:       30,
 		MaxIdleConnsPerHost:   3,
 		IdleConnTimeout:       time.Minute,
@@ -52,7 +65,15 @@ func (g *Gateway) httpHandler() http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "https"
-			req.URL.Host = req.TLS.ServerName
+			// most browsers' connection coalescing behavior for http3 is the same as http2,
+			// as they could be reusing the same tcp/quic connection for different hosts.
+			// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
+			// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
+			if req.ProtoAtLeast(2, 0) {
+				req.URL.Host = req.Host
+			} else {
+				req.URL.Host = req.TLS.ServerName
+			}
 			for _, header := range delHeaders {
 				req.Header.Del(header)
 			}
@@ -77,13 +98,13 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 
 	if errors.Is(e, tun.ErrDestinationNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Destination %s not found on the specter network.", r.TLS.ServerName)
+		fmt.Fprintf(w, "Destination %s not found on the specter network.", r.URL.Hostname())
 		return
 	}
 
 	if errors.Is(e, tun.ErrTunnelClientNotConnected) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintf(w, "Destination %s is not connected to specter network.", r.TLS.ServerName)
+		fmt.Fprintf(w, "Destination %s is not connected to specter network.", r.URL.Hostname())
 		return
 	}
 
