@@ -160,9 +160,9 @@ func quicDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (trans
 	if v, ok := ctx.App.Metadata["connectOverride"]; ok {
 		clientTLSConf.ServerName = v.(string)
 	}
-	q, err := quic.DialAddrEarlyContext(ctx.Context, parsed.String(), clientTLSConf, &quic.Config{
+	q, err := quic.DialAddrContext(ctx.Context, parsed.String(), clientTLSConf, &quic.Config{
 		KeepAlivePeriod:      time.Second * 5,
-		HandshakeIdleTimeout: time.Second * 3,
+		HandshakeIdleTimeout: transport.ConnectTimeout,
 		MaxIdleTimeout:       time.Second * 30,
 		EnableDatagrams:      true,
 	})
