@@ -18,6 +18,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -205,7 +207,7 @@ func TestTunnel(t *testing.T) {
 
 	t.Logf("Found hostnames %v\n", hostMap)
 
-	// ====== HTTP TUNNEL ======
+	// ====== HTTP TUNNEL VIA TCP ======
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostMap["http"], serverPort), nil)
 	as.NoError(err)
@@ -235,6 +237,28 @@ func TestTunnel(t *testing.T) {
 	as.True(resp.ProtoAtLeast(2, 0))
 
 	var buf bytes.Buffer
+	_, err = buf.ReadFrom(resp.Body)
+	as.NoError(err)
+	as.Equal(testBody, buf.String())
+
+	// ====== HTTP TUNNEL VIA QUIC ======
+
+	h3Cfg := cfg.Clone()
+	h3Cfg.NextProtos = []string{"h3"}
+	httpClient.Transport = &http3.RoundTripper{
+		TLSClientConfig: h3Cfg,
+		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+			return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
+		},
+	}
+	resp, err = httpClient.Do(req)
+
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	as.True(resp.ProtoAtLeast(2, 0))
+
+	buf.Reset()
 	_, err = buf.ReadFrom(resp.Body)
 	as.NoError(err)
 	as.Equal(testBody, buf.String())

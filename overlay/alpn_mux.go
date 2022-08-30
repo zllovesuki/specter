@@ -59,6 +59,7 @@ func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, e
 		xCfg.NextProtos = []string{selected}
 		return xCfg, nil
 	}
+
 	return nil, errors.New("cipher: no mutually supported protocols")
 }
 
