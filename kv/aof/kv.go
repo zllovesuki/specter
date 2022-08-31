@@ -104,11 +104,16 @@ func (d *DiskKV) Start() {
 
 	d.logger.Info("Periodically flushing logs to disk", zap.Duration("interval", d.flushInterval))
 
+	dirty := false
 	for {
 		select {
 		case <-d.closeCh:
 			return
 		case <-ticker.C:
+			if !dirty {
+				continue
+			}
+			dirty = false
 			if err := d.log.Sync(); err != nil {
 				d.logger.Error("Error flushing logs periodically", zap.Error(err))
 			}
@@ -125,6 +130,7 @@ func (d *DiskKV) Start() {
 					zap.Error(logError))
 				mutError = fs.ErrInvalid
 			}
+			dirty = true
 			m.err <- mutError
 		}
 	}
