@@ -68,14 +68,16 @@ var Cmd = &cli.Command{
 			Name:        "listen-addr",
 			Aliases:     []string{"listen"},
 			DefaultText: fmt.Sprintf("%s:443", util.GetOutboundIP().String()),
-			Usage:       "address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP",
-			Required:    true,
+			Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP.
+			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:        "advertise-addr",
 			Aliases:     []string{"advertise"},
 			DefaultText: "same as listen-addr",
-			Usage:       "address and port to advertise to specter servers and clients to connect to",
+			Usage: `address and port to advertise to specter servers and clients to connect to.
+			Note that specter will use advertised address to derive its Identity hash.`,
 		},
 		&cli.StringFlag{
 			Name:        "challenger",
