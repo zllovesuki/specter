@@ -45,7 +45,6 @@ func (a *apexServer) Mount(r *chi.Mux) {
 	r.Use(a.limiter)
 	r.Use(middleware.NoCache)
 	r.Use(middleware.Compress(5, "text/*"))
-	r.Use(middleware.CleanPath)
 	r.Get("/", a.handleRoot)
 	r.Get("/quic.png", a.handleLogo)
 	if a.authUser == "" || a.authPass == "" {
