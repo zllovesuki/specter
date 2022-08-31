@@ -1,6 +1,6 @@
 PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe android/arm64 linux/arm64 darwin/arm64 linux/arm freebsd/amd64
 
-BUILD=`git rev-parse --short HEAD`
+BUILD=$(shell git rev-parse --short HEAD)
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 
@@ -60,7 +60,9 @@ release: $(PLATFORMS)
 
 $(PLATFORMS):
 	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
+ifdef wal
 	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/wal-$(os)-$(arch)$(ext) ./cmd/wal
+endif
 
 upx: release
 	-find ./bin -type f -exec upx --best --lzma {} +
