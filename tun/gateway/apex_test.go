@@ -18,7 +18,7 @@ const (
 func TestH2ApexIndex(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH2Client("", port)
@@ -40,7 +40,7 @@ func TestH2ApexIndex(t *testing.T) {
 func TestH3ApexIndex(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH3Client("", port)
@@ -69,7 +69,7 @@ func TestInternalWithAuth(t *testing.T) {
 
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH2Client("", port)
@@ -98,7 +98,7 @@ func TestInternalNoAuth(t *testing.T) {
 
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH2Client("", port)
@@ -119,7 +119,7 @@ func TestInternalNoAuth(t *testing.T) {
 func TestInternalDisabled(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH2Client("", port)
@@ -140,7 +140,7 @@ func TestInternalDisabled(t *testing.T) {
 func TestLogo(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	c := getH3Client("", port)

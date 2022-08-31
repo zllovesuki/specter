@@ -251,10 +251,15 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
-	addr := ctx.String("listen-addr")
-	advertise := addr
+	listen := ctx.String("listen-addr")
+	advertise := listen
 	if ctx.IsSet("advertise-addr") {
 		advertise = ctx.String("advertise-addr")
+	}
+
+	listenHost, listenPort, err := net.SplitHostPort(listen)
+	if err != nil {
+		return fmt.Errorf("error getting listening port: %w", err)
 	}
 
 	kvProvider, err := aof.New(aof.Config{
@@ -297,13 +302,21 @@ func cmdServer(ctx *cli.Context) error {
 	gwLogger := logger.With(zap.String("component", "gateway"))
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	tcpListener, err := net.Listen("tcp", addr)
+	tcpListener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("error setting up gateway http2 listener: %w", err)
 	}
 	defer tcpListener.Close()
 
-	alpnMux, err := overlay.NewMux(addr)
+	var httpListener net.Listener
+	if listenPort == "443" {
+		httpListener, err = net.Listen("tcp", fmt.Sprintf("%s:80", listenHost))
+		if err != nil {
+			return fmt.Errorf("error setting up http (80) listener: %w", err)
+		}
+	}
+
+	alpnMux, err := overlay.NewMux(listen)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}
@@ -393,6 +406,7 @@ func cmdServer(ctx *cli.Context) error {
 	gw := gateway.New(gateway.GatewayConfig{
 		Logger:       gwLogger,
 		Tun:          tunServer,
+		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
 		StatsHandler: chordNode.StatsHandler,

@@ -28,6 +28,7 @@ type DeadlineReadWriteCloser interface {
 
 type GatewayConfig struct {
 	Tun          tun.Server
+	HTTPListener net.Listener
 	H2Listener   net.Listener
 	H3Listener   quic.EarlyListener
 	Logger       *zap.Logger
@@ -49,6 +50,7 @@ type Gateway struct {
 	h1TunnelServer      *http.Server
 	h2TunnelServer      *http.Server
 	localApexServer     *http.Server
+	httpServer          *http.Server
 	quicApexServer      *http3.Server
 	h3TunnelServer      *http3.Server
 	altHeaders          string
@@ -105,6 +107,13 @@ func New(conf GatewayConfig) *Gateway {
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
 	}
+	g.httpServer = &http.Server{
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       5 * time.Second,
+		Handler:           http.HandlerFunc(g.httpRedirect),
+	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {
 		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
@@ -125,6 +134,14 @@ func (g *Gateway) apexMux() http.Handler {
 }
 
 func (g *Gateway) Start(ctx context.Context) {
+	// provide application context
+	g.h1TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+	g.h2TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+	g.tcpApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+	g.localApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+	g.httpServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+
+	// start all servers
 	go g.h1TunnelServer.Serve(g.http1TunnelAcceptor)
 
 	go g.h2TunnelServer.Serve(g.http2TunnelAcceptor)
@@ -137,6 +154,11 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.acceptQUIC(ctx)
 
 	go g.localApexServer.ListenAndServe()
+
+	if g.HTTPListener != nil {
+		g.Logger.Info("Enabling HTTP (80) redirect to HTTPS (443)")
+		go g.httpServer.Serve(g.HTTPListener)
+	}
 
 	g.Logger.Info("gateway server started")
 

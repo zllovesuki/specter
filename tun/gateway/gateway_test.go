@@ -63,6 +63,13 @@ func generateTLSConfig(protos []string) *tls.Config {
 	}
 }
 
+func getTCPListener(as *require.Assertions) (net.Listener, int) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	as.NoError(err)
+
+	return l, l.Addr().(*net.TCPAddr).Port
+}
+
 func getH2Listener(as *require.Assertions) (net.Listener, int) {
 	l, err := tls.Listen("tcp", "127.0.0.1:0", generateTLSConfig([]string{
 		tun.ALPN(protocol.Link_HTTP2),
@@ -110,6 +117,18 @@ func getH1Client(host string, port int) *http.Client {
 	}
 }
 
+func getHTTPClient(port int) *http.Client {
+	dialer := &net.Dialer{}
+	return &http.Client{
+		Timeout: time.Second,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+			},
+		},
+	}
+}
+
 func getH2Client(host string, port int) *http.Client {
 	return &http.Client{
 		Timeout: time.Second,
@@ -134,7 +153,7 @@ func getH3Client(host string, port int) *http.Client {
 	}
 }
 
-func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
+func setupGateway(as *require.Assertions, httpListener net.Listener) (int, *mocks.TunServer, func()) {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
@@ -151,14 +170,15 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 	mockS := new(mocks.TunServer)
 
 	conf := GatewayConfig{
-		Logger:      logger,
-		Tun:         mockS,
-		H2Listener:  h2,
-		H3Listener:  h3,
-		RootDomain:  testDomain,
-		GatewayPort: port,
-		AdminUser:   os.Getenv("INTERNAL_USER"),
-		AdminPass:   os.Getenv("INTERNAL_PASS"),
+		Logger:       logger,
+		Tun:          mockS,
+		HTTPListener: httpListener,
+		H2Listener:   h2,
+		H3Listener:   h3,
+		RootDomain:   testDomain,
+		GatewayPort:  port,
+		AdminUser:    os.Getenv("INTERNAL_USER"),
+		AdminPass:    os.Getenv("INTERNAL_PASS"),
 		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		},
@@ -182,7 +202,7 @@ func getStuff(as *require.Assertions) (int, *mocks.TunServer, func()) {
 func TestH2HTTPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -210,7 +230,7 @@ func TestH2HTTPNotFound(t *testing.T) {
 func TestH3HTTPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -238,7 +258,7 @@ func TestH3HTTPNotFound(t *testing.T) {
 func TestHTTPNotConnected(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -294,7 +314,7 @@ func serveMiniClient(ch chan net.Conn, resp string) {
 func TestH1HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -334,7 +354,7 @@ func TestH1HTTPFound(t *testing.T) {
 func TestH2HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -372,7 +392,7 @@ func TestH2HTTPFound(t *testing.T) {
 func TestH3HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -410,7 +430,7 @@ func TestH3HTTPFound(t *testing.T) {
 func TestH2TCPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -448,7 +468,7 @@ func TestH2TCPNotFound(t *testing.T) {
 func TestH3TCPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -481,7 +501,7 @@ func TestH3TCPNotFound(t *testing.T) {
 func TestTCPNotConnected(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -514,7 +534,7 @@ func TestTCPNotConnected(t *testing.T) {
 func TestH2TCPFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -578,7 +598,7 @@ func TestH2TCPFound(t *testing.T) {
 func TestH3TCPFound(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -637,7 +657,7 @@ func TestH3TCPFound(t *testing.T) {
 func TestH2RejectALPN(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -652,7 +672,7 @@ func TestH2RejectALPN(t *testing.T) {
 func TestH3RejectALPN(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := getStuff(as)
+	port, mockS, done := setupGateway(as, nil)
 	defer done()
 
 	testHost := "hello"
