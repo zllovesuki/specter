@@ -6,6 +6,7 @@ import (
 
 	"kon.nect.sh/specter/cmd/client"
 	"kon.nect.sh/specter/cmd/server"
+	"kon.nect.sh/specter/spec/errata"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -58,5 +59,13 @@ func ConfigLogger(ctx *cli.Context) error {
 		return fmt.Errorf("redirecting stdlog output: %w", err)
 	}
 	ctx.App.Metadata["logger"] = logger
+	return ConfigApp(ctx)
+}
+
+func ConfigApp(ctx *cli.Context) error {
+	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+	if errata.ConfigDNS() {
+		logger.Info("errata: net.Resolver configured with custom dialer")
+	}
 	return nil
 }
