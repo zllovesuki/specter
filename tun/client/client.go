@@ -58,7 +58,7 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 	if err := c.openRPC(ctx, &protocol.Node{
 		Address: cfg.Apex,
 	}); err != nil {
-		return nil, fmt.Errorf("error connecting to spex: %w", err)
+		return nil, fmt.Errorf("error connecting to apex: %w", err)
 	}
 
 	return c, nil
