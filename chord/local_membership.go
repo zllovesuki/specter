@@ -137,7 +137,10 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 	if stablize {
 		n.Logger.Info("Join completed, joiner has requested to update pointers")
-		n.stabilize()
+		// ensure that stablize task won't trample over us
+		n.successorsMu.Lock()
+		n.stabilize(true)
+		n.successorsMu.Unlock()
 		n.fixFinger()
 	}
 	if release {
@@ -163,7 +166,10 @@ func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
 func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
 	if stablize {
 		n.Logger.Info("Leave completed, leaver has requested to update pointers")
-		n.stabilize()
+		// ensure that stablize task won't trample over us
+		n.successorsMu.Lock()
+		n.stabilize(true)
+		n.successorsMu.Unlock()
 		n.fixFinger()
 	}
 	if release {

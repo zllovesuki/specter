@@ -11,17 +11,18 @@ import (
 )
 
 type LocalNode struct {
-	successors     atomic.Pointer[[]chord.VNode]
-	predecessorMu  sync.RWMutex
-	surrogateMu    sync.RWMutex
-	kv             chord.KVProvider
-	predecessor    chord.VNode
-	succListHash   *atomic.Uint64
-	lastStabilized *atomic.Time
-	surrogate      *protocol.Node
-	stopCh         chan struct{}
-	state          *nodeState
-	fingers        []atomic.Pointer[chord.VNode]
+	predecessorMu  sync.RWMutex                  // simple mutex surrounding operations on predecessor
+	predecessor    chord.VNode                   // nord's immediate predecessor
+	surrogateMu    sync.RWMutex                  // advanced mutex surrounding KV requests during Join/Leave
+	surrogate      *protocol.Node                // node's previous predecessor, used to guard against outdated KV requests
+	successorsMu   sync.Mutex                    // advanced mutex surrounding successors during Join/Leave
+	successors     atomic.Pointer[[]chord.VNode] // node's immediate successors
+	succListHash   *atomic.Uint64                // simple hash on the successors to determine if they have changed
+	kv             chord.KVProvider              // KV backing implementation
+	lastStabilized *atomic.Time                  // informational only
+	stopCh         chan struct{}                 // used to signal task goroutines to stop
+	state          *nodeState                    // a replacement of LockQueue from the paper
+	fingers        []atomic.Pointer[chord.VNode] // finger table to provide log(N) optimization
 	NodeConfig
 }
 

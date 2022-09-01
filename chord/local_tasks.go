@@ -39,7 +39,7 @@ func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
 }
 
 // routine based on pseudo code from the paper "How to Make Chord Correct"
-func (n *LocalNode) stabilize() error {
+func (n *LocalNode) stabilize(hasLock bool) error {
 	succList := n.getSuccessors()
 	modified := false
 
@@ -71,12 +71,12 @@ func (n *LocalNode) stabilize() error {
 
 	listHash := n.hash(succList)
 	if modified && n.succListHash.Load() != listHash {
-		n.succListHash.Store(listHash)
-		n.successors.Store(&succList)
-
-		n.Logger.Info("Discovered new successors via Stablize",
-			zap.Uint64s("successors", v2d(succList)),
-		)
+		if hasLock {
+			n.updateSuccessorsList(listHash, succList)
+		} else if n.successorsMu.TryLock() { // join in progress, don't trample over
+			n.updateSuccessorsList(listHash, succList)
+			n.successorsMu.Unlock()
+		}
 	}
 
 	if modified && len(succList) > 0 && n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
@@ -87,6 +87,15 @@ func (n *LocalNode) stabilize() error {
 	}
 
 	return nil
+}
+
+func (n *LocalNode) updateSuccessorsList(listHash uint64, succList []chord.VNode) {
+	n.succListHash.Store(listHash)
+	n.successors.Store(&succList)
+
+	n.Logger.Info("Discovered new successors via Stablize",
+		zap.Uint64s("successors", v2d(succList)),
+	)
 }
 
 func (n *LocalNode) fixK(k int) (updated bool, err error) {
@@ -154,7 +163,7 @@ func (n *LocalNode) periodicStablize() {
 			n.Logger.Debug("Stopping Stablize task")
 			return
 		default:
-			if err := n.stabilize(); err != nil {
+			if err := n.stabilize(false); err != nil {
 				n.Logger.Error("Stablize task", zap.Error(err))
 			}
 		}
@@ -190,7 +199,7 @@ func (n *LocalNode) periodicFixFingers() {
 
 func (n *LocalNode) startTasks() {
 	// run once
-	n.stabilize()
+	n.stabilize(false)
 	n.fixFinger()
 	// then run periodically
 	go n.periodicStablize()
