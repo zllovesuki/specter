@@ -38,7 +38,7 @@ func cmdListen(ctx *cli.Context) error {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
 	}
 
-	test, err := getConnection(dial)
+	test, _, err := getConnection(dial)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func cmdListen(ctx *cli.Context) error {
 	}
 	defer listener.Close()
 
-	logger.Info("listening for new connections", zap.String("addr", listener.Addr().String()))
+	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()))
 
 	go handleConnections(logger, listener, dial)
 
@@ -68,16 +68,18 @@ func handleConnections(logger *zap.Logger, listener net.Listener, dial transport
 		if err != nil {
 			return
 		}
-		logger.Info("New incoming connection", zap.String("addr", conn.RemoteAddr().String()))
 		go func(local *net.TCPConn) {
-			remote, err := getConnection(dial)
+			r, remote, err := getConnection(dial)
 			if err != nil {
-				logger.Error("Error dialing specter gateway for new connection", zap.Error(err))
+				logger.Error("Error forwarding local connections via specter gateway", zap.Error(err))
+				local.Close()
 				return
 			}
 
+			logger.Info("Forwarding incoming connection", zap.String("local", conn.RemoteAddr().String()), zap.String("via", remote.String()))
+
 			go func() {
-				errChan := tun.Pipe(remote, local)
+				errChan := tun.Pipe(r, local)
 				for err := range errChan {
 					logger.Error("error piping to target", zap.Error(err))
 				}

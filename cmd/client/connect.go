@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,7 +22,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type transportDialer func() (io.ReadWriteCloser, error)
+type transportDialer func() (io.ReadWriteCloser, net.Addr, error)
 
 func cmdConnect(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
@@ -48,13 +49,13 @@ func cmdConnect(ctx *cli.Context) error {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
 	}
 
-	rw, err := getConnection(dial)
+	rw, remote, err := getConnection(dial)
 	if err != nil {
 		return err
 	}
 	defer rw.Close()
 
-	logger.Info("Tunnel established")
+	logger.Info("Tunnel established", zap.String("via", remote.String()))
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -95,20 +96,20 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 	return status, nil
 }
 
-func getConnection(dial transportDialer) (io.ReadWriteCloser, error) {
-	rw, err := dial()
+func getConnection(dial transportDialer) (io.ReadWriteCloser, net.Addr, error) {
+	rw, addr, err := dial()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	status, err := statusExchange(rw)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if status.GetStatus() != protocol.TunnelStatusCode_STATUS_OK {
-		return nil, fmt.Errorf("error opening tunnel: %s", status.Error)
+		return nil, nil, fmt.Errorf("error opening tunnel: %s", status.Error)
 	}
-	return rw, nil
+	return rw, addr, nil
 }
 
 func tlsDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transportDialer, error) {
@@ -143,8 +144,12 @@ func tlsDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transp
 		return nil, err
 	}
 
-	return func() (io.ReadWriteCloser, error) {
-		return session.OpenStream(ctx.Context)
+	return func() (io.ReadWriteCloser, net.Addr, error) {
+		r, err := session.OpenStream(ctx.Context)
+		if err != nil {
+			return nil, nil, err
+		}
+		return r, conn.RemoteAddr(), nil
 	}, nil
 }
 
@@ -170,7 +175,11 @@ func quicDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (trans
 		return nil, err
 	}
 
-	return func() (io.ReadWriteCloser, error) {
-		return q.OpenStream()
+	return func() (io.ReadWriteCloser, net.Addr, error) {
+		r, err := q.OpenStream()
+		if err != nil {
+			return nil, nil, err
+		}
+		return r, q.RemoteAddr(), nil
 	}, nil
 }
