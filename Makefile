@@ -58,6 +58,11 @@ all: proto test clean release
 
 release: $(PLATFORMS)
 
+compat: GOAMD64 = v2
+compat: GOARM = 6
+compat: ext := -compat
+compat: release
+
 $(PLATFORMS):
 	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
 ifdef wal
