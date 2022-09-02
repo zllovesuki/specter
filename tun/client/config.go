@@ -65,6 +65,26 @@ func (c *Config) validate() error {
 	return nil
 }
 
+func (c *Config) reloadFile() error {
+	f, err := os.Open(c.path)
+	if err != nil {
+		return fmt.Errorf("error opening config file for reading: %w", err)
+	}
+	defer f.Close()
+
+	next := &Config{}
+	if err := yaml.NewDecoder(f).Decode(next); err != nil {
+		return fmt.Errorf("error decoding config file: %w", err)
+	}
+
+	if err := next.validate(); err != nil {
+		return fmt.Errorf("error validating config file: %w", err)
+	}
+
+	c.Tunnels = next.Tunnels
+	return nil
+}
+
 func (c *Config) readFile() error {
 	f, err := os.Open(c.path)
 	if err != nil {

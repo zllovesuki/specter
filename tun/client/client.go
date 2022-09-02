@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -34,6 +37,7 @@ type Client struct {
 	logger          *zap.Logger
 	serverTransport transport.Transport
 	configMu        sync.RWMutex
+	syncMu          sync.Mutex
 	config          *Config
 	rootDomain      *atomic.String
 	proxies         *skipmap.StringMap[*httpProxy]
@@ -287,6 +291,9 @@ func (c *Client) RequestCandidates(ctx context.Context) ([]*protocol.Node, error
 }
 
 func (c *Client) SyncConfigTunnels(ctx context.Context) {
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
+
 	c.configMu.RLock()
 	tunnels := append([]Tunnel{}, c.config.Tunnels...)
 	c.configMu.RUnlock()
@@ -344,10 +351,32 @@ func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected [
 	return resp.GetTunnelResponse().GetPublished(), nil
 }
 
+func (c *Client) reloadOnSignal(ctx context.Context) {
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGHUP)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-s:
+			c.configMu.Lock()
+			if err := c.config.reloadFile(); err != nil {
+				c.logger.Error("Error reloading config file", zap.Error(err))
+				c.configMu.Unlock()
+				continue
+			}
+			c.configMu.Unlock()
+			c.SyncConfigTunnels(ctx)
+		}
+	}
+}
+
 func (c *Client) Accept(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
 
 	go c.reconnectOnDisconnect(ctx)
+	go c.reloadOnSignal(ctx)
 
 	for delegation := range c.serverTransport.Direct() {
 		go func(delegation *transport.StreamDelegate) {
