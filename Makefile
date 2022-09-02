@@ -58,7 +58,7 @@ all: proto test clean release
 
 release: $(PLATFORMS)
 
-compat: GOAMD64 = v2
+compat: GOAMD64 = v1
 compat: GOARM = 6
 compat: ext := -compat
 compat: release
