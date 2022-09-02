@@ -56,10 +56,10 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if err := predecessor.FinishJoin(true, false); err != nil { // advisory to let predecessor update successor list
 		n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
 	}
-	n.state.Set(chord.Active)                                     // release local join lock
 	if err := successors[0].FinishJoin(false, true); err != nil { // release successor join lock
 		n.Logger.Warn("error releasing join lock in successor", zap.Error(err))
 	}
+	n.state.Set(chord.Active) // release local join lock
 
 	return nil
 }
@@ -99,11 +99,22 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return succ.RequestToJoin(joiner)
 	}
 
+	n.Logger.Info("incoming join request", zap.Uint64("joiner", joiner.ID()))
+
 	// change status to transferring (if allowed)
 	if !n.state.Transition(chord.Active, chord.Transferring) {
 		n.Logger.Info("rejecting join request because current state is not Active", zap.Uint64("joiner", joiner.ID()))
 		return nil, nil, chord.ErrJoinInvalidState
 	}
+
+	n.predecessorMu.Lock()
+	prevPredecessor := n.predecessor
+	n.predecessor = joiner
+	n.predecessorMu.Unlock()
+
+	n.surrogateMu.Lock()
+	n.surrogate = joiner.Identity()
+	n.surrogateMu.Unlock()
 
 	var joined bool
 	defer func() {
@@ -114,21 +125,12 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		n.state.Set(chord.Active)
 	}()
 
-	n.Logger.Info("incoming join request", zap.Uint64("joiner", joiner.ID()))
-
-	n.predecessorMu.Lock()
-	defer n.predecessorMu.Unlock()
-	n.surrogateMu.Lock()
-	defer n.surrogateMu.Unlock()
 	// transfer key range to new node, and set surrogate pointer to new node.
 	// paper calls for forwarding but that's too hard
 	// let the caller retries
-	if err := n.transferKeysUpward(n.predecessor, joiner); err != nil {
+	if err := n.transferKeysUpward(prevPredecessor, joiner); err != nil {
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
-	prevPredecessor := n.predecessor
-	n.predecessor = joiner
-	n.surrogate = joiner.Identity()
 	joined = true
 
 	return prevPredecessor, chord.MakeSuccList(n, n.getSuccessors(), chord.ExtendedSuccessorEntries+1), nil

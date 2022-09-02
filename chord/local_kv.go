@@ -28,16 +28,17 @@ func kvMiddleware[V any](
 	}
 	if succ.ID() == n.ID() {
 		// maybe we are joining or leaving
-		state := n.state.Get()
-		if state != chord.Active {
-			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))
-			return zeroV, chord.ErrKVStaleOwnership
-		}
 		if !n.surrogateMu.TryRLock() {
 			// this is to avoid caller timing out RPC call
 			return zeroV, chord.ErrKVPendingTransfer
 		}
 		defer n.surrogateMu.RUnlock()
+		// maybe we are joining or leaving
+		state := n.state.Get()
+		if state != chord.Active {
+			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))
+			return zeroV, chord.ErrKVStaleOwnership
+		}
 		if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
 			n.Logger.Debug("KV Ownership moved", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 			return zeroV, chord.ErrKVStaleOwnership

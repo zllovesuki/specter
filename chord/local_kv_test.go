@@ -416,18 +416,9 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	missing := 0
 	indices := make([]int, 0)
 	for i := range keys {
-		// inspec
-	RETRY:
-		val, err := nodes[0].Get(keys[i])
-		if err != nil {
-			if chord.ErrorIsRetryable(err) {
-				t.Logf("[get] outdated ownership at key %d", i)
-				time.Sleep(defaultInterval)
-				goto RETRY
-			}
-			as.NoError(err)
-			return
-		}
+		// all keys should be in the first node
+		val, err := nodes[0].kv.Get(keys[i])
+		as.NoError(err)
 		if bytes.Equal(values[i], val) {
 			found++
 		} else {
