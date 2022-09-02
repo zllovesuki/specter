@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"net"
 	"time"
 
 	"kon.nect.sh/specter/util/acceptor"
@@ -22,17 +23,17 @@ type protoCfg struct {
 	tls      *tls.Config
 }
 
-func NewMux(addr string) (*ALPNMux, error) {
+func NewMux(listener net.PacketConn) (*ALPNMux, error) {
 	a := &ALPNMux{
 		mux: skipmap.NewString[*protoCfg](),
 	}
-	listener, err := quic.ListenAddrEarly(addr, &tls.Config{
+	q, err := quic.ListenEarly(listener, &tls.Config{
 		GetConfigForClient: a.getConfigForClient,
 	}, quicConfig)
 	if err != nil {
 		return nil, err
 	}
-	a.listener = listener
+	a.listener = q
 	return a, nil
 }
 

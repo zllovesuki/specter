@@ -303,22 +303,30 @@ func cmdServer(ctx *cli.Context) error {
 	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 
+	listenCfg := &net.ListenConfig{}
+
 	// TODO: implement SNI proxy so specter can share port with another webserver
-	tcpListener, err := net.Listen("tcp", listen)
+	tcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listen)
 	if err != nil {
-		return fmt.Errorf("error setting up gateway http2 listener: %w", err)
+		return fmt.Errorf("error setting up gateway tcp listener: %w", err)
 	}
 	defer tcpListener.Close()
 
+	udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listen)
+	if err != nil {
+		return fmt.Errorf("error setting up gateway udp listener: %w", err)
+	}
+	defer udpListener.Close()
+
 	var httpListener net.Listener
 	if listenPort == "443" {
-		httpListener, err = net.Listen("tcp", fmt.Sprintf("%s:80", listenHost))
+		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:80", listenHost))
 		if err != nil {
 			return fmt.Errorf("error setting up http (80) listener: %w", err)
 		}
 	}
 
-	alpnMux, err := overlay.NewMux(listen)
+	alpnMux, err := overlay.NewMux(udpListener)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}

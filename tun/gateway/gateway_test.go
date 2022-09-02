@@ -70,8 +70,15 @@ func getTCPListener(as *require.Assertions) (net.Listener, int) {
 	return l, l.Addr().(*net.TCPAddr).Port
 }
 
-func getH2Listener(as *require.Assertions) (net.Listener, int) {
-	l, err := tls.Listen("tcp", "127.0.0.1:0", generateTLSConfig([]string{
+func getUDPListener(as *require.Assertions) (net.PacketConn, int) {
+	l, err := net.ListenPacket("udp", "127.0.0.1:0")
+	as.NoError(err)
+
+	return l, l.LocalAddr().(*net.UDPAddr).Port
+}
+
+func getH2Listener(as *require.Assertions, port int) net.Listener {
+	l, err := tls.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port), generateTLSConfig([]string{
 		tun.ALPN(protocol.Link_HTTP2),
 		tun.ALPN(protocol.Link_HTTP),
 		tun.ALPN(protocol.Link_TCP),
@@ -79,7 +86,7 @@ func getH2Listener(as *require.Assertions) (net.Listener, int) {
 	}))
 	as.NoError(err)
 
-	return l, l.Addr().(*net.TCPAddr).Port
+	return l
 }
 
 func getDialer(proto string, sn string) *tls.Dialer {
@@ -157,10 +164,12 @@ func setupGateway(as *require.Assertions, httpListener net.Listener) (int, *mock
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
-	h2, port := getH2Listener(as)
+	u, port := getUDPListener(as)
+
+	h2 := getH2Listener(as, port)
 
 	ss := generateTLSConfig([]string{})
-	alpnMux, err := overlay.NewMux(fmt.Sprintf("127.0.0.1:%d", port))
+	alpnMux, err := overlay.NewMux(u)
 	as.NoError(err)
 
 	h3 := alpnMux.With(cipher.GetGatewayTLSConfig(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
