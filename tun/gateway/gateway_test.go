@@ -309,8 +309,10 @@ func (b *miniClient) Close() error {
 	return nil
 }
 
-func serveMiniClient(ch chan net.Conn, resp string) {
+func serveMiniClient(as *require.Assertions, ch chan net.Conn, resp string) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		as.Equal("https", r.Header.Get("X-Forwarded-Proto"))
+		as.NotEmpty(r.Header.Get("X-Forwarded-Host"))
 		w.Write([]byte(resp))
 	})
 	h2s := &http2.Server{}
@@ -331,7 +333,7 @@ func TestH1HTTPFound(t *testing.T) {
 
 	c1, c2 := net.Pipe()
 	ch := make(chan net.Conn, 1)
-	go serveMiniClient(ch, testResponse)
+	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
 	ch <- c2
 
@@ -371,7 +373,7 @@ func TestH2HTTPFound(t *testing.T) {
 
 	c1, c2 := net.Pipe()
 	ch := make(chan net.Conn, 1)
-	go serveMiniClient(ch, testResponse)
+	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
 	ch <- c2
 
@@ -409,7 +411,7 @@ func TestH3HTTPFound(t *testing.T) {
 
 	c1, c2 := net.Pipe()
 	ch := make(chan net.Conn, 1)
-	go serveMiniClient(ch, testResponse)
+	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
 	ch <- c2
 

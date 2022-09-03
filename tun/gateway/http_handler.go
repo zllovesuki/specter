@@ -64,6 +64,12 @@ func (g *Gateway) proxyDirectory(req *http.Request) {
 	for _, header := range delHeaders {
 		req.Header.Del(header)
 	}
+	if g.GatewayPort == 443 {
+		req.Header.Set("X-Forwarded-Host", req.URL.Host)
+	} else {
+		req.Header.Set("X-Forwarded-Host", fmt.Sprintf("%s:%d", req.URL.Host, g.GatewayPort))
+	}
+	req.Header.Set("X-Forwarded-Proto", "https")
 }
 
 func (g *Gateway) httpHandler() (http.Handler, http.Handler) {
