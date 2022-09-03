@@ -56,10 +56,10 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	if err := predecessor.FinishJoin(true, false); err != nil { // advisory to let predecessor update successor list
 		n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
 	}
+	n.state.Set(chord.Active)                                     // release local join lock
 	if err := successors[0].FinishJoin(false, true); err != nil { // release successor join lock
 		n.Logger.Warn("error releasing join lock in successor", zap.Error(err))
 	}
-	n.state.Set(chord.Active) // release local join lock
 
 	return nil
 }
@@ -107,10 +107,9 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return nil, nil, chord.ErrJoinInvalidState
 	}
 
-	n.predecessorMu.Lock()
+	n.predecessorMu.RLock()
 	prevPredecessor := n.predecessor
-	n.predecessor = joiner
-	n.predecessorMu.Unlock()
+	n.predecessorMu.RUnlock()
 
 	n.surrogateMu.Lock()
 	n.surrogate = joiner.Identity()
@@ -119,10 +118,20 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	var joined bool
 	defer func() {
 		if joined {
+			n.predecessorMu.Lock()
+			if n.predecessor == prevPredecessor {
+				n.predecessor = joiner
+			}
+			n.predecessorMu.Unlock()
 			return
 		}
 		// joiner will unlock, revert upon error
 		n.state.Set(chord.Active)
+		n.surrogateMu.Lock()
+		if n.surrogate == joiner.Identity() {
+			n.surrogate = prevPredecessor.Identity()
+		}
+		n.surrogateMu.Unlock()
 	}()
 
 	// transfer key range to new node, and set surrogate pointer to new node.

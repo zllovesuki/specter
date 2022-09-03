@@ -76,6 +76,8 @@ func (n *LocalNode) stabilize(hasLock bool) error {
 		} else if n.successorsMu.TryLock() { // join in progress, don't trample over
 			n.updateSuccessorsList(listHash, succList)
 			n.successorsMu.Unlock()
+		} else {
+			modified = false // if we cannot update successors list, don't notify
 		}
 	}
 
