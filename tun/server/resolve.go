@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -16,7 +17,7 @@ const (
 	kvRetryInterval = time.Second * 2
 )
 
-func (s *Server) publishIdentities() error {
+func (s *Server) publishIdentities(ctx context.Context) error {
 	identities := &protocol.IdentitiesPair{
 		Chord: s.chordTransport.Identity(),
 		Tun:   s.clientTransport.Identity(),
@@ -32,7 +33,7 @@ func (s *Server) publishIdentities() error {
 	}
 	for _, key := range keys {
 	RETRY:
-		err := s.chord.Put([]byte(key), buf)
+		err := s.chord.Put(ctx, []byte(key), buf)
 		if err != nil {
 			if chord.ErrorIsRetryable(err) {
 				time.Sleep(kvRetryInterval)
@@ -49,14 +50,14 @@ func (s *Server) publishIdentities() error {
 	return nil
 }
 
-func (s *Server) unpublishIdentities() {
+func (s *Server) unpublishIdentities(ctx context.Context) {
 	keys := []string{
 		tun.IdentitiesChordKey(s.chordTransport.Identity()),
 		tun.IdentitiesTunKey(s.clientTransport.Identity()),
 	}
 	for _, key := range keys {
 	RETRY:
-		err := s.chord.Delete([]byte(key))
+		err := s.chord.Delete(ctx, []byte(key))
 		if err != nil {
 			if chord.ErrorIsRetryable(err) {
 				time.Sleep(kvRetryInterval)
@@ -71,9 +72,9 @@ func (s *Server) unpublishIdentities() {
 		zap.String("tun", keys[1]))
 }
 
-func (s *Server) lookupIdentities(key string) (*protocol.IdentitiesPair, error) {
+func (s *Server) lookupIdentities(ctx context.Context, key string) (*protocol.IdentitiesPair, error) {
 RETRY:
-	buf, err := s.chord.Get([]byte(key))
+	buf, err := s.chord.Get(ctx, []byte(key))
 	if err != nil {
 		if chord.ErrorIsRetryable(err) {
 			time.Sleep(kvRetryInterval)

@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"context"
 	"fmt"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -196,7 +197,7 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 
 // transferKeyUpward is called when a new predecessor has notified us, and we should transfer predecessors'
 // key range (upward). Caller of this function should hold the surrogateMu Write Lock.
-func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNode) (err error) {
+func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, newPredecessor chord.VNode) (err error) {
 	var keys [][]byte
 	var values []*protocol.KVTransfer
 	var low uint64
@@ -225,7 +226,7 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 
 	values = n.kv.Export(keys)
 
-	err = newPredecessor.Import(keys, values)
+	err = newPredecessor.Import(ctx, keys, values)
 	if err != nil {
 		return
 	}
@@ -237,7 +238,7 @@ func (n *LocalNode) transferKeysUpward(prevPredecessor, newPredecessor chord.VNo
 
 // transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
 // to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
-func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
+func (n *LocalNode) transferKeysDownward(ctx context.Context, successor chord.VNode) error {
 	keys := n.kv.RangeKeys(0, 0)
 
 	if len(keys) == 0 {
@@ -249,7 +250,7 @@ func (n *LocalNode) transferKeysDownward(successor chord.VNode) error {
 	values := n.kv.Export(keys)
 
 	// TODO: split into batches
-	if err := successor.Import(keys, values); err != nil {
+	if err := successor.Import(ctx, keys, values); err != nil {
 		return fmt.Errorf("storing KV to successor: %w", err)
 	}
 

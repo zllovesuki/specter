@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -131,7 +132,9 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	// transfer key range to new node, and set surrogate pointer to new node.
 	// paper calls for forwarding but that's too hard
 	// let the caller retries
-	if err := n.transferKeysUpward(prevPredecessor, joiner); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := n.transferKeysUpward(ctx, prevPredecessor, joiner); err != nil {
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
 	joined = true
@@ -274,7 +277,9 @@ func (n *LocalNode) executeLeave() (chord.VNode, error) {
 	defer n.surrogateMu.Unlock()
 
 	// kv requests are now blocked
-	if err := n.transferKeysDownward(succ); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := n.transferKeysDownward(ctx, succ); err != nil {
 		n.Logger.Error("Transfering KV to successor", zap.Uint64("successor", succ.ID()), zap.Error(err))
 		// release held lock and try again
 		n.state.Set(chord.Active)

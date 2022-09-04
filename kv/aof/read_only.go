@@ -1,17 +1,21 @@
 package aof
 
-import "kon.nect.sh/specter/spec/protocol"
+import (
+	"context"
 
-func (d *DiskKV) Get(key []byte) (value []byte, err error) {
-	return d.memKv.Get(key)
+	"kon.nect.sh/specter/spec/protocol"
+)
+
+func (d *DiskKV) Get(ctx context.Context, key []byte) (value []byte, err error) {
+	return d.memKv.Get(ctx, key)
 }
 
-func (d *DiskKV) PrefixList(prefix []byte) (children [][]byte, err error) {
-	return d.memKv.PrefixList(prefix)
+func (d *DiskKV) PrefixList(ctx context.Context, prefix []byte) (children [][]byte, err error) {
+	return d.memKv.PrefixList(ctx, prefix)
 }
 
-func (d *DiskKV) PrefixContains(prefix []byte, child []byte) (bool, error) {
-	return d.memKv.PrefixContains(prefix, child)
+func (d *DiskKV) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
+	return d.memKv.PrefixContains(ctx, prefix, child)
 }
 
 func (d *DiskKV) Export(keys [][]byte) []*protocol.KVTransfer {

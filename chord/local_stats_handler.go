@@ -96,8 +96,8 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	keysTable.Render()
 }
 
-func (n *LocalNode) printKey(w http.ResponseWriter, key string) {
-	val, err := n.kv.Get([]byte(key))
+func (n *LocalNode) printKey(w http.ResponseWriter, r *http.Request, key string) {
+	val, err := n.kv.Get(r.Context(), []byte(key))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "error getting kv: %v", err)
@@ -111,7 +111,7 @@ func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	if query.Has("key") {
-		n.printKey(w, query.Get("key"))
+		n.printKey(w, r, query.Get("key"))
 		return
 	}
 	n.printSummary(w)

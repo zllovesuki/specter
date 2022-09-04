@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"context"
 	"crypto/rand"
 	"os"
 	"testing"
@@ -52,6 +53,7 @@ func BenchmarkDiskKVPut(b *testing.B) {
 	value := make([]byte, 256)
 
 	go kv.Start()
+	c := context.Background()
 	b.ResetTimer()
 
 	var putErr error
@@ -60,7 +62,7 @@ func BenchmarkDiskKVPut(b *testing.B) {
 		rand.Read(key)
 		rand.Read(value)
 		b.StartTimer()
-		putErr = kv.Put(key, value)
+		putErr = kv.Put(c, key, value)
 	}
 	e1 = putErr
 }
@@ -71,6 +73,7 @@ func BenchmarkMemoryKVPut(b *testing.B) {
 	key := make([]byte, 32)
 	value := make([]byte, 256)
 
+	c := context.Background()
 	b.ResetTimer()
 
 	var putErr error
@@ -79,7 +82,7 @@ func BenchmarkMemoryKVPut(b *testing.B) {
 		rand.Read(key)
 		rand.Read(value)
 		b.StartTimer()
-		putErr = kv.Put(key, value)
+		putErr = kv.Put(c, key, value)
 	}
 	e2 = putErr
 }

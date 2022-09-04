@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"sync/atomic"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -74,7 +75,7 @@ func (m *MemoryKV) deleteAll(key []byte) {
 	}
 }
 
-func (m *MemoryKV) Import(keys [][]byte, values []*protocol.KVTransfer) error {
+func (m *MemoryKV) Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error {
 	for i, key := range keys {
 		v, _ := m.fetchVal(key)
 		bytes := values[i].GetSimpleValue()
@@ -92,7 +93,7 @@ func (m *MemoryKV) Export(keys [][]byte) []*protocol.KVTransfer {
 	for i, key := range keys {
 		v, _ := m.fetchVal(key)
 		plain := *v.simple.Load()
-		children, _ := m.PrefixList(key)
+		children, _ := m.PrefixList(context.Background(), key)
 		token := v.lease.Load()
 		vals[i] = &protocol.KVTransfer{
 			SimpleValue:    plain,

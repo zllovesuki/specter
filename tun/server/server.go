@@ -47,7 +47,10 @@ func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport,
 
 func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("publishing identities to chord")
-	if err := s.publishIdentities(); err != nil {
+
+	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	if err := s.publishIdentities(publishCtx); err != nil {
 		s.logger.Fatal("publishing identities pair", zap.Error(err))
 	}
 
@@ -157,7 +160,7 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 	isNoDirect := false
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.RoutingKey(link.GetHostname(), k)
-		val, err := s.chord.Get([]byte(key))
+		val, err := s.chord.Get(ctx, []byte(key))
 		if err != nil {
 			s.logger.Error("key lookup error", zap.String("key", key), zap.Error(err))
 			continue
@@ -195,5 +198,7 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 }
 
 func (s *Server) Stop() {
-	s.unpublishIdentities()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	s.unpublishIdentities(ctx)
 }

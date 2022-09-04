@@ -168,34 +168,36 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		kvReq := req.GetKvRequest()
 		kvResp := &protocol.KVResponse{}
 
+		reqCtx := chord.WithRequestContext(ctx, req.GetRequestContext())
+
 		switch kvReq.GetOp() {
 		case protocol.KVOperation_SIMPLE_GET:
-			val, err := n.Get(kvReq.GetKey())
+			val, err := n.Get(ctx, kvReq.GetKey())
 			if err != nil {
 				return nil, err
 			}
 			kvResp.Value = val
 		case protocol.KVOperation_SIMPLE_PUT:
-			if err := n.Put(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+			if err := n.Put(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err
 			}
 		case protocol.KVOperation_SIMPLE_DELETE:
-			if err := n.Delete(kvReq.GetKey()); err != nil {
+			if err := n.Delete(reqCtx, kvReq.GetKey()); err != nil {
 				return nil, err
 			}
 
 		case protocol.KVOperation_PREFIX_APPEND:
-			if err := n.PrefixAppend(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+			if err := n.PrefixAppend(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err
 			}
 		case protocol.KVOperation_PREFIX_LIST:
-			val, err := n.PrefixList(kvReq.GetKey())
+			val, err := n.PrefixList(reqCtx, kvReq.GetKey())
 			if err != nil {
 				return nil, err
 			}
 			kvResp.Keys = val
 		case protocol.KVOperation_PREFIX_CONTAINS:
-			b, err := n.PrefixContains(kvReq.GetKey(), kvReq.GetValue())
+			b, err := n.PrefixContains(reqCtx, kvReq.GetKey(), kvReq.GetValue())
 			if err != nil {
 				return nil, err
 			}
@@ -203,13 +205,13 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 				kvResp.Value = []byte{1}
 			}
 		case protocol.KVOperation_PREFIX_REMOVE:
-			if err := n.PrefixRemove(kvReq.GetKey(), kvReq.GetValue()); err != nil {
+			if err := n.PrefixRemove(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
 				return nil, err
 			}
 
 		case protocol.KVOperation_LEASE_ACQUIRE:
 			lease := kvReq.GetLease()
-			token, err := n.Acquire(kvReq.GetKey(), lease.GetTtl().AsDuration())
+			token, err := n.Acquire(reqCtx, kvReq.GetKey(), lease.GetTtl().AsDuration())
 			if err != nil {
 				return nil, err
 			}
@@ -218,7 +220,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			}
 		case protocol.KVOperation_LEASE_RENEWAL:
 			lease := kvReq.GetLease()
-			token, err := n.Renew(kvReq.GetKey(), lease.GetTtl().AsDuration(), lease.GetToken())
+			token, err := n.Renew(reqCtx, kvReq.GetKey(), lease.GetTtl().AsDuration(), lease.GetToken())
 			if err != nil {
 				return nil, err
 			}
@@ -227,12 +229,12 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			}
 		case protocol.KVOperation_LEASE_RELEASE:
 			lease := kvReq.GetLease()
-			if err := n.Release(kvReq.GetKey(), lease.GetToken()); err != nil {
+			if err := n.Release(reqCtx, kvReq.GetKey(), lease.GetToken()); err != nil {
 				return nil, err
 			}
 
 		case protocol.KVOperation_IMPORT:
-			if err := n.Import(kvReq.GetKeys(), kvReq.GetValues()); err != nil {
+			if err := n.Import(reqCtx, kvReq.GetKeys(), kvReq.GetValues()); err != nil {
 				return nil, err
 			}
 		default:

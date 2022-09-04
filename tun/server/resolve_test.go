@@ -31,7 +31,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 	clientT.On("Identity").Return(tn)
 
 	// On start up -> publish
-	node.On("Put", mock.MatchedBy(func(k []byte) bool {
+	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
 			[]byte(tun.IdentitiesTunKey(tn)),
@@ -53,7 +53,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 	})).Return(nil)
 
 	// On stop -> unpublish
-	node.On("Delete", mock.MatchedBy(func(k []byte) bool {
+	node.On("Delete", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
 			[]byte(tun.IdentitiesTunKey(tn)),

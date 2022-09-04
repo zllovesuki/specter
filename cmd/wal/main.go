@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -46,7 +47,7 @@ func main() {
 			fmt.Printf("%s\n", k)
 		}
 	case "get":
-		val, err := kvProvider.Get([]byte(*key))
+		val, err := kvProvider.Get(context.Background(), []byte(*key))
 		if err != nil {
 			panic(err)
 		}
@@ -56,7 +57,7 @@ func main() {
 		for _, k := range keys {
 			if strings.HasPrefix(string(k), *key) {
 				fmt.Printf("deleting %s\n", k)
-				kvProvider.Delete(k)
+				kvProvider.Delete(context.Background(), k)
 			}
 		}
 	}

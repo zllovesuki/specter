@@ -80,7 +80,7 @@ func TestRPCRegisterClientOK(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("Put", mock.Anything, mock.Anything).Return(nil).Once()
+	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("RPC").Return(clientChan)
@@ -133,7 +133,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("Put", mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
+	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("RPC").Return(clientChan)
@@ -259,8 +259,8 @@ func TestRPCPingConditional(t *testing.T) {
 	clientBuf, err := cli.MarshalVT()
 	as.NoError(err)
 
-	node.On("Get", mock.Anything, mock.Anything).Return(clientBuf, nil).Once()
-	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil).Once()
+	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(clientBuf, nil).Once()
+	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("RPC").Return(clientChan)
@@ -346,6 +346,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	as.NoError(err)
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(key []byte) bool {
 			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
 		}),
@@ -367,7 +368,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	as.Nil(err)
 
 	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
-	node.On("Get", mock.Anything).Return(pairBuf, nil)
+	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
 
 	go serv.HandleRPC(ctx)
 
@@ -418,6 +419,7 @@ func TestRPCGetNodes(t *testing.T) {
 	as.NoError(err)
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(key []byte) bool {
 			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
 		}),
@@ -441,7 +443,7 @@ func TestRPCGetNodes(t *testing.T) {
 	as.Nil(err)
 
 	node.On("GetSuccessors").Return(vlist, nil)
-	node.On("Get", mock.MatchedBy(func(k []byte) bool {
+	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := make([][]byte, len(nodes)+1)
 		exp[0] = []byte(tun.IdentitiesChordKey(cht))
 		for i := 1; i < len(exp); i++ {
@@ -499,11 +501,13 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 	as.NoError(err)
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(key []byte) bool {
 			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
 		}),
 	).Return(clientBuf, nil)
 	node.On("PrefixAppend",
+		mock.Anything,
 		mock.MatchedBy(func(prefix []byte) bool {
 			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
 		}),
@@ -552,7 +556,7 @@ func TestRPCOtherFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("Get", mock.Anything).Return(nil, nil)
+	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil)
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("RPC").Return(clientChan)
@@ -630,12 +634,14 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	as.NoError(err)
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(key []byte) bool {
 			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
 		}),
 	).Return(clientBuf, nil).Once()
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			exp := make([][]byte, len(nodes)+1)
 			exp[0] = []byte(tun.IdentitiesTunKey(cht))
@@ -648,6 +654,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 
 	fakeLease := uint64(1234)
 	node.On("Acquire",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
 		}),
@@ -655,6 +662,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	).Return(fakeLease, nil)
 
 	node.On("Release",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
 		}),
@@ -662,6 +670,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	).Return(nil)
 
 	node.On("Put",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			return true
 		}), mock.MatchedBy(func(v []byte) bool {
@@ -670,6 +679,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	).Return(nil)
 
 	node.On("PrefixContains",
+		mock.Anything,
 		mock.MatchedBy(func(prefix []byte) bool {
 			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
 		}),
@@ -729,15 +739,17 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	as.NoError(err)
 
 	node.On("Get",
+		mock.Anything,
 		mock.MatchedBy(func(key []byte) bool {
 			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
 		}),
 	).Return(clientBuf, nil)
 
-	node.On("PrefixContains", mock.Anything, mock.Anything).Return(false, nil).Once()
+	node.On("PrefixContains", mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Once()
 
 	fakeLease := uint64(1234)
 	node.On("Acquire",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
 		}),
@@ -745,6 +757,7 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	).Return(fakeLease, nil).Once()
 
 	node.On("Release",
+		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
 		}),

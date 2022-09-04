@@ -2,6 +2,7 @@ package chord
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -219,7 +220,7 @@ func TestStatsSummaryHandler(t *testing.T) {
 	defer node.Leave()
 
 	testKey := "helloworld"
-	node.kv.Put([]byte(testKey), []byte("bye"))
+	node.kv.Put(context.Background(), []byte(testKey), []byte("bye"))
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(node.StatsHandler)
@@ -248,7 +249,7 @@ func TestStatsKeyHandler(t *testing.T) {
 	defer node.Leave()
 
 	testKey := "helloworld"
-	node.kv.Put([]byte(testKey), []byte("hello"))
+	node.kv.Put(context.Background(), []byte(testKey), []byte("hello"))
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(node.StatsHandler)

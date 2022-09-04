@@ -8,6 +8,14 @@ import "spec/proto/chord.proto";
 import "spec/proto/kv.proto";
 import "spec/proto/tun.proto";
 
+message Context {
+    enum TargetType {
+        UNKNOWN = 0;
+        KV_REPLICATION = 1;
+    }
+    TargetType requestTarget = 1;
+}
+
 message RPC {
     enum Type {
         UNKNOWN_DIR = 0;
@@ -40,6 +48,8 @@ message RPC {
 
     message Request {
         Kind kind = 1;
+
+        Context requestContext = 2;
 
         IdentityRequest identityRequest = 5;
 

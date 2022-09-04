@@ -79,7 +79,7 @@ func TestContinueLookupOnError(t *testing.T) {
 	}
 	expected := getExpected(link)
 
-	node.On("Get", mock.MatchedBy(func(k []byte) bool {
+	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		return assertBytes(k, expected...)
 	})).Return(nil, fmt.Errorf("panic"))
 
@@ -113,7 +113,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 	expected := getExpected(link)
 
 	// 1. first query the chord network
-	node.On("Get", mock.MatchedBy(func(k []byte) bool {
+	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		return assertBytes(k, expected...)
 	})).Return(bundleBuf, nil)
 
@@ -164,7 +164,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 	expected := getExpected(link)
 
 	// 1. first query the chord network
-	node.On("Get", mock.MatchedBy(func(k []byte) bool {
+	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		return assertBytes(k, expected...)
 	})).Return(bundleBuf, nil)
 
@@ -229,7 +229,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 	clientT.On("Identity").Return(tn)
 
 	// on start up (Accept), identities should get published
-	node.On("Put", mock.MatchedBy(func(k []byte) bool {
+	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
 			[]byte(tun.IdentitiesTunKey(tn)),

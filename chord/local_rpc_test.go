@@ -38,10 +38,10 @@ func TestLocalRPC(t *testing.T) {
 	tp := new(mocks.Transport)
 
 	kv := memory.WithHashFn(chord.Hash)
-	testRenewalToken, err := kv.Acquire([]byte(testRenewalKey), time.Second)
+	testRenewalToken, err := kv.Acquire(context.Background(), []byte(testRenewalKey), time.Second)
 	as.NoError(err)
 
-	testReleaseToken, err := kv.Acquire([]byte(testReleaseKey), time.Second)
+	testReleaseToken, err := kv.Acquire(context.Background(), []byte(testReleaseKey), time.Second)
 	as.NoError(err)
 
 	node := NewLocalNode(NodeConfig{

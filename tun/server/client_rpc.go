@@ -68,20 +68,20 @@ func (s *Server) HandleRPC(ctx context.Context) {
 	}
 }
 
-func (s *Server) saveClientToken(token *protocol.ClientToken, client *protocol.Node) error {
+func (s *Server) saveClientToken(ctx context.Context, token *protocol.ClientToken, client *protocol.Node) error {
 	val, err := client.MarshalVT()
 	if err != nil {
 		return err
 	}
 
-	if err := s.chord.Put([]byte(tun.ClientTokenKey(token)), val); err != nil {
+	if err := s.chord.Put(ctx, []byte(tun.ClientTokenKey(token)), val); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Server) getClientByToken(token *protocol.ClientToken) (*protocol.Node, error) {
-	val, err := s.chord.Get([]byte(tun.ClientTokenKey(token)))
+func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientToken) (*protocol.Node, error) {
+	val, err := s.chord.Get(ctx, []byte(tun.ClientTokenKey(token)))
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (s *Server) rpcHandlerMiddlerware(client *protocol.Node) rpcSpec.RPCHandler
 			if token == nil {
 				return nil, fmt.Errorf("missing token")
 			}
-			verifiedClient, err = s.getClientByToken(token)
+			verifiedClient, err = s.getClientByToken(ctx, token)
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +173,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			Token: b,
 		}
 
-		if err := s.saveClientToken(token, client); err != nil {
+		if err := s.saveClientToken(ctx, token, client); err != nil {
 			return nil, err
 		}
 
@@ -195,7 +195,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			if chord == nil {
 				continue
 			}
-			identities, err := s.lookupIdentities(tun.IdentitiesChordKey(chord.Identity()))
+			identities, err := s.lookupIdentities(ctx, tun.IdentitiesChordKey(chord.Identity()))
 			if err != nil {
 				return nil, err
 			}
@@ -209,7 +209,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 		token := req.GetToken()
 
 		hostname := strings.Join(generator.MustGenerate(5), "-")
-		if err := s.chord.PrefixAppend([]byte(tun.ClientHostnamesPrefix(token)), []byte(hostname)); err != nil {
+		if err := s.chord.PrefixAppend(ctx, []byte(tun.ClientHostnamesPrefix(token)), []byte(hostname)); err != nil {
 			return nil, err
 		}
 
@@ -228,14 +228,14 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 			return nil, fmt.Errorf("no servers specified in request")
 		}
 
-		lease, err := s.chord.Acquire([]byte(tun.ClientLeaseKey(token)), time.Second*30)
+		lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 		if err != nil {
 			return nil, fmt.Errorf("error acquiring token: %w", err)
 		}
-		defer s.chord.Release([]byte(tun.ClientLeaseKey(token)), lease)
+		defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
 		hostname := req.GetTunnelRequest().GetHostname()
-		b, err := s.chord.PrefixContains([]byte(tun.ClientHostnamesPrefix(token)), []byte(hostname))
+		b, err := s.chord.PrefixContains(ctx, []byte(tun.ClientHostnamesPrefix(token)), []byte(hostname))
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +245,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 
 		identities := make([]*protocol.IdentitiesPair, len(requested))
 		for k, server := range requested {
-			identity, err := s.lookupIdentities(tun.IdentitiesTunKey(server))
+			identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunKey(server))
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +265,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 				return nil, err
 			}
 			key := tun.RoutingKey(hostname, k+1)
-			if err := s.chord.Put([]byte(key), val); err != nil {
+			if err := s.chord.Put(ctx, []byte(key), val); err != nil {
 				continue
 			}
 			published = append(published, identity.GetTun())

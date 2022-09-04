@@ -80,6 +80,13 @@ func newReq(t protocol.RPC_Kind) *protocol.RPC_Request {
 	}
 }
 
+func newReqWithCtx(ctx context.Context, t protocol.RPC_Kind) *protocol.RPC_Request {
+	return &protocol.RPC_Request{
+		Kind:           t,
+		RequestContext: chord.GetRequestContext(ctx),
+	}
+}
+
 func (n *RemoteNode) Ping() error {
 	ctx, cancel := context.WithTimeout(n.parentCtx, pingTimeout)
 	defer cancel()
@@ -212,11 +219,11 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	return pre, nil
 }
 
-func (n *RemoteNode) Put(key, value []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Put(ctx context.Context, key, value []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:    protocol.KVOperation_SIMPLE_PUT,
 		Key:   key,
@@ -230,11 +237,11 @@ func (n *RemoteNode) Put(key, value []byte) error {
 	return err
 }
 
-func (n *RemoteNode) Get(key []byte) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Get(ctx context.Context, key []byte) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_SIMPLE_GET,
 		Key: key,
@@ -250,11 +257,11 @@ func (n *RemoteNode) Get(key []byte) ([]byte, error) {
 	return rResp.GetKvResponse().GetValue(), nil
 }
 
-func (n *RemoteNode) Delete(key []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Delete(ctx context.Context, key []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_SIMPLE_DELETE,
 		Key: key,
@@ -267,11 +274,11 @@ func (n *RemoteNode) Delete(key []byte) error {
 	return err
 }
 
-func (n *RemoteNode) PrefixAppend(prefix []byte, child []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:    protocol.KVOperation_PREFIX_APPEND,
 		Key:   prefix,
@@ -285,11 +292,11 @@ func (n *RemoteNode) PrefixAppend(prefix []byte, child []byte) error {
 	return err
 }
 
-func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_PREFIX_LIST,
 		Key: prefix,
@@ -305,11 +312,11 @@ func (n *RemoteNode) PrefixList(prefix []byte) ([][]byte, error) {
 	return rResp.GetKvResponse().GetKeys(), nil
 }
 
-func (n *RemoteNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:    protocol.KVOperation_PREFIX_CONTAINS,
 		Key:   prefix,
@@ -326,11 +333,11 @@ func (n *RemoteNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
 	return rResp.GetKvResponse().GetValue() != nil, nil
 }
 
-func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:    protocol.KVOperation_PREFIX_REMOVE,
 		Key:   prefix,
@@ -344,11 +351,11 @@ func (n *RemoteNode) PrefixRemove(prefix []byte, child []byte) error {
 	return err
 }
 
-func (n *RemoteNode) Acquire(lease []byte, ttl time.Duration) (uint64, error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Acquire(ctx context.Context, lease []byte, ttl time.Duration) (uint64, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_LEASE_ACQUIRE,
 		Key: lease,
@@ -367,11 +374,11 @@ func (n *RemoteNode) Acquire(lease []byte, ttl time.Duration) (uint64, error) {
 	return resp.GetKvResponse().GetLease().GetToken(), nil
 }
 
-func (n *RemoteNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_LEASE_RENEWAL,
 		Key: lease,
@@ -391,11 +398,11 @@ func (n *RemoteNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (n
 	return resp.GetKvResponse().GetLease().GetToken(), nil
 }
 
-func (n *RemoteNode) Release(lease []byte, token uint64) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Release(ctx context.Context, lease []byte, token uint64) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:  protocol.KVOperation_LEASE_RELEASE,
 		Key: lease,
@@ -411,11 +418,11 @@ func (n *RemoteNode) Release(lease []byte, token uint64) error {
 	return err
 }
 
-func (n *RemoteNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	ctx, cancel := context.WithTimeout(n.parentCtx, rpcTimeout)
+func (n *RemoteNode) Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	rReq := newReq(protocol.RPC_KV)
+	rReq := newReqWithCtx(ctx, protocol.RPC_KV)
 	rReq.KvRequest = &protocol.KVRequest{
 		Op:     protocol.KVOperation_IMPORT,
 		Keys:   keys,

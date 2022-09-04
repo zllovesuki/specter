@@ -2,6 +2,7 @@ package chord
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"fmt"
 	mathRand "math/rand"
@@ -41,61 +42,61 @@ func TestKVOperation(t *testing.T) {
 		rand.Read(value)
 
 		// Put
-		err := local.Put(key, value)
+		err := local.Put(context.Background(), key, value)
 		as.NoError(err)
 
 		fsck(as, nodes)
 
 		// Get
 		for _, remote := range nodes {
-			r, err := remote.Get(key)
+			r, err := remote.Get(context.Background(), key)
 			as.NoError(err)
 			as.EqualValues(value, r)
 		}
 
 		// Overwrite
 		rand.Read(value)
-		err = local.Put(key, value)
+		err = local.Put(context.Background(), key, value)
 		as.NoError(err)
 		for _, remote := range nodes {
-			r, err := remote.Get(key)
+			r, err := remote.Get(context.Background(), key)
 			as.NoError(err)
 			as.EqualValues(value, r)
 		}
 
 		// Delete
-		err = local.Delete(key)
+		err = local.Delete(context.Background(), key)
 		as.NoError(err)
 		for _, remote := range nodes {
-			r, err := remote.Get(key)
+			r, err := remote.Get(context.Background(), key)
 			as.NoError(err)
 			as.Nil(r)
 		}
 
 		// PrefixAppend
 		rand.Read(value)
-		err = local.PrefixAppend(key, value)
+		err = local.PrefixAppend(context.Background(), key, value)
 		as.NoError(err)
-		err = local.PrefixAppend(key, value)
+		err = local.PrefixAppend(context.Background(), key, value)
 		as.ErrorIs(err, chord.ErrKVPrefixConflict)
 		for _, remote := range nodes {
 			// PrefixList
-			ret, err := remote.PrefixList(key)
+			ret, err := remote.PrefixList(context.Background(), key)
 			as.NoError(err)
 			as.Len(ret, 1)
 			as.EqualValues(value, ret[0])
 		}
 
 		// PrefixRemove
-		err = local.PrefixRemove(key, value)
+		err = local.PrefixRemove(context.Background(), key, value)
 		as.NoError(err)
 		for _, remote := range nodes {
 			// PrefixList
-			ret, err := remote.PrefixList(key)
+			ret, err := remote.PrefixList(context.Background(), key)
 			as.NoError(err)
 			as.Len(ret, 0)
 		}
-		err = local.PrefixAppend(key, value)
+		err = local.PrefixAppend(context.Background(), key, value)
 		as.NoError(err)
 	}
 }
@@ -129,7 +130,7 @@ func TestKeyTransferOut(t *testing.T) {
 	keys, values := makeKV(30, 8)
 
 	for i := range keys {
-		as.Nil(nodes[0].Put(keys[i], values[i]))
+		as.Nil(nodes[0].Put(context.Background(), keys[i], values[i]))
 	}
 
 	mathRand.Seed(time.Now().UnixNano())
@@ -189,7 +190,7 @@ func TestKeyTransferIn(t *testing.T) {
 	keys, values := makeKV(400, 8)
 
 	for i := range keys {
-		err := seed.Put(keys[i], values[i])
+		err := seed.Put(context.Background(), keys[i], values[i])
 		as.NoError(err)
 	}
 
@@ -303,7 +304,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 
 		for i := range keys {
 		RETRY:
-			err := nodes[0].Put(keys[i], values[i])
+			err := nodes[0].Put(context.Background(), keys[i], values[i])
 			if err != nil {
 				if chord.ErrorIsRetryable(err) {
 					stale++
@@ -331,7 +332,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	indices := make([]int, 0)
 	for i := range keys {
 	RETRY:
-		val, err := nodes[0].Get(keys[i])
+		val, err := nodes[0].Get(context.Background(), keys[i])
 		if err != nil {
 			if chord.ErrorIsRetryable(err) {
 				t.Logf("[get] outdated ownership at key %d", i)
@@ -388,7 +389,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 
 		for i := range keys {
 		RETRY:
-			err := nodes[0].Put(keys[i], values[i])
+			err := nodes[0].Put(context.Background(), keys[i], values[i])
 			if err != nil {
 				if chord.ErrorIsRetryable(err) {
 					stale++
@@ -417,7 +418,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	indices := make([]int, 0)
 	for i := range keys {
 		// all keys should be in the first node
-		val, err := nodes[0].kv.Get(keys[i])
+		val, err := nodes[0].kv.Get(context.Background(), keys[i])
 		as.NoError(err)
 		if bytes.Equal(values[i], val) {
 			found++
@@ -436,7 +437,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		for _, i := range indices {
 			k := keys[i]
 			for j := 1; j < numNodes; j++ {
-				v, _ := nodes[j].kv.Get(k)
+				v, _ := nodes[j].kv.Get(context.Background(), k)
 				if v != nil {
 					t.Logf("missing key index %d found in node %d", i, nodes[j].ID())
 				}

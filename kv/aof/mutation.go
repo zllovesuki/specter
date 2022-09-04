@@ -1,6 +1,7 @@
 package aof
 
 import (
+	"context"
 	"io/fs"
 	"sync"
 
@@ -22,19 +23,19 @@ func (d *DiskKV) handleMutation(mut *proto.Mutation) error {
 
 	switch mut.GetType() {
 	case proto.MutationType_SIMPLE_PUT:
-		err = d.memKv.Put(mut.GetKey(), mut.GetValue())
+		err = d.memKv.Put(context.Background(), mut.GetKey(), mut.GetValue())
 
 	case proto.MutationType_SIMPLE_DELETE:
-		err = d.memKv.Delete(mut.GetKey())
+		err = d.memKv.Delete(context.Background(), mut.GetKey())
 
 	case proto.MutationType_PREFIX_APPEND:
-		err = d.memKv.PrefixAppend(mut.GetKey(), mut.GetValue())
+		err = d.memKv.PrefixAppend(context.Background(), mut.GetKey(), mut.GetValue())
 
 	case proto.MutationType_PREFIX_REMOVE:
-		err = d.memKv.PrefixRemove(mut.GetKey(), mut.GetValue())
+		err = d.memKv.PrefixRemove(context.Background(), mut.GetKey(), mut.GetValue())
 
 	case proto.MutationType_IMPORT:
-		err = d.memKv.Import(mut.GetKeys(), mut.GetValues())
+		err = d.memKv.Import(context.Background(), mut.GetKeys(), mut.GetValues())
 
 	case proto.MutationType_REMOVE_KEYS:
 		d.memKv.RemoveKeys(mut.GetKeys())
@@ -62,7 +63,7 @@ func (d *DiskKV) mutationHandler(fn func(mut *proto.Mutation)) error {
 	return <-req.err
 }
 
-func (d *DiskKV) Put(key []byte, value []byte) error {
+func (d *DiskKV) Put(ctx context.Context, key []byte, value []byte) error {
 	return d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_SIMPLE_PUT
 		mut.Key = key
@@ -70,14 +71,14 @@ func (d *DiskKV) Put(key []byte, value []byte) error {
 	})
 }
 
-func (d *DiskKV) Delete(key []byte) error {
+func (d *DiskKV) Delete(ctx context.Context, key []byte) error {
 	return d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_SIMPLE_DELETE
 		mut.Key = key
 	})
 }
 
-func (d *DiskKV) PrefixAppend(prefix []byte, child []byte) error {
+func (d *DiskKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
 	return d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_PREFIX_APPEND
 		mut.Key = prefix
@@ -85,7 +86,7 @@ func (d *DiskKV) PrefixAppend(prefix []byte, child []byte) error {
 	})
 }
 
-func (d *DiskKV) PrefixRemove(prefix []byte, child []byte) error {
+func (d *DiskKV) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
 	return d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_PREFIX_REMOVE
 		mut.Key = prefix
@@ -93,7 +94,7 @@ func (d *DiskKV) PrefixRemove(prefix []byte, child []byte) error {
 	})
 }
 
-func (d *DiskKV) Import(keys [][]byte, values []*protocol.KVTransfer) error {
+func (d *DiskKV) Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error {
 	return d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_IMPORT
 		mut.Keys = keys

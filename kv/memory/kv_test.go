@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"testing"
 	"time"
@@ -23,7 +24,7 @@ func TestAllKeys(t *testing.T) {
 	for i := 0; i < num; i++ {
 		rand.Read(key)
 		rand.Read(value)
-		kv.Put(key, value)
+		kv.Put(context.Background(), key, value)
 	}
 
 	keys := kv.RangeKeys(0, 0)
@@ -42,7 +43,7 @@ func TestOrderedKeys(t *testing.T) {
 	for i := 0; i < num; i++ {
 		rand.Read(key)
 		rand.Read(value)
-		kv.Put(key, value)
+		kv.Put(context.Background(), key, value)
 	}
 
 	keys := kv.RangeKeys(0, 0)
@@ -75,7 +76,7 @@ func TestLocalOperations(t *testing.T) {
 		rand.Read(values[i].SimpleValue)
 	}
 
-	as.Nil(kv.Import(keys, values))
+	as.Nil(kv.Import(context.Background(), keys, values))
 
 	ret := kv.Export(keys)
 	as.EqualValues(values, ret)
@@ -99,16 +100,16 @@ func TestComplexImportExport(t *testing.T) {
 	child := make([]byte, 32)
 	rand.Read(child)
 
-	as.NoError(kv.Put(key, plainValue))
-	as.NoError(kv.PrefixAppend(key, child))
-	tk, err := kv.Acquire(key, time.Second)
+	as.NoError(kv.Put(context.Background(), key, plainValue))
+	as.NoError(kv.PrefixAppend(context.Background(), key, child))
+	tk, err := kv.Acquire(context.Background(), key, time.Second)
 	as.NoError(err)
 
-	val, err := kv.Get(key)
+	val, err := kv.Get(context.Background(), key)
 	as.NoError(err)
 	as.EqualValues(plainValue, val)
 
-	vals, err := kv.PrefixList(key)
+	vals, err := kv.PrefixList(context.Background(), key)
 	as.NoError(err)
 	as.Len(vals, 1)
 	as.EqualValues(child, vals[0])
@@ -117,18 +118,18 @@ func TestComplexImportExport(t *testing.T) {
 	exp := kv.Export(keys)
 
 	kv2 := WithHashFn(chord.Hash)
-	as.NoError(kv2.Import(keys, exp))
+	as.NoError(kv2.Import(context.Background(), keys, exp))
 
-	val, err = kv2.Get(key)
+	val, err = kv2.Get(context.Background(), key)
 	as.NoError(err)
 	as.EqualValues(plainValue, val)
 
-	vals, err = kv2.PrefixList(key)
+	vals, err = kv2.PrefixList(context.Background(), key)
 	as.NoError(err)
 	as.Len(vals, 1)
 	as.EqualValues(child, vals[0])
 
-	tk2, err := kv2.Renew(key, time.Second, tk)
+	tk2, err := kv2.Renew(context.Background(), key, time.Second, tk)
 	as.NoError(err)
-	as.NoError(kv2.Release(key, tk2))
+	as.NoError(kv2.Release(context.Background(), key, tk2))
 }

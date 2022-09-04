@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"hash/fnv"
 	"strconv"
@@ -38,13 +39,13 @@ func TestCollisionPutGet(t *testing.T) {
 	kv := WithHashFn(collisionHash)
 
 	for i := 1; i < collisionRing*2; i++ {
-		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
+		as.Nil(kv.Put(context.Background(), ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
 	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := 1; i < collisionRing*2; i++ {
-		val, err := kv.Get(ks(keyPrefix, i))
+		val, err := kv.Get(context.Background(), ks(keyPrefix, i))
 		as.Nil(err)
 		as.Equal(ks(valPrefix, i), val)
 	}
@@ -56,13 +57,13 @@ func TestCollisionNil(t *testing.T) {
 	kv := WithHashFn(collisionHash)
 
 	for i := 1; i < collisionRing*2; i++ {
-		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
+		as.Nil(kv.Put(context.Background(), ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
 	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := collisionRing * 2; i < collisionRing*4; i++ {
-		val, err := kv.Get(ks(keyPrefix, i))
+		val, err := kv.Get(context.Background(), ks(keyPrefix, i))
 		as.Nil(err)
 		as.Nil(val)
 	}
@@ -74,17 +75,17 @@ func TestCollisionDelete(t *testing.T) {
 	kv := WithHashFn(collisionHash)
 
 	for i := 1; i < collisionRing*2; i++ {
-		as.Nil(kv.Put(ks(keyPrefix, i), ks(valPrefix, i)))
+		as.Nil(kv.Put(context.Background(), ks(keyPrefix, i), ks(valPrefix, i)))
 	}
 
 	as.LessOrEqual(collisionRing, kv.s.Len())
 
 	for i := 1; i < collisionRing*2; i++ {
-		as.Nil(kv.Delete(ks(keyPrefix, i)))
+		as.Nil(kv.Delete(context.Background(), ks(keyPrefix, i)))
 	}
 
 	for i := 1; i < collisionRing*2; i++ {
-		val, err := kv.Get(ks(keyPrefix, i))
+		val, err := kv.Get(context.Background(), ks(keyPrefix, i))
 		as.Nil(err)
 		as.Nil(val)
 	}
@@ -98,21 +99,21 @@ func TestEmpty(t *testing.T) {
 	key := make([]byte, 6)
 	rand.Read(key)
 
-	val, err := kv.Get(key)
+	val, err := kv.Get(context.Background(), key)
 	as.NoError(err)
 	as.Nil(val)
 
-	err = kv.Put(key, []byte("v"))
+	err = kv.Put(context.Background(), key, []byte("v"))
 	as.NoError(err)
 
-	val, err = kv.Get(key)
+	val, err = kv.Get(context.Background(), key)
 	as.NoError(err)
 	as.NotNil(val)
 
-	err = kv.Delete(key)
+	err = kv.Delete(context.Background(), key)
 	as.NoError(err)
 
-	val, err = kv.Get(key)
+	val, err = kv.Get(context.Background(), key)
 	as.NoError(err)
 	as.Nil(val)
 
@@ -120,16 +121,16 @@ func TestEmpty(t *testing.T) {
 	exp := kv.Export(keys)
 
 	kv2 := WithHashFn(chord.Hash)
-	as.NoError(kv2.Import(keys, exp))
+	as.NoError(kv2.Import(context.Background(), keys, exp))
 
-	val, err = kv2.Get(key)
+	val, err = kv2.Get(context.Background(), key)
 	as.NoError(err)
 	as.Nil(val)
 
-	err = kv2.Put(key, []byte{})
+	err = kv2.Put(context.Background(), key, []byte{})
 	as.NoError(err)
 
-	val, err = kv2.Get(key)
+	val, err = kv2.Get(context.Background(), key)
 	as.NoError(err)
 	as.NotNil(val)
 }

@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -18,13 +19,13 @@ type VNode struct {
 
 var _ chord.VNode = (*VNode)(nil)
 
-func (n *VNode) Put(key []byte, value []byte) error {
-	args := n.Called(key, value)
+func (n *VNode) Put(ctx context.Context, key []byte, value []byte) error {
+	args := n.Called(ctx, key, value)
 	return args.Error(0)
 }
 
-func (n *VNode) Get(key []byte) (value []byte, err error) {
-	args := n.Called(key)
+func (n *VNode) Get(ctx context.Context, key []byte) (value []byte, err error) {
+	args := n.Called(ctx, key)
 	v := args.Get(0)
 	e := args.Error(1)
 	if v == nil {
@@ -33,59 +34,59 @@ func (n *VNode) Get(key []byte) (value []byte, err error) {
 	return v.([]byte), e
 }
 
-func (n *VNode) Delete(key []byte) error {
-	args := n.Called(key)
+func (n *VNode) Delete(ctx context.Context, key []byte) error {
+	args := n.Called(ctx, key)
 	return args.Error(0)
 }
 
-func (n *VNode) PrefixAppend(prefix []byte, child []byte) error {
-	args := n.Called(prefix, child)
+func (n *VNode) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
+	args := n.Called(ctx, prefix, child)
 	e := args.Error(0)
 	return e
 }
 
-func (n *VNode) PrefixList(prefix []byte) ([][]byte, error) {
-	args := n.Called(prefix)
+func (n *VNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
+	args := n.Called(ctx, prefix)
 	v := args.Get(0)
 	e := args.Error(1)
 	return v.([][]byte), e
 }
 
-func (n *VNode) PrefixContains(prefix []byte, child []byte) (bool, error) {
-	args := n.Called(prefix, child)
+func (n *VNode) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
+	args := n.Called(ctx, prefix, child)
 	v := args.Bool(0)
 	e := args.Error(1)
 	return v, e
 }
 
-func (n *VNode) PrefixRemove(prefix []byte, child []byte) error {
-	args := n.Called(prefix, child)
+func (n *VNode) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
+	args := n.Called(ctx, prefix, child)
 	e := args.Error(0)
 	return e
 }
 
-func (n *VNode) Acquire(lease []byte, ttl time.Duration) (token uint64, err error) {
-	args := n.Called(lease, ttl)
+func (n *VNode) Acquire(ctx context.Context, lease []byte, ttl time.Duration) (token uint64, err error) {
+	args := n.Called(ctx, lease, ttl)
 	t := args.Get(0)
 	e := args.Error(1)
 	return t.(uint64), e
 }
 
-func (n *VNode) Renew(lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
-	args := n.Called(lease, ttl, prevToken)
+func (n *VNode) Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
+	args := n.Called(ctx, lease, ttl, prevToken)
 	t := args.Get(0)
 	e := args.Error(1)
 	return t.(uint64), e
 }
 
-func (n *VNode) Release(lease []byte, token uint64) error {
-	args := n.Called(lease, token)
+func (n *VNode) Release(ctx context.Context, lease []byte, token uint64) error {
+	args := n.Called(ctx, lease, token)
 	e := args.Error(0)
 	return e
 }
 
-func (n *VNode) Import(keys [][]byte, values []*protocol.KVTransfer) error {
-	args := n.Called(keys, values)
+func (n *VNode) Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error {
+	args := n.Called(ctx, keys, values)
 	e := args.Error(0)
 	return e
 }

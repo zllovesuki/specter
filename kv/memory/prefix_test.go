@@ -2,6 +2,7 @@ package memory
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"testing"
 
@@ -20,8 +21,8 @@ func TestPrefixAppend(t *testing.T) {
 	rand.Read(prefix)
 	rand.Read(child)
 
-	as.NoError(kv.PrefixAppend(prefix, child))
-	as.Error(kv.PrefixAppend(prefix, child))
+	as.NoError(kv.PrefixAppend(context.Background(), prefix, child))
+	as.Error(kv.PrefixAppend(context.Background(), prefix, child))
 }
 
 func TestPrefixList(t *testing.T) {
@@ -35,10 +36,10 @@ func TestPrefixList(t *testing.T) {
 	for i := range children {
 		children[i] = make([]byte, 16)
 		rand.Read(children[i])
-		kv.PrefixAppend(prefix, children[i])
+		kv.PrefixAppend(context.Background(), prefix, children[i])
 	}
 
-	ret, err := kv.PrefixList(prefix)
+	ret, err := kv.PrefixList(context.Background(), prefix)
 	as.NoError(err)
 	for _, child := range ret {
 		as.Greater(len(child), 0)
@@ -66,13 +67,13 @@ func TestPrefixContains(t *testing.T) {
 	rand.Read(prefix)
 	rand.Read(child)
 
-	as.NoError(kv.PrefixAppend(prefix, child))
+	as.NoError(kv.PrefixAppend(context.Background(), prefix, child))
 
-	b, err := kv.PrefixContains(prefix, child)
+	b, err := kv.PrefixContains(context.Background(), prefix, child)
 	as.NoError(err)
 	as.True(b)
 
-	b, err = kv.PrefixContains(prefix, child[1:])
+	b, err = kv.PrefixContains(context.Background(), prefix, child[1:])
 	as.NoError(err)
 	as.False(b)
 }
@@ -88,10 +89,10 @@ func TestPrefixDelete(t *testing.T) {
 	for i := range children {
 		children[i] = make([]byte, 16)
 		rand.Read(children[i])
-		kv.PrefixAppend(prefix, children[i])
+		kv.PrefixAppend(context.Background(), prefix, children[i])
 	}
 
-	ret, err := kv.PrefixList(prefix)
+	ret, err := kv.PrefixList(context.Background(), prefix)
 	as.NoError(err)
 
 	found := 0
@@ -107,11 +108,11 @@ func TestPrefixDelete(t *testing.T) {
 
 	expectMissing := 0
 	for i := 0; i < numChildren; i += 2 {
-		kv.PrefixRemove(prefix, children[i])
+		kv.PrefixRemove(context.Background(), prefix, children[i])
 		expectMissing++
 	}
 
-	ret, err = kv.PrefixList(prefix)
+	ret, err = kv.PrefixList(context.Background(), prefix)
 	as.NoError(err)
 
 	found = 0
@@ -139,16 +140,16 @@ func TestSharedKeyspace(t *testing.T) {
 	child := make([]byte, 32)
 	rand.Read(child)
 
-	as.NoError(kv.Put(key, plainValue))
-	as.NoError(kv.PrefixAppend(key, child))
+	as.NoError(kv.Put(context.Background(), key, plainValue))
+	as.NoError(kv.PrefixAppend(context.Background(), key, child))
 
 	// deleting the key from plain keyspace should not affect the prefix keyspace
-	as.NoError(kv.Delete(key))
-	val, err := kv.Get(key)
+	as.NoError(kv.Delete(context.Background(), key))
+	val, err := kv.Get(context.Background(), key)
 	as.NoError(err)
 	as.Nil(val)
 
-	vals, err := kv.PrefixList(key)
+	vals, err := kv.PrefixList(context.Background(), key)
 	as.NoError(err)
 	as.Len(vals, 1)
 	as.EqualValues(child, vals[0])

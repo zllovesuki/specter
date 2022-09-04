@@ -1,10 +1,14 @@
 package memory
 
-import "kon.nect.sh/specter/spec/chord"
+import (
+	"context"
+
+	"kon.nect.sh/specter/spec/chord"
+)
 
 var _ chord.PrefixKV = (*MemoryKV)(nil)
 
-func (m *MemoryKV) PrefixAppend(prefix []byte, child []byte) error {
+func (m *MemoryKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
 	v, _ := m.fetchVal(prefix)
 
 	if !v.children.Add(string(child)) {
@@ -14,7 +18,7 @@ func (m *MemoryKV) PrefixAppend(prefix []byte, child []byte) error {
 	return nil
 }
 
-func (m *MemoryKV) PrefixList(prefix []byte) ([][]byte, error) {
+func (m *MemoryKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
 	v, _ := m.fetchVal(prefix)
 
 	children := make([][]byte, 0)
@@ -26,13 +30,13 @@ func (m *MemoryKV) PrefixList(prefix []byte) ([][]byte, error) {
 	return children, nil
 }
 
-func (m *MemoryKV) PrefixContains(prefix []byte, child []byte) (bool, error) {
+func (m *MemoryKV) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
 	v, _ := m.fetchVal(prefix)
 
 	return v.children.Contains(string(child)), nil
 }
 
-func (m *MemoryKV) PrefixRemove(prefix []byte, needle []byte) error {
+func (m *MemoryKV) PrefixRemove(ctx context.Context, prefix []byte, needle []byte) error {
 	v, _ := m.fetchVal(prefix)
 
 	v.children.Remove(string(needle))

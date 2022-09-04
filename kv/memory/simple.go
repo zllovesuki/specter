@@ -1,12 +1,16 @@
 package memory
 
-import "kon.nect.sh/specter/spec/chord"
+import (
+	"context"
+
+	"kon.nect.sh/specter/spec/chord"
+)
 
 var _ chord.SimpleKV = (*MemoryKV)(nil)
 
 var empty []byte
 
-func (m *MemoryKV) Put(key, value []byte) error {
+func (m *MemoryKV) Put(ctx context.Context, key, value []byte) error {
 	v, _ := m.fetchVal(key)
 	curr := v.simple.Load()
 	if !v.simple.CompareAndSwap(curr, &value) {
@@ -15,12 +19,12 @@ func (m *MemoryKV) Put(key, value []byte) error {
 	return nil
 }
 
-func (m *MemoryKV) Get(key []byte) ([]byte, error) {
+func (m *MemoryKV) Get(ctx context.Context, key []byte) ([]byte, error) {
 	v, _ := m.fetchVal(key)
 	return *v.simple.Load(), nil
 }
 
-func (m *MemoryKV) Delete(key []byte) error {
+func (m *MemoryKV) Delete(ctx context.Context, key []byte) error {
 	v, _ := m.fetchVal(key)
 	curr := v.simple.Load()
 	if !v.simple.CompareAndSwap(curr, &empty) {

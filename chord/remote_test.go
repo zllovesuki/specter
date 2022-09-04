@@ -114,34 +114,34 @@ func TestRemoteRPCErrors(t *testing.T) {
 	_, err = r.GetPredecessor()
 	as.ErrorContains(err, e.Error())
 
-	err = r.Put([]byte("key"), []byte("val"))
+	err = r.Put(ctx, []byte("key"), []byte("val"))
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.Get([]byte("key"))
+	_, err = r.Get(ctx, []byte("key"))
 	as.ErrorContains(err, e.Error())
 
-	err = r.Delete([]byte("key"))
+	err = r.Delete(ctx, []byte("key"))
 	as.ErrorContains(err, e.Error())
 
-	err = r.PrefixAppend([]byte("prefix"), []byte("child"))
+	err = r.PrefixAppend(ctx, []byte("prefix"), []byte("child"))
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.PrefixList([]byte("prefix"))
+	_, err = r.PrefixList(ctx, []byte("prefix"))
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.PrefixContains([]byte("prefix"), []byte("child"))
+	_, err = r.PrefixContains(ctx, []byte("prefix"), []byte("child"))
 	as.ErrorContains(err, e.Error())
 
-	err = r.PrefixRemove([]byte("prefix"), []byte("child"))
+	err = r.PrefixRemove(ctx, []byte("prefix"), []byte("child"))
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.Acquire([]byte("lease"), time.Second)
+	_, err = r.Acquire(ctx, []byte("lease"), time.Second)
 	as.ErrorContains(err, e.Error())
 
-	_, err = r.Renew([]byte("lease"), time.Second, 0)
+	_, err = r.Renew(ctx, []byte("lease"), time.Second, 0)
 	as.ErrorContains(err, e.Error())
 
-	err = r.Release([]byte("lease"), 0)
+	err = r.Release(ctx, []byte("lease"), 0)
 	as.ErrorContains(err, e.Error())
 
 	_, _, err = r.RequestToJoin(p)
@@ -150,11 +150,50 @@ func TestRemoteRPCErrors(t *testing.T) {
 	err = r.FinishJoin(true, false)
 	as.ErrorContains(err, e.Error())
 
-	err = r.Import([][]byte{[]byte("k")}, []*protocol.KVTransfer{{
+	err = r.Import(ctx, [][]byte{[]byte("k")}, []*protocol.KVTransfer{{
 		SimpleValue:    []byte("v"),
 		PrefixChildren: [][]byte{[]byte("c")},
 	}})
 	as.ErrorContains(err, e.Error())
 
 	tp.AssertExpectations(t)
+}
+
+func TestRemoteRPCContext(t *testing.T) {
+	as := require.New(t)
+
+	logger, err := zap.NewDevelopment()
+	as.NoError(err)
+
+	tp := new(mocks.Transport)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	peer := &protocol.Node{
+		Unknown: true,
+		Address: "127.0.0.1:1234",
+	}
+
+	e := fmt.Errorf("sup")
+
+	rpcCaller := new(mocks.RPC)
+	rpcCaller.On("Call", mock.Anything, mock.MatchedBy(func(req *protocol.RPC_Request) bool {
+		return req.GetRequestContext().GetRequestTarget() == protocol.Context_KV_REPLICATION
+	})).Return(nil, e)
+	rpcCaller.On("Close").Return(nil)
+
+	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
+	}), mock.Anything).Return(rpcCaller, nil)
+
+	r, err := NewRemoteNode(ctx, tp, logger, peer)
+	as.NoError(err)
+
+	defer r.Stop()
+
+	err = r.Put(chord.WithRequestContext(ctx, &protocol.Context{
+		RequestTarget: protocol.Context_KV_REPLICATION,
+	}), []byte("key"), []byte("val"))
+	as.ErrorContains(err, e.Error())
 }
