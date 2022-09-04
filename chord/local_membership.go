@@ -111,10 +111,6 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	prevPredecessor := n.predecessor
 	n.predecessorMu.RUnlock()
 
-	n.surrogateMu.Lock()
-	n.surrogate = joiner.Identity()
-	n.surrogateMu.Unlock()
-
 	var joined bool
 	defer func() {
 		if joined {
@@ -127,12 +123,10 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		}
 		// joiner will unlock, revert upon error
 		n.state.Set(chord.Active)
-		n.surrogateMu.Lock()
-		if n.surrogate == joiner.Identity() {
-			n.surrogate = prevPredecessor.Identity()
-		}
-		n.surrogateMu.Unlock()
 	}()
+
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
 
 	// transfer key range to new node, and set surrogate pointer to new node.
 	// paper calls for forwarding but that's too hard
@@ -141,6 +135,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
 	joined = true
+	n.surrogate = joiner.Identity()
 
 	return prevPredecessor, chord.MakeSuccList(n, n.getSuccessors(), chord.ExtendedSuccessorEntries+1), nil
 }
