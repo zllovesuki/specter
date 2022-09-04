@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -460,6 +462,11 @@ func (c *Client) getProxy(ctx context.Context, hostname string, u *url.URL) *htt
 			},
 		}
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
+			if errors.Is(e, context.Canceled) ||
+				errors.Is(e, io.EOF) {
+				// this is expected
+				return
+			}
 			c.logger.Error("forwarding http/https request", zap.Error(e))
 			rw.WriteHeader(http.StatusBadGateway)
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())

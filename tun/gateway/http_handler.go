@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -130,7 +131,8 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	if errors.Is(e, context.Canceled) {
+	if errors.Is(e, context.Canceled) ||
+		errors.Is(e, io.EOF) {
 		// this is expected
 		return
 	}
