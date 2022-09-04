@@ -18,10 +18,10 @@ const (
 func TestH2ApexIndex(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH2Client("", port)
+	c := getH2Client("", tcpPort)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
 	as.NoError(err)
@@ -40,10 +40,10 @@ func TestH2ApexIndex(t *testing.T) {
 func TestH3ApexIndex(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH3Client("", port)
+	c := getH3Client("", udpPort)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/", testDomain))
 	as.NoError(err)
@@ -69,10 +69,10 @@ func TestInternalWithAuth(t *testing.T) {
 
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH2Client("", port)
+	c := getH2Client("", tcpPort)
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/stats", testDomain), nil)
 	as.NoError(err)
@@ -98,10 +98,10 @@ func TestInternalNoAuth(t *testing.T) {
 
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH2Client("", port)
+	c := getH2Client("", tcpPort)
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/stats", testDomain), nil)
 	as.NoError(err)
@@ -119,10 +119,10 @@ func TestInternalNoAuth(t *testing.T) {
 func TestInternalDisabled(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH2Client("", port)
+	c := getH2Client("", tcpPort)
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/stats", testDomain), nil)
 	as.NoError(err)
@@ -140,10 +140,10 @@ func TestInternalDisabled(t *testing.T) {
 func TestLogo(t *testing.T) {
 	as := require.New(t)
 
-	port, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(as, nil)
 	defer done()
 
-	c := getH3Client("", port)
+	c := getH3Client("", udpPort)
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/quic.png", testDomain))
 	as.NoError(err)
