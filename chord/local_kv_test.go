@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	mathRand "math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -283,6 +284,39 @@ func TestConcurrentJoinKV(t *testing.T) {
 	}
 }
 
+func checkRingLong(as *require.Assertions, nodes []*LocalNode) {
+	as.NoError(WaitForCondition(func() bool {
+		for _, node := range nodes {
+			if node.getPredecessor() == nil {
+				return false
+			}
+			if node.getSuccessor() == nil {
+				return false
+			}
+		}
+		refNodes := append([]*LocalNode{}, nodes...)
+		sort.SliceStable(refNodes, func(i, j int) bool {
+			return refNodes[i].ID() < refNodes[j].ID()
+		})
+		// counter clockwise
+		for i := 0; i < len(refNodes)-1; i++ {
+			if refNodes[i].ID() != refNodes[i+1].getPredecessor().ID() {
+				return false
+			}
+		}
+		if refNodes[len(refNodes)-1].ID() != refNodes[0].getPredecessor().ID() {
+			return false
+		}
+		// clockwise
+		for i := 0; i < len(nodes)-1; i++ {
+			if refNodes[i+1].ID() != refNodes[i].getSuccessor().ID() {
+				return false
+			}
+		}
+		return refNodes[0].ID() == refNodes[len(refNodes)-1].getSuccessor().ID()
+	}, waitInterval, time.Second*5))
+}
+
 func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	as := require.New(t)
 
@@ -316,6 +350,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval) // used to pace the insertion operations
 		}
 	}()
 
@@ -324,6 +359,9 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	}
 
 	<-syncA
+
+	// wait until the ring is stablized before we check for missing values
+	checkRingLong(as, nodes)
 
 	nodes[0].Logger.Debug("Starting test validation")
 
@@ -401,6 +439,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval) // used to pace the insertion operations
 		}
 	}()
 
