@@ -25,10 +25,13 @@ import (
 	"kon.nect.sh/specter/tun/server"
 	"kon.nect.sh/specter/util"
 
+	"github.com/TheZeroSlave/zapsentry"
 	"github.com/caddyserver/certmagic"
+	"github.com/getsentry/sentry-go"
 	"github.com/mholt/acmez"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"kon.nect.sh/challenger/cloudflare"
 )
 
@@ -89,7 +92,8 @@ var Cmd = &cli.Command{
 		&cli.StringFlag{
 			Name:        "sentry",
 			DefaultText: "https://public@sentry.example.com/1",
-			Usage:       "sentry DSN for error monitoring",
+			Usage:       "sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
+			EnvVars:     []string{"SENTRY_DSN"},
 		},
 
 		// used for acme setup internally
@@ -259,6 +263,24 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvide
 
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+
+	if ctx.IsSet("sentry") {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:     ctx.String("sentry"),
+			Release: ctx.App.Version,
+		}); err != nil {
+			return fmt.Errorf("initializing sentry client: %w", err)
+		}
+		core, err := zapsentry.NewCore(zapsentry.Configuration{
+			Level: zapcore.WarnLevel,
+		}, zapsentry.NewSentryClientFromClient(sentry.CurrentHub().Client()))
+		if err != nil {
+			return fmt.Errorf("initializing zapsentry core: %w", err)
+		}
+		logger = zapsentry.AttachCoreToLogger(core, logger)
+		defer logger.Sync()
+	}
+
 	listen := ctx.String("listen-addr")
 	advertise := listen
 	if ctx.IsSet("advertise-addr") {

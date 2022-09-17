@@ -4,7 +4,9 @@ go 1.19
 
 require (
 	github.com/CAFxX/atomic128 v0.2.0
+	github.com/TheZeroSlave/zapsentry v1.11.0
 	github.com/caddyserver/certmagic v0.17.1
+	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/websocket v1.5.0
