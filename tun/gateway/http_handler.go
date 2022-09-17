@@ -14,6 +14,7 @@ import (
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
+	"moul.io/zapfilter"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -21,8 +22,7 @@ import (
 )
 
 const (
-	bufferSize        = 1024 * 16
-	invalidServerName = "gotofail.xxx"
+	bufferSize = 1024 * 4
 )
 
 var delHeaders = []string{
@@ -51,7 +51,7 @@ func (g *Gateway) overlayDialer(ctx context.Context, _, addr string) (net.Conn, 
 	})
 }
 
-func (g *Gateway) proxyDirectory(req *http.Request) {
+func (g *Gateway) proxyDirector(req *http.Request) {
 	req.URL.Scheme = "https"
 	// most browsers' connection coalescing behavior for http3 is the same as http2,
 	// as they could be reusing the same tcp/quic connection for different hosts.
@@ -75,42 +75,55 @@ func (g *Gateway) proxyDirectory(req *http.Request) {
 
 func (g *Gateway) httpHandler() (http.Handler, http.Handler) {
 	bufPool := NewBufferPool(bufferSize)
-	reqHandler := func(r *http.Response) error {
+	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
 		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 		return nil
 	}
-	proxyLogger, err := zap.NewStdLogAt(g.Logger, zapcore.ErrorLevel)
+
+	// filter out unproductive messages
+	filteredLogger := zap.New(zapfilter.NewFilteringCore(
+		g.Logger.Core(),
+		func(e zapcore.Entry, f []zapcore.Field) bool {
+			return !strings.HasPrefix(e.Message, "http: URL query contains semicolon")
+		}),
+	)
+	proxyLogger, err := zap.NewStdLogAt(filteredLogger, zapcore.ErrorLevel)
 	if err != nil {
 		g.Logger.Fatal("error getting proxy logger", zap.Error(err))
 	}
 
+	// configure h1 transport and h2 transport separately, while letting the h2 one
+	// uses the settings from h1 transport
+	h1Transport := &http.Transport{
+		DialTLSContext:        g.overlayDialer,
+		MaxConnsPerHost:       30,
+		MaxIdleConnsPerHost:   3,
+		IdleConnTimeout:       time.Minute,
+		ResponseHeaderTimeout: time.Second * 30,
+		ExpectContinueTimeout: time.Second * 3,
+	}
+	h2Transport, _ := http2.ConfigureTransports(h1Transport)
+	h2Transport.DialTLSContext = func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+		return g.overlayDialer(ctx, network, addr)
+	}
+	h2Transport.ConnPool = nil
+	h1Transport.TLSNextProto = nil
+
 	h1Proxy := &httputil.ReverseProxy{
-		Director: g.proxyDirectory,
-		Transport: &http.Transport{
-			DialTLSContext:        g.overlayDialer,
-			MaxConnsPerHost:       30,
-			MaxIdleConnsPerHost:   3,
-			IdleConnTimeout:       time.Minute,
-			ResponseHeaderTimeout: time.Second * 30,
-			ExpectContinueTimeout: time.Second * 3,
-		},
+		Director:       g.proxyDirector,
+		Transport:      h1Transport,
 		BufferPool:     bufPool,
 		ErrorHandler:   g.errorHandler,
-		ModifyResponse: reqHandler,
+		ModifyResponse: respHandler,
 		ErrorLog:       proxyLogger,
 	}
 	h2Proxy := &httputil.ReverseProxy{
-		Director: g.proxyDirectory,
-		Transport: &http2.Transport{
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return g.overlayDialer(ctx, network, addr)
-			},
-			ReadIdleTimeout: time.Minute,
-		},
+		Director:       g.proxyDirector,
+		Transport:      h2Transport,
 		BufferPool:     bufPool,
 		ErrorHandler:   g.errorHandler,
-		ModifyResponse: reqHandler,
+		ModifyResponse: respHandler,
 		ErrorLog:       proxyLogger,
 	}
 	return h1Proxy, h2Proxy
