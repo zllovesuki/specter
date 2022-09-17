@@ -206,6 +206,12 @@ func configACME(ctx *cli.Context, logger *zap.Logger) *certmagic.Config {
 	magic.DefaultServerName = ctx.String("apex")
 	magic.Logger = logger.With(zap.String("component", "acme"))
 
+	if ds.IsDev(cipher.CertCA) {
+		magic.OCSP = certmagic.OCSPConfig{
+			DisableStapling: true,
+		}
+	}
+
 	issuer := certmagic.NewACMEIssuer(magic, certmagic.ACMEIssuer{
 		CA:                      cipher.CertCA,
 		Email:                   ctx.String("email"),
