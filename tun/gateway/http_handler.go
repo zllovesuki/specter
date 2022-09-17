@@ -14,11 +14,11 @@ import (
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
-	"moul.io/zapfilter"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/http2"
+	"moul.io/zapfilter"
 )
 
 const (
@@ -31,14 +31,17 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
-func (g *Gateway) overlayDialer(ctx context.Context, _, addr string) (net.Conn, error) {
+func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
 	var hostname string
 	parts := strings.SplitN(host, ".", 2)
-	if strings.HasSuffix(parts[1], g.RootDomain) {
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid host")
+	}
+	if parts[1] == g.RootDomain {
 		hostname = parts[0]
 	} else {
 		// TODO: custom hostname support
@@ -96,16 +99,18 @@ func (g *Gateway) httpHandler() (http.Handler, http.Handler) {
 	// configure h1 transport and h2 transport separately, while letting the h2 one
 	// uses the settings from h1 transport
 	h1Transport := &http.Transport{
-		DialTLSContext:        g.overlayDialer,
 		MaxConnsPerHost:       30,
 		MaxIdleConnsPerHost:   3,
 		IdleConnTimeout:       time.Minute,
 		ResponseHeaderTimeout: time.Second * 30,
 		ExpectContinueTimeout: time.Second * 3,
 	}
+	h1Transport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+		return g.overlayDialer(ctx, addr)
+	}
 	h2Transport, _ := http2.ConfigureTransports(h1Transport)
-	h2Transport.DialTLSContext = func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-		return g.overlayDialer(ctx, network, addr)
+	h2Transport.DialTLSContext = func(ctx context.Context, _, addr string, _ *tls.Config) (net.Conn, error) {
+		return g.overlayDialer(ctx, addr)
 	}
 	h2Transport.ConnPool = nil
 	h1Transport.TLSNextProto = nil
