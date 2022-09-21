@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -16,9 +17,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/http2"
-	"moul.io/zapfilter"
 )
 
 const (
@@ -76,24 +75,12 @@ func (g *Gateway) proxyDirector(req *http.Request) {
 	req.Header.Set("X-Forwarded-Proto", "https")
 }
 
-func (g *Gateway) httpHandler() (http.Handler, http.Handler) {
+func (g *Gateway) httpHandler(proxyLogger *log.Logger) (http.Handler, http.Handler) {
 	bufPool := NewBufferPool(bufferSize)
 	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
 		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 		return nil
-	}
-
-	// filter out unproductive messages
-	filteredLogger := zap.New(zapfilter.NewFilteringCore(
-		g.Logger.Core(),
-		func(e zapcore.Entry, f []zapcore.Field) bool {
-			return !strings.HasPrefix(e.Message, "http: URL query contains semicolon")
-		}),
-	)
-	proxyLogger, err := zap.NewStdLogAt(filteredLogger, zapcore.ErrorLevel)
-	if err != nil {
-		g.Logger.Fatal("error getting proxy logger", zap.Error(err))
 	}
 
 	// configure h1 transport and h2 transport separately, while letting the h2 one

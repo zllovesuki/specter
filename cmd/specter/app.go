@@ -54,7 +54,7 @@ func ConfigLogger(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = zap.RedirectStdLogAt(logger, zapcore.InfoLevel)
+	_, err = zap.RedirectStdLogAt(logger.With(zap.String("subsystem", "unknown")), zapcore.InfoLevel)
 	if err != nil {
 		return fmt.Errorf("redirecting stdlog output: %w", err)
 	}

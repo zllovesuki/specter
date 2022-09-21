@@ -3,7 +3,9 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -19,6 +21,8 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"moul.io/zapfilter"
 )
 
 type DeadlineReadWriteCloser interface {
@@ -57,6 +61,14 @@ type Gateway struct {
 	GatewayConfig
 }
 
+func getStdLogger(parent *zap.Logger, sub string) *log.Logger {
+	logger, err := zap.NewStdLogAt(parent.With(zap.String("subsystem", sub)), zapcore.WarnLevel)
+	if err != nil {
+		panic(fmt.Errorf("error getting proxy logger: %w", err))
+	}
+	return logger
+}
+
 func New(conf GatewayConfig) *Gateway {
 	g := &Gateway{
 		GatewayConfig:       conf,
@@ -73,24 +85,36 @@ func New(conf GatewayConfig) *Gateway {
 			authPass:     conf.AdminPass,
 		},
 	}
+
+	// filter out unproductive messages
+	filteredLogger := zap.New(zapfilter.NewFilteringCore(
+		g.Logger.Core(),
+		func(e zapcore.Entry, f []zapcore.Field) bool {
+			return !strings.HasPrefix(e.Message, "http: URL query contains semicolon")
+		}),
+	)
+
 	qCfg := &quic.Config{
 		HandshakeIdleTimeout: time.Second * 5,
 		KeepAlivePeriod:      time.Second * 30,
 		MaxIdleTimeout:       time.Second * 60,
 	}
 	apex := g.apexMux()
-	h1Proxy, h2Proxy := g.httpHandler()
+	h1Proxy, h2Proxy := g.httpHandler(getStdLogger(filteredLogger, "httpProxy"))
 	g.h1TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           h1Proxy,
+		ErrorLog:          getStdLogger(filteredLogger, "h1Tunnel"),
 	}
 	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
+		ErrorLog:          getStdLogger(filteredLogger, "tcpApex"),
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           h2Proxy,
+		ErrorLog:          getStdLogger(filteredLogger, "h2Tunnel"),
 	}
 	g.quicApexServer = &http3.Server{
 		QuicConfig:      qCfg,
@@ -106,6 +130,7 @@ func New(conf GatewayConfig) *Gateway {
 		Addr:              "127.0.0.1:9999",
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
+		ErrorLog:          getStdLogger(filteredLogger, "localApex"),
 	}
 	g.httpServer = &http.Server{
 		ReadHeaderTimeout: 5 * time.Second,
@@ -113,6 +138,7 @@ func New(conf GatewayConfig) *Gateway {
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       5 * time.Second,
 		Handler:           http.HandlerFunc(g.httpRedirect),
+		ErrorLog:          getStdLogger(filteredLogger, "httpRedirect"),
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {
