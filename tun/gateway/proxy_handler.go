@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	bufferSize = 1024 * 4
+	bufferSize = 1024 * 8
 )
 
 var delHeaders = []string{
@@ -75,7 +75,7 @@ func (g *Gateway) proxyDirector(req *http.Request) {
 	req.Header.Set("X-Forwarded-Proto", "https")
 }
 
-func (g *Gateway) httpHandler(proxyLogger *log.Logger) (http.Handler, http.Handler) {
+func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 	bufPool := NewBufferPool(bufferSize)
 	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
@@ -102,23 +102,19 @@ func (g *Gateway) httpHandler(proxyLogger *log.Logger) (http.Handler, http.Handl
 	h2Transport.ConnPool = nil
 	h1Transport.TLSNextProto = nil
 
-	h1Proxy := &httputil.ReverseProxy{
-		Director:       g.proxyDirector,
-		Transport:      h1Transport,
+	proxy := &httputil.ReverseProxy{
+		Director: g.proxyDirector,
+		Transport: &proxyRoundTripper{
+			h1: h1Transport,
+			h2: h2Transport,
+		},
 		BufferPool:     bufPool,
 		ErrorHandler:   g.errorHandler,
 		ModifyResponse: respHandler,
 		ErrorLog:       proxyLogger,
 	}
-	h2Proxy := &httputil.ReverseProxy{
-		Director:       g.proxyDirector,
-		Transport:      h2Transport,
-		BufferPool:     bufPool,
-		ErrorHandler:   g.errorHandler,
-		ModifyResponse: respHandler,
-		ErrorLog:       proxyLogger,
-	}
-	return h1Proxy, h2Proxy
+
+	return proxy
 }
 
 func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) {

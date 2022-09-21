@@ -45,13 +45,11 @@ type GatewayConfig struct {
 
 type Gateway struct {
 	apexServer          *apexServer
-	http1TunnelAcceptor *acceptor.HTTP2Acceptor
-	http2TunnelAcceptor *acceptor.HTTP2Acceptor
+	httpTunnelAcceptor  *acceptor.HTTP2Acceptor
 	http3TunnelAcceptor *acceptor.HTTP3Acceptor
 	tcpApexAcceptor     *acceptor.HTTP2Acceptor
 	quicApexAcceptor    *acceptor.HTTP3Acceptor
 	tcpApexServer       *http.Server
-	h1TunnelServer      *http.Server
 	h2TunnelServer      *http.Server
 	localApexServer     *http.Server
 	httpServer          *http.Server
@@ -72,8 +70,7 @@ func getStdLogger(parent *zap.Logger, sub string) *log.Logger {
 func New(conf GatewayConfig) *Gateway {
 	g := &Gateway{
 		GatewayConfig:       conf,
-		http1TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
-		http2TunnelAcceptor: acceptor.NewH2Acceptor(conf.H2Listener),
+		httpTunnelAcceptor:  acceptor.NewH2Acceptor(conf.H2Listener),
 		tcpApexAcceptor:     acceptor.NewH2Acceptor(conf.H2Listener),
 		http3TunnelAcceptor: acceptor.NewH3Acceptor(conf.H3Listener),
 		quicApexAcceptor:    acceptor.NewH3Acceptor(conf.H3Listener),
@@ -100,12 +97,7 @@ func New(conf GatewayConfig) *Gateway {
 		MaxIdleTimeout:       time.Second * 60,
 	}
 	apex := g.apexMux()
-	h1Proxy, h2Proxy := g.httpHandler(getStdLogger(filteredLogger, "httpProxy"))
-	g.h1TunnelServer = &http.Server{
-		ReadHeaderTimeout: time.Second * 5,
-		Handler:           h1Proxy,
-		ErrorLog:          getStdLogger(filteredLogger, "h1Tunnel"),
-	}
+	proxyHandler := g.proxyHandler(getStdLogger(filteredLogger, "httpProxy"))
 	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
@@ -113,7 +105,7 @@ func New(conf GatewayConfig) *Gateway {
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
-		Handler:           h2Proxy,
+		Handler:           proxyHandler,
 		ErrorLog:          getStdLogger(filteredLogger, "h2Tunnel"),
 	}
 	g.quicApexServer = &http3.Server{
@@ -124,7 +116,7 @@ func New(conf GatewayConfig) *Gateway {
 	g.h3TunnelServer = &http3.Server{
 		QuicConfig:      qCfg,
 		EnableDatagrams: false,
-		Handler:         h2Proxy,
+		Handler:         proxyHandler,
 	}
 	g.localApexServer = &http.Server{
 		Addr:              "127.0.0.1:9999",
@@ -161,16 +153,13 @@ func (g *Gateway) apexMux() http.Handler {
 
 func (g *Gateway) Start(ctx context.Context) {
 	// provide application context
-	g.h1TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.h2TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.tcpApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.localApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.httpServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 
 	// start all servers
-	go g.h1TunnelServer.Serve(g.http1TunnelAcceptor)
-
-	go g.h2TunnelServer.Serve(g.http2TunnelAcceptor)
+	go g.h2TunnelServer.Serve(g.httpTunnelAcceptor)
 	go g.tcpApexServer.Serve(g.tcpApexAcceptor)
 
 	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
@@ -192,13 +181,11 @@ func (g *Gateway) Start(ctx context.Context) {
 }
 
 func (g *Gateway) Close() {
-	g.http1TunnelAcceptor.Close()
-	g.http2TunnelAcceptor.Close()
+	g.httpTunnelAcceptor.Close()
 
 	g.tcpApexAcceptor.Close()
 	g.quicApexAcceptor.Close()
 
-	g.h1TunnelServer.Close()
 	g.h2TunnelServer.Close()
 	g.h3TunnelServer.Close()
 
@@ -298,12 +285,9 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 				return
 			}
 			g.handleH2Multiplex(ctx, logger, session, cs.ServerName)
-		case tun.ALPN(protocol.Link_HTTP2):
-			logger.Debug("forwarding http connection")
-			g.http2TunnelAcceptor.Handle(conn)
 		default:
 			logger.Debug("forwarding http connection")
-			g.http1TunnelAcceptor.Handle(conn)
+			g.httpTunnelAcceptor.Handle(conn)
 		}
 	}
 }
