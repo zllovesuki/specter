@@ -170,7 +170,13 @@ func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCH
 
 	r := rpc.NewRPC(
 		l.With(zap.String("pov", "transport_dial")),
-		stream,
+		&quicConn{
+			Stream: stream,
+			q:      q,
+			closeCb: func() {
+				t.rpcMap.Delete(rpcMapKey)
+			},
+		},
 		nil)
 	go r.Start(ctx)
 
@@ -202,7 +208,7 @@ func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, e
 		zap.String("remote", q.RemoteAddr().String()),
 		zap.String("local", q.LocalAddr().String()))
 
-	return w(q, stream), nil
+	return WrapQuicConnection(stream, q), nil
 }
 
 func (t *QUIC) RPC() <-chan *transport.StreamDelegate {
@@ -432,12 +438,12 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 	switch rr.GetType() {
 	case protocol.Stream_RPC:
 		t.rpcChan <- &transport.StreamDelegate{
-			Connection: w(q, stream),
+			Connection: WrapQuicConnection(stream, q),
 			Identity:   peer,
 		}
 	case protocol.Stream_DIRECT:
 		t.directChan <- &transport.StreamDelegate{
-			Connection: w(q, stream),
+			Connection: WrapQuicConnection(stream, q),
 			Identity:   peer,
 		}
 	default:
@@ -454,11 +460,4 @@ func (t *QUIC) Stop() {
 		value.quic.CloseWithError(0, "Transport closed")
 		return true
 	})
-}
-
-func w(q quic.Connection, s quic.Stream) *quicConn {
-	return &quicConn{
-		Stream: s,
-		q:      q,
-	}
 }
