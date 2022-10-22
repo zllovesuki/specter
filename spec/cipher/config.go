@@ -3,10 +3,12 @@ package cipher
 import (
 	"crypto/tls"
 	"crypto/x509"
+
+	"github.com/lucas-clemente/quic-go/http3"
 )
 
 var (
-	H3Protos = []string{"h3", "h3-29"}
+	H3Protos = []string{http3.NextProtoH3, http3.NextProtoH3Draft29}
 )
 
 // we will require the use of ECDSA certificates for Chord
