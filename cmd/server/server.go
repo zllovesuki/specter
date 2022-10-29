@@ -267,23 +267,37 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (
 	}
 }
 
+func modifyToSentryLogger(logger *zap.Logger, client *sentry.Client) *zap.Logger {
+	cfg := zapsentry.Configuration{
+		Level:             zapcore.WarnLevel,
+		EnableBreadcrumbs: true,
+		BreadcrumbLevel:   zapcore.InfoLevel,
+	}
+	core, err := zapsentry.NewCore(cfg, zapsentry.NewSentryClientFromClient(client))
+
+	if err != nil {
+		logger.Warn("failed to init zap", zap.Error(err))
+	}
+
+	logger = zapsentry.AttachCoreToLogger(core, logger)
+
+	return logger.With(zapsentry.NewScope())
+}
+
 func cmdServer(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 
 	if ctx.IsSet("sentry") {
-		if err := sentry.Init(sentry.ClientOptions{
+		client, err := sentry.NewClient(sentry.ClientOptions{
 			Dsn:     ctx.String("sentry"),
 			Release: ctx.App.Version,
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("initializing sentry client: %w", err)
 		}
-		core, err := zapsentry.NewCore(zapsentry.Configuration{
-			Level: zapcore.WarnLevel,
-		}, zapsentry.NewSentryClientFromClient(sentry.CurrentHub().Client()))
-		if err != nil {
-			return fmt.Errorf("initializing zapsentry core: %w", err)
-		}
-		logger = zapsentry.AttachCoreToLogger(core, logger)
+		defer client.Flush(time.Second * 2)
+
+		logger = modifyToSentryLogger(logger, client)
 		defer logger.Sync()
 	}
 

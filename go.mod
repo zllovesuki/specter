@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/CAFxX/atomic128 v0.2.0
-	github.com/TheZeroSlave/zapsentry v1.11.0
+	github.com/TheZeroSlave/zapsentry v1.12.0
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/getsentry/sentry-go v0.14.0
 	github.com/go-chi/chi/v5 v5.0.7
@@ -17,10 +17,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/orisano/wyhash v1.1.0
 	github.com/sethvargo/go-diceware v0.3.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/wal v1.1.7
 	github.com/urfave/cli/v2 v2.20.3
-	github.com/zhangyunhao116/skipmap v0.10.0
+	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
 	go.uber.org/atomic v1.10.0
 	go.uber.org/goleak v1.2.0
@@ -47,7 +47,7 @@ require (
 	github.com/marten-seemann/qtls-go1-19 v0.1.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
-	github.com/onsi/ginkgo/v2 v2.3.1 // indirect
+	github.com/onsi/ginkgo/v2 v2.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -60,7 +60,7 @@ require (
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/exp v0.0.0-20221019170559-20944726eadf // indirect
+	golang.org/x/exp v0.0.0-20221028150844-83b7d23a625f // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
