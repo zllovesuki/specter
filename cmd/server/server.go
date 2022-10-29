@@ -205,59 +205,65 @@ func configSolver(ctx *cli.Context, logger *zap.Logger) acmez.Solver {
 	}
 }
 
-func configACME(ctx *cli.Context, logger *zap.Logger) *certmagic.Config {
-	magic := certmagic.NewDefault()
-	magic.DefaultServerName = ctx.String("apex")
-	magic.Logger = logger.With(zap.String("component", "acme"))
-
-	if ds.IsDev(cipher.CertCA) {
-		magic.OCSP = certmagic.OCSPConfig{
-			DisableStapling: true,
-		}
-	}
-
-	issuer := certmagic.NewACMEIssuer(magic, certmagic.ACMEIssuer{
-		CA:                      cipher.CertCA,
-		Email:                   ctx.String("email"),
-		Agreed:                  true,
-		Logger:                  logger.With(zap.String("component", "issuer")),
-		DNS01Solver:             configSolver(ctx, logger),
-		DisableHTTPChallenge:    true,
-		DisableTLSALPNChallenge: true,
-	})
-	magic.Issuers = []certmagic.Issuer{issuer}
-	return magic
-}
-
-func configCertProvider(ctx *cli.Context, logger *zap.Logger) cipher.CertProvider {
+func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (cipher.CertProvider, error) {
 	rootDomain := ctx.String("apex")
 	if ctx.IsSet("challenger") {
+		kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
+			RetryInterval: time.Second * 3,
+			LeaseTTL:      time.Minute,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		cfg := certmagic.Config{
+			Storage:           kvStore,
+			DefaultServerName: ctx.String("apex"),
+			Logger:            logger.With(zap.String("component", "acme")),
+		}
+		if ds.IsDev(cipher.CertCA) {
+			cfg.OCSP = certmagic.OCSPConfig{
+				DisableStapling: true,
+			}
+		}
+
 		logger.Info("Using certmagic as cert provider", zap.String("email", ctx.String("email")), zap.String("challenger", ctx.String("cf_zone")))
-		magic := configACME(ctx, logger)
+
+		cache := certmagic.NewCache(certmagic.CacheOptions{
+			GetConfigForCert: func(c certmagic.Certificate) (*certmagic.Config, error) {
+				return &cfg, nil
+			},
+			Logger: logger.With(zap.String("component", "acme_cache")),
+		})
+
+		magic := certmagic.New(cache, cfg)
+		issuer := certmagic.NewACMEIssuer(magic, certmagic.ACMEIssuer{
+			CA:                      cipher.CertCA,
+			Email:                   ctx.String("email"),
+			Agreed:                  true,
+			Logger:                  logger.With(zap.String("component", "acme_issuer")),
+			DNS01Solver:             configSolver(ctx, logger),
+			DisableHTTPChallenge:    true,
+			DisableTLSALPNChallenge: true,
+		})
+		magic.Issuers = []certmagic.Issuer{issuer}
+
 		return &ACMEProvider{
 			Config: magic,
 			InitializeFn: func(kv chordSpec.KV) error {
-				kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
-					RetryInterval: time.Second * 3,
-					LeaseTTL:      time.Minute,
-				})
-				if err != nil {
-					return err
-				}
-				magic.Storage = kvStore
 				if err := magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain}); err != nil {
 					logger.Error("error initializing certmagic", zap.Error(err))
 					return err
 				}
 				return nil
 			},
-		}
+		}, nil
 	} else {
 		logger.Info("Using self-signed as cert provider")
 		self := &ds.SelfSignedProvider{
 			RootDomain: rootDomain,
 		}
-		return self
+		return self, nil
 	}
 }
 
@@ -411,7 +417,10 @@ func cmdServer(ctx *cli.Context) error {
 		}
 	}
 
-	certProvider := configCertProvider(ctx, logger)
+	certProvider, err := configCertProvider(ctx, logger, chordNode)
+	if err != nil {
+		return fmt.Errorf("failed to configure cert provider: %w", err)
+	}
 
 	if err := certProvider.Initialize(chordNode); err != nil {
 		return fmt.Errorf("failed to initialize cert provider: %w", err)
