@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1-experimental
 
-FROM --platform=$BUILDPLATFORM golang:1.19.1-alpine as builder
+FROM --platform=$BUILDPLATFORM golang:1.19.2-alpine as builder
 RUN apk --no-cache add ca-certificates git upx
 WORKDIR /app
 COPY . .
