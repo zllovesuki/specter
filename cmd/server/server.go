@@ -226,6 +226,16 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (
 				DisableStapling: true,
 			}
 		}
+		issuer := certmagic.NewACMEIssuer(&cfg, certmagic.ACMEIssuer{
+			CA:                      cipher.CertCA,
+			Email:                   ctx.String("email"),
+			Agreed:                  true,
+			Logger:                  logger.With(zap.String("component", "acme_issuer")),
+			DNS01Solver:             configSolver(ctx, logger),
+			DisableHTTPChallenge:    true,
+			DisableTLSALPNChallenge: true,
+		})
+		cfg.Issuers = []certmagic.Issuer{issuer}
 
 		logger.Info("Using certmagic as cert provider", zap.String("email", ctx.String("email")), zap.String("challenger", ctx.String("cf_zone")))
 
@@ -237,17 +247,6 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (
 		})
 
 		magic := certmagic.New(cache, cfg)
-		issuer := certmagic.NewACMEIssuer(magic, certmagic.ACMEIssuer{
-			CA:                      cipher.CertCA,
-			Email:                   ctx.String("email"),
-			Agreed:                  true,
-			Logger:                  logger.With(zap.String("component", "acme_issuer")),
-			DNS01Solver:             configSolver(ctx, logger),
-			DisableHTTPChallenge:    true,
-			DisableTLSALPNChallenge: true,
-		})
-		magic.Issuers = []certmagic.Issuer{issuer}
-
 		return &ACMEProvider{
 			Config: magic,
 			InitializeFn: func(kv chordSpec.KV) error {
