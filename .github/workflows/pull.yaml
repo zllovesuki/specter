@@ -4,8 +4,8 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**.md'
-      - 'Jenkinsfile'
+      - "**.md"
+      - "Jenkinsfile"
 
 jobs:
   testing:
@@ -15,10 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        go: ["1.19.2"]
+        go: ["1.19.4"]
     env:
       OS: ${{ matrix.os }}
-    steps: 
+    steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
       - name: Install Go
@@ -37,7 +37,7 @@ jobs:
         run: go test -v -short -race -timeout 120s ./...
   integration:
     name: Run Integration Tests
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     env:
       GO_RUN_INTEGRATION: "1"
     steps:
@@ -46,7 +46,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: "1.19.2"
+          go-version: "1.19.4"
       - uses: actions/cache@v2
         with:
           path: |
@@ -68,7 +68,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: "1.19.2"
+          go-version: "1.19.4"
       - uses: actions/cache@v2
         with:
           path: |
