@@ -1,6 +1,9 @@
 package chord
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 var (
 	ErrNodeGone        = fmt.Errorf("chord: node is not part of the chord ring")
@@ -28,7 +31,8 @@ func ErrorIsRetryable(err error) bool {
 	switch err {
 	case ErrKVStaleOwnership, ErrKVPendingTransfer,
 		ErrJoinInvalidState, ErrJoinTransferFailure,
-		ErrLeaveInvalidState, ErrLeaveTransferFailure:
+		ErrLeaveInvalidState, ErrLeaveTransferFailure,
+		context.DeadlineExceeded:
 		return true
 
 	case ErrNodeGone, ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
@@ -38,4 +42,53 @@ func ErrorIsRetryable(err error) bool {
 	default:
 		return false
 	}
+}
+
+// this is needed because RPC call squash type information, so in call site with signature
+// if err == ErrABC will fail (but err.Error() == ErrABC.Error() will work).
+func ErrorMapper(err error) error {
+	if err == nil {
+		return err
+	}
+	var parsedErr error
+	switch err.Error() {
+	case ErrNodeNotStarted.Error():
+		parsedErr = ErrNodeNotStarted
+	case ErrNodeGone.Error():
+		parsedErr = ErrNodeGone
+	case ErrNodeNoSuccessor.Error():
+		parsedErr = ErrNodeNoSuccessor
+
+	case ErrDuplicateJoinerID.Error():
+		parsedErr = ErrDuplicateJoinerID
+	case ErrJoinInvalidState.Error():
+		parsedErr = ErrJoinInvalidState
+	case ErrJoinTransferFailure.Error():
+		parsedErr = ErrJoinTransferFailure
+	case ErrLeaveInvalidState.Error():
+		parsedErr = ErrLeaveInvalidState
+	case ErrLeaveTransferFailure.Error():
+		parsedErr = ErrLeaveTransferFailure
+
+	case ErrKVStaleOwnership.Error():
+		parsedErr = ErrKVStaleOwnership
+	case ErrKVPendingTransfer.Error():
+		parsedErr = ErrKVPendingTransfer
+
+	case ErrKVPrefixConflict.Error():
+		parsedErr = ErrKVPrefixConflict
+	case ErrKVLeaseConflict.Error():
+		parsedErr = ErrKVLeaseConflict
+	case ErrKVSimpleConflict.Error():
+		parsedErr = ErrKVSimpleConflict
+
+	case ErrKVLeaseExpired.Error():
+		parsedErr = ErrKVLeaseExpired
+	case ErrKVLeaseInvalidTTL.Error():
+		parsedErr = ErrKVLeaseInvalidTTL
+	default:
+		// passthrough
+		parsedErr = err
+	}
+	return parsedErr
 }

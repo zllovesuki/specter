@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -139,32 +141,52 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 		return nil, ErrClosed
 	}
 
-	rNum := r.num.Inc()
-	rC := make(rrChan, 1)
+	var resp *protocol.RPC_Response
+	err := retry.Do(func() error {
+		rNum := r.num.Inc()
+		rC := make(rrChan, 1)
 
-	rr := protocol.RPCFromVTPool()
-	defer rr.ReturnToVTPool()
+		rr := protocol.RPCFromVTPool()
+		defer rr.ReturnToVTPool()
 
-	rr.Type = protocol.RPC_REQUEST
-	rr.ReqNum = rNum
-	rr.Ring = chord.MaxFingerEntries
-	rr.Request = req
+		rr.Type = protocol.RPC_REQUEST
+		rr.ReqNum = rNum
+		rr.Ring = chord.MaxFingerEntries
+		rr.Request = req
 
-	r.rMap.Store(rNum, rC)
-	defer r.rMap.Delete(rNum)
+		r.rMap.Store(rNum, rC)
+		defer r.rMap.Delete(rNum)
 
-	if err := rpc.Send(r.stream, rr); err != nil {
-		r.Close()
+		if err := rpc.Send(r.stream, rr); err != nil {
+			r.Close()
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case rs := <-rC:
+			if rs.rr == nil {
+				return chord.ErrorMapper(rs.e)
+			}
+			resp = rs.rr
+			return nil
+		}
+	},
+		retry.Context(ctx),
+		retry.Attempts(3),
+		retry.Delay(time.Microsecond*500),
+		retry.LastErrorOnly(true),
+		retry.RetryIf(func(err error) bool {
+			return chord.ErrorIsRetryable(err)
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			r.logger.Warn("Retryable RPC failure, retrying", zap.Uint("attempt", n), zap.Error(err))
+		}),
+	)
+	if err != nil {
 		return nil, err
 	}
 
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case rs := <-rC:
-		if rs.rr == nil {
-			return nil, rs.e
-		}
-		return rs.rr, nil
-	}
+	return resp, nil
 }

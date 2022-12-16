@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/CAFxX/atomic128 v0.2.0
 	github.com/TheZeroSlave/zapsentry v1.12.0
+	github.com/avast/retry-go/v4 v4.3.1
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/getsentry/sentry-go v0.16.0
 	github.com/go-chi/chi/v5 v5.0.8

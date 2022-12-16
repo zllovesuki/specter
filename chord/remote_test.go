@@ -15,52 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type errorWrapper struct {
-	err error
-}
-
-var _ error = (*errorWrapper)(nil)
-
-func (e *errorWrapper) Error() string {
-	return e.err.Error()
-}
-
-func TestRemoteErrorMapper(t *testing.T) {
-	as := require.New(t)
-
-	errors := []error{
-		chord.ErrNodeGone,
-		chord.ErrNodeNotStarted,
-		chord.ErrNodeNoSuccessor,
-
-		chord.ErrDuplicateJoinerID,
-		chord.ErrJoinInvalidState,
-		chord.ErrJoinTransferFailure,
-		chord.ErrLeaveInvalidState,
-		chord.ErrLeaveTransferFailure,
-
-		chord.ErrKVStaleOwnership,
-		chord.ErrKVPendingTransfer,
-
-		chord.ErrKVSimpleConflict,
-		chord.ErrKVPrefixConflict,
-		chord.ErrKVLeaseConflict,
-
-		chord.ErrKVLeaseExpired,
-		chord.ErrKVLeaseInvalidTTL,
-	}
-
-	call := func(_ *protocol.RPC_Response, err error) (*protocol.RPC_Response, error) {
-		// type squashing
-		return nil, &errorWrapper{err}
-	}
-
-	for _, real := range errors {
-		_, mapped := errorMapper(call(nil, real))
-		as.ErrorIs(mapped, real)
-	}
-}
-
 func TestRemoteRPCErrors(t *testing.T) {
 	as := require.New(t)
 

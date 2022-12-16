@@ -257,13 +257,13 @@ func TestLocalRPC(t *testing.T) {
 	defer cancel()
 
 	for _, tc := range calls {
-		_, err := errorMapper(caller.Call(callCtx, tc))
+		_, err := caller.Call(callCtx, tc)
 		as.NoError(err)
 	}
 
 	node.Leave()
 
-	_, err = errorMapper(caller.Call(ctx, &protocol.RPC_Request{}))
+	_, err = caller.Call(ctx, &protocol.RPC_Request{})
 	as.ErrorIs(err, chord.ErrNodeGone)
 
 }

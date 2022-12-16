@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
@@ -32,13 +31,8 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 		tun.IdentitiesTunKey(s.clientTransport.Identity()),
 	}
 	for _, key := range keys {
-	RETRY:
 		err := s.chord.Put(ctx, []byte(key), buf)
 		if err != nil {
-			if chord.ErrorIsRetryable(err) {
-				time.Sleep(kvRetryInterval)
-				goto RETRY
-			}
 			return err
 		}
 	}
@@ -56,13 +50,8 @@ func (s *Server) unpublishIdentities(ctx context.Context) {
 		tun.IdentitiesTunKey(s.clientTransport.Identity()),
 	}
 	for _, key := range keys {
-	RETRY:
 		err := s.chord.Delete(ctx, []byte(key))
 		if err != nil {
-			if chord.ErrorIsRetryable(err) {
-				time.Sleep(kvRetryInterval)
-				goto RETRY
-			}
 			return
 		}
 	}
@@ -73,13 +62,8 @@ func (s *Server) unpublishIdentities(ctx context.Context) {
 }
 
 func (s *Server) lookupIdentities(ctx context.Context, key string) (*protocol.IdentitiesPair, error) {
-RETRY:
 	buf, err := s.chord.Get(ctx, []byte(key))
 	if err != nil {
-		if chord.ErrorIsRetryable(err) {
-			time.Sleep(kvRetryInterval)
-			goto RETRY
-		}
 		return nil, err
 	}
 	if len(buf) == 0 {

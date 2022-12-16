@@ -73,7 +73,7 @@ func (n *LocalNode) stabilize(hasLock bool) error {
 	if modified && n.succListHash.Load() != listHash {
 		if hasLock {
 			n.updateSuccessorsList(listHash, succList)
-		} else if n.successorsMu.TryLock() { // join in progress, don't trample over
+		} else if n.successorsMu.TryLock() { // if join in progress, don't trample over
 			n.updateSuccessorsList(listHash, succList)
 			n.successorsMu.Unlock()
 		} else {

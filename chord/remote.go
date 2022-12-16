@@ -15,7 +15,7 @@ import (
 
 const (
 	rpcTimeout  = time.Second * 10
-	pingTimeout = time.Second * 5
+	pingTimeout = time.Second * 3
 )
 
 type RemoteNode struct {
@@ -58,7 +58,7 @@ func (n *RemoteNode) doRequest(ctx context.Context, timeout time.Duration, k pro
 		modifier(rReq)
 	}
 
-	rResp, err := errorMapper(n.rpc.Call(ctx, rReq))
+	rResp, err := n.rpc.Call(ctx, rReq)
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
 			n.logger.Error("remote RPC error", zap.String("kind", k.String()), zap.String("peer", n.Identity().String()), zap.Error(err))
