@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/util"
 
 	"go.uber.org/zap"
 )
@@ -65,27 +65,24 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	return nil
 }
 
-func (n *LocalNode) executeJoin(peer chord.VNode) (chord.VNode, []chord.VNode, error) {
-	var lastErr error
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, successors []chord.VNode, err error) {
+	err = retry.Do(func() error {
+		var joinErr error
 		n.Logger.Info("Joining Chord ring",
-			zap.Int("attempt", attempt),
 			zap.String("via", peer.Identity().GetAddress()),
 		)
-		predecessor, successors, err := peer.RequestToJoin(n)
-		if err == nil {
-			return predecessor, successors, nil
-		}
-		// do not retry if non-retryable
-		if !chord.ErrorIsRetryable(err) {
-			return nil, nil, err
-		}
-		lastErr = err
-		n.Logger.Error("error trying to join ring, retrying", zap.Error(err))
-		<-time.After(util.RandomTimeRange(n.StablizeInterval * 2))
-	}
-	n.Logger.Error("Unable to join ring: out of attempts", zap.Error(lastErr))
-	return nil, nil, lastErr
+		predecessor, successors, joinErr = peer.RequestToJoin(n)
+		return joinErr
+	},
+		retry.Attempts(maxAttempts),
+		retry.Delay(n.StablizeInterval*2),
+		retry.LastErrorOnly(true),
+		retry.RetryIf(chord.ErrorIsRetryable),
+		retry.OnRetry(func(attempt uint, err error) {
+			n.Logger.Error("Error trying to join ring, retrying", zap.Uint("attempt", attempt), zap.Error(err))
+		}),
+	)
+	return
 }
 
 func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
@@ -204,16 +201,18 @@ func (n *LocalNode) Leave() {
 	n.Logger.Info("Requesting to leave chord ring")
 
 	var succ chord.VNode
-	var err error
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		succ, err = n.executeLeave()
-		if err != nil {
-			n.Logger.Warn("Unable to leave, retrying", zap.Error(err))
-			<-time.After(util.RandomTimeRange(n.StablizeInterval * 2))
-			continue
-		}
-		break
-	}
+	err := retry.Do(func() error {
+		var leaveErr error
+		succ, leaveErr = n.executeLeave()
+		return leaveErr
+	},
+		retry.Attempts(maxAttempts),
+		retry.Delay(n.StablizeInterval*2),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(attempt uint, err error) {
+			n.Logger.Error("Error trying to leave ring, retrying", zap.Uint("attempt", attempt), zap.Error(err))
+		}),
+	)
 	if err != nil {
 		n.Logger.Error("Unable to leave ring: out of attempts", zap.Error(err))
 		return

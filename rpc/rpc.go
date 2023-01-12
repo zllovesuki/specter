@@ -177,9 +177,7 @@ func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RP
 		retry.Attempts(3),
 		retry.Delay(time.Microsecond*500),
 		retry.LastErrorOnly(true),
-		retry.RetryIf(func(err error) bool {
-			return chord.ErrorIsRetryable(err)
-		}),
+		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(n uint, err error) {
 			r.logger.Warn("Retryable RPC failure, retrying", zap.Uint("attempt", n), zap.Error(err))
 		}),
