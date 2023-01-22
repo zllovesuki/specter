@@ -343,6 +343,11 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 	t.Logger.Debug("Starting goroutines to handle streams and datagrams", zap.String("direction", dir), zap.String("key", makeQKey(peer)))
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
+	go func(q quic.Connection) {
+		<-q.Context().Done()
+		t.Logger.Info("Connection with peer closed", zap.Error(q.Context().Err()))
+		t.reapPeer(q, peer)
+	}(q)
 }
 
 func (t *QUIC) background(ctx context.Context) {

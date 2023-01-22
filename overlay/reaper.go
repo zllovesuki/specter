@@ -8,9 +8,24 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/util"
 
+	"github.com/lucas-clemente/quic-go"
 	"go.uber.org/zap"
 )
 
+func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
+	qKey := makeQKey(peer)
+	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
+	t.qMap.Delete(qKey)
+	q.CloseWithError(401, "Gone")
+
+	sKey := makeSKey(peer)
+	t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", sKey))
+	if r, ok := t.rpcMap.LoadAndDelete(sKey); ok {
+		r.Close()
+	}
+}
+
+// TODO: investigate if reaper is now deprecated
 func (t *QUIC) reaper(ctx context.Context) {
 	timer := time.NewTimer(util.RandomTimeRange(quicConfig.HandshakeIdleTimeout))
 
@@ -39,18 +54,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 
 			if len(candidate) > 0 {
 				for _, c := range candidate {
-					k := makeQKey(c.peer)
-					t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", k))
-					t.qMap.Delete(k)
-					c.quic.CloseWithError(401, "Gone")
-				}
-
-				for _, c := range candidate {
-					k := makeSKey(c.peer)
-					t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", k))
-					if r, ok := t.rpcMap.LoadAndDelete(k); ok {
-						r.Close()
-					}
+					t.reapPeer(c.quic, c.peer)
 				}
 			}
 
