@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
 
+	"github.com/orisano/wyhash"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -71,7 +73,11 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 }
 
 func (c *Client) Initialize(ctx context.Context) error {
-	return c.maintainConnections(ctx)
+	if err := c.maintainConnections(ctx); err != nil {
+		return err
+	}
+	c.SyncConfigTunnels(ctx)
+	return nil
 }
 
 func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
@@ -160,7 +166,19 @@ func (c *Client) getToken() *protocol.ClientToken {
 	}
 }
 
-func (c *Client) reconnectOnDisconnect(ctx context.Context) {
+func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
+	var buf [8]byte
+
+	hasher := wyhash.New(seed)
+
+	for _, node := range nodes {
+		binary.BigEndian.PutUint64(buf[:], node.GetId())
+		hasher.Write(buf[:])
+	}
+	return hasher.Sum64()
+}
+
+func (c *Client) periodicReconnection(ctx context.Context) {
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
@@ -169,10 +187,26 @@ func (c *Client) reconnectOnDisconnect(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, failed := c.getAliveNodes(ctx)
+			prev, failed := c.getAliveNodes(ctx)
 			if failed > 0 {
 				c.logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
-				c.maintainConnections(ctx)
+			}
+			if err := c.maintainConnections(ctx); err != nil {
+				continue
+			}
+			now, _ := c.getAliveNodes(ctx)
+
+			c.configMu.RLock()
+			seed := c.config.ClientID
+			c.configMu.RUnlock()
+
+			pH := c.hash(seed, prev)
+			nH := c.hash(seed, now)
+			c.logger.Debug("Alive nodes delta", zap.Int("prevNum", len(prev)), zap.Uint64("prevHash", pH), zap.Int("currNum", len(now)), zap.Uint64("currHash", nH))
+
+			if failed > 0 || pH != nH {
+				c.logger.Info("Connections with specter server have changed", zap.Int("previous", len(prev)), zap.Int("current", len(now)))
+				c.SyncConfigTunnels(ctx)
 			}
 		}
 	}
@@ -187,6 +221,7 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 		return err
 	}
 
+	c.logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
 	for _, node := range nodes {
 		err := func() error {
 			if err := c.openRPC(ctx, node); err != nil {
@@ -198,8 +233,6 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 			return err
 		}
 	}
-
-	c.SyncConfigTunnels(ctx)
 
 	return nil
 }
@@ -377,7 +410,7 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 func (c *Client) Accept(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
 
-	go c.reconnectOnDisconnect(ctx)
+	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
 
 	for delegation := range c.serverTransport.Direct() {
