@@ -18,7 +18,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/libp2p/go-yamux/v3"
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )

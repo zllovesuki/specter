@@ -9,7 +9,7 @@ import (
 
 	"kon.nect.sh/specter/util/acceptor"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"
 )
 

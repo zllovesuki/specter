@@ -18,8 +18,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-yamux/v3"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"moul.io/zapfilter"

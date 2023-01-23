@@ -8,7 +8,7 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
