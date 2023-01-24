@@ -17,12 +17,6 @@ func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
 	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
 	t.qMap.Delete(qKey)
 	q.CloseWithError(401, "Gone")
-
-	sKey := makeSKey(peer)
-	t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", sKey))
-	if r, ok := t.rpcMap.LoadAndDelete(sKey); ok {
-		r.Close()
-	}
 }
 
 // TODO: investigate if reaper is now deprecated

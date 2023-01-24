@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
 )
 
 const (
@@ -16,6 +15,7 @@ const (
 type StreamDelegate struct {
 	Identity   *protocol.Node
 	Connection net.Conn
+	Kind       protocol.Stream_Type
 }
 
 type DatagramDelegate struct {
@@ -26,11 +26,8 @@ type DatagramDelegate struct {
 type Transport interface {
 	Identity() *protocol.Node
 
-	DialRPC(ctx context.Context, peer *protocol.Node, hs rpc.RPCHandshakeFunc) (rpc.RPC, error)
-	DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error)
-
-	RPC() <-chan *StreamDelegate
-	Direct() <-chan *StreamDelegate
+	Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error)
+	AcceptStream() <-chan *StreamDelegate
 
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate

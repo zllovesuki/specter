@@ -21,11 +21,11 @@ type RPCHandshakeFunc func(RPC) error
 type RPCHandler func(context.Context, *protocol.RPC_Request) (*protocol.RPC_Response, error)
 
 type RPC interface {
-	Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error)
-	Close() error
+	Call(ctx context.Context, node *protocol.Node, req *protocol.RPC_Request) (*protocol.RPC_Response, error)
+	HandleRequest(ctx context.Context, conn io.ReadWriter, handler RPCHandler) error
 }
 
-func Receive(stream io.Reader, rr VTMarshaler) error {
+func receive(stream io.Reader, rr VTMarshaler, checker func(size uint32) bool) error {
 	var sb [LengthSize]byte
 
 	n, err := io.ReadFull(stream, sb[:])
@@ -37,6 +37,9 @@ func Receive(stream io.Reader, rr VTMarshaler) error {
 	}
 
 	ms := binary.BigEndian.Uint32(sb[:])
+	if !checker(ms) {
+		return fmt.Errorf("RPC message is too large")
+	}
 
 	mb := pool.Get(int(ms))
 	defer pool.Put(mb)
@@ -50,6 +53,18 @@ func Receive(stream io.Reader, rr VTMarshaler) error {
 	}
 
 	return rr.UnmarshalVT(mb)
+}
+
+func BoundedReceive(stream io.Reader, rr VTMarshaler, max uint32) error {
+	return receive(stream, rr, func(size uint32) bool {
+		return size <= max
+	})
+}
+
+func Receive(stream io.Reader, rr VTMarshaler) error {
+	return receive(stream, rr, func(size uint32) bool {
+		return true
+	})
 }
 
 func Send(stream io.Writer, rr VTMarshaler) error {

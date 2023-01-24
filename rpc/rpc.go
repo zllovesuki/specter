@@ -4,30 +4,31 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 
-	"github.com/avast/retry-go/v4"
-	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
-var (
-	ErrClosed      = fmt.Errorf("rpc: channel already closed")
-	ErrNoHandler   = fmt.Errorf("rpc: channel has no request handler")
-	ErrInvalidRing = fmt.Errorf("rpc: calls to an invalid ring, expected m = %d", chord.MaxFingerEntries)
-)
-
 var _ rpc.RPC = (*RPC)(nil)
 
+var (
+	ErrClosed        = fmt.Errorf("rpc: channel already closed")
+	ErrNoHandler     = fmt.Errorf("rpc: channel has no request handler")
+	ErrInvalidRing   = fmt.Errorf("rpc: calls to an invalid ring, expected m = %d", chord.MaxFingerEntries)
+	ErrExpectRequest = fmt.Errorf("rpc: unexpected RPC type; expecting Request")
+	ErrExpectReply   = fmt.Errorf("rpc: unexpected RPC type; expecting Reply")
+)
+
 type rrContainer struct {
-	rr *protocol.RPC_Response
-	e  error
+	resp *protocol.RPC_Response
+	err  error
 }
+type rrChan chan rrContainer
 
 type remoteError struct {
 	msg string
@@ -37,154 +38,146 @@ func (r *remoteError) Error() string {
 	return r.msg
 }
 
-type rrChan chan rrContainer
-
 type RPC struct {
 	logger *zap.Logger
 
-	stream io.ReadWriteCloser
-	num    *atomic.Uint64
+	ctx       context.Context
+	transport transport.Transport
 
-	rMap *skipmap.Uint64Map[chan rrContainer]
-
-	closed *atomic.Bool
-
-	handler rpc.RPCHandler
+	closed  *atomic.Bool
+	maxSize *atomic.Uint32
 }
 
 func defaultHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	return nil, ErrNoHandler
 }
 
-func NewRPC(logger *zap.Logger, stream io.ReadWriteCloser, handler rpc.RPCHandler) *RPC {
-	logger.Debug("Creating new RPC handler")
+func NewRPC(ctx context.Context, logger *zap.Logger, transport transport.Transport) *RPC {
+	logger.Info("Creating new RPC handler", zap.Bool("client", transport != nil))
+
+	return &RPC{
+		logger:    logger,
+		ctx:       ctx,
+		transport: transport,
+		closed:    atomic.NewBool(false),
+		maxSize:   atomic.NewUint32(0),
+	}
+}
+
+func (r *RPC) LimitMessageSize(size uint32) {
+	r.maxSize.Store(size)
+}
+
+func (r *RPC) receive(conn io.Reader, rr rpc.VTMarshaler) error {
+	var (
+		receiveErr error
+		maxSize    uint32 = r.maxSize.Load()
+	)
+	if maxSize > 0 {
+		receiveErr = rpc.BoundedReceive(conn, rr, maxSize)
+	} else {
+		receiveErr = rpc.Receive(conn, rr)
+	}
+	return receiveErr
+}
+
+func (r *RPC) HandleRequest(ctx context.Context, conn io.ReadWriter, handler rpc.RPCHandler) error {
 	if handler == nil {
 		handler = defaultHandler
 	}
-	return &RPC{
-		logger:  logger,
-		stream:  stream,
-		num:     atomic.NewUint64(0),
-		rMap:    skipmap.NewUint64[chan rrContainer](),
-		handler: handler,
-		closed:  atomic.NewBool(false),
-	}
-}
 
-func (r *RPC) Start(ctx context.Context) {
-	for {
-		rr := protocol.RPCFromVTPool()
-		if err := rpc.Receive(r.stream, rr); err != nil {
-			// r.logger.Error("RPC receive read error", zap.Error(err))
-			r.Close()
-			return
+	rr := protocol.RPCFromVTPool()
+	defer rr.ReturnToVTPool()
+
+	if err := r.receive(conn, rr); err != nil {
+		return err
+	}
+
+	if rr.GetType() != protocol.RPC_REQUEST {
+		return ErrExpectRequest
+	}
+
+	if rr.GetRing() != chord.MaxFingerEntries {
+		rr.Response = &protocol.RPC_Response{
+			Error: []byte(ErrInvalidRing.Error()),
 		}
-
-		go func(rr *protocol.RPC) {
-			defer rr.ReturnToVTPool()
-
-			switch rr.GetType() {
-			case protocol.RPC_REPLY:
-				rC, ok := r.rMap.LoadAndDelete(rr.GetReqNum())
-				if !ok {
-					return
-				}
-				c := rrContainer{}
-				if rr.GetResponse().GetError() != nil {
-					c.e = &remoteError{string(rr.GetResponse().GetError())}
-				} else {
-					c.rr = rr.GetResponse()
-				}
-				select {
-				case rC <- c:
-				default:
-				}
-
-			case protocol.RPC_REQUEST:
-				if rr.GetRing() != chord.MaxFingerEntries {
-					rr.Response = &protocol.RPC_Response{
-						Error: []byte(ErrInvalidRing.Error()),
-					}
-					goto RESPOND
-				}
-				if resp, err := r.handler(ctx, rr.GetRequest()); err != nil {
-					rr.Response = &protocol.RPC_Response{
-						Error: []byte(err.Error()),
-					}
-				} else {
-					rr.Response = resp
-				}
-			RESPOND:
-				rr.Request = nil
-				rr.Type = protocol.RPC_REPLY
-
-				if err := rpc.Send(r.stream, rr); err != nil {
-					// r.logger.Error("RPC receiver send error", zap.Error(err))
-					r.Close()
-				}
-			default:
-			}
-		}(rr)
+		goto RESPOND
 	}
+	if resp, err := handler(ctx, rr.GetRequest()); err != nil {
+		rr.Response = &protocol.RPC_Response{
+			Error: []byte(err.Error()),
+		}
+	} else {
+		rr.Response = resp
+	}
+RESPOND:
+	rr.Request = nil
+	rr.Type = protocol.RPC_REPLY
+
+	return rpc.Send(conn, rr)
 }
 
-func (r *RPC) Close() error {
-	if !r.closed.CompareAndSwap(false, true) {
-		return nil
+func (r *RPC) awaitResponse(respChan rrChan, conn io.Reader) {
+	var (
+		rr   = protocol.RPCFromVTPool()
+		resp = rrContainer{}
+	)
+	defer rr.ReturnToVTPool()
+
+	defer func() {
+		respChan <- resp
+	}()
+
+	if err := r.receive(conn, rr); err != nil {
+		resp.err = err
+		return
 	}
-	r.logger.Debug("Closing RPC channel")
-	return r.stream.Close()
+
+	if rr.GetType() != protocol.RPC_REPLY {
+		resp.err = ErrExpectReply
+		return
+	}
+
+	if rr.GetResponse().GetError() != nil {
+		resp.err = &remoteError{string(rr.GetResponse().GetError())}
+		return
+	}
+
+	resp.resp = rr.GetResponse()
 }
 
-func (r *RPC) Call(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+func (r *RPC) Call(ctx context.Context, node *protocol.Node, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 	if r.closed.Load() {
 		return nil, ErrClosed
 	}
 
-	var resp *protocol.RPC_Response
-	err := retry.Do(func() error {
-		rNum := r.num.Inc()
-		rC := make(rrChan, 1)
+	rr := protocol.RPCFromVTPool()
+	defer rr.ReturnToVTPool()
 
-		rr := protocol.RPCFromVTPool()
-		defer rr.ReturnToVTPool()
+	rr.Type = protocol.RPC_REQUEST
+	rr.Ring = chord.MaxFingerEntries
+	rr.Request = req
 
-		rr.Type = protocol.RPC_REQUEST
-		rr.ReqNum = rNum
-		rr.Ring = chord.MaxFingerEntries
-		rr.Request = req
-
-		r.rMap.Store(rNum, rC)
-		defer r.rMap.Delete(rNum)
-
-		if err := rpc.Send(r.stream, rr); err != nil {
-			r.Close()
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case rs := <-rC:
-			if rs.rr == nil {
-				return chord.ErrorMapper(rs.e)
-			}
-			resp = rs.rr
-			return nil
-		}
-	},
-		retry.Context(ctx),
-		retry.Attempts(3),
-		retry.Delay(time.Microsecond*500),
-		retry.LastErrorOnly(true),
-		retry.RetryIf(chord.ErrorIsRetryable),
-		retry.OnRetry(func(n uint, err error) {
-			r.logger.Warn("Retryable RPC failure, retrying", zap.Uint("attempt", n), zap.Error(err))
-		}),
-	)
+	conn, err := r.transport.Dial(r.ctx, node, protocol.Stream_RPC)
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 
-	return resp, nil
+	if err := rpc.Send(conn, rr); err != nil {
+		return nil, err
+	}
+	rC := make(rrChan, 1)
+
+	go r.awaitResponse(rC, conn)
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case rs := <-rC:
+		if rs.resp == nil {
+			return nil, chord.ErrorMapper(rs.err)
+		}
+		return rs.resp, nil
+	}
 }

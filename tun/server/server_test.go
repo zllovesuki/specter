@@ -130,9 +130,9 @@ func TestLookupSuccessDirect(t *testing.T) {
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
-	clientT.On("DialDirect", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	clientT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
-	})).Return(c1, nil)
+	}), protocol.Stream_DIRECT).Return(c1, nil)
 
 	_, err = serv.Dial(context.Background(), link)
 	as.NoError(err)
@@ -190,9 +190,9 @@ func TestLookupSuccessRemote(t *testing.T) {
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
-	chordT.On("DialDirect", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	chordT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cht.GetId()
-	})).Return(c1, nil)
+	}), protocol.Stream_DIRECT).Return(c1, nil)
 
 	_, err = serv.Dial(context.Background(), link)
 	as.NoError(err)
@@ -253,9 +253,9 @@ func TestHandleRemoteConnection(t *testing.T) {
 	// to the client
 	c1, c2 := net.Pipe()
 	c3, c4 := net.Pipe()
-	clientT.On("DialDirect", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	clientT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
-	})).Return(c3, nil)
+	}), protocol.Stream_DIRECT).Return(c3, nil)
 
 	buf := []byte{1, 2, 3}
 

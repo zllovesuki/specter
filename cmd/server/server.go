@@ -17,6 +17,7 @@ import (
 	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
+	"kon.nect.sh/specter/rpc"
 	chordSpec "kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
@@ -24,6 +25,7 @@ import (
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 	"kon.nect.sh/specter/util"
+	"kon.nect.sh/specter/util/router"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"github.com/caddyserver/certmagic"
@@ -349,6 +351,8 @@ func cmdServer(ctx *cli.Context) error {
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
 	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
+	routerLogger := logger.With(zap.String("component", "router"))
+	rpcLogger := logger.With(zap.String("component", "rpc_client"))
 
 	listenCfg := &net.ListenConfig{}
 
@@ -392,25 +396,31 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordTransport.Stop()
 
-	chordNode := chord.NewLocalNode(chord.NodeConfig{
-		Logger:                   chordLogger,
-		Identity:                 chordIdentity,
-		Transport:                chordTransport,
-		KVProvider:               kvProvider,
-		FixFingerInterval:        time.Second * 3,
-		StablizeInterval:         time.Second * 5,
-		PredecessorCheckInterval: time.Second * 7,
-	})
-	defer chordNode.Leave()
-
 	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:   tunLogger,
 		Endpoint: serverIdentity,
 	})
 	defer clientTransport.Stop()
 
+	streamRouter := router.NewStreamRouter(routerLogger, chordTransport, clientTransport)
+	go streamRouter.Accept(ctx.Context)
+
+	rpcClient := rpc.NewRPC(ctx.Context, rpcLogger, chordTransport)
+
+	chordNode := chord.NewLocalNode(chord.NodeConfig{
+		Logger:                   chordLogger,
+		Identity:                 chordIdentity,
+		KVProvider:               kvProvider,
+		FixFingerInterval:        time.Second * 3,
+		StablizeInterval:         time.Second * 5,
+		PredecessorCheckInterval: time.Second * 7,
+		RPCClient:                rpcClient,
+	})
+	defer chordNode.Leave()
+
+	chordNode.AttachRouter(ctx.Context, streamRouter)
+
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
-	go chordNode.HandleRPC(ctx.Context)
 	go kvProvider.Start()
 
 	if !ctx.IsSet("join") {
@@ -418,7 +428,7 @@ func cmdServer(ctx *cli.Context) error {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
-		p, err := chord.NewRemoteNode(ctx.Context, chordTransport, chordLogger, &protocol.Node{
+		p, err := chord.NewRemoteNode(ctx.Context, chordLogger, rpcClient, &protocol.Node{
 			Unknown: true,
 			Address: ctx.String("join"),
 		})
@@ -477,8 +487,8 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer gw.Close()
 
+	tunServer.AttachRouter(ctx.Context, streamRouter)
 	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
-	go tunServer.HandleRPC(ctx.Context)
 	go tunServer.Accept(ctx.Context)
 	go gw.Start(ctx.Context)
 

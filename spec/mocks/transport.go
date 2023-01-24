@@ -8,7 +8,6 @@ import (
 	"net"
 
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 
 	"github.com/stretchr/testify/mock"
@@ -29,18 +28,8 @@ func (t *Transport) Identity() *protocol.Node {
 	return v.(*protocol.Node)
 }
 
-func (t *Transport) DialRPC(ctx context.Context, peer *protocol.Node, hs rpc.RPCHandshakeFunc) (rpc.RPC, error) {
-	args := t.Called(ctx, peer, hs)
-	v := args.Get(0)
-	e := args.Error(1)
-	if v == nil {
-		return nil, e
-	}
-	return v.(rpc.RPC), e
-}
-
-func (t *Transport) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error) {
-	args := t.Called(ctx, peer)
+func (t *Transport) Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
+	args := t.Called(ctx, peer, kind)
 	v := args.Get(0)
 	e := args.Error(1)
 	if v == nil {
@@ -49,13 +38,7 @@ func (t *Transport) DialDirect(ctx context.Context, peer *protocol.Node) (net.Co
 	return v.(net.Conn), e
 }
 
-func (t *Transport) RPC() <-chan *transport.StreamDelegate {
-	args := t.Called()
-	v := args.Get(0)
-	return v.(chan *transport.StreamDelegate)
-}
-
-func (t *Transport) Direct() <-chan *transport.StreamDelegate {
+func (t *Transport) AcceptStream() <-chan *transport.StreamDelegate {
 	args := t.Called()
 	v := args.Get(0)
 	return v.(chan *transport.StreamDelegate)

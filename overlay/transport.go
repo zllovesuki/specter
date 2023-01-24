@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
-	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
@@ -25,13 +24,10 @@ func NewQUIC(conf TransportConfig) *QUIC {
 	return &QUIC{
 		TransportConfig: conf,
 
-		qMap:   skipmap.NewString[*nodeConnection](),
-		qMu:    atomic.NewKeyedRWMutex(),
-		rpcMap: skipmap.NewString[rpcSpec.RPC](),
-		rpcMu:  atomic.NewKeyedRWMutex(),
+		qMap: skipmap.NewString[*nodeConnection](),
+		qMu:  atomic.NewKeyedRWMutex(),
 
-		rpcChan:    make(chan *transport.StreamDelegate),
-		directChan: make(chan *transport.StreamDelegate),
+		streamChan: make(chan *transport.StreamDelegate, 32),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
 
 		started: uberAtomic.NewBool(false),
@@ -49,21 +45,13 @@ func makeQKey(peer *protocol.Node) string {
 	return qMapKey
 }
 
-func makeSKey(peer *protocol.Node) string {
-	if peer.GetAddress() == "" {
-		return "/" + strconv.FormatUint(peer.GetId(), 10)
-	} else {
-		return "/" + peer.GetAddress()
-	}
-}
-
 func (t *QUIC) getQ(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
 	qKey := makeQKey(peer)
 
 	rUnlock := t.qMu.RLock(qKey)
 	if sQ, ok := t.qMap.Load(qKey); ok {
 		rUnlock()
-		t.Logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
+		// t.Logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
 		return sQ.quic, nil
 	}
 	rUnlock()
@@ -104,10 +92,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 		return nil, nil, fmt.Errorf("creating quic connection: %w", err)
 	}
 
-	openCtx, openCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
-	defer openCancel()
-
-	stream, err = q.OpenStreamSync(openCtx)
+	stream, err = q.OpenStream()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -116,7 +101,7 @@ func (t *QUIC) getS(ctx context.Context, peer *protocol.Node, sType protocol.Str
 		Type: sType,
 	}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpcSpec.Send(stream, rr)
+	err = rpc.Send(stream, rr)
 	if err != nil {
 		return
 	}
@@ -129,94 +114,22 @@ func (t *QUIC) Identity() *protocol.Node {
 	return t.Endpoint
 }
 
-func (t *QUIC) DialRPC(ctx context.Context, peer *protocol.Node, hs rpcSpec.RPCHandshakeFunc) (rpcSpec.RPC, error) {
+func (t *QUIC) Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
 	if t.closed.Load() {
 		return nil, transport.ErrClosed
 	}
 
-	rpcMapKey := makeSKey(peer)
-
-	rUnlock := t.rpcMu.RLock(rpcMapKey)
-	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
-		rUnlock()
-		return r, nil
-	}
-	rUnlock()
-
-	// t.Logger.Debug("=== DialRPC B ===", zap.String("peer", makeQKey(peer)))
-
-	unlock := t.rpcMu.Lock(rpcMapKey)
-	defer func() {
-		unlock()
-	}()
-
-	if r, ok := t.rpcMap.Load(rpcMapKey); ok {
-		return r, nil
-	}
-
-	// t.Logger.Debug("=== DialRPC C ===", zap.String("peer", makeQKey(peer)))
-
-	q, stream, err := t.getS(ctx, peer, protocol.Stream_RPC)
-	if err != nil {
-		return nil, fmt.Errorf("dialing stream: %w", err)
-	}
-
-	l := t.Logger.With(
-		zap.Any("peer", peer),
-		zap.String("remote", q.RemoteAddr().String()),
-		zap.String("local", q.LocalAddr().String()))
-
-	l.Debug("Created new RPC Stream")
-
-	r := rpc.NewRPC(
-		l.With(zap.String("pov", "transport_dial")),
-		&quicConn{
-			Stream: stream,
-			q:      q,
-			closeCb: func() {
-				t.rpcMap.Delete(rpcMapKey)
-			},
-		},
-		nil)
-	go r.Start(ctx)
-
-	if hs != nil {
-		if err := hs(r); err != nil {
-			r.Close()
-			return nil, err
-		}
-	}
-
-	// t.logger.Debug("=== DialRPC D ===", zap.String("peer", makeQKey(peer)))
-
-	t.rpcMap.Store(rpcMapKey, r)
-
-	return r, nil
-}
-
-func (t *QUIC) DialDirect(ctx context.Context, peer *protocol.Node) (net.Conn, error) {
-	if t.closed.Load() {
-		return nil, transport.ErrClosed
-	}
-
-	q, stream, err := t.getS(ctx, peer, protocol.Stream_DIRECT)
+	q, stream, err := t.getS(ctx, peer, kind)
 	if err != nil {
 		return nil, err
 	}
 
-	t.Logger.Debug("Created new Direct Stream",
-		zap.String("remote", q.RemoteAddr().String()),
-		zap.String("local", q.LocalAddr().String()))
+	// t.Logger.Debug("Created new Stream",
+	// 	zap.String("kind", kind.String()),
+	// 	zap.String("remote", q.RemoteAddr().String()),
+	// 	zap.String("local", q.LocalAddr().String()))
 
 	return WrapQuicConnection(stream, q), nil
-}
-
-func (t *QUIC) RPC() <-chan *transport.StreamDelegate {
-	return t.rpcChan
-}
-
-func (t *QUIC) Direct() <-chan *transport.StreamDelegate {
-	return t.directChan
 }
 
 func (t *QUIC) SupportDatagram() bool {
@@ -249,12 +162,12 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 	}
 
 	s.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err := rpcSpec.Send(s, rr)
+	err := rpc.Send(s, rr)
 	if err != nil {
 		return nil, false, err
 	}
 	rr.Reset()
-	err = rpcSpec.Receive(s, rr)
+	err = rpc.BoundedReceive(s, rr, 1024)
 	if err != nil {
 		return nil, false, err
 	}
@@ -384,17 +297,21 @@ func (t *QUIC) Accept(ctx context.Context) error {
 	return t.AcceptWithListener(ctx, l)
 }
 
+func (t *QUIC) AcceptStream() <-chan *transport.StreamDelegate {
+	return t.streamChan
+}
+
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
 	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()))
 	for {
 		b, err := q.ReceiveMessage()
 		if err != nil {
-			// logger.Error("receiving datagram", zap.Error(err))
+			logger.Error("error receiving datagram", zap.Error(err))
 			return
 		}
 		data := &protocol.Datagram{}
 		if err := data.UnmarshalVT(b); err != nil {
-			logger.Error("decoding datagram to proto", zap.Error(err))
+			logger.Error("error decoding datagram to proto", zap.Error(err))
 			continue
 		}
 		switch data.GetType() {
@@ -415,14 +332,14 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			// t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
+			t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
 			return
 		}
-		go t.streamRouter(q, stream, peer)
+		go t.streamHandler(q, stream, peer)
 	}
 }
 
-func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protocol.Node) {
+func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protocol.Node) {
 	var err error
 	defer func() {
 		if err != nil {
@@ -434,25 +351,33 @@ func (t *QUIC) streamRouter(q quic.Connection, stream quic.Stream, peer *protoco
 
 	rr := &protocol.Stream{}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpcSpec.Receive(stream, rr)
+	err = rpc.BoundedReceive(stream, rr, 32)
 	if err != nil {
+		t.Logger.Error("Failed to receive stream handshake", zap.Error(err),
+			zap.Any("peer", peer),
+		)
 		return
 	}
 	stream.SetDeadline(time.Time{})
 
-	switch rr.GetType() {
-	case protocol.Stream_RPC:
-		t.rpcChan <- &transport.StreamDelegate{
-			Connection: WrapQuicConnection(stream, q),
-			Identity:   peer,
-		}
-	case protocol.Stream_DIRECT:
-		t.directChan <- &transport.StreamDelegate{
-			Connection: WrapQuicConnection(stream, q),
-			Identity:   peer,
-		}
+	if rr.GetType() == protocol.Stream_UNKNOWN_TYPE {
+		t.Logger.Warn("Receive stream with unknown type",
+			zap.Any("peer", peer),
+		)
+		return
+	}
+
+	select {
+	case t.streamChan <- &transport.StreamDelegate{
+		Connection: WrapQuicConnection(stream, q),
+		Identity:   peer,
+		Kind:       rr.GetType(),
+	}:
 	default:
-		err = fmt.Errorf("unknown stream type: %s", rr.GetType())
+		t.Logger.Warn("Stream channel full, dropping new incoming streams",
+			zap.String("kind", rr.GetType().String()),
+			zap.Any("peer", peer),
+		)
 	}
 }
 

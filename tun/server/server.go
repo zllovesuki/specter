@@ -6,11 +6,13 @@ import (
 	"net"
 	"time"
 
+	rpcImpl "kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util/router"
 
 	"go.uber.org/zap"
 )
@@ -45,6 +47,32 @@ func New(logger *zap.Logger, local chord.VNode, clientTrans transport.Transport,
 	}
 }
 
+func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) {
+	rpcServer := rpcImpl.NewRPC(ctx, s.logger.With(zap.String("pov", "client_rpc")), nil)
+	rpcServer.LimitMessageSize(2048)
+
+	router.AttachChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
+		s.handleProxyConn(ctx, delegate)
+	})
+	router.AttachClient(protocol.Stream_DIRECT, func(delegate *transport.StreamDelegate) {
+		// client uses this to register connection
+		// but it is a no-op on the server side
+		delegate.Connection.Close()
+	})
+	router.AttachClient(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+		defer delegate.Connection.Close()
+
+		l := s.logger.With(
+			zap.Any("peer", delegate.Identity),
+			zap.String("remote", delegate.Connection.RemoteAddr().String()),
+			zap.String("local", delegate.Connection.LocalAddr().String()),
+		)
+		if err := rpcServer.HandleRequest(ctx, delegate.Connection, s.rpcHandlerMiddlerware(delegate.Identity)); err != nil {
+			l.Error("Error handling RPC request", zap.Error(err))
+		}
+	})
+}
+
 func (s *Server) Accept(ctx context.Context) {
 	s.logger.Info("publishing identities to chord")
 
@@ -55,21 +83,6 @@ func (s *Server) Accept(ctx context.Context) {
 	}
 
 	s.logger.Info("specter server started")
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		case delegate := <-s.chordTransport.Direct():
-			go s.handleProxyConn(ctx, delegate)
-
-		case delegate := <-s.clientTransport.Direct():
-			// client uses this to register connection
-			// but it is a no-op on the server side
-			delegate.Connection.Close()
-		}
-	}
 }
 
 func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.StreamDelegate) {
@@ -109,7 +122,7 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		return
 	}
 
-	clientConn, err = s.clientTransport.DialDirect(ctx, bundle.GetClient())
+	clientConn, err = s.clientTransport.Dial(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
 	if err != nil && !tun.IsNoDirect(err) {
 		l.Error("dialing connection to connected client", zap.Error(err))
 	}
@@ -123,13 +136,13 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	if bundle.GetTun().GetId() == s.clientTransport.Identity().GetId() {
 		l.Debug("client is connected to us, opening direct stream")
 
-		return s.clientTransport.DialDirect(ctx, bundle.GetClient())
+		return s.clientTransport.Dial(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Uint64("chord", bundle.GetChord().GetId()),
 			zap.Uint64("tun", bundle.GetTun().GetId()))
 
-		conn, err := s.chordTransport.DialDirect(ctx, bundle.GetChord())
+		conn, err := s.chordTransport.Dial(ctx, bundle.GetChord(), protocol.Stream_PROXY)
 		if err != nil {
 			return nil, err
 		}

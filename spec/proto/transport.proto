@@ -11,6 +11,7 @@ message Stream {
         UNKNOWN_TYPE = 0;
         RPC = 1;
         DIRECT = 2;
+        PROXY = 3;
     }
 
     Type type = 1;
