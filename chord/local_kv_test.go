@@ -278,7 +278,9 @@ func TestConcurrentJoinKV(t *testing.T) {
 	}
 
 	for _, tc := range concurrentParams {
+		tc := tc
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
+			t.Parallel()
 			concurrentJoinKVOps(t, tc.numNodes, tc.numKeys)
 		})
 	}
@@ -327,7 +329,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		nodes[i] = node
 	}
 
-	keys, values := makeKV(numKeys, 16)
+	keys, values := makeKV(numKeys, 64)
 	syncA := make(chan struct{})
 
 	nodes[0].Create()
@@ -366,8 +368,8 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes[0].Logger.Debug("Starting test validation")
 
 	found := 0
-	missing := 0
-	indices := make([]int, 0)
+	missingIndicies := make([]int, 0)
+	mismatchedIndicies := make([]int, 0)
 	for i := range keys {
 	RETRY:
 		val, err := nodes[0].Get(context.Background(), keys[i])
@@ -380,20 +382,23 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 			as.NoError(err)
 			return
 		}
+
 		if bytes.Equal(values[i], val) {
 			found++
+		} else if len(val) == 0 {
+			missingIndicies = append(missingIndicies, i)
 		} else {
-			missing++
-			indices = append(indices, i)
+			mismatchedIndicies = append(mismatchedIndicies, i)
 		}
 	}
 
 	defer func() {
 		<-time.After(waitInterval)
 		t.Logf("stale ownership counts: %d", stale)
-		t.Logf("missing indicies: %+v\n", indices)
+		t.Logf("missing indicies: %+v\n", missingIndicies)
+		t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
 	}()
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
 
 	for i := 0; i < numNodes; i++ {
 		nodes[i].Leave()
@@ -406,7 +411,9 @@ func TestConcurrentLeaveKV(t *testing.T) {
 	}
 
 	for _, tc := range concurrentParams {
+		tc := tc
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
+			t.Parallel()
 			concurrentLeaveKVOps(t, tc.numNodes, tc.numKeys)
 		})
 	}
@@ -418,7 +425,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes, done := makeRing(as, numNodes)
 	defer done()
 
-	keys, values := makeKV(numKeys, 16)
+	keys, values := makeKV(numKeys, 64)
 	syncA := make(chan struct{})
 
 	stale := 0
@@ -453,27 +460,29 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes[0].Logger.Debug("Starting test validation")
 
 	found := 0
-	missing := 0
-	indices := make([]int, 0)
+	missingIndicies := make([]int, 0)
+	mismatchedIndicies := make([]int, 0)
 	for i := range keys {
 		// all keys should be in the first node
 		val, err := nodes[0].kv.Get(context.Background(), keys[i])
 		as.NoError(err)
 		if bytes.Equal(values[i], val) {
 			found++
+		} else if len(val) == 0 {
+			missingIndicies = append(missingIndicies, i)
 		} else {
-			missing++
-			indices = append(indices, i)
+			mismatchedIndicies = append(mismatchedIndicies, i)
 		}
 	}
 	defer func() {
 		<-time.After(waitInterval)
 		t.Logf("stale ownership counts: %d", stale)
-		t.Logf("missing indicies: %+v\n", indices)
+		t.Logf("missing indicies: %+v\n", missingIndicies)
+		t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
 	}()
 
-	if len(indices) > 0 {
-		for _, i := range indices {
+	if len(missingIndicies) > 0 {
+		for _, i := range missingIndicies {
 			k := keys[i]
 			for j := 1; j < numNodes; j++ {
 				v, _ := nodes[j].kv.Get(context.Background(), k)
@@ -484,7 +493,19 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
+	if len(mismatchedIndicies) > 0 {
+		for _, i := range mismatchedIndicies {
+			k := keys[i]
+			for j := 1; j < numNodes; j++ {
+				v, _ := nodes[j].kv.Get(context.Background(), k)
+				if v != nil {
+					t.Logf("mismatched key index %d found in node %d", i, nodes[j].ID())
+				}
+			}
+		}
+	}
+
 	k := nodes[0].kv.RangeKeys(0, 0)
 	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing", numKeys, found, missing)
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
 }
