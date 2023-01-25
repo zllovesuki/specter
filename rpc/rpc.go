@@ -6,12 +6,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/avast/retry-go/v4"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 
+	"github.com/avast/retry-go/v4"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -192,7 +192,7 @@ func (r *RPC) Call(ctx context.Context, node *protocol.Node, req *protocol.RPC_R
 		retry.LastErrorOnly(true),
 		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(n uint, err error) {
-			r.logger.Warn("Retryable RPC failure, retrying", zap.Uint("attempt", n), zap.Error(err))
+			r.logger.Warn("Retrying on RPC failure", zap.Uint("attempt", n), zap.Error(err))
 		}),
 	); err != nil {
 		return nil, err

@@ -14,20 +14,20 @@ type StreamHandler func(delegate *transport.StreamDelegate)
 type StreamRouter struct {
 	logger         *zap.Logger
 	chordHandlers  sync.Map
-	clientHandlers sync.Map
+	tunnelHandlers sync.Map
 	chordStream    <-chan *transport.StreamDelegate
 	clientStream   <-chan *transport.StreamDelegate
 }
 
-func NewStreamRouter(logger *zap.Logger, chordTransport, clientTransport transport.Transport) *StreamRouter {
+func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport transport.Transport) *StreamRouter {
 	router := &StreamRouter{
 		logger: logger,
 	}
 	if chordTransport != nil {
 		router.chordStream = chordTransport.AcceptStream()
 	}
-	if clientTransport != nil {
-		router.clientStream = clientTransport.AcceptStream()
+	if tunnelTransport != nil {
+		router.clientStream = tunnelTransport.AcceptStream()
 	}
 	return router
 }
@@ -36,8 +36,8 @@ func (s *StreamRouter) HandleChord(kind protocol.Stream_Type, handler StreamHand
 	s.chordHandlers.Store(kind, handler)
 }
 
-func (s *StreamRouter) HandleClient(kind protocol.Stream_Type, handler StreamHandler) {
-	s.clientHandlers.Store(kind, handler)
+func (s *StreamRouter) HandleTunnel(kind protocol.Stream_Type, handler StreamHandler) {
+	s.tunnelHandlers.Store(kind, handler)
 }
 
 func (s *StreamRouter) acceptChord(ctx context.Context) {
@@ -68,9 +68,9 @@ func (s *StreamRouter) acceptClient(ctx context.Context) {
 			return
 		case delegate := <-s.clientStream:
 			go func(delegate *transport.StreamDelegate) {
-				handler, ok := s.clientHandlers.Load(delegate.Kind)
+				handler, ok := s.tunnelHandlers.Load(delegate.Kind)
 				if !ok {
-					s.logger.Warn("No handler found for client transport delegate",
+					s.logger.Warn("No handler found for tunnel transport delegate",
 						zap.String("peer", delegate.Identity.String()),
 						zap.String("kind", delegate.Kind.String()),
 					)

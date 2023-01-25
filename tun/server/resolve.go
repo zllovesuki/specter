@@ -19,7 +19,7 @@ const (
 func (s *Server) publishIdentities(ctx context.Context) error {
 	identities := &protocol.IdentitiesPair{
 		Chord: s.chordTransport.Identity(),
-		Tun:   s.clientTransport.Identity(),
+		Tun:   s.tunnelTransport.Identity(),
 	}
 	buf, err := identities.MarshalVT()
 	if err != nil {
@@ -28,7 +28,7 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 
 	keys := []string{
 		tun.IdentitiesChordKey(s.chordTransport.Identity()),
-		tun.IdentitiesTunKey(s.clientTransport.Identity()),
+		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
 	}
 	for _, key := range keys {
 		err := s.chord.Put(ctx, []byte(key), buf)
@@ -47,7 +47,7 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 func (s *Server) unpublishIdentities(ctx context.Context) {
 	keys := []string{
 		tun.IdentitiesChordKey(s.chordTransport.Identity()),
-		tun.IdentitiesTunKey(s.clientTransport.Identity()),
+		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
 	}
 	for _, key := range keys {
 		err := s.chord.Delete(ctx, []byte(key))

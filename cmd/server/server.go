@@ -336,7 +336,7 @@ func cmdServer(ctx *cli.Context) error {
 		Id:      chordSpec.Hash([]byte(chordName)),
 		Address: advertise,
 	}
-	serverIdentity := &protocol.Node{
+	tunnelIdentity := &protocol.Node{
 		Id:      chordSpec.Hash([]byte(tunnelName)),
 		Address: advertise,
 	}
@@ -351,7 +351,7 @@ func cmdServer(ctx *cli.Context) error {
 	})
 
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
-	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", serverIdentity.GetId()))
+	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", tunnelIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 	routerLogger := logger.With(zap.String("component", "router"))
 	rpcLogger := logger.With(zap.String("component", "rpc_client"))
@@ -398,13 +398,13 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordTransport.Stop()
 
-	clientTransport := overlay.NewQUIC(overlay.TransportConfig{
+	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:   tunLogger,
-		Endpoint: serverIdentity,
+		Endpoint: tunnelIdentity,
 	})
-	defer clientTransport.Stop()
+	defer tunnelTransport.Stop()
 
-	streamRouter := router.NewStreamRouter(routerLogger, chordTransport, clientTransport)
+	streamRouter := router.NewStreamRouter(routerLogger, chordTransport, tunnelTransport)
 	go streamRouter.Accept(ctx.Context)
 
 	rpcClient := rpc.NewRPC(ctx.Context, rpcLogger, chordTransport)
@@ -468,11 +468,11 @@ func cmdServer(ctx *cli.Context) error {
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
-	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
+	tunServer := server.New(tunLogger, chordNode, tunnelTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
 	tunServer.AttachRouter(ctx.Context, streamRouter)
-	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
+	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 	go tunServer.Start(ctx.Context)
 
 	// TODO: use advertise?

@@ -131,14 +131,14 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 	switch req.GetKind() {
 	case protocol.TunnelRPC_PING:
 		resp.PingResponse = &protocol.ClientPingResponse{
-			Node: s.clientTransport.Identity(),
+			Node: s.tunnelTransport.Identity(),
 			Apex: s.rootDomain,
 		}
 
 	case protocol.TunnelRPC_IDENTITY:
 		client := req.GetRegisterRequest().GetClient()
 
-		err := s.clientTransport.SendDatagram(client, []byte(testDatagramData))
+		err := s.tunnelTransport.SendDatagram(client, []byte(testDatagramData))
 		if err != nil {
 			return nil, fmt.Errorf("client not connected")
 		}
@@ -223,7 +223,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 
 		identities := make([]*protocol.IdentitiesPair, len(requested))
 		for k, server := range requested {
-			identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunKey(server))
+			identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunnelKey(server))
 			if err != nil {
 				return nil, err
 			}

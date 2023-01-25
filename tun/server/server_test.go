@@ -233,7 +233,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunKey(tn)),
+			[]byte(tun.IdentitiesTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	}), mock.MatchedBy(func(v []byte) bool {

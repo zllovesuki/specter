@@ -583,9 +583,9 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			exp := make([][]byte, len(nodes)+1)
-			exp[0] = []byte(tun.IdentitiesTunKey(cht))
+			exp[0] = []byte(tun.IdentitiesTunnelKey(cht))
 			for i := 1; i < len(exp); i++ {
-				exp[i] = []byte(tun.IdentitiesTunKey(nodes[i-1]))
+				exp[i] = []byte(tun.IdentitiesTunnelKey(nodes[i-1]))
 			}
 			return assertBytes(k, exp...)
 		}),
