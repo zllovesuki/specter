@@ -55,7 +55,7 @@ func defaultHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.R
 }
 
 func NewRPC(ctx context.Context, logger *zap.Logger, transport transport.Transport) *RPC {
-	logger.Info("Creating new RPC handler", zap.Bool("client", transport != nil))
+	logger.Debug("Creating new RPC handler", zap.Bool("client", transport != nil))
 
 	return &RPC{
 		logger:    logger,
