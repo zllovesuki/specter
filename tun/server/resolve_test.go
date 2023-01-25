@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/stretchr/testify/mock"
@@ -22,12 +21,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	chordChan := make(chan *transport.StreamDelegate)
-	chordT.On("Direct").Return(chordChan)
 	chordT.On("Identity").Return(cht)
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("Direct").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
 	// On start up -> publish
@@ -61,7 +55,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 		return assertBytes(k, exp...)
 	})).Return(nil)
 
-	go serv.Accept(ctx)
+	go serv.Start(ctx)
 
 	<-time.After(time.Millisecond * 100)
 

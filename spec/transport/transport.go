@@ -26,7 +26,7 @@ type DatagramDelegate struct {
 type Transport interface {
 	Identity() *protocol.Node
 
-	Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error)
+	DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error)
 	AcceptStream() <-chan *StreamDelegate
 
 	SupportDatagram() bool

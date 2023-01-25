@@ -14,6 +14,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util/router"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -130,7 +131,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
-	clientT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	clientT.On("DialStream", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
 	}), protocol.Stream_DIRECT).Return(c1, nil)
 
@@ -190,9 +191,9 @@ func TestLookupSuccessRemote(t *testing.T) {
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
 	}()
-	chordT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	chordT.On("DialStream", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cht.GetId()
-	}), protocol.Stream_DIRECT).Return(c1, nil)
+	}), protocol.Stream_PROXY).Return(c1, nil)
 
 	_, err = serv.Dial(context.Background(), link)
 	as.NoError(err)
@@ -205,7 +206,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 func TestHandleRemoteConnection(t *testing.T) {
 	as := require.New(t)
 
-	_, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(as)
 	cli, cht, tn := getIdentities()
 	bundle := &protocol.Tunnel{
 		Client:   cli,
@@ -221,11 +222,11 @@ func TestHandleRemoteConnection(t *testing.T) {
 	syncB := make(chan struct{})
 
 	chordChan := make(chan *transport.StreamDelegate)
-	chordT.On("Direct").Return(chordChan)
+	chordT.On("AcceptStream").Return(chordChan)
 	chordT.On("Identity").Return(cht)
 
 	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("Direct").Return(clientChan)
+	clientT.On("AcceptStream").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
 	// on start up (Accept), identities should get published
@@ -247,13 +248,16 @@ func TestHandleRemoteConnection(t *testing.T) {
 		return assertBytes(v, buf)
 	})).Return(nil)
 
-	go serv.Accept(ctx)
+	streamRouter := router.NewStreamRouter(logger, chordT, clientT)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
 
 	// since the "client" is connected to us, we should expect a DialDirect
 	// to the client
 	c1, c2 := net.Pipe()
 	c3, c4 := net.Pipe()
-	clientT.On("Dial", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+	clientT.On("DialStream", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
 	}), protocol.Stream_DIRECT).Return(c3, nil)
 
@@ -289,9 +293,12 @@ func TestHandleRemoteConnection(t *testing.T) {
 		close(syncB)
 	}()
 
+	serv.Start(ctx)
+
 	chordChan <- &transport.StreamDelegate{
 		Connection: c1,
 		Identity:   &protocol.Node{Id: chord.Random()},
+		Kind:       protocol.Stream_PROXY,
 	}
 
 	select {

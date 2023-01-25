@@ -28,7 +28,7 @@ func (t *Transport) Identity() *protocol.Node {
 	return v.(*protocol.Node)
 }
 
-func (t *Transport) Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
+func (t *Transport) DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
 	args := t.Called(ctx, peer, kind)
 	v := args.Get(0)
 	e := args.Error(1)

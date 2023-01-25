@@ -73,7 +73,7 @@ func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) 
 	})
 }
 
-func (s *Server) Accept(ctx context.Context) {
+func (s *Server) Start(ctx context.Context) {
 	s.logger.Info("publishing identities to chord")
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -122,7 +122,7 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		return
 	}
 
-	clientConn, err = s.clientTransport.Dial(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
+	clientConn, err = s.clientTransport.DialStream(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
 	if err != nil && !tun.IsNoDirect(err) {
 		l.Error("dialing connection to connected client", zap.Error(err))
 	}
@@ -136,13 +136,13 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	if bundle.GetTun().GetId() == s.clientTransport.Identity().GetId() {
 		l.Debug("client is connected to us, opening direct stream")
 
-		return s.clientTransport.Dial(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
+		return s.clientTransport.DialStream(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Uint64("chord", bundle.GetChord().GetId()),
 			zap.Uint64("tun", bundle.GetTun().GetId()))
 
-		conn, err := s.chordTransport.Dial(ctx, bundle.GetChord(), protocol.Stream_PROXY)
+		conn, err := s.chordTransport.DialStream(ctx, bundle.GetChord(), protocol.Stream_PROXY)
 		if err != nil {
 			return nil, err
 		}

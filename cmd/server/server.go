@@ -324,6 +324,8 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	defer kvProvider.Stop()
 
+	go kvProvider.Start()
+
 	// TODO: make these less dependent on changeable parameters
 	chordName := fmt.Sprintf("chord://%s", advertise)
 	tunnelName := fmt.Sprintf("tunnel://%s", advertise)
@@ -419,9 +421,7 @@ func cmdServer(ctx *cli.Context) error {
 	defer chordNode.Leave()
 
 	chordNode.AttachRouter(ctx.Context, streamRouter)
-
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
-	go kvProvider.Start()
 
 	if !ctx.IsSet("join") {
 		if err := chordNode.Create(); err != nil {
@@ -471,6 +471,10 @@ func cmdServer(ctx *cli.Context) error {
 	tunServer := server.New(tunLogger, chordNode, clientTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
+	tunServer.AttachRouter(ctx.Context, streamRouter)
+	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
+	go tunServer.Start(ctx.Context)
+
 	// TODO: use advertise?
 	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
 	gw := gateway.New(gateway.GatewayConfig{
@@ -487,9 +491,6 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer gw.Close()
 
-	tunServer.AttachRouter(ctx.Context, streamRouter)
-	go clientTransport.AcceptWithListener(ctx.Context, clientListener)
-	go tunServer.Accept(ctx.Context)
 	go gw.Start(ctx.Context)
 
 	sigs := make(chan os.Signal, 1)

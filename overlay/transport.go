@@ -114,7 +114,7 @@ func (t *QUIC) Identity() *protocol.Node {
 	return t.Endpoint
 }
 
-func (t *QUIC) Dial(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
+func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
 	if t.closed.Load() {
 		return nil, transport.ErrClosed
 	}
