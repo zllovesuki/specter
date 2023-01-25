@@ -36,7 +36,7 @@ func devConfig(as *require.Assertions) NodeConfig {
 	return NodeConfig{
 		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
 		Identity:                 iden,
-		Transport:                new(mocks.Transport),
+		RPCClient:                new(mocks.RPC),
 		KVProvider:               memory.WithHashFn(chord.Hash),
 		FixFingerInterval:        defaultInterval * 3,
 		StablizeInterval:         defaultInterval * 5,

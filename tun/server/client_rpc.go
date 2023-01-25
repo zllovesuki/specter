@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
-	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/sethvargo/go-diceware/diceware"
@@ -47,27 +46,6 @@ func generateToken() ([]byte, error) {
 	return []byte(base64.StdEncoding.EncodeToString(b)), nil
 }
 
-func (s *Server) HandleRPC(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		case delegate := <-s.clientTransport.RPC():
-			conn := delegate.Connection
-			l := s.logger.With(
-				zap.Any("peer", delegate.Identity),
-				zap.String("remote", conn.RemoteAddr().String()),
-				zap.String("local", conn.LocalAddr().String()))
-			r := rpc.NewRPC(
-				l.With(zap.String("pov", "client_rpc")),
-				conn,
-				s.rpcHandlerMiddlerware(delegate.Identity))
-			go r.Start(ctx)
-		}
-	}
-}
-
 func (s *Server) saveClientToken(ctx context.Context, token *protocol.ClientToken, client *protocol.Node) error {
 	val, err := client.MarshalVT()
 	if err != nil {
@@ -95,7 +73,7 @@ func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientTok
 	return client, nil
 }
 
-func (s *Server) rpcHandlerMiddlerware(client *protocol.Node) rpcSpec.RPCHandler {
+func (s *Server) rpcHandlerMiddlerware(client *protocol.Node) rpc.RPCHandler {
 	return func(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 		select {
 		case <-ctx.Done():
@@ -153,14 +131,14 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 	switch req.GetKind() {
 	case protocol.TunnelRPC_PING:
 		resp.PingResponse = &protocol.ClientPingResponse{
-			Node: s.clientTransport.Identity(),
+			Node: s.tunnelTransport.Identity(),
 			Apex: s.rootDomain,
 		}
 
 	case protocol.TunnelRPC_IDENTITY:
 		client := req.GetRegisterRequest().GetClient()
 
-		err := s.clientTransport.SendDatagram(client, []byte(testDatagramData))
+		err := s.tunnelTransport.SendDatagram(client, []byte(testDatagramData))
 		if err != nil {
 			return nil, fmt.Errorf("client not connected")
 		}
@@ -245,7 +223,7 @@ func (s *Server) rpcHandler(ctx context.Context, verifiedClient *protocol.Node, 
 
 		identities := make([]*protocol.IdentitiesPair, len(requested))
 		for k, server := range requested {
-			identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunKey(server))
+			identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunnelKey(server))
 			if err != nil {
 				return nil, err
 			}

@@ -2,7 +2,6 @@ package chord
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -12,8 +11,8 @@ import (
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/util/router"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -35,7 +34,11 @@ func TestLocalRPC(t *testing.T) {
 		Address: "127.0.0.1:1234",
 	}
 
-	tp := new(mocks.Transport)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t1, t2 := mocks.PipeTransport()
+	rpcClient := rpc.NewRPC(ctx, logger, t1)
 
 	kv := memory.WithHashFn(chord.Hash)
 	testRenewalToken, err := kv.Acquire(context.Background(), []byte(testRenewalKey), time.Second)
@@ -44,45 +47,32 @@ func TestLocalRPC(t *testing.T) {
 	testReleaseToken, err := kv.Acquire(context.Background(), []byte(testReleaseKey), time.Second)
 	as.NoError(err)
 
+	streamRouter := router.NewStreamRouter(logger, t2, nil)
+	go streamRouter.Accept(ctx)
+
 	node := NewLocalNode(NodeConfig{
 		Logger:                   logger,
 		Identity:                 identity,
-		Transport:                tp,
 		KVProvider:               kv,
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
+		RPCClient:                rpcClient,
 	})
+
+	node.AttachRouter(ctx, streamRouter)
 
 	err = node.Create()
 	as.NoError(err)
 
-	rRPC := new(mocks.RPC)
-	rRPC.On("Call", mock.Anything, mock.Anything).Return(&protocol.RPC_Response{}, nil)
-
-	rpcChan := make(chan *transport.StreamDelegate)
-	tp.On("RPC").Return(rpcChan)
-	tp.On("DialRPC", mock.Anything, mock.Anything, mock.Anything).Return(rRPC, nil)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go node.HandleRPC(ctx)
-
-	c1, c2 := net.Pipe()
-	defer c1.Close()
-	defer c2.Close()
-
-	rpcChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity: &protocol.Node{
-			Id: chord.Random(),
-		},
-	}
-
-	caller := rpc.NewRPC(logger, c2, nil)
-	go caller.Start(ctx)
-	defer caller.Close()
+	callerRouter := router.NewStreamRouter(logger, t1, nil)
+	go callerRouter.Accept(ctx)
+	caller := rpc.NewRPC(ctx, logger, t2)
+	callerRouter.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+		caller.HandleRequest(ctx, delegate.Connection, func(context.Context, *protocol.RPC_Request) (*protocol.RPC_Response, error) {
+			return &protocol.RPC_Response{}, nil
+		})
+	})
 
 	calls := []*protocol.RPC_Request{
 		{
@@ -257,13 +247,12 @@ func TestLocalRPC(t *testing.T) {
 	defer cancel()
 
 	for _, tc := range calls {
-		_, err := caller.Call(callCtx, tc)
+		_, err := caller.Call(callCtx, node.Identity(), tc)
 		as.NoError(err)
 	}
 
 	node.Leave()
 
-	_, err = caller.Call(ctx, &protocol.RPC_Request{})
+	_, err = caller.Call(ctx, node.Identity(), &protocol.RPC_Request{})
 	as.ErrorIs(err, chord.ErrNodeGone)
-
 }

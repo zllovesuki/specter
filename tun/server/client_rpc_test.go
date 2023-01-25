@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
 	"testing"
 
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util/router"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -81,9 +81,6 @@ func TestRPCRegisterClientOK(t *testing.T) {
 	defer cancel()
 
 	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
 	clientT.On("SendDatagram",
 		mock.MatchedBy(func(node *protocol.Node) bool {
 			return node.GetId() == cli.GetId()
@@ -91,21 +88,17 @@ func TestRPCRegisterClientOK(t *testing.T) {
 		mock.MatchedBy(func(b []byte) bool {
 			return bytes.Equal(b, []byte(testDatagramData))
 		}),
-	).Return(nil).Once()
+	).Return(nil)
 
-	c1, c2 := net.Pipe()
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	go serv.HandleRPC(ctx)
+	serv.AttachRouter(ctx, streamRouter)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
-
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind: protocol.TunnelRPC_IDENTITY,
@@ -134,23 +127,16 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	defer cancel()
 
 	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
 	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
 	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(nil).Once()
 
-	c1, c2 := net.Pipe()
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	go serv.HandleRPC(ctx)
+	serv.AttachRouter(ctx, streamRouter)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
-
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
 	requests := []*protocol.ClientRequest{
 		// missing Client
@@ -189,7 +175,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 			Kind:          protocol.RPC_CLIENT_REQUEST,
 			ClientRequest: req,
 		})
@@ -212,23 +198,17 @@ func TestRPCPingOK(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
-	c1, c2 := net.Pipe()
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	go serv.HandleRPC(ctx)
+	serv.AttachRouter(ctx, streamRouter)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
-
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind: protocol.TunnelRPC_PING,
@@ -261,22 +241,15 @@ func TestRPCPingConditional(t *testing.T) {
 
 	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(clientBuf, nil).Once()
 	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
-	c1, c2 := net.Pipe()
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	go serv.HandleRPC(ctx)
+	serv.AttachRouter(ctx, streamRouter)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
-
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
 	tests := []struct {
 		req         *protocol.ClientRequest
@@ -309,7 +282,7 @@ func TestRPCPingConditional(t *testing.T) {
 	}
 
 	for _, req := range tests {
-		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 			Kind:          protocol.RPC_CLIENT_REQUEST,
 			ClientRequest: req.req,
 		})
@@ -352,14 +325,6 @@ func TestRPCGetNodesUnique(t *testing.T) {
 		}),
 	).Return(clientBuf, nil)
 
-	node.On("ID").Return(cht.GetId())
-	node.On("Identity").Return(cht)
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
-
-	c1, c2 := net.Pipe()
-
 	pair := &protocol.IdentitiesPair{
 		Chord: cht,
 		Tun:   tn,
@@ -367,20 +332,20 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
 
+	node.On("ID").Return(cht.GetId())
+	node.On("Identity").Return(cht)
 	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
 	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
 
-	go serv.HandleRPC(ctx)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
+	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind:  protocol.TunnelRPC_NODES,
@@ -428,11 +393,6 @@ func TestRPCGetNodes(t *testing.T) {
 	node.On("ID").Return(cht.GetId())
 	node.On("Identity").Return(cht)
 
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
-
-	c1, c2 := net.Pipe()
-
 	nodes, vlist := makeNodeList()
 
 	pair := &protocol.IdentitiesPair{
@@ -452,17 +412,15 @@ func TestRPCGetNodes(t *testing.T) {
 		return assertBytes(k, exp...)
 	})).Return(pairBuf, nil)
 
-	go serv.HandleRPC(ctx)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
+	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind:  protocol.TunnelRPC_NODES,
@@ -514,22 +472,15 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 		mock.Anything,
 	).Return(nil)
 
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	c1, c2 := net.Pipe()
+	serv.AttachRouter(ctx, streamRouter)
 
-	go serv.HandleRPC(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
-
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
-
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind:            protocol.TunnelRPC_HOSTNAME,
@@ -558,20 +509,13 @@ func TestRPCOtherFailed(t *testing.T) {
 
 	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil)
 
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	c1, c2 := net.Pipe()
+	serv.AttachRouter(ctx, streamRouter)
 
-	go serv.HandleRPC(ctx)
-
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
-
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
 	requests := []*protocol.ClientRequest{
 		// non-existent token
@@ -585,7 +529,7 @@ func TestRPCOtherFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 			Kind:          protocol.RPC_CLIENT_REQUEST,
 			ClientRequest: req,
 		})
@@ -603,16 +547,11 @@ func TestRPCOtherFailed(t *testing.T) {
 func TestRPCPublishTunnelOK(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, _, _, serv := getFixture(as)
 	cli, cht, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
-
-	c1, c2 := net.Pipe()
 
 	nodes, _ := makeNodeList()
 
@@ -644,9 +583,9 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			exp := make([][]byte, len(nodes)+1)
-			exp[0] = []byte(tun.IdentitiesTunKey(cht))
+			exp[0] = []byte(tun.IdentitiesTunnelKey(cht))
 			for i := 1; i < len(exp); i++ {
-				exp[i] = []byte(tun.IdentitiesTunKey(nodes[i-1]))
+				exp[i] = []byte(tun.IdentitiesTunnelKey(nodes[i-1]))
 			}
 			return assertBytes(k, exp...)
 		}),
@@ -688,17 +627,15 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		}),
 	).Return(true, nil)
 
-	go serv.HandleRPC(ctx)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
+	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
-	resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+	resp, err := cRPC.Call(ctx, nil, &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind:  protocol.TunnelRPC_TUNNEL,
@@ -716,14 +653,12 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	as.Len(tResp.GetTunnelResponse().GetPublished(), len(nodes))
 
 	node.AssertExpectations(t)
-	clientT.AssertExpectations(t)
-	chordT.AssertExpectations(t)
 }
 
 func TestRPCPublishTunnelFailed(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, _, _, serv := getFixture(as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -764,20 +699,13 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 		fakeLease,
 	).Return(nil).Once()
 
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("RPC").Return(clientChan)
+	tp := mocks.SelfTransport()
+	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
 
-	c1, c2 := net.Pipe()
+	serv.AttachRouter(ctx, streamRouter)
 
-	go serv.HandleRPC(ctx)
-
-	clientChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   cli,
-	}
-
-	cRPC := rpc.NewRPC(logger, c2, nil)
-	go cRPC.Start(ctx)
+	cRPC := rpc.NewRPC(ctx, logger, tp)
 
 	requests := []*protocol.ClientRequest{
 		// missing Token
@@ -820,7 +748,7 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, &protocol.RPC_Request{
+		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
 			Kind:          protocol.RPC_CLIENT_REQUEST,
 			ClientRequest: req,
 		})
@@ -830,7 +758,5 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	}
 
 	node.AssertExpectations(t)
-	clientT.AssertExpectations(t)
-	chordT.AssertExpectations(t)
 
 }

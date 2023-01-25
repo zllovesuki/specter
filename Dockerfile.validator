@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1-experimental
+# syntax=docker/dockerfile:1
 
 FROM --platform=$BUILDPLATFORM golang:1.19.4-alpine as builder
 RUN apk --no-cache add ca-certificates git

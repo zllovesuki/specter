@@ -401,11 +401,6 @@ func (m *RPC) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.Ring != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.Ring))
 		i--
-		dAtA[i] = 0x18
-	}
-	if m.ReqNum != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.ReqNum))
-		i--
 		dAtA[i] = 0x10
 	}
 	if m.Type != 0 {
@@ -564,9 +559,6 @@ func (m *RPC) SizeVT() (n int) {
 	_ = l
 	if m.Type != 0 {
 		n += 1 + sov(uint64(m.Type))
-	}
-	if m.ReqNum != 0 {
-		n += 1 + sov(uint64(m.ReqNum))
 	}
 	if m.Ring != 0 {
 		n += 1 + sov(uint64(m.Ring))
@@ -1543,25 +1535,6 @@ func (m *RPC) UnmarshalVT(dAtA []byte) error {
 				}
 			}
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReqNum", wireType)
-			}
-			m.ReqNum = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ReqNum |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Ring", wireType)
 			}

@@ -7,32 +7,27 @@ import (
 	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
-	rpcSpec "kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/util/router"
 
 	"go.uber.org/zap"
 )
 
-var _ rpcSpec.RPCHandler = (*LocalNode)(nil).rpcHandler
+func (n *LocalNode) AttachRouter(ctx context.Context, router *router.StreamRouter) {
+	rpcServer := rpc.NewRPC(ctx, n.Logger.With(zap.String("pov", "local_rpc")), nil)
+	router.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+		defer delegate.Connection.Close()
 
-func (n *LocalNode) HandleRPC(ctx context.Context) {
-	for {
-		select {
-		case delegate := <-n.Transport.RPC():
-			s := delegate.Connection
-			l := n.Logger.With(
-				zap.Any("peer", delegate.Identity),
-				zap.String("remote", s.RemoteAddr().String()),
-				zap.String("local", s.LocalAddr().String()))
-			r := rpc.NewRPC(
-				l.With(zap.String("pov", "local_rpc")),
-				s,
-				n.rpcHandler)
-			go r.Start(ctx)
+		l := n.Logger.With(
+			zap.Any("peer", delegate.Identity),
+			zap.String("remote", delegate.Connection.RemoteAddr().String()),
+			zap.String("local", delegate.Connection.LocalAddr().String()),
+		)
 
-		case <-n.stopCh:
-			return
+		if err := rpcServer.HandleRequest(ctx, delegate.Connection, n.rpcHandler); err != nil {
+			l.Error("Error handling RPC request", zap.Error(err))
 		}
-	}
+	})
 }
 
 func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
@@ -60,7 +55,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		resp.NotifyResponse = &protocol.NotifyResponse{}
 		predecessor := req.GetNotifyRequest().GetPredecessor()
 
-		vnode, err = createRPC(ctx, n.Transport, n.Logger, predecessor)
+		vnode, err = createRPC(ctx, n.Logger, n.RPCClient, predecessor)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +113,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 		switch chReq.GetOp() {
 		case protocol.MembershipChangeOperation_JOIN_REQUEST:
 			joiner := chReq.GetJoiner()
-			vnode, err = createRPC(ctx, n.Transport, n.Logger, joiner)
+			vnode, err = createRPC(ctx, n.Logger, n.RPCClient, joiner)
 			if err != nil {
 				return nil, err
 			}
@@ -145,7 +140,7 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 
 		case protocol.MembershipChangeOperation_LEAVE_REQUEST:
 			leaver := chReq.GetLeaver()
-			vnode, err = createRPC(ctx, n.Transport, n.Logger, leaver)
+			vnode, err = createRPC(ctx, n.Logger, n.RPCClient, leaver)
 			if err != nil {
 				return nil, err
 			}

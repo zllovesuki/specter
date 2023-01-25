@@ -1,4 +1,4 @@
-# syntax = docker/dockerfile:1-experimental
+# syntax=docker/dockerfile:1
 
 FROM --platform=$BUILDPLATFORM golang:1.19.4-alpine as builder
 RUN apk --no-cache add ca-certificates git upx
@@ -7,7 +7,8 @@ COPY . .
 
 ARG TARGETOS
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
     go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' \
     -ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=`git rev-parse --short HEAD`" \
     -o bin/specter .

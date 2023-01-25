@@ -17,11 +17,13 @@ import (
 	"syscall"
 	"time"
 
+	rpcImpl "kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
+	"kon.nect.sh/specter/util/router"
 
 	"github.com/orisano/wyhash"
 	"github.com/zhangyunhao116/skipmap"
@@ -45,12 +47,8 @@ type Client struct {
 	config          *Config
 	rootDomain      *atomic.String
 	proxies         *skipmap.StringMap[*httpProxy]
-	connections     *skipmap.Uint64Map[*connection]
-}
-
-type connection struct {
-	rpc  rpc.RPC
-	peer *protocol.Node
+	connections     *skipmap.Uint64Map[*protocol.Node]
+	rpcClient       rpc.RPC
 }
 
 func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config) (*Client, error) {
@@ -60,7 +58,8 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 		config:          cfg,
 		rootDomain:      atomic.NewString(""),
 		proxies:         skipmap.NewString[*httpProxy](),
-		connections:     skipmap.NewUint64[*connection](),
+		connections:     skipmap.NewUint64[*protocol.Node](),
+		rpcClient:       rpcImpl.NewRPC(ctx, logger, t),
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
@@ -85,37 +84,29 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 		return nil
 	}
 
-	r, err := c.serverTransport.DialRPC(ctx, node, nil)
-	if err != nil {
-		return err
-	}
-
 	callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
-	resp, err := c.Ping(callCtx, r)
+	resp, err := c.Ping(callCtx, node)
 	if err != nil {
 		return err
 	}
 
 	identity := resp.GetNode()
 	c.logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
-	c.connections.Store(identity.GetId(), &connection{
-		rpc:  r,
-		peer: identity,
-	})
+	c.connections.Store(identity.GetId(), identity)
 	return nil
 }
 
 func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (*protocol.ClientResponse, error) {
-	var candidate rpc.RPC
-	c.connections.Range(func(id uint64, conn *connection) bool {
-		candidate = conn.rpc
+	var candidate *protocol.Node
+	c.connections.Range(func(id uint64, node *protocol.Node) bool {
+		candidate = node
 		return false
 	})
 	if candidate == nil {
 		return nil, fmt.Errorf("no rpc candidates available")
 	}
-	resp, err := candidate.Call(ctx, &protocol.RPC_Request{
+	resp, err := c.rpcClient.Call(ctx, candidate, &protocol.RPC_Request{
 		Kind:          protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: req,
 	})
@@ -127,9 +118,9 @@ func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (*pro
 
 func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
 	nodes := make([]*protocol.Node, 0)
-	c.connections.Range(func(id uint64, conn *connection) bool {
+	c.connections.Range(func(id uint64, node *protocol.Node) bool {
 		if len(nodes) < tun.NumRedundantLinks {
-			nodes = append(nodes, conn.peer)
+			nodes = append(nodes, node)
 		}
 		return true
 	})
@@ -138,18 +129,17 @@ func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
 
 func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dead int) {
 	alive = make([]*protocol.Node, 0)
-	c.connections.Range(func(id uint64, conn *connection) bool {
+	c.connections.Range(func(id uint64, node *protocol.Node) bool {
 		func() {
 			callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 			defer cancel()
 
-			_, err := c.Ping(callCtx, conn.rpc)
+			_, err := c.Ping(callCtx, node)
 			if err != nil {
-				conn.rpc.Close()
 				c.connections.Delete(id)
 				dead++
 			} else {
-				alive = append(alive, conn.peer)
+				alive = append(alive, node)
 			}
 		}()
 		return true
@@ -283,14 +273,14 @@ func (c *Client) Register(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Ping(ctx context.Context, rpc rpc.RPC) (*protocol.ClientPingResponse, error) {
+func (c *Client) Ping(ctx context.Context, node *protocol.Node) (*protocol.ClientPingResponse, error) {
 	req := &protocol.RPC_Request{
 		Kind: protocol.RPC_CLIENT_REQUEST,
 		ClientRequest: &protocol.ClientRequest{
 			Kind: protocol.TunnelRPC_PING,
 		},
 	}
-	resp, err := rpc.Call(ctx, req)
+	resp, err := c.rpcClient.Call(ctx, node, req)
 	if err != nil {
 		return nil, err
 	}
@@ -410,54 +400,49 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 func (c *Client) Accept(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
 
+	streamRouter := router.NewStreamRouter(c.logger, nil, c.serverTransport)
+	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
 
-	for delegation := range c.serverTransport.Direct() {
-		go func(delegation *transport.StreamDelegate) {
-			link := &protocol.Link{}
-			if err := rpc.Receive(delegation.Connection, link); err != nil {
-				c.logger.Error("Receiving link information from gateway", zap.Error(err))
-				delegation.Connection.Close()
-				return
-			}
-			hostname := link.Hostname
-			u, ok := c.config.router.Load(hostname)
-			if !ok {
-				c.logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
-				delegation.Connection.Close()
-				return
-			}
+	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
+		link := &protocol.Link{}
+		if err := rpc.Receive(delegation.Connection, link); err != nil {
+			c.logger.Error("Receiving link information from gateway", zap.Error(err))
+			delegation.Connection.Close()
+			return
+		}
+		hostname := link.Hostname
+		u, ok := c.config.router.Load(hostname)
+		if !ok {
+			c.logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
+			delegation.Connection.Close()
+			return
+		}
 
-			c.logger.Info("Incoming connection from gateway",
-				zap.String("protocol", link.Alpn.String()),
-				zap.String("hostname", link.Hostname),
-				zap.String("remote", link.Remote))
+		c.logger.Info("Incoming connection from gateway",
+			zap.String("protocol", link.Alpn.String()),
+			zap.String("hostname", link.Hostname),
+			zap.String("remote", link.Remote))
 
-			switch link.GetAlpn() {
-			case protocol.Link_HTTP:
-				c.getProxy(ctx, hostname, u).acceptor.Handle(delegation.Connection)
+		switch link.GetAlpn() {
+		case protocol.Link_HTTP:
+			c.getProxy(ctx, hostname, u).acceptor.Handle(delegation.Connection)
 
-			case protocol.Link_TCP:
-				c.forward(ctx, delegation.Connection, u.Host)
+		case protocol.Link_TCP:
+			c.forward(ctx, delegation.Connection, u.Host)
 
-			default:
-				c.logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
-				delegation.Connection.Close()
-			}
-		}(delegation)
-	}
+		default:
+			c.logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
+			delegation.Connection.Close()
+		}
+	})
 }
 
 func (c *Client) Close() {
 	c.proxies.Range(func(key string, proxy *httpProxy) bool {
 		c.logger.Info("Shutting down proxy", zap.String("hostname", key))
 		proxy.acceptor.Close()
-		return true
-	})
-	c.connections.Range(func(key uint64, conn *connection) bool {
-		c.logger.Info("Closing connection with specter server", zap.String("addr", conn.peer.GetAddress()))
-		conn.rpc.Close()
 		return true
 	})
 }

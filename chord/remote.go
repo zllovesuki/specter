@@ -7,7 +7,6 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
 
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -23,29 +22,25 @@ type RemoteNode struct {
 
 	logger *zap.Logger
 
-	id        *protocol.Node
-	rpc       rpc.RPC
-	transport transport.Transport
+	id  *protocol.Node
+	rpc rpc.RPC
 }
 
 var _ chord.VNode = (*RemoteNode)(nil)
 
-func NewRemoteNode(ctx context.Context, t transport.Transport, logger *zap.Logger, peer *protocol.Node) (*RemoteNode, error) {
+func NewRemoteNode(ctx context.Context, logger *zap.Logger, rpcClient rpc.RPC, peer *protocol.Node) (*RemoteNode, error) {
 	n := &RemoteNode{
 		parentCtx: ctx,
 		id:        peer,
-		transport: t,
 		logger:    logger,
+		rpc:       rpcClient,
 	}
-	var hs rpc.RPCHandshakeFunc
+
 	if peer.GetUnknown() {
-		hs = n.handshake
+		if err := n.handshake(rpcClient); err != nil {
+			return nil, err
+		}
 	}
-	r, err := t.DialRPC(ctx, peer, hs)
-	if err != nil {
-		return nil, err
-	}
-	n.rpc = r
 	return n, nil
 }
 
@@ -58,7 +53,7 @@ func (n *RemoteNode) doRequest(ctx context.Context, timeout time.Duration, k pro
 		modifier(rReq)
 	}
 
-	rResp, err := n.rpc.Call(ctx, rReq)
+	rResp, err := n.rpc.Call(ctx, n.id, rReq)
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
 			n.logger.Error("remote RPC error", zap.String("kind", k.String()), zap.String("peer", n.Identity().String()), zap.Error(err))
@@ -74,7 +69,7 @@ func (n *RemoteNode) handshake(r rpc.RPC) error {
 	defer cancel()
 
 	rReq := newReq(protocol.RPC_IDENTITY)
-	rResp, err := r.Call(ctx, rReq)
+	rResp, err := r.Call(ctx, n.id, rReq)
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
 			n.logger.Error("remote Identity RPC", zap.String("node", n.Identity().String()), zap.Error(err))
@@ -140,7 +135,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return n, nil
 	}
 
-	succ, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetSuccessor())
+	succ, err := createRPC(n.parentCtx, n.logger, n.rpc, resp.GetSuccessor())
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
 			n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetSuccessor().String()), zap.Error(err))
@@ -162,7 +157,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, succ := range succList {
-		node, err := createRPC(n.parentCtx, n.transport, n.logger, succ)
+		node, err := createRPC(n.parentCtx, n.logger, n.rpc, succ)
 		if err != nil {
 			if !chord.ErrorIsRetryable(err) {
 				n.logger.Error("create RemoteNote in GetSuccessors", zap.String("peer", n.Identity().String()), zap.Error(err))
@@ -189,7 +184,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 		return n, nil
 	}
 
-	pre, err := createRPC(n.parentCtx, n.transport, n.logger, resp.GetPredecessor())
+	pre, err := createRPC(n.parentCtx, n.logger, n.rpc, resp.GetPredecessor())
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
 			n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetPredecessor().String()), zap.Error(err))
@@ -355,7 +350,7 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 	pre := resp.GetPredecessor()
 	succList := resp.GetSuccessors()
 
-	pp, err := createRPC(n.parentCtx, n.transport, n.logger, pre)
+	pp, err := createRPC(n.parentCtx, n.logger, n.rpc, pre)
 	if err != nil {
 		n.logger.Error("create Predecessor in RequestToJoin", zap.String("peer", n.Identity().String()), zap.Error(err))
 		return nil, nil, err
@@ -363,7 +358,7 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, succ := range succList {
-		node, err := createRPC(n.parentCtx, n.transport, n.logger, succ)
+		node, err := createRPC(n.parentCtx, n.logger, n.rpc, succ)
 		if err != nil {
 			if !chord.ErrorIsRetryable(err) {
 				n.logger.Error("create Successor in RequestToJoin", zap.String("peer", n.Identity().String()), zap.Error(err))
@@ -408,5 +403,4 @@ func (n *RemoteNode) FinishLeave(stablize bool, release bool) error {
 }
 
 func (n *RemoteNode) Stop() {
-	n.rpc.Close()
 }

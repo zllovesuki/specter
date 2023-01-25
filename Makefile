@@ -29,6 +29,9 @@ dev-server: buildx
 dev-server-acme: buildx
 	docker compose -f compose-server.yaml up
 
+dev-server-logs:
+	docker compose -f compose-server.yaml logs -f
+
 dev-client: buildx
 	docker compose -f compose-client.yaml up
 

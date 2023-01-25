@@ -6,16 +6,16 @@ import (
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/spec/rpc"
 
 	"go.uber.org/zap"
 )
 
 type NodeConfig struct {
+	KVProvider               chord.KVProvider
+	RPCClient                rpc.RPC
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
-	Transport                transport.Transport
-	KVProvider               chord.KVProvider
 	StablizeInterval         time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration
@@ -34,8 +34,8 @@ func (c *NodeConfig) Validate() error {
 	if c.Identity.GetId() >= (1 << chord.MaxFingerEntries) {
 		return errors.New("invalid Identity ID")
 	}
-	if c.Transport == nil {
-		return errors.New("nil Transport")
+	if c.RPCClient == nil {
+		return errors.New("nil RPC Client")
 	}
 	if c.StablizeInterval <= 0 {
 		return errors.New("invalid StablizeInterval, must be positive")

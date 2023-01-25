@@ -13,16 +13,17 @@ import (
 )
 
 func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
-	qKey := makeQKey(peer)
-	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
-	t.qMap.Delete(qKey)
-	q.CloseWithError(401, "Gone")
+	qKey := makeCachedKey(peer)
+	unlock := t.cachedMutex.Lock(qKey)
+	defer unlock()
 
-	sKey := makeSKey(peer)
-	t.Logger.Debug("reaping cached RPC channels to peer", zap.String("key", sKey))
-	if r, ok := t.rpcMap.LoadAndDelete(sKey); ok {
-		r.Close()
+	cached, loaded := t.cachedConnections.Load(qKey)
+	if !loaded || cached.replaced {
+		return
 	}
+	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
+	t.cachedConnections.Delete(qKey)
+	q.CloseWithError(401, "Gone")
 }
 
 // TODO: investigate if reaper is now deprecated
@@ -45,7 +46,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 			return
 		case <-timer.C:
 			candidate := make([]*nodeConnection, 0)
-			t.qMap.Range(func(key string, value *nodeConnection) bool {
+			t.cachedConnections.Range(func(key string, value *nodeConnection) bool {
 				if err := value.quic.SendMessage(alive); err != nil {
 					candidate = append(candidate, value)
 				}

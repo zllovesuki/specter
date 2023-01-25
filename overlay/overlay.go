@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
@@ -15,8 +14,9 @@ import (
 )
 
 type nodeConnection struct {
-	peer *protocol.Node
-	quic quic.EarlyConnection
+	peer     *protocol.Node
+	quic     quic.EarlyConnection
+	replaced bool
 }
 
 type TransportConfig struct {
@@ -27,17 +27,13 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
-	rpcMap *skipmap.StringMap[rpc.RPC]
-	rpcMu  *atomic.KeyedRWMutex
-
-	qMap *skipmap.StringMap[*nodeConnection]
-	qMu  *atomic.KeyedRWMutex
+	cachedConnections *skipmap.StringMap[*nodeConnection]
+	cachedMutex       *atomic.KeyedRWMutex
 
 	started *uberAtomic.Bool
 	closed  *uberAtomic.Bool
 
-	rpcChan    chan *transport.StreamDelegate
-	directChan chan *transport.StreamDelegate
+	streamChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
 
 	TransportConfig

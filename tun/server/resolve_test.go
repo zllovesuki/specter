@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/stretchr/testify/mock"
@@ -22,19 +21,14 @@ func TestIdentitiesRoutine(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	chordChan := make(chan *transport.StreamDelegate)
-	chordT.On("Direct").Return(chordChan)
 	chordT.On("Identity").Return(cht)
-
-	clientChan := make(chan *transport.StreamDelegate)
-	clientT.On("Direct").Return(clientChan)
 	clientT.On("Identity").Return(tn)
 
 	// On start up -> publish
 	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunKey(tn)),
+			[]byte(tun.IdentitiesTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	}), mock.MatchedBy(func(v []byte) bool {
@@ -56,12 +50,12 @@ func TestIdentitiesRoutine(t *testing.T) {
 	node.On("Delete", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
 			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunKey(tn)),
+			[]byte(tun.IdentitiesTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	})).Return(nil)
 
-	go serv.Accept(ctx)
+	go serv.Start(ctx)
 
 	<-time.After(time.Millisecond * 100)
 

@@ -21,27 +21,22 @@ func TestRemoteRPCErrors(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
-	tp := new(mocks.Transport)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	peer := &protocol.Node{
-		Unknown: true,
+		Id:      1234,
 		Address: "127.0.0.1:1234",
 	}
 
 	e := fmt.Errorf("sup")
 
 	rpcCaller := new(mocks.RPC)
-	rpcCaller.On("Call", mock.Anything, mock.Anything).Return(nil, e)
-	rpcCaller.On("Close").Return(nil)
+	rpcCaller.On("Call", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+		return n.GetId() == peer.GetId() && n.GetAddress() == peer.GetAddress()
+	}), mock.Anything).Return(nil, e)
 
-	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
-		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
-	}), mock.Anything).Return(rpcCaller, nil)
-
-	r, err := NewRemoteNode(ctx, tp, logger, peer)
+	r, err := NewRemoteNode(ctx, logger, rpcCaller, peer)
 	as.NoError(err)
 
 	defer r.Stop()
@@ -109,8 +104,6 @@ func TestRemoteRPCErrors(t *testing.T) {
 		PrefixChildren: [][]byte{[]byte("c")},
 	}})
 	as.ErrorContains(err, e.Error())
-
-	tp.AssertExpectations(t)
 }
 
 func TestRemoteRPCContext(t *testing.T) {
@@ -119,29 +112,24 @@ func TestRemoteRPCContext(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	as.NoError(err)
 
-	tp := new(mocks.Transport)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	peer := &protocol.Node{
-		Unknown: true,
+		Id:      1234,
 		Address: "127.0.0.1:1234",
 	}
 
 	e := fmt.Errorf("sup")
 
 	rpcCaller := new(mocks.RPC)
-	rpcCaller.On("Call", mock.Anything, mock.MatchedBy(func(req *protocol.RPC_Request) bool {
+	rpcCaller.On("Call", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
+		return n.GetId() == peer.GetId() && n.GetAddress() == peer.GetAddress()
+	}), mock.MatchedBy(func(req *protocol.RPC_Request) bool {
 		return req.GetRequestContext().GetRequestTarget() == protocol.Context_KV_REPLICATION
 	})).Return(nil, e)
-	rpcCaller.On("Close").Return(nil)
 
-	tp.On("DialRPC", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
-		return n.GetUnknown() && n.GetAddress() == peer.GetAddress()
-	}), mock.Anything).Return(rpcCaller, nil)
-
-	r, err := NewRemoteNode(ctx, tp, logger, peer)
+	r, err := NewRemoteNode(ctx, logger, rpcCaller, peer)
 	as.NoError(err)
 
 	defer r.Stop()

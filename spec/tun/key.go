@@ -10,7 +10,7 @@ func IdentitiesChordKey(chord *protocol.Node) string {
 	return fmt.Sprintf("/identities/chord/%s/%d", chord.GetAddress(), chord.GetId())
 }
 
-func IdentitiesTunKey(tun *protocol.Node) string {
+func IdentitiesTunnelKey(tun *protocol.Node) string {
 	return fmt.Sprintf("/identities/tunnel/%s/%d", tun.GetAddress(), tun.GetId())
 }
 
