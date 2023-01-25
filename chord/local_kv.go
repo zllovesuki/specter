@@ -10,22 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:generate stringer -type=targetType -linecomment
-
-type targetType int
-
-const (
-	targetLocal       targetType = iota // Local
-	targetRemote                        // Remote
-	targetReplication                   // Replication
-)
-
 // Workaround for https://github.com/golang/go/issues/49085#issuecomment-948108705
 func kvMiddleware[V any](
 	ctx context.Context,
 	n *LocalNode,
 	key []byte,
-	handler func(ctx context.Context, kv chord.KV, target targetType, id uint64) (V, error),
+	handler func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (V, error),
 ) (V, error) {
 	var zeroV V
 	id := chord.Hash(key)
@@ -68,7 +58,7 @@ func kvMiddleware[V any](
 
 func (n *LocalNode) Put(ctx context.Context, key, value []byte) error {
 	_, err := kvMiddleware(ctx, n, key,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (any, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (any, error) {
 			n.Logger.Debug("KV Put", zap.String("target", target.String()), zap.String("key", string(key)), zap.Uint64("id", id))
 			return nil, kv.Put(ctx, key, value)
 		})
@@ -77,7 +67,7 @@ func (n *LocalNode) Put(ctx context.Context, key, value []byte) error {
 
 func (n *LocalNode) Get(ctx context.Context, key []byte) ([]byte, error) {
 	return kvMiddleware(ctx, n, key,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) ([]byte, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) ([]byte, error) {
 			n.Logger.Debug("KV Get", zap.String("target", target.String()), zap.String("key", string(key)), zap.Uint64("id", id))
 			return kv.Get(ctx, key)
 		})
@@ -85,7 +75,7 @@ func (n *LocalNode) Get(ctx context.Context, key []byte) ([]byte, error) {
 
 func (n *LocalNode) Delete(ctx context.Context, key []byte) error {
 	_, err := kvMiddleware(ctx, n, key,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (any, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (any, error) {
 			n.Logger.Debug("KV Delete", zap.String("target", target.String()), zap.String("key", string(key)), zap.Uint64("id", id))
 			return nil, kv.Delete(ctx, key)
 		})
@@ -94,7 +84,7 @@ func (n *LocalNode) Delete(ctx context.Context, key []byte) error {
 
 func (n *LocalNode) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
 	_, err := kvMiddleware(ctx, n, prefix,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (any, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (any, error) {
 			n.Logger.Debug("KV PrefixAppend", zap.String("target", target.String()), zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			return nil, kv.PrefixAppend(ctx, prefix, child)
 		})
@@ -103,7 +93,7 @@ func (n *LocalNode) PrefixAppend(ctx context.Context, prefix []byte, child []byt
 
 func (n *LocalNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
 	return kvMiddleware(ctx, n, prefix,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) ([][]byte, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) ([][]byte, error) {
 			n.Logger.Debug("KV PrefixList", zap.String("target", target.String()), zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			return kv.PrefixList(ctx, prefix)
 		})
@@ -111,7 +101,7 @@ func (n *LocalNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, er
 
 func (n *LocalNode) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
 	return kvMiddleware(ctx, n, prefix,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (bool, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (bool, error) {
 			n.Logger.Debug("KV PrefixContains", zap.String("target", target.String()), zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			return kv.PrefixContains(ctx, prefix, child)
 		})
@@ -119,7 +109,7 @@ func (n *LocalNode) PrefixContains(ctx context.Context, prefix []byte, child []b
 
 func (n *LocalNode) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
 	_, err := kvMiddleware(ctx, n, prefix,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (any, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (any, error) {
 			n.Logger.Debug("KV PrefixRemove", zap.String("target", target.String()), zap.String("prefix", string(prefix)), zap.Uint64("id", id))
 			return nil, kv.PrefixRemove(ctx, prefix, child)
 		})
@@ -128,7 +118,7 @@ func (n *LocalNode) PrefixRemove(ctx context.Context, prefix []byte, child []byt
 
 func (n *LocalNode) Acquire(ctx context.Context, lease []byte, ttl time.Duration) (uint64, error) {
 	return kvMiddleware(ctx, n, lease,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (uint64, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (uint64, error) {
 			n.Logger.Debug("KV Acquire", zap.String("target", target.String()), zap.String("lease", string(lease)), zap.Uint64("id", id))
 			return kv.Acquire(ctx, lease, ttl)
 		})
@@ -136,7 +126,7 @@ func (n *LocalNode) Acquire(ctx context.Context, lease []byte, ttl time.Duration
 
 func (n *LocalNode) Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (uint64, error) {
 	return kvMiddleware(ctx, n, lease,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (uint64, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (uint64, error) {
 			n.Logger.Debug("KV Renew", zap.String("target", target.String()), zap.String("lease", string(lease)), zap.Uint64("id", id))
 			return kv.Renew(ctx, lease, ttl, prevToken)
 		})
@@ -144,7 +134,7 @@ func (n *LocalNode) Renew(ctx context.Context, lease []byte, ttl time.Duration, 
 
 func (n *LocalNode) Release(ctx context.Context, lease []byte, token uint64) error {
 	_, err := kvMiddleware(ctx, n, lease,
-		func(ctx context.Context, kv chord.KV, target targetType, id uint64) (any, error) {
+		func(ctx context.Context, kv chord.KV, target kvTargetType, id uint64) (any, error) {
 			n.Logger.Debug("KV Release", zap.String("target", target.String()), zap.String("lease", string(lease)), zap.Uint64("id", id))
 			return nil, kv.Release(ctx, lease, token)
 		})

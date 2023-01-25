@@ -405,7 +405,7 @@ func (c *Client) Accept(ctx context.Context) {
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
 
-	streamRouter.AttachClient(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
+	streamRouter.HandleClient(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
 		link := &protocol.Link{}
 		if err := rpc.Receive(delegation.Connection, link); err != nil {
 			c.logger.Error("Receiving link information from gateway", zap.Error(err))

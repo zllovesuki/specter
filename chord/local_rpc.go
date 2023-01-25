@@ -15,7 +15,7 @@ import (
 
 func (n *LocalNode) AttachRouter(ctx context.Context, router *router.StreamRouter) {
 	rpcServer := rpc.NewRPC(ctx, n.Logger.With(zap.String("pov", "local_rpc")), nil)
-	router.AttachChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+	router.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
 		defer delegate.Connection.Close()
 
 		l := n.Logger.With(

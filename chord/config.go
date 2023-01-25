@@ -12,13 +12,13 @@ import (
 )
 
 type NodeConfig struct {
+	KVProvider               chord.KVProvider
+	RPCClient                rpc.RPC
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
-	KVProvider               chord.KVProvider
 	StablizeInterval         time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration
-	RPCClient                rpc.RPC
 }
 
 func (c *NodeConfig) Validate() error {

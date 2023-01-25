@@ -32,11 +32,11 @@ func NewStreamRouter(logger *zap.Logger, chordTransport, clientTransport transpo
 	return router
 }
 
-func (s *StreamRouter) AttachChord(kind protocol.Stream_Type, handler StreamHandler) {
+func (s *StreamRouter) HandleChord(kind protocol.Stream_Type, handler StreamHandler) {
 	s.chordHandlers.Store(kind, handler)
 }
 
-func (s *StreamRouter) AttachClient(kind protocol.Stream_Type, handler StreamHandler) {
+func (s *StreamRouter) HandleClient(kind protocol.Stream_Type, handler StreamHandler) {
 	s.clientHandlers.Store(kind, handler)
 }
 

@@ -29,5 +29,12 @@ message Datagram {
 }
 
 message Connection {
+    enum State {
+        UNKNOWN = 0;
+        CACHED = 1;
+        FRESH = 2;
+    }
+
     Node identity = 1;
+    State cache_state = 2;
 }

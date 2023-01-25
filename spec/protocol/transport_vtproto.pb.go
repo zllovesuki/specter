@@ -130,6 +130,11 @@ func (m *Connection) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.CacheState != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CacheState))
+		i--
+		dAtA[i] = 0x10
+	}
 	if m.Identity != nil {
 		size, err := m.Identity.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -186,6 +191,9 @@ func (m *Connection) SizeVT() (n int) {
 	if m.Identity != nil {
 		l = m.Identity.SizeVT()
 		n += 1 + l + sov(uint64(l))
+	}
+	if m.CacheState != 0 {
+		n += 1 + sov(uint64(m.CacheState))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -432,6 +440,25 @@ func (m *Connection) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CacheState", wireType)
+			}
+			m.CacheState = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CacheState |= Connection_State(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

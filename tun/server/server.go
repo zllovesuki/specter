@@ -51,15 +51,15 @@ func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) 
 	rpcServer := rpcImpl.NewRPC(ctx, s.logger.With(zap.String("pov", "client_rpc")), nil)
 	rpcServer.LimitMessageSize(2048)
 
-	router.AttachChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
+	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
 		s.handleProxyConn(ctx, delegate)
 	})
-	router.AttachClient(protocol.Stream_DIRECT, func(delegate *transport.StreamDelegate) {
+	router.HandleClient(protocol.Stream_DIRECT, func(delegate *transport.StreamDelegate) {
 		// client uses this to register connection
 		// but it is a no-op on the server side
 		delegate.Connection.Close()
 	})
-	router.AttachClient(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+	router.HandleClient(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
 		defer delegate.Connection.Close()
 
 		l := s.logger.With(

@@ -14,8 +14,9 @@ import (
 )
 
 type nodeConnection struct {
-	peer *protocol.Node
-	quic quic.EarlyConnection
+	peer     *protocol.Node
+	quic     quic.EarlyConnection
+	replaced bool
 }
 
 type TransportConfig struct {
@@ -26,8 +27,8 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
-	qMap *skipmap.StringMap[*nodeConnection]
-	qMu  *atomic.KeyedRWMutex
+	cachedConnections *skipmap.StringMap[*nodeConnection]
+	cachedMutex       *atomic.KeyedRWMutex
 
 	started *uberAtomic.Bool
 	closed  *uberAtomic.Bool

@@ -1,8 +1,4 @@
 apex: seed:1113
-clientId: 867963202429
-token: T3QSnVZmKE0xSxzFxPbubt5C3uqGu0K2iymLIPHkXec=
 tunnels:
   - target: http://nginx:80/
-    hostname: sleek-speed-peddling-quill-crumpled
   - target: tcp://127.0.0.1:3000/
-    hostname: kettle-faction-tingly-dividend-dividable

@@ -68,7 +68,7 @@ func TestLocalRPC(t *testing.T) {
 	callerRouter := router.NewStreamRouter(logger, t1, nil)
 	go callerRouter.Accept(ctx)
 	caller := rpc.NewRPC(ctx, logger, t2)
-	callerRouter.AttachChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+	callerRouter.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
 		caller.HandleRequest(ctx, delegate.Connection, func(context.Context, *protocol.RPC_Request) (*protocol.RPC_Response, error) {
 			return &protocol.RPC_Response{}, nil
 		})
