@@ -121,3 +121,37 @@ jobs:
             ${{ runner.os }}-go-
       - name: Test short, long, extended, and concurrency validation
         run: make full_test TIMEOUT=600s
+  rolling:
+    name: Rolling release
+    runs-on: ubuntu-latest
+    if: ${{ always() && contains(join(needs.*.result, ','), 'success') }} #https://github.com/actions/runner/issues/1251#issuecomment-895850408
+    needs: [testing, integration]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v3
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.19.4"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Build release binaries with WAL helper
+        run: make release wal=1
+      - name: Build compatability binaries
+        run: make compat
+      - name: Rolling release on main
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Automatic Build on main branch"
+          body: "This is a rolling release with the latest build artifacts on main branch. The release is updated every time commit(s) is pushed to main."
+          prerelease: true
+          tag_name: edge
+          files: bin/**
