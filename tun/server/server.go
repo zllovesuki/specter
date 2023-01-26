@@ -73,13 +73,13 @@ func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) 
 	})
 }
 
-func (s *Server) Start(ctx context.Context) {
+func (s *Server) MustRegister(ctx context.Context) {
 	s.logger.Info("publishing identities to chord")
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	if err := s.publishIdentities(publishCtx); err != nil {
-		s.logger.Fatal("publishing identities pair", zap.Error(err))
+		s.logger.Panic("publishing identities pair", zap.Error(err))
 	}
 
 	s.logger.Info("specter server started")

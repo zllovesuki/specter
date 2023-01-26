@@ -293,7 +293,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 		close(syncB)
 	}()
 
-	serv.Start(ctx)
+	serv.MustRegister(ctx)
 
 	chordChan <- &transport.StreamDelegate{
 		Connection: c1,

@@ -55,7 +55,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 		return assertBytes(k, exp...)
 	})).Return(nil)
 
-	go serv.Start(ctx)
+	serv.MustRegister(ctx)
 
 	<-time.After(time.Millisecond * 100)
 

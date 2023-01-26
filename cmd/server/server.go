@@ -472,8 +472,9 @@ func cmdServer(ctx *cli.Context) error {
 	defer tunServer.Stop()
 
 	tunServer.AttachRouter(ctx.Context, streamRouter)
+	tunServer.MustRegister(ctx.Context)
+
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
-	go tunServer.Start(ctx.Context)
 
 	// TODO: use advertise?
 	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
