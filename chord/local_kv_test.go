@@ -289,7 +289,7 @@ func TestConcurrentJoinKV(t *testing.T) {
 	}
 }
 
-func awaitStablizedGlobally(as *require.Assertions, timeout time.Duration, nodes []*LocalNode) {
+func awaitStablizedGlobally(t *testing.T, as *require.Assertions, timeout time.Duration, nodes []*LocalNode) {
 	// create a sorted list of test nodes
 	refNodes := append([]*LocalNode{}, nodes...)
 	sort.SliceStable(refNodes, func(i, j int) bool {
@@ -344,6 +344,10 @@ func awaitStablizedGlobally(as *require.Assertions, timeout time.Duration, nodes
 				expectSuccs = expectSuccs.Next()
 			}
 		}
+		t.Logf("[stablized] valid ring:\n")
+		fullRing.Do(func(a any) {
+			t.Logf("  %v\n", a)
+		})
 		return true
 	}, waitInterval, timeout))
 }
@@ -391,7 +395,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	<-syncA
 
 	// wait until the ring is fully stablized before we check for missing values
-	awaitStablizedGlobally(as, time.Second*10, nodes)
+	awaitStablizedGlobally(t, as, time.Second*10, nodes)
 
 	nodes[0].Logger.Debug("Starting test validation")
 
@@ -466,7 +470,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	defer done()
 
 	// wait until the ring is fully stablized before we insert values
-	awaitStablizedGlobally(as, time.Second*10, nodes)
+	awaitStablizedGlobally(t, as, time.Second*10, nodes)
 
 	keys, values := makeKV(numKeys, 64)
 	syncA := make(chan struct{})
