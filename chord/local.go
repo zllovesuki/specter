@@ -41,8 +41,8 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
 	}
-	var emptyNode chord.VNode
 	for i := range n.fingers {
+		var emptyNode chord.VNode
 		n.fingers[i].Store(&emptyNode)
 	}
 
