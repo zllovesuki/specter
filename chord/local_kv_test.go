@@ -17,16 +17,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
+func makeKV(as *require.Assertions, num int, length int) (keys [][]byte, values [][]byte) {
 	keys = make([][]byte, num)
 	values = make([][]byte, num)
 
+	var err error
 	for i := range keys {
 		keys[i] = make([]byte, length)
 		values[i] = make([]byte, length)
 		l := copy(keys[i], []byte(fmt.Sprintf("key %d: ", i)))
-		rand.Read(keys[i][l:])
-		rand.Read(values[i])
+		_, err = rand.Read(keys[i][l:])
+		as.NoError(err)
+		_, err = rand.Read(values[i])
+		as.NoError(err)
 	}
 	return
 }
@@ -131,7 +134,7 @@ func TestKeyTransferOut(t *testing.T) {
 	nodes, done := makeRing(t, as, numNodes)
 	defer done()
 
-	keys, values := makeKV(30, 8)
+	keys, values := makeKV(as, 30, 8)
 
 	for i := range keys {
 		as.Nil(nodes[0].Put(context.Background(), keys[i], values[i]))
@@ -191,7 +194,7 @@ func TestKeyTransferIn(t *testing.T) {
 	defer seed.Leave()
 	waitRing(as, seed)
 
-	keys, values := makeKV(400, 8)
+	keys, values := makeKV(as, 400, 8)
 
 	for i := range keys {
 		err := seed.Put(context.Background(), keys[i], values[i])
@@ -362,7 +365,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		nodes[i] = node
 	}
 
-	keys, values := makeKV(numKeys, 64)
+	keys, values := makeKV(as, numKeys, 64)
 	syncA := make(chan struct{})
 
 	nodes[0].Create()
@@ -431,10 +434,13 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	if len(missingIndicies) > 0 {
 		for _, i := range missingIndicies {
 			k := keys[i]
+			got, err := nodes[0].FindSuccessor(chord.Hash(k))
+			as.NoError(err)
+			as.NotNil(got)
 			for j := 1; j < numNodes; j++ {
 				v, _ := nodes[j].kv.Get(context.Background(), k)
 				if v != nil {
-					t.Logf("missing key index %d found in node %d", i, nodes[j].ID())
+					t.Logf("missing key index %d routed to node %d but found in node %d", i, got.ID(), nodes[j].ID())
 				}
 			}
 		}
@@ -472,7 +478,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	// wait until the ring is fully stablized before we insert values
 	awaitStablizedGlobally(t, as, time.Second*10, nodes)
 
-	keys, values := makeKV(numKeys, 64)
+	keys, values := makeKV(as, numKeys, 64)
 	syncA := make(chan struct{})
 
 	stale := 0
@@ -528,10 +534,13 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	if len(missingIndicies) > 0 {
 		for _, i := range missingIndicies {
 			k := keys[i]
+			got, err := nodes[0].FindSuccessor(chord.Hash(k))
+			as.NoError(err)
+			as.NotNil(got)
 			for j := 1; j < numNodes; j++ {
 				v, _ := nodes[j].kv.Get(context.Background(), k)
 				if v != nil {
-					t.Logf("missing key index %d found in node %d", i, nodes[j].ID())
+					t.Logf("missing key index %d routed to node %d but found in node %d", i, got.ID(), nodes[j].ID())
 				}
 			}
 		}
