@@ -81,7 +81,7 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 		<-time.After(waitInterval)
 	}
 
-	// wait until the ring is stablized before we ring check
+	// wait until the ring is mostly stablized before we ring check
 	waitRing(as, nodes[0])
 	waitRingLong(as, nodes)
 

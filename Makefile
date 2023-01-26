@@ -4,7 +4,7 @@ BUILD=$(shell git rev-parse --short HEAD)
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 
-COUNT=5
+COUNT=3
 GOARM=7
 GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
@@ -131,8 +131,8 @@ long_test:
 	go test -timeout $(TIMEOUT) -run ^TestLotsOfNodes -race -count=$(COUNT) ./chord/...
 
 concurrency_test:
-	go test -timeout $(TIMEOUT) -run ^TestConcurrentJoin -race -count=1 -parallel=$$(expr $$(nproc) - 1) ./chord/...
-	go test -timeout $(TIMEOUT) -run ^TestConcurrentLeave -race -count=1 -parallel=$$(expr $$(nproc) - 1) ./chord/...
+	go test -timeout $(TIMEOUT) -run ^TestConcurrentJoin -race -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
+	go test -timeout $(TIMEOUT) -run ^TestConcurrentLeave -race -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
 
 clean:
 	-rm bin/*

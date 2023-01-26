@@ -2,6 +2,7 @@ package chord
 
 import (
 	"bytes"
+	"container/ring"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -23,7 +24,8 @@ func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
 	for i := range keys {
 		keys[i] = make([]byte, length)
 		values[i] = make([]byte, length)
-		rand.Read(keys[i])
+		l := copy(keys[i], []byte(fmt.Sprintf("key %d: ", i)))
+		rand.Read(keys[i][l:])
 		rand.Read(values[i])
 	}
 	return
@@ -287,7 +289,22 @@ func TestConcurrentJoinKV(t *testing.T) {
 	}
 }
 
-func checkRingLong(as *require.Assertions, nodes []*LocalNode) {
+func awaitStablizedGlobally(as *require.Assertions, timeout time.Duration, nodes []*LocalNode) {
+	// create a sorted list of test nodes
+	refNodes := append([]*LocalNode{}, nodes...)
+	sort.SliceStable(refNodes, func(i, j int) bool {
+		return refNodes[i].ID() < refNodes[j].ID()
+	})
+	// use container/ring to build the stablized list of successors for each node
+	fullRing := ring.New(len(nodes))
+	succsMap := make(map[uint64]*ring.Ring)
+	for _, n := range refNodes {
+		fullRing.Value = n.ID()
+		fullRing = fullRing.Next()
+		succsMap[n.ID()] = fullRing
+	}
+	// then we check for condition, where every node has the correct local states
+	// with respect to global order of the ring
 	as.NoError(testcond.WaitForCondition(func() bool {
 		for _, node := range nodes {
 			if node.getPredecessor() == nil {
@@ -297,10 +314,6 @@ func checkRingLong(as *require.Assertions, nodes []*LocalNode) {
 				return false
 			}
 		}
-		refNodes := append([]*LocalNode{}, nodes...)
-		sort.SliceStable(refNodes, func(i, j int) bool {
-			return refNodes[i].ID() < refNodes[j].ID()
-		})
 		// counter clockwise
 		for i := 0; i < len(refNodes)-1; i++ {
 			if refNodes[i].ID() != refNodes[i+1].getPredecessor().ID() {
@@ -316,8 +329,23 @@ func checkRingLong(as *require.Assertions, nodes []*LocalNode) {
 				return false
 			}
 		}
-		return refNodes[0].ID() == refNodes[len(refNodes)-1].getSuccessor().ID()
-	}, waitInterval, time.Second*5))
+		if refNodes[0].ID() != refNodes[len(refNodes)-1].getSuccessor().ID() {
+			return false
+		}
+		// ensure that successor list is correct (eventual consistency),
+		// otherwise lookup may go to the wrong node and failing the test incorrectly
+		for _, n := range nodes {
+			expectSuccs := succsMap[n.ID()]
+			actualSuccs := n.getSuccessors()
+			for _, s := range actualSuccs {
+				if s.ID() != expectSuccs.Value {
+					return false
+				}
+				expectSuccs = expectSuccs.Next()
+			}
+		}
+		return true
+	}, waitInterval, timeout))
 }
 
 func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
@@ -353,7 +381,6 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
-			time.Sleep(defaultInterval) // used to pace the insertion operations
 		}
 	}()
 
@@ -363,8 +390,8 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 
 	<-syncA
 
-	// wait until the ring is stablized before we check for missing values
-	checkRingLong(as, nodes)
+	// wait until the ring is fully stablized before we check for missing values
+	awaitStablizedGlobally(as, time.Second*10, nodes)
 
 	nodes[0].Logger.Debug("Starting test validation")
 
@@ -393,17 +420,29 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	defer func() {
-		<-time.After(waitInterval)
-		t.Logf("stale ownership counts: %d", stale)
-		t.Logf("missing indicies: %+v\n", missingIndicies)
-		t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
-	}()
+	t.Logf("stale ownership counts: %d", stale)
+	t.Logf("missing indicies: %+v\n", missingIndicies)
+	t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
+
+	if len(missingIndicies) > 0 {
+		for _, i := range missingIndicies {
+			k := keys[i]
+			for j := 1; j < numNodes; j++ {
+				v, _ := nodes[j].kv.Get(context.Background(), k)
+				if v != nil {
+					t.Logf("missing key index %d found in node %d", i, nodes[j].ID())
+				}
+			}
+		}
+	}
+
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
 
-	for i := 0; i < numNodes; i++ {
+	for i := numNodes - 1; i >= 0; i-- {
 		nodes[i].Leave()
 	}
+	k := nodes[0].kv.RangeKeys(0, 0)
+	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
 }
 
 func TestConcurrentLeaveKV(t *testing.T) {
@@ -426,6 +465,9 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes, done := makeRing(t, as, numNodes)
 	defer done()
 
+	// wait until the ring is fully stablized before we insert values
+	awaitStablizedGlobally(as, time.Second*10, nodes)
+
 	keys, values := makeKV(numKeys, 64)
 	syncA := make(chan struct{})
 
@@ -447,7 +489,6 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
-			time.Sleep(defaultInterval) // used to pace the insertion operations
 		}
 	}()
 
@@ -475,12 +516,10 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 			mismatchedIndicies = append(mismatchedIndicies, i)
 		}
 	}
-	defer func() {
-		<-time.After(waitInterval)
-		t.Logf("stale ownership counts: %d", stale)
-		t.Logf("missing indicies: %+v\n", missingIndicies)
-		t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
-	}()
+
+	t.Logf("stale ownership counts: %d", stale)
+	t.Logf("missing indicies: %+v\n", missingIndicies)
+	t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
 
 	if len(missingIndicies) > 0 {
 		for _, i := range missingIndicies {
@@ -506,7 +545,8 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
+
 	k := nodes[0].kv.RangeKeys(0, 0)
 	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
 }
