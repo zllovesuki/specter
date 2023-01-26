@@ -38,6 +38,7 @@ replace github.com/libp2p/go-yamux/v3 => github.com/zllovesuki/go-yamux/v3 v3.1.
 replace github.com/quic-go/quic-go => github.com/lucas-clemente/quic-go v0.31.2-0.20230122035357-58cedf7a4f47
 
 require (
+	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
@@ -64,7 +65,7 @@ require (
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp v0.0.0-20230118134722-a68e582fa157 // indirect
+	golang.org/x/exp v0.0.0-20230125214544-b3c2aaf6208d // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect

@@ -74,7 +74,7 @@ func assertNodes(got, exp []*protocol.Node) bool {
 func TestRPCRegisterClientOK(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -120,7 +120,7 @@ func TestRPCRegisterClientOK(t *testing.T) {
 func TestRPCRegisterClientFailed(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -192,7 +192,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 func TestRPCPingOK(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -230,7 +230,7 @@ func TestRPCPingOK(t *testing.T) {
 func TestRPCPingConditional(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -303,7 +303,7 @@ func TestRPCPingConditional(t *testing.T) {
 func TestRPCGetNodesUnique(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -368,7 +368,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 func TestRPCGetNodes(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -443,7 +443,7 @@ func TestRPCGetNodes(t *testing.T) {
 func TestRPCRequestHostnameOK(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -501,7 +501,7 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 func TestRPCOtherFailed(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -547,7 +547,7 @@ func TestRPCOtherFailed(t *testing.T) {
 func TestRPCPublishTunnelOK(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, _, _, serv := getFixture(as)
+	logger, node, _, _, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -658,7 +658,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 func TestRPCPublishTunnelFailed(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, _, _, serv := getFixture(as)
+	logger, node, _, _, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())

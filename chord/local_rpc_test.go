@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -26,8 +27,7 @@ const (
 func TestLocalRPC(t *testing.T) {
 	as := require.New(t)
 
-	logger, err := zap.NewDevelopment()
-	as.Nil(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	identity := &protocol.Node{
 		Id:      chord.Random(),

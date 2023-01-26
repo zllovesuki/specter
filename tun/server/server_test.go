@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 const (
@@ -35,9 +36,8 @@ func assertBytes(got []byte, exp ...[]byte) bool {
 	return false
 }
 
-func getFixture(as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+func getFixture(t *testing.T, as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	n := new(mocks.VNode)
 	cht := new(mocks.Transport)
@@ -72,7 +72,7 @@ func getIdentities() (*protocol.Node, *protocol.Node, *protocol.Node) {
 func TestContinueLookupOnError(t *testing.T) {
 	as := require.New(t)
 
-	_, node, _, _, serv := getFixture(as)
+	_, node, _, _, serv := getFixture(t, as)
 
 	link := &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
@@ -94,7 +94,7 @@ func TestContinueLookupOnError(t *testing.T) {
 func TestLookupSuccessDirect(t *testing.T) {
 	as := require.New(t)
 
-	_, node, clientT, _, serv := getFixture(as)
+	_, node, clientT, _, serv := getFixture(t, as)
 
 	link := &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
@@ -145,7 +145,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 func TestLookupSuccessRemote(t *testing.T) {
 	as := require.New(t)
 
-	_, node, clientT, chordT, serv := getFixture(as)
+	_, node, clientT, chordT, serv := getFixture(t, as)
 
 	link := &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
@@ -206,7 +206,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 func TestHandleRemoteConnection(t *testing.T) {
 	as := require.New(t)
 
-	logger, node, clientT, chordT, serv := getFixture(as)
+	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 	bundle := &protocol.Tunnel{
 		Client:   cli,

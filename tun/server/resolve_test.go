@@ -15,7 +15,7 @@ import (
 func TestIdentitiesRoutine(t *testing.T) {
 	as := require.New(t)
 
-	_, node, clientT, chordT, serv := getFixture(as)
+	_, node, clientT, chordT, serv := getFixture(t, as)
 	_, cht, tn := getIdentities()
 
 	ctx, cancel := context.WithCancel(context.Background())

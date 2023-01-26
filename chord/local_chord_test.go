@@ -15,10 +15,12 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/util/testcond"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 const (
@@ -26,9 +28,8 @@ const (
 	waitInterval    = defaultInterval * 10
 )
 
-func devConfig(as *require.Assertions) NodeConfig {
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 	iden := &protocol.Node{
 		Id: chord.Random(),
 	}
@@ -44,24 +45,8 @@ func devConfig(as *require.Assertions) NodeConfig {
 	}
 }
 
-// taken from https://yangwwei.github.io/2020/05/12/flaky-unit-tests-on-github.html
-func WaitForCondition(eval func() bool, interval time.Duration, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		if eval() {
-			return nil
-		}
-
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for condition")
-		}
-
-		time.Sleep(interval)
-	}
-}
-
 func waitRing(as *require.Assertions, node *LocalNode) {
-	as.NoError(WaitForCondition(func() bool {
+	as.NoError(testcond.WaitForCondition(func() bool {
 		ring := node.ringTrace()
 		if !strings.HasSuffix(ring, "error") && ring != "unstable" && node.getPredecessor() != nil {
 			return true
@@ -73,7 +58,7 @@ func waitRing(as *require.Assertions, node *LocalNode) {
 // it looks like a race condition in macos runner but it is impossible to be a race condition
 // -- famous last words
 func waitRingLong(as *require.Assertions, nodes []*LocalNode) {
-	as.NoError(WaitForCondition(func() bool {
+	as.NoError(testcond.WaitForCondition(func() bool {
 		for _, node := range nodes {
 			if node.getPredecessor() == nil {
 				return false
@@ -83,10 +68,10 @@ func waitRingLong(as *require.Assertions, nodes []*LocalNode) {
 	}, waitInterval, time.Second*5))
 }
 
-func makeRing(as *require.Assertions, num int) ([]*LocalNode, func()) {
+func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
 	for i := 0; i < num; i++ {
-		node := NewLocalNode(devConfig(as))
+		node := NewLocalNode(devConfig(t, as))
 		nodes[i] = node
 	}
 
@@ -151,7 +136,7 @@ func TestMain(m *testing.M) {
 func TestCreate(t *testing.T) {
 	as := require.New(t)
 
-	n1 := NewLocalNode(devConfig(as))
+	n1 := NewLocalNode(devConfig(t, as))
 	n1.Create()
 
 	<-time.After(waitInterval)
@@ -166,11 +151,11 @@ func TestCreate(t *testing.T) {
 func TestJoin(t *testing.T) {
 	as := require.New(t)
 
-	n2 := NewLocalNode(devConfig(as))
+	n2 := NewLocalNode(devConfig(t, as))
 	n2.Create()
 	defer n2.Leave()
 
-	n1 := NewLocalNode(devConfig(as))
+	n1 := NewLocalNode(devConfig(t, as))
 	as.NoError(n1.Join(n2))
 	defer n1.Leave()
 
@@ -187,7 +172,7 @@ func TestRandomNodes(t *testing.T) {
 	as := require.New(t)
 
 	num := 8
-	nodes, done := makeRing(as, num)
+	nodes, done := makeRing(t, as, num)
 	defer done()
 
 	for i := 0; i < num; i++ {
@@ -203,7 +188,7 @@ func TestLotsOfNodes(t *testing.T) {
 	as := require.New(t)
 
 	num := 64
-	nodes, done := makeRing(as, num)
+	nodes, done := makeRing(t, as, num)
 	defer done()
 
 	for i := 0; i < num; i++ {
@@ -215,7 +200,7 @@ func TestLotsOfNodes(t *testing.T) {
 func TestStatsSummaryHandler(t *testing.T) {
 	as := require.New(t)
 
-	node := NewLocalNode(devConfig(as))
+	node := NewLocalNode(devConfig(t, as))
 	as.NoError(node.Create())
 	defer node.Leave()
 
@@ -244,7 +229,7 @@ func TestStatsSummaryHandler(t *testing.T) {
 func TestStatsKeyHandler(t *testing.T) {
 	as := require.New(t)
 
-	node := NewLocalNode(devConfig(as))
+	node := NewLocalNode(devConfig(t, as))
 	as.NoError(node.Create())
 	defer node.Leave()
 

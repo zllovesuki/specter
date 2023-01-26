@@ -15,7 +15,7 @@ func TestHTTPRedirect(t *testing.T) {
 	testPath := "/sup"
 
 	httpListener, httpPort := getTCPListener(as)
-	_, _, _, done := setupGateway(as, httpListener)
+	_, _, _, done := setupGateway(t, as, httpListener)
 	defer done()
 
 	c := getHTTPClient(httpPort)

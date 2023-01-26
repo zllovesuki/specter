@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -160,9 +161,8 @@ func getH3Client(host string, port int) *http.Client {
 	}
 }
 
-func setupGateway(as *require.Assertions, httpListener net.Listener) (udpPort int, tcpPort int, mockS *mocks.TunServer, done func()) {
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listener) (udpPort int, tcpPort int, mockS *mocks.TunServer, done func()) {
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	var q net.PacketConn
 	var h2 net.Listener
@@ -214,7 +214,7 @@ func setupGateway(as *require.Assertions, httpListener net.Listener) (udpPort in
 func TestH2HTTPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -242,7 +242,7 @@ func TestH2HTTPNotFound(t *testing.T) {
 func TestH3HTTPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -270,7 +270,7 @@ func TestH3HTTPNotFound(t *testing.T) {
 func TestHTTPNotConnected(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -328,7 +328,7 @@ func serveMiniClient(as *require.Assertions, ch chan net.Conn, resp string) {
 func TestH1HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -368,7 +368,7 @@ func TestH1HTTPFound(t *testing.T) {
 func TestH2HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -406,7 +406,7 @@ func TestH2HTTPFound(t *testing.T) {
 func TestH3HTTPFound(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -444,7 +444,7 @@ func TestH3HTTPFound(t *testing.T) {
 func TestH2TCPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -482,7 +482,7 @@ func TestH2TCPNotFound(t *testing.T) {
 func TestH3TCPNotFound(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -515,7 +515,7 @@ func TestH3TCPNotFound(t *testing.T) {
 func TestTCPNotConnected(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -548,7 +548,7 @@ func TestTCPNotConnected(t *testing.T) {
 func TestH2TCPFound(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -612,7 +612,7 @@ func TestH2TCPFound(t *testing.T) {
 func TestH3TCPFound(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -671,7 +671,7 @@ func TestH3TCPFound(t *testing.T) {
 func TestH2RejectALPN(t *testing.T) {
 	as := require.New(t)
 
-	_, tcpPort, mockS, done := setupGateway(as, nil)
+	_, tcpPort, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"
@@ -686,7 +686,7 @@ func TestH2RejectALPN(t *testing.T) {
 func TestH3RejectALPN(t *testing.T) {
 	as := require.New(t)
 
-	udpPort, _, mockS, done := setupGateway(as, nil)
+	udpPort, _, mockS, done := setupGateway(t, as, nil)
 	defer done()
 
 	testHost := "hello"

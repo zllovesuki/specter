@@ -13,13 +13,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestRemoteRPCErrors(t *testing.T) {
 	as := require.New(t)
-
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,9 +107,7 @@ func TestRemoteRPCErrors(t *testing.T) {
 
 func TestRemoteRPCContext(t *testing.T) {
 	as := require.New(t)
-
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

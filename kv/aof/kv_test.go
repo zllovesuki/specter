@@ -15,12 +15,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestStartStop(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir, err := os.MkdirTemp("", "aof")
 	as.NoError(err)
@@ -74,8 +74,7 @@ func TestStartStop(t *testing.T) {
 
 func TestEverything(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir, err := os.MkdirTemp("", "aof")
 	as.NoError(err)
@@ -173,8 +172,7 @@ func TestEverything(t *testing.T) {
 
 func TestImportAndRemoveKeys(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir1, err := os.MkdirTemp("", "aof")
 	as.NoError(err)
@@ -266,8 +264,7 @@ func TestImportAndRemoveKeys(t *testing.T) {
 // Lease KV operations are volatile
 func TestVolatile(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir1, err := os.MkdirTemp("", "aof")
 	as.NoError(err)
@@ -304,8 +301,7 @@ func TestVolatile(t *testing.T) {
 
 func TestConflictRollback(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir1, err := os.MkdirTemp("", "aof")
 	as.NoError(err)
@@ -349,8 +345,7 @@ func TestConflictRollback(t *testing.T) {
 
 func TestCorruptedLog(t *testing.T) {
 	as := require.New(t)
-	logger, err := zap.NewDevelopment()
-	as.NoError(err)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	dir1, err := os.MkdirTemp("", "aof")
 	as.NoError(err)

@@ -15,6 +15,7 @@ import (
 
 	"kon.nect.sh/specter/cmd/client"
 	"kon.nect.sh/specter/cmd/server"
+	"kon.nect.sh/specter/util/testcond"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
@@ -147,20 +148,22 @@ func TestTunnel(t *testing.T) {
 		close(serverReturn)
 	}()
 
-	select {
-	case <-serverReturn:
-		as.FailNow("server returned unexpectedly")
-	case <-time.After(time.Second * 2):
-	}
-
-	started := 0
-	serverLogs := sLogs.All()
-	for _, l := range serverLogs {
-		if strings.Contains(l.Message, "server started") {
-			started++
+	as.NoError(testcond.WaitForCondition(func() bool {
+		select {
+		case <-serverReturn:
+			as.FailNow("server returned unexpectedly")
+			return false
+		default:
+			started := 0
+			serverLogs := sLogs.All()
+			for _, l := range serverLogs {
+				if strings.Contains(l.Message, "server started") {
+					started++
+				}
+			}
+			return started == 2
 		}
-	}
-	as.Equal(2, started, "expecting specter and gateway servers started")
+	}, time.Millisecond*100, time.Second*3), "expecting specter and gateway servers started")
 
 	cApp, cLogs := compileApp(client.Cmd)
 	go func() {
@@ -171,39 +174,41 @@ func TestTunnel(t *testing.T) {
 		close(clientReturn)
 	}()
 
-	select {
-	case <-clientReturn:
-		as.FailNow("client returned unexpectedly")
-	case <-time.After(time.Second * 2):
-	}
-
-	hostMap := make(map[string]string)
-	clientLogs := cLogs.All()
-	for _, l := range clientLogs {
-		if !strings.Contains(l.Message, "published") {
-			continue
-		}
-		var hostname string
-		var proto string
-		for _, f := range l.Context {
-			switch f.Key {
-			case "hostname":
-				hostname = f.String
-			case "target":
-				if strings.Contains(f.String, "http") {
-					proto = "http"
+	var hostMap map[string]string
+	as.NoError(testcond.WaitForCondition(func() bool {
+		select {
+		case <-clientReturn:
+			as.FailNow("client returned unexpectedly")
+			return false
+		default:
+			hostMap = make(map[string]string)
+			clientLogs := cLogs.All()
+			for _, l := range clientLogs {
+				if !strings.Contains(l.Message, "published") {
+					continue
 				}
-				if strings.Contains(f.String, "tcp") {
-					proto = "tcp"
+				var hostname string
+				var proto string
+				for _, f := range l.Context {
+					switch f.Key {
+					case "hostname":
+						hostname = f.String
+					case "target":
+						if strings.Contains(f.String, "http") {
+							proto = "http"
+						}
+						if strings.Contains(f.String, "tcp") {
+							proto = "tcp"
+						}
+					}
+				}
+				if hostname != "" && proto != "" {
+					hostMap[proto] = hostname
 				}
 			}
+			return len(hostMap) == 2
 		}
-		if hostname != "" && proto != "" {
-			hostMap[proto] = hostname
-		}
-	}
-
-	as.Equal(2, len(hostMap), "hostname for tunnels not found in client log")
+	}, time.Millisecond*100, time.Second*3), "hostname for tunnels not found in client log")
 
 	t.Logf("Found hostnames %v\n", hostMap)
 

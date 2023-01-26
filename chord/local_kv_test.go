@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/util/testcond"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +32,7 @@ func makeKV(num int, length int) (keys [][]byte, values [][]byte) {
 func TestKVOperation(t *testing.T) {
 	as := require.New(t)
 
-	nodes, done := makeRing(as, 5)
+	nodes, done := makeRing(t, as, 5)
 	defer done()
 
 	key := make([]byte, 16)
@@ -125,7 +126,7 @@ func TestKeyTransferOut(t *testing.T) {
 	as := require.New(t)
 
 	numNodes := 3
-	nodes, done := makeRing(as, numNodes)
+	nodes, done := makeRing(t, as, numNodes)
 	defer done()
 
 	keys, values := makeKV(30, 8)
@@ -181,7 +182,7 @@ func TestKeyTransferOut(t *testing.T) {
 func TestKeyTransferIn(t *testing.T) {
 	as := require.New(t)
 
-	seedCfg := devConfig(as)
+	seedCfg := devConfig(t, as)
 	seedCfg.Identity.Id = chord.MaxIdentitifer / 2 // halfway
 	seed := NewLocalNode(seedCfg)
 	as.NoError(seed.Create())
@@ -195,7 +196,7 @@ func TestKeyTransferIn(t *testing.T) {
 		as.NoError(err)
 	}
 
-	n1Cfg := devConfig(as)
+	n1Cfg := devConfig(t, as)
 	n1Cfg.Identity.Id = chord.MaxIdentitifer / 4 // 1 quarter
 	n1 := NewLocalNode(n1Cfg)
 	as.NoError(n1.Join(seed))
@@ -213,7 +214,7 @@ func TestKeyTransferIn(t *testing.T) {
 
 	fsck(as, []*LocalNode{n1, seed})
 
-	n2Cfg := devConfig(as)
+	n2Cfg := devConfig(t, as)
 	n2Cfg.Identity.Id = (chord.MaxIdentitifer / 4 * 3) // 3 quarter
 	n2 := NewLocalNode(n2Cfg)
 	as.NoError(n2.Join(seed))
@@ -287,7 +288,7 @@ func TestConcurrentJoinKV(t *testing.T) {
 }
 
 func checkRingLong(as *require.Assertions, nodes []*LocalNode) {
-	as.NoError(WaitForCondition(func() bool {
+	as.NoError(testcond.WaitForCondition(func() bool {
 		for _, node := range nodes {
 			if node.getPredecessor() == nil {
 				return false
@@ -325,7 +326,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	// can't use makeRing here as we need to manually control joining
 	nodes := make([]*LocalNode, numNodes)
 	for i := 0; i < numNodes; i++ {
-		node := NewLocalNode(devConfig(as))
+		node := NewLocalNode(devConfig(t, as))
 		nodes[i] = node
 	}
 
@@ -422,7 +423,7 @@ func TestConcurrentLeaveKV(t *testing.T) {
 func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	as := require.New(t)
 
-	nodes, done := makeRing(as, numNodes)
+	nodes, done := makeRing(t, as, numNodes)
 	defer done()
 
 	keys, values := makeKV(numKeys, 64)
