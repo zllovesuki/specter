@@ -105,32 +105,35 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return nil, nil, chord.ErrJoinInvalidState
 	}
 
-	n.predecessorMu.RLock()
-	prevPredecessor := n.predecessor
-	n.predecessorMu.RUnlock()
-
-	var joined bool
-	defer func() {
-		if joined {
-			n.predecessorMu.Lock()
-			if n.predecessor == prevPredecessor {
-				n.predecessor = joiner
-			}
-			n.predecessorMu.Unlock()
-			return
-		}
-		// joiner will unlock, revert upon error
-		n.state.Set(chord.Active)
-	}()
-
-	n.surrogateMu.Lock()
-	defer n.surrogateMu.Unlock()
+	var (
+		prevPredecessor chord.VNode
+		joined          bool
+	)
 
 	// transfer key range to new node, and set surrogate pointer to new node.
 	// paper calls for forwarding but that's too hard
 	// let the caller retries
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
+
+	// TODO: instrument how long it took to grab the lock and the duration it was held for
+	n.predecessorMu.Lock()
+	defer n.predecessorMu.Unlock()
+
+	defer func() {
+		if joined {
+			n.predecessor = joiner
+			return
+		}
+		// joiner will request to transition.
+		// this is the reverting step upon error
+		n.state.Set(chord.Active)
+	}()
+
+	prevPredecessor = n.predecessor
 	if err := n.transferKeysUpward(ctx, prevPredecessor, joiner); err != nil {
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
