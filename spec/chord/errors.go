@@ -13,6 +13,7 @@ var (
 	ErrDuplicateJoinerID    = fmt.Errorf("chord/membership: joining node has duplicate ID as its successor")
 	ErrJoinInvalidState     = fmt.Errorf("chord/membership: node cannot handle join request at the moment")
 	ErrJoinTransferFailure  = fmt.Errorf("chord/membership: failed to transfer keys to joiner node")
+	ErrJoinInvalidSuccessor = fmt.Errorf("chord/membership: join request was routed to the wrong successor node")
 	ErrLeaveInvalidState    = fmt.Errorf("chord/membership: node cannot handle leave request at the moment")
 	ErrLeaveTransferFailure = fmt.Errorf("chord/membership: failed to transfer keys to successor node")
 
@@ -32,7 +33,7 @@ func ErrorIsRetryable(err error) bool {
 	case ErrKVStaleOwnership, ErrKVPendingTransfer,
 		ErrJoinInvalidState, ErrJoinTransferFailure,
 		ErrLeaveInvalidState, ErrLeaveTransferFailure,
-		context.DeadlineExceeded:
+		ErrJoinInvalidSuccessor, context.DeadlineExceeded:
 		return true
 
 	case ErrNodeGone, ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
@@ -65,6 +66,8 @@ func ErrorMapper(err error) error {
 		parsedErr = ErrJoinInvalidState
 	case ErrJoinTransferFailure.Error():
 		parsedErr = ErrJoinTransferFailure
+	case ErrJoinInvalidSuccessor.Error():
+		parsedErr = ErrJoinInvalidSuccessor
 	case ErrLeaveInvalidState.Error():
 		parsedErr = ErrLeaveInvalidState
 	case ErrLeaveTransferFailure.Error():

@@ -79,7 +79,7 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, succ
 		retry.LastErrorOnly(true),
 		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(attempt uint, err error) {
-			n.Logger.Error("Error trying to join ring, retrying", zap.Uint("attempt", attempt), zap.Error(err))
+			n.Logger.Warn("Retrying on join error", zap.Uint("attempt", attempt), zap.Error(err))
 		}),
 	)
 	return
@@ -134,6 +134,12 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	}()
 
 	prevPredecessor = n.predecessor
+
+	// see issue https://github.com/zllovesuki/specter/issues/23
+	if !chord.Between(prevPredecessor.ID(), joiner.ID(), n.ID(), false) {
+		return nil, nil, chord.ErrJoinInvalidSuccessor
+	}
+
 	if err := n.transferKeysUpward(ctx, prevPredecessor, joiner); err != nil {
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
@@ -216,7 +222,7 @@ func (n *LocalNode) Leave() {
 		retry.Delay(n.StablizeInterval*2),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
-			n.Logger.Error("Error trying to leave ring, retrying", zap.Uint("attempt", attempt), zap.Error(err))
+			n.Logger.Warn("Retrying on leave error", zap.Uint("attempt", attempt), zap.Error(err))
 		}),
 	)
 	if err != nil {
