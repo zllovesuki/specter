@@ -102,7 +102,7 @@ func (n *LocalNode) updateSuccessorsList(listHash uint64, succList []chord.VNode
 
 func (n *LocalNode) fixK(k int) (updated bool, err error) {
 	var f chord.VNode
-	next := chord.Modulo(n.ID(), 1<<(k-1))
+	next := chord.ModuloSum(n.ID(), 1<<k)
 	f, err = n.FindSuccessor(next)
 	if err != nil {
 		return
@@ -120,7 +120,7 @@ func (n *LocalNode) fixK(k int) (updated bool, err error) {
 
 func (n *LocalNode) fixFinger() error {
 	fixed := make([]int, 0)
-	for k := 1; k <= chord.MaxFingerEntries; k++ {
+	for k := 0; k < chord.MaxFingerEntries; k++ {
 		changed, err := n.fixK(k)
 		if err != nil {
 			continue

@@ -25,6 +25,8 @@ func (n *LocalNode) Create() error {
 	successors := chord.MakeSuccList(n, []chord.VNode{}, chord.ExtendedSuccessorEntries+1)
 	n.succListHash.Store(n.hash(successors))
 	n.successors.Store(&successors)
+	var self chord.VNode = n
+	n.fingers[0].Store(&self)
 
 	n.startTasks()
 

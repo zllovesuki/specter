@@ -60,7 +60,7 @@ func (n *LocalNode) ringTrace() string {
 	seen := make(map[uint64]bool)
 
 	for {
-		next, err = n.FindSuccessor(chord.Modulo(next.ID(), 1))
+		next, err = n.FindSuccessor(chord.ModuloSum(next.ID(), 1))
 		if err != nil {
 			sb.WriteString(" -> ")
 			sb.WriteString("error")

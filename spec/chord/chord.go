@@ -12,14 +12,14 @@ const (
 	// Also known as L in the second paper
 	ExtendedSuccessorEntries = 3
 
-	MaxIdentitifer uint64 = (1 << MaxFingerEntries) - 1
+	MaxIdentitifer uint64 = 1 << MaxFingerEntries
 )
 
 func Hash(b []byte) uint64 {
 	return wyhash.Sum64(MaxIdentitifer, b) % MaxIdentitifer
 }
 
-func Modulo(x, y uint64) uint64 {
+func ModuloSum(x, y uint64) uint64 {
 	// split (x + y) % m into (x % m + y % m) % m to avoid overflow
 	return (x%MaxIdentitifer + y%MaxIdentitifer) % MaxIdentitifer
 }
