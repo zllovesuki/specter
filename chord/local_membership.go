@@ -3,7 +3,6 @@ package chord
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/avast/retry-go/v4"
 	"kon.nect.sh/specter/spec/chord"
@@ -206,7 +205,7 @@ func (n *LocalNode) Leave() {
 	}
 	defer func() {
 		close(n.stopCh)
-		<-time.After(n.StablizeInterval * 2) // because of ticker in task goroutines, otherwise goleak will yell at us
+		n.stopWg.Wait()
 	}()
 
 	n.Logger.Info("Requesting to leave chord ring")

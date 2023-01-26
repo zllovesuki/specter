@@ -20,6 +20,7 @@ type LocalNode struct {
 	succListHash   *atomic.Uint64                                      // simple hash on the successors to determine if they have changed
 	kv             chord.KVProvider                                    // KV backing implementation
 	lastStabilized *atomic.Time                                        // informational only
+	stopWg         sync.WaitGroup                                      // used to wait for task goroutines to be stopped
 	stopCh         chan struct{}                                       // used to signal task goroutines to stop
 	state          *nodeState                                          // a replacement of LockQueue from the paper
 	fingers        [chord.MaxFingerEntries]atomic.Pointer[chord.VNode] // finger table to provide log(N) optimization
@@ -44,6 +45,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		var emptyNode chord.VNode
 		n.fingers[i].Store(&emptyNode)
 	}
+	n.stopWg.Add(3)
 
 	return n
 }

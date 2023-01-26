@@ -91,7 +91,6 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 		for i := 0; i < num; i++ {
 			nodes[i].Leave()
 		}
-		<-time.After(waitInterval)
 	}
 }
 

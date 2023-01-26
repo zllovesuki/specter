@@ -163,6 +163,7 @@ func (n *LocalNode) periodicStablize() {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping Stablize task")
+			n.stopWg.Done()
 			return
 		default:
 			if err := n.stabilize(false); err != nil {
@@ -178,6 +179,7 @@ func (n *LocalNode) periodicPredecessorCheck() {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping predecessor checking task")
+			n.stopWg.Done()
 			return
 		default:
 			n.checkPredecessor()
@@ -191,6 +193,7 @@ func (n *LocalNode) periodicFixFingers() {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping FixFinger task")
+			n.stopWg.Done()
 			return
 		default:
 			n.fixFinger()
