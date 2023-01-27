@@ -7,7 +7,9 @@ import (
 	"syscall"
 
 	"kon.nect.sh/specter/overlay"
+	rttImpl "kon.nect.sh/specter/rtt"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/client"
 
@@ -15,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *parsedApex) *overlay.QUIC {
+func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *parsedApex, r rtt.Recorder) *overlay.QUIC {
 	clientTLSConf := &tls.Config{
 		ServerName:         apex.host,
 		InsecureSkipVerify: ctx.Bool("insecure"),
@@ -31,7 +33,8 @@ func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, a
 		Endpoint: &protocol.Node{
 			Id: cfg.ClientID,
 		},
-		ClientTLS: clientTLSConf,
+		ClientTLS:   clientTLSConf,
+		RTTRecorder: r,
 	})
 }
 
@@ -48,10 +51,11 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
-	transport := createTransport(ctx, logger, cfg, parsed)
+	transportRTT := rttImpl.NewInstrumentation(20)
+	transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
 	defer transport.Stop()
 
-	c, err := client.NewClient(ctx.Context, logger, transport, cfg)
+	c, err := client.NewClient(ctx.Context, logger, transport, cfg, transportRTT)
 	if err != nil {
 		return err
 	}

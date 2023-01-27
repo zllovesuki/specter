@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -20,8 +21,10 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
 	"kon.nect.sh/specter/util/router"
 
@@ -51,9 +54,10 @@ type Client struct {
 	proxies         *skipmap.StringMap[*httpProxy]
 	connections     *skipmap.Uint64Map[*protocol.Node]
 	tunnelClient    protocol.TunnelService
+	rtt             rtt.Recorder
 }
 
-func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config) (*Client, error) {
+func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config, r rtt.Recorder) (*Client, error) {
 	c := &Client{
 		logger:          logger.With(zap.Uint64("id", t.Identity().GetId())),
 		parentCtx:       ctx,
@@ -63,6 +67,7 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 		proxies:         skipmap.NewString[*httpProxy](),
 		connections:     skipmap.NewUint64[*protocol.Node](),
 		tunnelClient:    rpc.DynamicTunnelClient(ctx, t),
+		rtt:             r,
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
@@ -78,6 +83,10 @@ func (c *Client) Initialize(ctx context.Context) error {
 	if err := c.maintainConnections(ctx); err != nil {
 		return err
 	}
+
+	c.logger.Info("Waiting for RTT measurement...", zap.Duration("max", transport.RTTMeasureInterval))
+	time.Sleep(util.RandomTimeRange(transport.RTTMeasureInterval))
+
 	c.SyncConfigTunnels(ctx)
 	return nil
 }
@@ -220,8 +229,8 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	c.logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
+
 	for _, node := range nodes {
 		err := func() error {
 			if err := c.openRPC(ctx, node); err != nil {
@@ -334,6 +343,28 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	connected := c.getConnectedNodes(ctx)
 	apex := c.rootDomain.Load()
+
+	rttLookup := make(map[string]time.Duration)
+	for _, n := range connected {
+		m := c.rtt.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)
+		if m == nil {
+			continue
+		}
+		rttLookup[rtt.MakeMeasurementKey(n)] = m.Average
+	}
+	sort.SliceStable(connected, func(i, j int) bool {
+		l, lOK := rttLookup[rtt.MakeMeasurementKey(connected[i])]
+		r, rOK := rttLookup[rtt.MakeMeasurementKey(connected[j])]
+		if lOK && !rOK {
+			return true
+		}
+		if !lOK && rOK {
+			return false
+		}
+		return l < r
+	})
+
+	c.logger.Debug("rtt information", zap.String("table", fmt.Sprint(rttLookup)))
 
 	for _, tunnel := range tunnels {
 		if tunnel.Hostname == "" {

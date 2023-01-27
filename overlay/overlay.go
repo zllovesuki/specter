@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
@@ -20,10 +21,11 @@ type nodeConnection struct {
 }
 
 type TransportConfig struct {
-	Logger    *zap.Logger
-	Endpoint  *protocol.Node
-	ServerTLS *tls.Config
-	ClientTLS *tls.Config
+	Logger      *zap.Logger
+	Endpoint    *protocol.Node
+	ServerTLS   *tls.Config
+	ClientTLS   *tls.Config
+	RTTRecorder rtt.Recorder
 }
 
 type QUIC struct {
@@ -35,6 +37,9 @@ type QUIC struct {
 
 	streamChan chan *transport.StreamDelegate
 	dgramChan  chan *transport.DatagramDelegate
+
+	rttChan chan *transport.DatagramDelegate
+	rttMap  *skipmap.StringMap[*skipmap.Uint64Map[int64]]
 
 	TransportConfig
 }

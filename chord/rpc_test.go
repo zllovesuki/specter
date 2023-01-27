@@ -48,6 +48,7 @@ func TestRPC(t *testing.T) {
 		StablizeInterval:         time.Millisecond * 300,
 		PredecessorCheckInterval: time.Millisecond * 500,
 		ChordClient:              client1,
+		NodesRTT:                 new(mocks.Measurement),
 	})
 
 	streamRouter1 := router.NewStreamRouter(logger, t1, nil)
@@ -111,7 +112,7 @@ func TestRPC(t *testing.T) {
 	prevToken, err := caller.Acquire(ctx, []byte("lease"), time.Second)
 	as.NoError(err)
 
-	newToken, err := caller.Renew(ctx, []byte("lease"), time.Second, prevToken)
+	newToken, err := caller.Renew(ctx, []byte("lease"), time.Minute, prevToken)
 	as.NoError(err)
 
 	as.NotEqual(newToken, prevToken)

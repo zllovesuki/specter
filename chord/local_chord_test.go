@@ -19,8 +19,10 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/util/testcond"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
@@ -37,6 +39,8 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 	iden := &protocol.Node{
 		Id: chord.Random(),
 	}
+	m := new(mocks.Measurement)
+	m.On("Snapshot", mock.Anything, mock.Anything).Return(&rtt.Statistics{})
 
 	return NodeConfig{
 		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
@@ -46,6 +50,7 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 		FixFingerInterval:        defaultInterval * 3,
 		StablizeInterval:         defaultInterval * 5,
 		PredecessorCheckInterval: defaultInterval * 7,
+		NodesRTT:                 m,
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
+	"kon.nect.sh/specter/rtt"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
@@ -476,10 +477,12 @@ func cmdServer(ctx *cli.Context) error {
 	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
 	defer chordListener.Close()
 
+	chordRTT := rtt.NewInstrumentation(20)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:    chordLogger,
-		Endpoint:  chordIdentity,
-		ClientTLS: chordTLS,
+		Logger:      chordLogger,
+		Endpoint:    chordIdentity,
+		ClientTLS:   chordTLS,
+		RTTRecorder: chordRTT,
 	})
 	defer chordTransport.Stop()
 
@@ -515,6 +518,7 @@ func cmdServer(ctx *cli.Context) error {
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
+		NodesRTT:                 chordRTT,
 	})
 	defer chordNode.Leave()
 

@@ -50,8 +50,8 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 			if !ok {
 				return nil, fmt.Errorf("keys.ContextNodeKey not found in context")
 			}
-			InjectContextHeader(ctx, r.Header)
-			r.URL.Host = peer.GetAddress() // needed to force dial instead of using http://chord as key
+			SerializeContextHeader(ctx, r.Header)
+			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://chord as key
 			outboundRate.Increment()
 			return ctx, nil
 		},
@@ -96,7 +96,7 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 			if ok {
 				r.Header.Set("authorization", base64.StdEncoding.EncodeToString(token.GetToken()))
 			}
-			r.URL.Host = peer.GetAddress() // needed to force dial instead of using http://tunnel as key
+			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://tunnel as key
 			return ctx, nil
 		},
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/util"
 
 	"github.com/quic-go/quic-go"
@@ -23,6 +24,11 @@ func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
 		cached.quic.CloseWithError(401, "Gone")
 	}
 	q.CloseWithError(401, "Gone")
+
+	t.rttMap.Delete(qKey)
+	if t.RTTRecorder != nil {
+		t.RTTRecorder.Drop(rtt.MakeMeasurementKey(peer))
+	}
 }
 
 // TODO: investigate if reaper is now deprecated

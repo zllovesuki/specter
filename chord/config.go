@@ -7,6 +7,7 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/rtt"
 
 	"go.uber.org/zap"
 )
@@ -16,6 +17,7 @@ type NodeConfig struct {
 	ChordClient              rpc.ChordClient
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
+	NodesRTT                 rtt.Recorder
 	StablizeInterval         time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration
@@ -48,6 +50,9 @@ func (c *NodeConfig) Validate() error {
 	}
 	if c.KVProvider == nil {
 		return errors.New("nil KVProvider")
+	}
+	if c.NodesRTT == nil {
+		return errors.New("nil NodesRTT")
 	}
 	return nil
 }
