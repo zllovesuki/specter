@@ -17,12 +17,11 @@ func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
 	unlock := t.cachedMutex.Lock(qKey)
 	defer unlock()
 
-	cached, loaded := t.cachedConnections.Load(qKey)
-	if !loaded || cached.replaced {
-		return
-	}
 	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
-	t.cachedConnections.Delete(qKey)
+	cached, loaded := t.cachedConnections.LoadAndDelete(qKey)
+	if loaded {
+		cached.quic.CloseWithError(401, "Gone")
+	}
 	q.CloseWithError(401, "Gone")
 }
 

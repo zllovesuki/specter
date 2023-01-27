@@ -351,10 +351,10 @@ func cmdServer(ctx *cli.Context) error {
 	})
 
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
-	tunLogger := logger.With(zap.String("component", "tun"), zap.Uint64("node", tunnelIdentity.GetId()))
+	tunnelLogger := logger.With(zap.String("component", "tunnel"), zap.Uint64("node", tunnelIdentity.GetId()))
+	rpcLogger := logger.With(zap.String("component", "rpc_client"), zap.Uint64("node", tunnelIdentity.GetId()))
 	gwLogger := logger.With(zap.String("component", "gateway"))
 	routerLogger := logger.With(zap.String("component", "router"))
-	rpcLogger := logger.With(zap.String("component", "rpc_client"))
 
 	listenCfg := &net.ListenConfig{}
 
@@ -399,7 +399,7 @@ func cmdServer(ctx *cli.Context) error {
 	defer chordTransport.Stop()
 
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:   tunLogger,
+		Logger:   tunnelLogger,
 		Endpoint: tunnelIdentity,
 	})
 	defer tunnelTransport.Stop()
@@ -468,7 +468,7 @@ func cmdServer(ctx *cli.Context) error {
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
-	tunServer := server.New(tunLogger, chordNode, tunnelTransport, chordTransport, rootDomain)
+	tunServer := server.New(tunnelLogger, chordNode, tunnelTransport, chordTransport, rootDomain)
 	defer tunServer.Stop()
 
 	tunServer.AttachRouter(ctx.Context, streamRouter)

@@ -2,6 +2,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -207,11 +208,9 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 		}
 	case protocol.Connection_FRESH:
 		if loaded {
-			l.Debug("Replacing cached quic connection: this side has cached connection")
-			fresh.replaced = true
-			t.cachedConnections.Store(qKey, fresh)
-			cached.quic.CloseWithError(0, "A new connection is reused")
-			return fresh, false, nil
+			l.Debug("Reusing cached quic connection: this side has cached connection")
+			fresh.quic.CloseWithError(0, "A new connection is reused")
+			return cached, true, nil
 		} else {
 			l.Debug("Caching quic connection: this side has no cached connection")
 			t.cachedConnections.Store(qKey, fresh)
@@ -267,12 +266,18 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 }
 
 func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *protocol.Node, dir direction) {
-	t.Logger.Debug("Starting goroutines to handle streams and datagrams", zap.String("direction", dir.String()), zap.String("key", makeCachedKey(peer)))
+	l := t.Logger.With(
+		zap.String("remote", q.RemoteAddr().String()),
+		zap.String("peer", peer.String()),
+		zap.String("direction", dir.String()),
+		zap.String("key", makeCachedKey(peer)),
+	)
+	l.Debug("Starting goroutines to handle streams and datagrams")
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
 	go func(q quic.Connection) {
 		<-q.Context().Done()
-		t.Logger.Info("Connection with peer closed", zap.Error(q.Context().Err()))
+		l.Info("Connection with peer closed", zap.Error(q.Context().Err()))
 		t.reapPeer(q, peer)
 	}(q)
 }
@@ -320,7 +325,9 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 	for {
 		b, err := q.ReceiveMessage()
 		if err != nil {
-			logger.Error("error receiving datagram", zap.Error(err))
+			if !errors.Is(err, net.ErrClosed) {
+				logger.Error("error receiving datagram", zap.Error(err))
+			}
 			return
 		}
 		data := &protocol.Datagram{}
@@ -346,7 +353,9 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
-			t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
+			if !errors.Is(err, net.ErrClosed) {
+				t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
+			}
 			return
 		}
 		go t.streamHandler(q, stream, peer)
