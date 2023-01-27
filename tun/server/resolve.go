@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"
 )
 
-// TODO: cleanup the retry semantics
 const (
 	kvRetryInterval = time.Second * 2
 )
@@ -21,6 +22,7 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 		Chord: s.chordTransport.Identity(),
 		Tun:   s.tunnelTransport.Identity(),
 	}
+
 	buf, err := identities.MarshalVT()
 	if err != nil {
 		return err
@@ -30,11 +32,22 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 		tun.IdentitiesChordKey(s.chordTransport.Identity()),
 		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
 	}
-	for _, key := range keys {
-		err := s.chord.Put(ctx, []byte(key), buf)
-		if err != nil {
-			return err
+
+	if err := retry.Do(func() error {
+		for _, key := range keys {
+			err := s.chord.Put(ctx, []byte(key), buf)
+			if err != nil {
+				return err
+			}
 		}
+		return nil
+	},
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+		retry.Delay(kvRetryInterval),
+		retry.RetryIf(chord.ErrorIsRetryable),
+	); err != nil {
+		return err
 	}
 
 	s.logger.Info("identities published on chord",
@@ -49,11 +62,22 @@ func (s *Server) unpublishIdentities(ctx context.Context) {
 		tun.IdentitiesChordKey(s.chordTransport.Identity()),
 		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
 	}
-	for _, key := range keys {
-		err := s.chord.Delete(ctx, []byte(key))
-		if err != nil {
-			return
+
+	if err := retry.Do(func() error {
+		for _, key := range keys {
+			err := s.chord.Delete(ctx, []byte(key))
+			if err != nil {
+				return err
+			}
 		}
+		return nil
+	},
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+		retry.Delay(kvRetryInterval),
+		retry.RetryIf(chord.ErrorIsRetryable),
+	); err != nil {
+		s.logger.Error("failed to unpublish identifies on chord", zap.Error(err))
 	}
 
 	s.logger.Info("identities unpublished on chord",

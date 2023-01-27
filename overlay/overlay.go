@@ -14,8 +14,9 @@ import (
 )
 
 type nodeConnection struct {
-	peer *protocol.Node
-	quic quic.EarlyConnection
+	peer      *protocol.Node
+	quic      quic.EarlyConnection
+	direction direction
 }
 
 type TransportConfig struct {

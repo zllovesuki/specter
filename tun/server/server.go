@@ -78,6 +78,7 @@ func (s *Server) MustRegister(ctx context.Context) {
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
+
 	if err := s.publishIdentities(publishCtx); err != nil {
 		s.logger.Panic("publishing identities pair", zap.Error(err))
 	}
@@ -213,5 +214,6 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 func (s *Server) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
+
 	s.unpublishIdentities(ctx)
 }

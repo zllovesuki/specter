@@ -130,6 +130,11 @@ func (m *Connection) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.CacheDirection != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CacheDirection))
+		i--
+		dAtA[i] = 0x18
+	}
 	if m.CacheState != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.CacheState))
 		i--
@@ -194,6 +199,9 @@ func (m *Connection) SizeVT() (n int) {
 	}
 	if m.CacheState != 0 {
 		n += 1 + sov(uint64(m.CacheState))
+	}
+	if m.CacheDirection != 0 {
+		n += 1 + sov(uint64(m.CacheDirection))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -455,6 +463,25 @@ func (m *Connection) UnmarshalVT(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.CacheState |= Connection_State(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CacheDirection", wireType)
+			}
+			m.CacheDirection = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CacheDirection |= Connection_Direction(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

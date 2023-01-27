@@ -192,7 +192,12 @@ func (r *RPC) Call(ctx context.Context, node *protocol.Node, req *protocol.RPC_R
 		retry.LastErrorOnly(true),
 		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(n uint, err error) {
-			r.logger.Warn("Retrying on RPC failure", zap.Uint("attempt", n), zap.Error(err))
+			r.logger.Warn("Retrying on RPC failure",
+				zap.String("kind", req.GetKind().String()),
+				zap.String("peer", node.String()),
+				zap.Uint("attempt", n),
+				zap.Error(err),
+			)
 		}),
 	); err != nil {
 		return nil, err

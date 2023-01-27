@@ -76,7 +76,7 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, succ
 		return joinErr
 	},
 		retry.Attempts(maxAttempts),
-		retry.Delay(n.StablizeInterval*2),
+		retry.Delay(n.StablizeInterval),
 		retry.LastErrorOnly(true),
 		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(attempt uint, err error) {
@@ -220,7 +220,7 @@ func (n *LocalNode) Leave() {
 		return leaveErr
 	},
 		retry.Attempts(maxAttempts),
-		retry.Delay(n.StablizeInterval*2),
+		retry.Delay(n.StablizeInterval),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
 			n.Logger.Warn("Retrying on leave error", zap.Uint("attempt", attempt), zap.Error(err))

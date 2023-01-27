@@ -36,10 +36,7 @@ func kvMiddleware[V any](
 	}
 	if succ.ID() == n.ID() {
 		// maybe we are joining or leaving
-		if !n.surrogateMu.TryRLock() {
-			// this is to avoid caller timing out RPC call
-			return zeroV, chord.ErrKVPendingTransfer
-		}
+		n.surrogateMu.RLock()
 		defer n.surrogateMu.RUnlock()
 		// maybe we are joining or leaving
 		state := n.state.Get()

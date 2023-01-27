@@ -73,6 +73,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 
 	q, err = t.handleOutgoing(ctx, q)
 	if err != nil {
+		t.Logger.Error("outgoing connection reuse error", zap.String("peer", peer.String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -147,22 +148,24 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 		Identity: t.Endpoint,
 	}
 
-	s.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
 	err := rpc.Send(s, negotiation)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("error sending identity: %w", err)
 	}
 	negotiation.Reset()
+
+	s.SetReadDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
 	err = rpc.BoundedReceive(s, negotiation, 1024)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("error receiving identity: %w", err)
 	}
-	s.SetDeadline(time.Time{})
+	s.SetReadDeadline(time.Time{})
 
 	qKey := makeCachedKey(negotiation.GetIdentity())
 	fresh := &nodeConnection{
-		peer: negotiation.GetIdentity(),
-		quic: q,
+		peer:      negotiation.GetIdentity(),
+		quic:      q,
+		direction: dir,
 	}
 
 	if t.Endpoint.GetId() == negotiation.GetIdentity().GetId() {
@@ -172,52 +175,147 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 
 	negotiation.Reset()
 
+	rUnlock := t.cachedMutex.RLock(qKey)
+	cache, cached := t.cachedConnections.Load(qKey)
+	if cached {
+		negotiation.CacheState = protocol.Connection_CACHED
+		if cache.direction == directionIncoming {
+			negotiation.CacheDirection = protocol.Connection_INCOMING
+		} else {
+			negotiation.CacheDirection = protocol.Connection_OUTGOING
+		}
+	} else {
+		negotiation.CacheState = protocol.Connection_FRESH
+		if dir == directionIncoming {
+			negotiation.CacheDirection = protocol.Connection_INCOMING
+		} else {
+			negotiation.CacheDirection = protocol.Connection_OUTGOING
+		}
+	}
+	rUnlock()
+
+	err = rpc.Send(s, negotiation)
+	if err != nil {
+		return nil, false, fmt.Errorf("error sending cache status: %w", err)
+	}
+	negotiation.Reset()
+
+	s.SetReadDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
+	err = rpc.BoundedReceive(s, negotiation, 8)
+	if err != nil {
+		return nil, false, fmt.Errorf("error receiving cache status: %w", err)
+	}
+	s.SetReadDeadline(time.Time{})
+
 	unlock := t.cachedMutex.Lock(qKey)
 	defer unlock()
 
-	cached, loaded := t.cachedConnections.Load(qKey)
-	if loaded {
-		negotiation.CacheState = protocol.Connection_CACHED
-	} else {
-		negotiation.CacheState = protocol.Connection_FRESH
-	}
-
-	s.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.Send(s, negotiation)
-	if err != nil {
-		return nil, false, err
-	}
-	negotiation.Reset()
-	err = rpc.BoundedReceive(s, negotiation, 8)
-	if err != nil {
-		return nil, false, err
-	}
-	s.SetDeadline(time.Time{})
-
-	l := t.Logger.With(zap.String("direction", dir.String()), zap.String("key", qKey))
+	// I really should make a state machine for this
 	switch negotiation.CacheState {
 	case protocol.Connection_CACHED:
-		if loaded {
-			l.Debug("Reusing quic connection: both sides have cached connections")
-			fresh.quic.CloseWithError(0, "A previous connection was reused")
-			return cached, true, nil
-		} else {
-			l.Debug("Caching quic connection: other side has cached connection")
-			t.cachedConnections.Store(qKey, fresh)
-			return fresh, false, nil
+		switch negotiation.CacheDirection {
+		case protocol.Connection_INCOMING:
+			if cached {
+				if cache.direction == directionIncoming {
+					// other: cached incoming
+					//    us: cached incoming
+					return nil, false, fmt.Errorf("invalid state: both peers have cached incoming connections")
+				} else {
+					// other: cached incoming
+					//    us: cached outgoing
+					return cache, true, nil
+				}
+			} else {
+				if dir == directionIncoming {
+					// other: cached incoming
+					//    us:    new incoming
+					return nil, false, fmt.Errorf("invalid state: both peers have incoming connections")
+				} else {
+					// other: cached incoming
+					//    us:    new outgoing
+					return nil, false, fmt.Errorf("invalid state: other peer has cached connection while we are establishing a new outgoing connection")
+				}
+			}
+		case protocol.Connection_OUTGOING:
+			if cached {
+				if cache.direction == directionIncoming {
+					// other: cached outgoing
+					//    us: cached incoming
+					return cache, true, nil
+				} else {
+					// other: cached outgoing
+					//    us: cached outgoing
+					return nil, false, fmt.Errorf("invalid state: both peers have cached outgoing connections")
+				}
+			} else {
+				if dir == directionIncoming {
+					// other: cached outgoing
+					//    us:    new incoming
+					return nil, false, fmt.Errorf("invalid state: other peer has cached connection while we are handling a new incoming connection")
+				} else {
+					// other: cached outgoing
+					//    us:    new outgoing
+					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+				}
+			}
+		default:
+			return nil, false, fmt.Errorf("invalid state: unknown transport cache direction")
 		}
 	case protocol.Connection_FRESH:
-		if loaded {
-			l.Debug("Reusing cached quic connection: this side has cached connection")
-			fresh.quic.CloseWithError(0, "A new connection is reused")
-			return cached, true, nil
-		} else {
-			l.Debug("Caching quic connection: this side has no cached connection")
-			t.cachedConnections.Store(qKey, fresh)
-			return fresh, false, nil
+		switch negotiation.CacheDirection {
+		case protocol.Connection_INCOMING:
+			if cached {
+				if cache.direction == directionIncoming {
+					// other:    new incoming
+					//    us: cached incoming
+					return nil, false, fmt.Errorf("invalid state: both peers have cached incoming connections")
+				} else {
+					// other:    new incoming
+					//    us: cached outgoing
+					return nil, false, fmt.Errorf("invalid state: we have cached connection while peer is handling a new incoming connection")
+				}
+			} else {
+				if dir == directionIncoming {
+					// other:    new incoming
+					//    us:    new incoming
+					return nil, false, fmt.Errorf("invalid state: both peers have incoming connections")
+				} else {
+					// other:    new incoming
+					//    us:    new outgoing
+					t.cachedConnections.Store(qKey, fresh)
+					return fresh, false, nil
+				}
+			}
+		case protocol.Connection_OUTGOING:
+			if cached {
+				if cache.direction == directionIncoming {
+					// other:    new outgoing
+					//    us: cached incoming
+					// it is likely that concurrent reuse was issued by the other peer, therefore they should
+					// try again with the cached connection
+					return nil, false, fmt.Errorf("invalid state: we have cached connection while peer is establishing a new outgoing connection")
+				} else {
+					// other:    new outgoing
+					//    us: cached outgoing
+					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+				}
+			} else {
+				if dir == directionIncoming {
+					// other:    new outgoing
+					//    us:    new incoming
+					t.cachedConnections.Store(qKey, fresh)
+					return fresh, false, nil
+				} else {
+					// other:    new outgoing
+					//    us:    new outgoing
+					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+				}
+			}
+		default:
+			return nil, false, fmt.Errorf("invalid state: unknown transport cache direction")
 		}
 	default:
-		return nil, false, fmt.Errorf("unknown transport cache state")
+		return nil, false, fmt.Errorf("invalid state: unknown transport cache state")
 	}
 }
 
@@ -225,7 +323,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic
 	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
-	stream, err := q.AcceptStream(openCtx)
+	stream, err := q.OpenStreamSync(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +345,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
-	stream, err := q.OpenStreamSync(openCtx)
+	stream, err := q.AcceptStream(openCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +398,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 		go func(prev quic.EarlyConnection) {
 			if _, err := t.handleIncoming(ctx, prev); err != nil {
 				t.Logger.Error("incoming connection reuse error", zap.Error(err))
+				q.CloseWithError(500, "Error handling incoming connection")
 			}
 		}(q)
 	}

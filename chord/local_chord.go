@@ -47,17 +47,18 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	var old chord.VNode
 	var new chord.VNode
 
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
+
 	defer func() {
 		if new == nil {
 			return
 		}
-		n.surrogateMu.Lock()
 		if new.ID() == n.ID() {
 			n.surrogate = nil
 		} else {
 			n.surrogate = new.Identity()
 		}
-		n.surrogateMu.Unlock()
 	}()
 
 	n.predecessorMu.Lock()

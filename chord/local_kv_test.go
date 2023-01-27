@@ -388,6 +388,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval) // used to pace insertions
 		}
 	}()
 
@@ -406,17 +407,8 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	missingIndicies := make([]int, 0)
 	mismatchedIndicies := make([]int, 0)
 	for i := range keys {
-	RETRY:
 		val, err := nodes[0].Get(context.Background(), keys[i])
-		if err != nil {
-			if chord.ErrorIsRetryable(err) {
-				t.Logf("[get] outdated ownership at key %d", i)
-				time.Sleep(defaultInterval)
-				goto RETRY
-			}
-			as.NoError(err)
-			return
-		}
+		as.NoError(err)
 
 		if bytes.Equal(values[i], val) {
 			found++

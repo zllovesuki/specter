@@ -22,6 +22,8 @@ message Datagram {
         UNKNOWN = 0;
         ALIVE = 1;
         DATA = 2;
+        RTT_SYN = 3;
+        RTT_ACK = 4;
     }
 
     Type type = 1;
@@ -30,11 +32,17 @@ message Datagram {
 
 message Connection {
     enum State {
-        UNKNOWN = 0;
+        UNKNOWN_STATE = 0;
         CACHED = 1;
         FRESH = 2;
+    }
+    enum Direction {
+        UNKNOWN_DIRECTION = 0;
+        INCOMING = 1;
+        OUTGOING = 2;
     }
 
     Node identity = 1;
     State cache_state = 2;
+    Direction cache_direction = 3;
 }
