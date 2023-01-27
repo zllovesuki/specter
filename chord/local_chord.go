@@ -129,7 +129,7 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 }
 
 func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
-	for k := chord.MaxFingerEntries - 1; k >= 0; k-- {
+	for k := chord.MaxFingerEntries; k >= 1; k-- {
 		finger := *n.fingers[k].Load()
 		if finger != nil {
 			if !fn(k, finger) {
