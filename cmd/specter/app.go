@@ -68,7 +68,7 @@ func ConfigLogger(ctx *cli.Context) error {
 	ctx.App.Metadata["logger"] = logger
 
 	seed := ctx.Int64("rand")
-	logger.Info("specter: seeding math/rand", zap.Int64("rand", seed), zap.Bool("overriden", ctx.IsSet("rand")))
+	logger.Info("specter: seeding math/rand", zap.Int64("rand", seed), zap.Bool("overridden", ctx.IsSet("rand")))
 	rand.Seed(seed)
 
 	return ConfigApp(ctx)

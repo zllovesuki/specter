@@ -14,7 +14,7 @@ const (
 	Active
 	// Handling join request from another node
 	Transferring
-	// Leaving and transfering keys to successor
+	// Leaving and transferring keys to successor
 	Leaving
 	// No longer an active node
 	Left

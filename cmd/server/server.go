@@ -9,16 +9,17 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
 	"kon.nect.sh/specter/acme/storage"
-	"kon.nect.sh/specter/chord"
+	chordImpl "kon.nect.sh/specter/chord"
 	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
 	"kon.nect.sh/specter/rpc"
-	chordSpec "kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
@@ -38,6 +39,7 @@ import (
 )
 
 func Generate() *cli.Command {
+	ip := util.GetOutboundIP()
 	return &cli.Command{
 		Name:  "server",
 		Usage: "start an specter server on the edge",
@@ -47,6 +49,11 @@ func Generate() *cli.Command {
 	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.`,
 		ArgsUsage: " ",
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "apex",
+				Usage:    "canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
+				Required: true,
+			},
 			&cli.PathFlag{
 				Name:    "cert-dir",
 				Aliases: []string{"cert"},
@@ -61,24 +68,6 @@ func Generate() *cli.Command {
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name: "join",
-				Usage: `a known specter server's advertise address.
-			Absent of this flag will boostrap a new cluster with current node as the seed node`,
-			},
-			&cli.StringFlag{
-				Name:     "apex",
-				Usage:    "canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:        "listen-addr",
-				Aliases:     []string{"listen"},
-				DefaultText: fmt.Sprintf("%s:443", util.GetOutboundIP().String()),
-				Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP.
-			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
-				Required: true,
-			},
-			&cli.StringFlag{
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
 				DefaultText: "same as listen-addr",
@@ -86,9 +75,32 @@ func Generate() *cli.Command {
 			Note that specter will use advertised address to derive its Identity hash.`,
 			},
 			&cli.StringFlag{
+				Name:        "listen-addr",
+				Aliases:     []string{"listen"},
+				DefaultText: fmt.Sprintf("%s:443", ip.String()),
+				Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overriden).
+			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:        "listen-tcp",
+				DefaultText: "same as listen-addr",
+				Usage:       "override the listen address and port for TCP",
+			},
+			&cli.StringFlag{
+				Name:        "listen-udp",
+				DefaultText: "same as listen-addr",
+				Usage:       "override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+			},
+			&cli.StringFlag{
+				Name: "join",
+				Usage: `a known specter server's advertise address.
+			Absent of this flag will boostrap a new cluster with current node as the seed node`,
+			},
+			&cli.StringFlag{
 				Name:        "challenger",
 				DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
-				Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challanges
+				Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challenges
 			Absent of this flag will serve self-signed certificate.
 			Alternatively, you can set API token via the environment variable CF_API_TOKEN`,
 			},
@@ -209,7 +221,7 @@ func configSolver(ctx *cli.Context, logger *zap.Logger) acmez.Solver {
 	}
 }
 
-func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (cipher.CertProvider, error) {
+func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (cipher.CertProvider, error) {
 	rootDomain := ctx.String("apex")
 	if ctx.IsSet("challenger") {
 		kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
@@ -253,7 +265,7 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chordSpec.KV) (
 		magic := certmagic.New(cache, cfg)
 		return &ACMEProvider{
 			Config: magic,
-			InitializeFn: func(kv chordSpec.KV) error {
+			InitializeFn: func(kv chord.KV) error {
 				if err := magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain}); err != nil {
 					logger.Error("error initializing certmagic", zap.Error(err))
 					return err
@@ -288,7 +300,10 @@ func modifyToSentryLogger(logger *zap.Logger, client *sentry.Client) *zap.Logger
 }
 
 func cmdServer(ctx *cli.Context) error {
-	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+	logger, ok := ctx.App.Metadata["logger"].(*zap.Logger)
+	if !ok || logger == nil {
+		return fmt.Errorf("unable to obtain logger from app context")
+	}
 
 	if ctx.IsSet("sentry") {
 		client, err := sentry.NewClient(sentry.ClientOptions{
@@ -304,29 +319,63 @@ func cmdServer(ctx *cli.Context) error {
 		defer logger.Sync()
 	}
 
-	listen := ctx.String("listen-addr")
-	advertise := listen
+	var (
+		listenTcp = ctx.String("listen-addr")
+		listenUdp = ctx.String("listen-addr")
+		advertise = ctx.String("listen-addr")
+	)
+
+	if ctx.IsSet("listen-tcp") {
+		listenTcp = ctx.String("listen-tcp")
+	}
+	tcpHost, tcpPort, err := net.SplitHostPort(listenTcp)
+	if err != nil {
+		return fmt.Errorf("error parsing tcp listen address: %w", err)
+	}
+
+	if ctx.IsSet("listen-udp") {
+		listenUdp = ctx.String("listen-udp")
+	}
+	_, _, err = net.SplitHostPort(listenUdp)
+	if err != nil {
+		return fmt.Errorf("error parsing udp listen address: %w", err)
+	}
+
 	if ctx.IsSet("advertise-addr") {
 		advertise = ctx.String("advertise-addr")
 	}
-
-	listenHost, listenPort, err := net.SplitHostPort(listen)
+	_, advertisePortStr, err := net.SplitHostPort(advertise)
 	if err != nil {
-		return fmt.Errorf("error getting listening port: %w", err)
+		return fmt.Errorf("error parsing advertise address: %w", err)
+	}
+	advertisePort, err := strconv.ParseInt(advertisePortStr, 10, 32)
+	if err != nil {
+		return fmt.Errorf("error parsing advertise port: %w", err)
 	}
 
-	kvProvider, err := aof.New(aof.Config{
-		Logger:        logger.With(zap.String("component", "kv")),
-		HasnFn:        chordSpec.Hash,
-		DataDir:       ctx.String("data-dir"),
-		FlushInterval: time.Second,
-	})
-	if err != nil {
-		return fmt.Errorf("initializing kv storage: %w", err)
-	}
-	defer kvProvider.Stop()
+	listenCfg := &net.ListenConfig{}
 
-	go kvProvider.Start()
+	// TODO: implement SNI proxy so specter can share port with another webserver
+	tcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listenTcp)
+	if err != nil {
+		return fmt.Errorf("error setting up gateway tcp listener: %w", err)
+	}
+	defer tcpListener.Close()
+
+	udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listenUdp)
+	if err != nil {
+		return fmt.Errorf("error setting up gateway udp listener: %w", err)
+	}
+	defer udpListener.Close()
+
+	var httpListener net.Listener
+	if tcpPort == "443" {
+		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:80", tcpHost))
+		if err != nil {
+			return fmt.Errorf("error setting up http (80) listener: %w", err)
+		}
+		defer httpListener.Close()
+	}
 
 	// TODO: make these less dependent on changeable parameters
 	chordName := fmt.Sprintf("chord://%s", advertise)
@@ -335,11 +384,11 @@ func cmdServer(ctx *cli.Context) error {
 	logger.Info("Using advertise addresses as identities", zap.String("chord", chordName), zap.String("tunnel", tunnelName))
 
 	chordIdentity := &protocol.Node{
-		Id:      chordSpec.Hash([]byte(chordName)),
+		Id:      chord.Hash([]byte(chordName)),
 		Address: advertise,
 	}
 	tunnelIdentity := &protocol.Node{
-		Id:      chordSpec.Hash([]byte(tunnelName)),
+		Id:      chord.Hash([]byte(tunnelName)),
 		Address: advertise,
 	}
 
@@ -352,34 +401,9 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
+	rpcLogger := logger.With(zap.String("component", "rpc_client"), zap.Uint64("node", chordIdentity.GetId()))
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
 	tunnelLogger := logger.With(zap.String("component", "tunnel"), zap.Uint64("node", tunnelIdentity.GetId()))
-	rpcLogger := logger.With(zap.String("component", "rpc_client"), zap.Uint64("node", tunnelIdentity.GetId()))
-	gwLogger := logger.With(zap.String("component", "gateway"))
-	routerLogger := logger.With(zap.String("component", "router"))
-
-	listenCfg := &net.ListenConfig{}
-
-	// TODO: implement SNI proxy so specter can share port with another webserver
-	tcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listen)
-	if err != nil {
-		return fmt.Errorf("error setting up gateway tcp listener: %w", err)
-	}
-	defer tcpListener.Close()
-
-	udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listen)
-	if err != nil {
-		return fmt.Errorf("error setting up gateway udp listener: %w", err)
-	}
-	defer udpListener.Close()
-
-	var httpListener net.Listener
-	if listenPort == "443" {
-		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:80", listenHost))
-		if err != nil {
-			return fmt.Errorf("error setting up http (80) listener: %w", err)
-		}
-	}
 
 	alpnMux, err := overlay.NewMux(udpListener)
 	if err != nil {
@@ -406,12 +430,25 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer tunnelTransport.Stop()
 
-	streamRouter := router.NewStreamRouter(routerLogger, chordTransport, tunnelTransport)
+	kvProvider, err := aof.New(aof.Config{
+		Logger:        logger.With(zap.String("component", "kv")),
+		HasnFn:        chord.Hash,
+		DataDir:       ctx.String("data-dir"),
+		FlushInterval: time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("initializing kv storage: %w", err)
+	}
+	defer kvProvider.Stop()
+
+	go kvProvider.Start()
+
+	streamRouter := router.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	go streamRouter.Accept(ctx.Context)
 
 	rpcClient := rpc.NewRPC(ctx.Context, rpcLogger, chordTransport)
 
-	chordNode := chord.NewLocalNode(chord.NodeConfig{
+	chordNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
 		Logger:                   chordLogger,
 		Identity:                 chordIdentity,
 		KVProvider:               kvProvider,
@@ -430,7 +467,7 @@ func cmdServer(ctx *cli.Context) error {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
-		p, err := chord.NewRemoteNode(ctx.Context, chordLogger, rpcClient, &protocol.Node{
+		p, err := chordImpl.NewRemoteNode(ctx.Context, chordLogger, rpcClient, &protocol.Node{
 			Unknown: true,
 			Address: ctx.String("join"),
 		})
@@ -478,17 +515,15 @@ func cmdServer(ctx *cli.Context) error {
 
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
-	// TODO: use advertise?
-	gwPort := gwH2Listener.Addr().(*net.TCPAddr).Port
 	gw := gateway.New(gateway.GatewayConfig{
-		Logger:       gwLogger,
+		Logger:       logger.With(zap.String("component", "gateway")),
 		Tun:          tunServer,
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
 		StatsHandler: chordNode.StatsHandler,
 		RootDomain:   rootDomain,
-		GatewayPort:  gwPort,
+		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),
 		AdminPass:    ctx.String("auth_pass"),
 	})
@@ -511,10 +546,10 @@ func cmdServer(ctx *cli.Context) error {
 
 type ACMEProvider struct {
 	*certmagic.Config
-	InitializeFn func(chordSpec.KV) error
+	InitializeFn func(chord.KV) error
 }
 
-func (a *ACMEProvider) Initialize(node chordSpec.KV) error {
+func (a *ACMEProvider) Initialize(node chord.KV) error {
 	return a.InitializeFn(node)
 }
 

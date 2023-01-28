@@ -145,7 +145,7 @@ func TestKeyTransferOut(t *testing.T) {
 
 	successor := randomNode.getSuccessor()
 	predecessor := randomNode.getPredecessor()
-	t.Logf("precedessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
+	t.Logf("predecessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
 
 	leavingKeys := randomNode.kv.RangeKeys(0, 0)
 

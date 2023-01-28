@@ -33,7 +33,7 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 
 	nodesTable := tablewriter.NewWriter(w)
 	nodesTable.SetHeader([]string{"Where", "ID", "Address"})
-	nodesTable.Append([]string{"Precedessor", fmt.Sprintf("%v", pre.ID()), pre.Identity().GetAddress()})
+	nodesTable.Append([]string{"Predecessor", fmt.Sprintf("%v", pre.ID()), pre.Identity().GetAddress()})
 	nodesTable.Append([]string{"Local", fmt.Sprintf("%v", n.ID()), n.Identity().GetAddress()})
 
 	for _, succ := range succList {

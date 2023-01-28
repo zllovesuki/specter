@@ -292,7 +292,7 @@ func (n *LocalNode) executeLeave() (pre, succ chord.VNode, err error) {
 	defer cancel()
 
 	if err := n.transferKeysDownward(ctx, succ); err != nil {
-		n.Logger.Error("Transfering KV to successor", zap.Uint64("successor", succ.ID()), zap.Error(err))
+		n.Logger.Error("Transferring KV to successor", zap.Uint64("successor", succ.ID()), zap.Error(err))
 		// release held lock and try again
 		n.state.Set(chord.Active)
 		if err := succ.FinishLeave(false, true); err != nil {
