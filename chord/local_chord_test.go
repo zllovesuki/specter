@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -129,6 +131,9 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 }
 
 func TestMain(m *testing.M) {
+	seed := time.Now().Unix()
+	log.Printf(" ========== Using %d as seed in this test ==========\n", seed)
+	rand.Seed(seed)
 	goleak.VerifyTestMain(m)
 }
 

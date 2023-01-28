@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,6 @@ import (
 const (
 	testBody     = "yay"
 	testRespBody = "cool"
-	serverPort   = 21948
 	serverApex   = "dev.con.nect.sh"
 	yamlTemplate = `apex: 127.0.0.1:%d
 tunnels:
@@ -39,12 +39,16 @@ tunnels:
 `
 )
 
+var (
+	serverPorts = []int{21948, 21949, 21950}
+)
+
 type TestWsMsg struct {
 	Message string
 }
 
 func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
-	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+	observedZapCore, observedLogs := observer.New(zap.DebugLevel)
 	observedLogger := zap.New(observedZapCore)
 	return &cli.App{
 		Name: "specter",
@@ -64,13 +68,13 @@ func TestTunnel(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	seed := time.Now().Unix()
+	t.Logf(" ========== Using %d as seed in this test ==========\n", seed)
+	rand.Seed(seed)
+
 	as := require.New(t)
 
-	// ====== SETUP DEPENDENCIES ======
-
-	dir, err := os.MkdirTemp("", "integration")
-	as.NoError(err)
-	defer os.RemoveAll(dir)
+	t.Logf("Creating HTTP server for forwarding target\n")
 
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -96,9 +100,13 @@ func TestTunnel(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
+	t.Logf("Creating TCP server for forwarding target\n")
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	as.NoError(err)
 	defer listener.Close()
+
+	t.Logf("Generating client config\n")
 
 	tcpTarget := listener.Addr().String()
 
@@ -106,25 +114,84 @@ func TestTunnel(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverPort, ts.URL, fmt.Sprintf("tcp://%s", tcpTarget)))
+	_, err = file.WriteString(fmt.Sprintf(yamlTemplate, serverPorts[0], ts.URL, fmt.Sprintf("tcp://%s", tcpTarget)))
 	as.NoError(err)
 	as.NoError(file.Close())
 
-	// ====== START SERVER AND CLIENT ======
+	t.Logf("Starting %d test servers\n", len(serverPorts))
 
-	serverArgs := []string{
-		"specter",
-		"server",
-		"--cert-dir",
-		"../certs",
-		"--data-dir",
-		dir,
-		"--listen",
-		fmt.Sprintf("127.0.0.1:%d", serverPort),
-		"--apex",
-		serverApex,
+	serverArgs := make([][]string, len(serverPorts))
+	for i, port := range serverPorts {
+		dir, err := os.MkdirTemp("", fmt.Sprintf("integration-%d", port))
+		as.NoError(err)
+		defer os.RemoveAll(dir)
+
+		serverArgs[i] = []string{
+			"specter",
+			"server",
+			"--cert-dir",
+			"../certs",
+			"--data-dir",
+			dir,
+			"--listen",
+			fmt.Sprintf("127.0.0.1:%d", port),
+			"--apex",
+			serverApex,
+		}
+
+		if i != 0 {
+			serverArgs[i] = append(serverArgs[i], []string{
+				"--join",
+				fmt.Sprintf("127.0.0.1:%d", serverPorts[0]),
+			}...)
+		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverReturnCtx, serverStopped := context.WithCancel(ctx)
+	defer serverStopped()
+
+	t.Logf("Starting servers\n")
+
+	serverLogs := make([]*observer.ObservedLogs, len(serverPorts))
+	for i, args := range serverArgs {
+		args := args
+		sApp, sLogs := compileApp(server.Cmd)
+		serverLogs[i] = sLogs
+		go func(app *cli.App) {
+			if err := app.RunContext(ctx, args); err != nil {
+				as.NoError(err)
+			}
+			serverStopped()
+		}(sApp)
+	}
+
+	t.Logf("Waiting for servers to be started\n")
+
+	as.NoError(testcond.WaitForCondition(func() bool {
+		select {
+		case <-serverReturnCtx.Done():
+			as.FailNow("server returned unexpectedly")
+			return false
+		default:
+			started := 0
+			for _, sLogs := range serverLogs {
+				serverLogs := sLogs.All()
+				for _, l := range serverLogs {
+					if strings.Contains(l.Message, "server started") {
+						started++
+					}
+				}
+			}
+			return started == (2 * len(serverPorts))
+		}
+	}, time.Millisecond*100, time.Second*3), "expecting specter and gateway servers started")
+
+	t.Logf("Starting client\n")
+
+	clientReturn := make(chan struct{})
 	clientArgs := []string{
 		"specter",
 		"client",
@@ -134,37 +201,6 @@ func TestTunnel(t *testing.T) {
 		file.Name(),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	serverReturn := make(chan struct{})
-	clientReturn := make(chan struct{})
-
-	sApp, sLogs := compileApp(server.Cmd)
-	go func() {
-		if err := sApp.RunContext(ctx, serverArgs); err != nil {
-			as.NoError(err)
-		}
-		close(serverReturn)
-	}()
-
-	as.NoError(testcond.WaitForCondition(func() bool {
-		select {
-		case <-serverReturn:
-			as.FailNow("server returned unexpectedly")
-			return false
-		default:
-			started := 0
-			serverLogs := sLogs.All()
-			for _, l := range serverLogs {
-				if strings.Contains(l.Message, "server started") {
-					started++
-				}
-			}
-			return started == 2
-		}
-	}, time.Millisecond*100, time.Second*3), "expecting specter and gateway servers started")
-
 	cApp, cLogs := compileApp(client.Cmd)
 	go func() {
 		cApp.Metadata["apexOverride"] = serverApex
@@ -173,6 +209,8 @@ func TestTunnel(t *testing.T) {
 		}
 		close(clientReturn)
 	}()
+
+	t.Logf("Waiting for client to publish tunnels\n")
 
 	var hostMap map[string]string
 	as.NoError(testcond.WaitForCondition(func() bool {
@@ -212,121 +250,156 @@ func TestTunnel(t *testing.T) {
 
 	t.Logf("Found hostnames %v\n", hostMap)
 
-	// ====== HTTP TUNNEL VIA TCP ======
+	t.Logf("Start integration test\n")
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostMap["http"], serverPort), nil)
-	as.NoError(err)
+	for _, serverPort := range serverPorts {
+		t.Run(fmt.Sprintf("with %d as endpoint", serverPort), func(t *testing.T) {
+			as := require.New(t)
 
-	cfg := &tls.Config{
-		ServerName:         hostMap["http"],
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"h2"},
-	}
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
-			TLSClientConfig:   cfg,
-			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := &tls.Dialer{
-					Config: cfg,
-				}
-				return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
-			},
-		},
-		Timeout: time.Second * 2,
-	}
-	resp, err := httpClient.Do(req)
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	as.True(resp.ProtoAtLeast(2, 0))
-
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(resp.Body)
-	as.NoError(err)
-	as.Equal(testBody, buf.String())
-
-	// ====== HTTP TUNNEL VIA QUIC ======
-
-	h3Cfg := cfg.Clone()
-	h3Cfg.NextProtos = []string{"h3"}
-	httpClient.Transport = &http3.RoundTripper{
-		TLSClientConfig: h3Cfg,
-		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-			return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
-		},
-	}
-	resp, err = httpClient.Do(req)
-
-	as.NoError(err)
-	defer resp.Body.Close()
-
-	as.True(resp.ProtoAtLeast(2, 0))
-
-	buf.Reset()
-	_, err = buf.ReadFrom(resp.Body)
-	as.NoError(err)
-	as.Equal(testBody, buf.String())
-
-	// ====== WEBSOCKET TUNNEL ======
-
-	wsCfg := cfg.Clone()
-	wsCfg.NextProtos = []string{"http/1.1"}
-	wsDialer := &websocket.Dialer{
-		TLSClientConfig: wsCfg,
-		NetDialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			dialer := &tls.Dialer{
-				Config: wsCfg,
-			}
-			return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
-		},
-	}
-
-	wsConn, _, err := wsDialer.Dial(fmt.Sprintf("wss://%s:%d/ws", hostMap["http"], serverPort), nil)
-	as.NoError(err)
-
-	defer wsConn.Close()
-
-	testMsg := &TestWsMsg{
-		Message: testBody,
-	}
-	as.NoError(wsConn.WriteJSON(testMsg))
-	as.NoError(wsConn.ReadJSON(testMsg))
-	as.Equal(testRespBody, testMsg.Message)
-
-	// ====== TCP TUNNEL ======
-
-	connectArgs := []string{
-		"specter",
-		"client",
-		"--insecure",
-		"connect",
-		fmt.Sprintf("127.0.0.1:%d", serverPort),
-	}
-
-	connectReturn := make(chan struct{})
-
-	xApp, xLogs := compileApp(client.Cmd)
-	go func() {
-		xApp.Metadata["connectOverride"] = hostMap["tcp"]
-		if err := xApp.RunContext(ctx, connectArgs); err != nil {
+			req, err := http.NewRequest("GET", fmt.Sprintf("https://%s:%d/", hostMap["http"], serverPort), nil)
 			as.NoError(err)
-		}
-		close(connectReturn)
-	}()
+			baseCfg := &tls.Config{
+				ServerName:         hostMap["http"],
+				InsecureSkipVerify: true,
+				NextProtos:         []string{"h2"},
+			}
+			httpClient := &http.Client{
+				Timeout: time.Second * 2,
+			}
 
-	select {
-	case <-connectReturn:
-		as.FailNow("connect returned unexpectedly")
-	case <-time.After(time.Second * 3):
-	}
+			t.Run("HTTP over TCP", func(t *testing.T) {
+				as := require.New(t)
 
-	connected := false
-	connectLogs := xLogs.All()
-	for _, l := range connectLogs {
-		if strings.Contains(l.Message, "established") {
-			connected = true
+				cfg := baseCfg.Clone()
+
+				httpClient.Transport = &http.Transport{
+					ForceAttemptHTTP2: true,
+					TLSClientConfig:   cfg,
+					DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+						dialer := &tls.Dialer{
+							Config: cfg,
+						}
+						return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
+					},
+				}
+
+				resp, err := httpClient.Do(req)
+				as.NoError(err)
+				defer resp.Body.Close()
+
+				as.True(resp.ProtoAtLeast(2, 0))
+
+				var buf bytes.Buffer
+				_, err = buf.ReadFrom(resp.Body)
+				as.NoError(err)
+				as.Equal(testBody, buf.String())
+			})
+
+			t.Run("HTTP over QUIC", func(t *testing.T) {
+				as := require.New(t)
+
+				h3Cfg := baseCfg.Clone()
+				h3Cfg.NextProtos = []string{"h3"}
+				httpClient.Transport = &http3.RoundTripper{
+					TLSClientConfig: h3Cfg,
+					Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+						return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
+					},
+				}
+				resp, err := httpClient.Do(req)
+
+				as.NoError(err)
+				defer resp.Body.Close()
+
+				as.True(resp.ProtoAtLeast(2, 0))
+
+				var buf bytes.Buffer
+				_, err = buf.ReadFrom(resp.Body)
+				as.NoError(err)
+				as.Equal(testBody, buf.String())
+			})
+
+			t.Run("WebSocket", func(t *testing.T) {
+				as := require.New(t)
+
+				wsCfg := baseCfg.Clone()
+				wsCfg.NextProtos = []string{"http/1.1"}
+				wsDialer := &websocket.Dialer{
+					TLSClientConfig: wsCfg,
+					NetDialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+						dialer := &tls.Dialer{
+							Config: wsCfg,
+						}
+						return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", serverPort))
+					},
+				}
+
+				wsConn, _, err := wsDialer.Dial(fmt.Sprintf("wss://%s:%d/ws", hostMap["http"], serverPort), nil)
+				as.NoError(err)
+
+				defer wsConn.Close()
+
+				testMsg := &TestWsMsg{
+					Message: testBody,
+				}
+				as.NoError(wsConn.WriteJSON(testMsg))
+				as.NoError(wsConn.ReadJSON(testMsg))
+				as.Equal(testRespBody, testMsg.Message)
+			})
+
+			t.Run("TCP Tunnel", func(t *testing.T) {
+				as := require.New(t)
+
+				connectArgs := []string{
+					"specter",
+					"client",
+					"--insecure",
+					"connect",
+					fmt.Sprintf("127.0.0.1:%d", serverPort),
+				}
+
+				connectReturnCtx, connectReturn := context.WithCancel(ctx)
+				defer connectReturn()
+
+				xApp, xLogs := compileApp(client.Cmd)
+				go func() {
+					xApp.Metadata["connectOverride"] = hostMap["tcp"]
+					if err := xApp.RunContext(ctx, connectArgs); err != nil {
+						as.NoError(err)
+					}
+					connectReturn()
+				}()
+
+				as.NoError(testcond.WaitForCondition(func() bool {
+					select {
+					case <-connectReturnCtx.Done():
+						as.FailNow("connect returned unexpectedly")
+						return false
+					default:
+						connected := false
+						connectLogs := xLogs.All()
+						for _, l := range connectLogs {
+							if strings.Contains(l.Message, "established") {
+								connected = true
+							}
+						}
+						return connected
+					}
+				}, time.Millisecond*100, time.Second*3), "tunnel not connected")
+			})
+		})
+	}
+	for i, port := range serverPorts {
+		logs := serverLogs[i]
+		for _, entry := range logs.All() {
+			t.Logf("%d: %s\n", port, entry.Message)
+			for _, x := range entry.Context {
+				if x.String != "" {
+					t.Logf("     %s: %v\n", x.Key, x.String)
+				} else {
+					t.Logf("     %s: %v\n", x.Key, x.Integer)
+				}
+			}
 		}
 	}
-	as.True(connected, "expecting tunnel established")
 }
