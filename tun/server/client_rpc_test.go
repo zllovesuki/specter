@@ -46,9 +46,9 @@ func makeNodes(num int) []*protocol.Node {
 	return nodes
 }
 
-func makeNodeList() ([]*protocol.Node, []chord.VNode) {
-	nodes := make([]*protocol.Node, chord.ExtendedSuccessorEntries)
-	list := make([]chord.VNode, chord.ExtendedSuccessorEntries)
+func makeNodeList(num int) ([]*protocol.Node, []chord.VNode) {
+	nodes := make([]*protocol.Node, num)
+	list := make([]chord.VNode, num)
 	for i := range nodes {
 		nodes[i] = &protocol.Node{
 			Id: chord.Random(),
@@ -393,7 +393,7 @@ func TestRPCGetNodes(t *testing.T) {
 	node.On("ID").Return(cht.GetId())
 	node.On("Identity").Return(cht)
 
-	nodes, vlist := makeNodeList()
+	nodes, vlist := makeNodeList(chord.ExtendedSuccessorEntries)
 
 	pair := &protocol.IdentitiesPair{
 		Chord: cht,
@@ -553,7 +553,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	nodes, _ := makeNodeList()
+	nodes, _ := makeNodeList(tun.NumRedundantLinks)
 
 	pair := &protocol.IdentitiesPair{
 		Chord: cht,
