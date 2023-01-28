@@ -124,7 +124,6 @@ jobs:
   rolling:
     name: Rolling release
     runs-on: ubuntu-latest
-    if: ${{ always() && contains(join(needs.*.result, ','), 'success') }} #https://github.com/actions/runner/issues/1251#issuecomment-895850408
     needs: [testing, integration]
     permissions:
       contents: write

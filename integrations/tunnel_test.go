@@ -202,8 +202,8 @@ func TestTunnel(t *testing.T) {
 	}
 
 	cApp, cLogs := compileApp(client.Generate())
+	cApp.Metadata["apexOverride"] = serverApex
 	go func() {
-		cApp.Metadata["apexOverride"] = serverApex
 		if err := cApp.RunContext(ctx, clientArgs); err != nil {
 			as.NoError(err)
 		}
@@ -362,8 +362,8 @@ func TestTunnel(t *testing.T) {
 				defer connectReturn()
 
 				xApp, xLogs := compileApp(client.Generate())
+				xApp.Metadata["connectOverride"] = hostMap["tcp"]
 				go func() {
-					xApp.Metadata["connectOverride"] = hostMap["tcp"]
 					if err := xApp.RunContext(ctx, connectArgs); err != nil {
 						as.NoError(err)
 					}
