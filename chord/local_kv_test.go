@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"container/ring"
 	"context"
-	"crypto/rand"
 	"fmt"
-	mathRand "math/rand"
+	"math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -45,11 +44,13 @@ func TestKVOperation(t *testing.T) {
 	for _, local := range nodes {
 		value := make([]byte, 16)
 
-		rand.Read(key)
-		rand.Read(value)
+		_, err := rand.Read(key)
+		as.NoError(err)
+		_, err = rand.Read(value)
+		as.NoError(err)
 
 		// Put
-		err := local.Put(context.Background(), key, value)
+		err = local.Put(context.Background(), key, value)
 		as.NoError(err)
 
 		fsck(as, nodes)
@@ -62,7 +63,8 @@ func TestKVOperation(t *testing.T) {
 		}
 
 		// Overwrite
-		rand.Read(value)
+		_, err = rand.Read(value)
+		as.NoError(err)
 		err = local.Put(context.Background(), key, value)
 		as.NoError(err)
 		for _, remote := range nodes {
@@ -81,7 +83,8 @@ func TestKVOperation(t *testing.T) {
 		}
 
 		// PrefixAppend
-		rand.Read(value)
+		_, err = rand.Read(value)
+		as.NoError(err)
 		err = local.PrefixAppend(context.Background(), key, value)
 		as.NoError(err)
 		err = local.PrefixAppend(context.Background(), key, value)
@@ -140,8 +143,7 @@ func TestKeyTransferOut(t *testing.T) {
 		as.Nil(nodes[0].Put(context.Background(), keys[i], values[i]))
 	}
 
-	mathRand.Seed(time.Now().UnixNano())
-	randomNode := nodes[mathRand.Intn(numNodes)]
+	randomNode := nodes[rand.Intn(numNodes)]
 
 	successor := randomNode.getSuccessor()
 	predecessor := randomNode.getPredecessor()
