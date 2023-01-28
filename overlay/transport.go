@@ -419,12 +419,12 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 		if err != nil {
 			return err
 		}
-		go func(prev quic.EarlyConnection) {
-			if _, err := t.handleIncoming(ctx, prev); err != nil {
-				t.Logger.Error("Incoming connection reuse error", zap.Error(err))
+		go func(q quic.EarlyConnection) {
+			if _, err := t.handleIncoming(ctx, q); err != nil {
+				t.Logger.Error("Incoming connection reuse error", zap.String("endpoint", q.RemoteAddr().String()), zap.Error(err))
 				// TODO: figure out a better way to ensure that the peer received cache status before closing
 				time.Sleep(time.Second)
-				prev.CloseWithError(406, err.Error())
+				q.CloseWithError(406, err.Error())
 			}
 		}(q)
 	}
