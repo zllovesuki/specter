@@ -11,20 +11,26 @@ import (
 )
 
 type LocalNode struct {
-	predecessorMu  sync.RWMutex                                            // simple mutex surrounding operations on predecessor
-	predecessor    chord.VNode                                             // nord's immediate predecessor
-	surrogateMu    sync.RWMutex                                            // advanced mutex surrounding KV requests during Join/Leave
-	surrogate      *protocol.Node                                          // node's previous predecessor, used to guard against outdated KV requests
-	successorsMu   sync.Mutex                                              // advanced mutex surrounding successors during Join/Leave
-	successors     atomic.Pointer[[]chord.VNode]                           // node's immediate successors
-	succListHash   *atomic.Uint64                                          // simple hash on the successors to determine if they have changed
-	kv             chord.KVProvider                                        // KV backing implementation
-	lastStabilized *atomic.Time                                            // informational only
-	stopWg         sync.WaitGroup                                          // used to wait for task goroutines to be stopped
-	stopCh         chan struct{}                                           // used to signal task goroutines to stop
-	state          *nodeState                                              // a replacement of LockQueue from the paper
-	fingers        [chord.MaxFingerEntries + 1]atomic.Pointer[chord.VNode] // finger table to provide log(N) optimization
+	predecessorMu  sync.RWMutex                            // simple mutex surrounding operations on predecessor
+	predecessor    chord.VNode                             // nord's immediate predecessor
+	surrogateMu    sync.RWMutex                            // advanced mutex surrounding KV requests during Join/Leave
+	surrogate      *protocol.Node                          // node's previous predecessor, used to guard against outdated KV requests
+	successorsMu   sync.Mutex                              // advanced mutex surrounding successors during Join/Leave
+	successors     atomic.Pointer[[]chord.VNode]           // node's immediate successors
+	succListHash   *atomic.Uint64                          // simple hash on the successors to determine if they have changed
+	kv             chord.KVProvider                        // KV backing implementation
+	lastStabilized *atomic.Time                            // informational only
+	stopWg         sync.WaitGroup                          // used to wait for task goroutines to be stopped
+	stopCh         chan struct{}                           // used to signal task goroutines to stop
+	state          *nodeState                              // a replacement of LockQueue from the paper
+	fingers        [chord.MaxFingerEntries + 1]fingerEntry // finger table to provide log(N) optimization
 	NodeConfig
+}
+
+type fingerEntry struct {
+	mu    sync.RWMutex
+	node  chord.VNode
+	start uint64
 }
 
 var _ chord.VNode = (*LocalNode)(nil)
@@ -41,9 +47,10 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		lastStabilized: atomic.NewTime(time.Time{}),
 		stopCh:         make(chan struct{}),
 	}
-	for i := range n.fingers {
-		var emptyNode chord.VNode
-		n.fingers[i].Store(&emptyNode)
+	for k := 1; k <= chord.MaxFingerEntries; k++ {
+		entry := &n.fingers[k]
+		entry.node = nil
+		entry.start = chord.ModuloSum(n.ID(), 1<<(k-1))
 	}
 	n.stopWg.Add(3)
 

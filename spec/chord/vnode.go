@@ -15,6 +15,9 @@ type VNode interface {
 	GetSuccessors() ([]VNode, error)
 	GetPredecessor() (VNode, error)
 
+	ClosestPreceedingFinger(key uint64) (VNode, error)
+	UpdateFinger(k int, node VNode) error
+
 	VNodeMembership
 }
 

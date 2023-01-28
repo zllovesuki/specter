@@ -80,7 +80,7 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 
 		id := chord.Hash(key)
 		ownership := ""
-		if !chord.Between(pre.ID(), id, n.ID(), true) {
+		if !chord.BetweenInclusiveHigh(pre.ID(), id, n.ID()) {
 			ownership = "X"
 		}
 		raw := []any{ownership, id, string(key), len(plain), len(children), lease}

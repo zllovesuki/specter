@@ -113,7 +113,7 @@ func kvFsck(kv chord.KVProvider, low, high uint64) bool {
 
 	keys := kv.RangeKeys(0, 0)
 	for _, key := range keys {
-		if !chord.Between(low, chord.Hash(key), high, true) {
+		if !chord.BetweenInclusiveHigh(low, chord.Hash(key), high) {
 			valid = false
 		}
 	}
@@ -192,7 +192,6 @@ func TestKeyTransferIn(t *testing.T) {
 	seed := NewLocalNode(seedCfg)
 	as.NoError(seed.Create())
 	defer seed.Leave()
-	waitRing(as, seed)
 
 	keys, values := makeKV(as, 400, 8)
 
@@ -206,7 +205,6 @@ func TestKeyTransferIn(t *testing.T) {
 	n1 := NewLocalNode(n1Cfg)
 	as.NoError(n1.Join(seed))
 	defer n1.Leave()
-	waitRing(as, n1)
 
 	<-time.After(waitInterval * 2)
 
@@ -224,7 +222,6 @@ func TestKeyTransferIn(t *testing.T) {
 	n2 := NewLocalNode(n2Cfg)
 	as.NoError(n2.Join(seed))
 	defer n2.Leave()
-	waitRing(as, n2)
 
 	keys = n2.kv.RangeKeys(0, 0)
 	as.Greater(len(keys), 0)

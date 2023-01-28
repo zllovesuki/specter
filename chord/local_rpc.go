@@ -107,6 +107,31 @@ func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (
 			Predecessor: pre,
 		}
 
+	case protocol.RPC_CLOSEST_PRECEDING_FINGER:
+		key := req.GetClosestPrecedingFingerRequest().GetKey()
+		f, err := n.ClosestPreceedingFinger(key)
+		if err != nil {
+			return nil, err
+		}
+		resp.ClosestPrecedingFingerResponse = &protocol.ClosestPrecedingFingerResponse{
+			Node: f.Identity(),
+		}
+
+	case protocol.RPC_UPDATE_FINGER:
+		resp.UpdateFingerResponse = &protocol.UpdateFingerResponse{}
+		k := req.GetUpdateFingerRequest().GetK()
+		node := req.GetUpdateFingerRequest().GetNode()
+
+		vnode, err = createRPC(ctx, n.Logger, n.RPCClient, node)
+		if err != nil {
+			return nil, err
+		}
+
+		err = n.UpdateFinger(int(k), vnode)
+		if err != nil {
+			return nil, err
+		}
+
 	case protocol.RPC_MEMBERSHIP_CHANGE:
 		chReq := req.GetMembershipRequest()
 		chResp := &protocol.MembershipChangeResponse{}

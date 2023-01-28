@@ -15,8 +15,12 @@ const (
 	MaxIdentitifer uint64 = 1 << MaxFingerEntries
 )
 
+// func init() {
+// 	rand.Seed(time.Now().Unix())
+// }
+
 func Hash(b []byte) uint64 {
-	return wyhash.Sum64(MaxIdentitifer, b) % MaxIdentitifer
+	return wyhash.Sum64(ExtendedSuccessorEntries, b) % MaxIdentitifer
 }
 
 func ModuloSum(x, y uint64) uint64 {
@@ -28,12 +32,30 @@ func Random() uint64 {
 	return rand.Uint64() % MaxIdentitifer
 }
 
-func Between(low, target, high uint64, inclusive bool) bool {
-	// account for loop around
+// target IN [low, high)
+func BetweenInclusiveLow(low, target, high uint64) bool {
 	if high > low {
-		return (low < target && target < high) || (inclusive && target == high)
+		return (low <= target && target < high)
 	} else {
-		return low < target || target < high || (inclusive && target == high)
+		return (low <= target || target < high)
+	}
+}
+
+// target IN (low, high]
+func BetweenInclusiveHigh(low, target, high uint64) bool {
+	if high > low {
+		return (low < target && target <= high)
+	} else {
+		return (low < target || target <= high)
+	}
+}
+
+// target IN (low, high)
+func BetweenStrict(low, target, high uint64) bool {
+	if high > low {
+		return low < target && target < high
+	} else {
+		return low < target || target < high
 	}
 }
 

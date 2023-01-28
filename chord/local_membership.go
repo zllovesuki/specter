@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/avast/retry-go/v4"
 	"kon.nect.sh/specter/spec/chord"
 
+	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"
 )
 
@@ -24,8 +24,17 @@ func (n *LocalNode) Create() error {
 	successors := chord.MakeSuccList(n, []chord.VNode{}, chord.ExtendedSuccessorEntries+1)
 	n.succListHash.Store(n.hash(successors))
 	n.successors.Store(&successors)
-	var self chord.VNode = n
-	n.fingers[0].Store(&self)
+
+	n.predecessorMu.Lock()
+	n.predecessor = n
+	n.predecessorMu.Unlock()
+
+	for i := 1; i <= chord.MaxFingerEntries; i++ {
+		entry := &n.fingers[i]
+		entry.mu.Lock()
+		entry.node = n
+		entry.mu.Unlock()
+	}
 
 	n.startTasks()
 
@@ -50,6 +59,47 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 	n.predecessorMu.Lock()
 	n.predecessor = predecessor
 	n.predecessorMu.Unlock()
+
+	// n.init_finger_table(n')
+	first := &n.fingers[1]
+	anchor, err := peer.FindSuccessor(first.start)
+	if err != nil {
+		n.state.Set(chord.Inactive)
+		return fmt.Errorf("failed to initialize first entry of finger table: %w", err)
+	}
+	first.mu.Lock()
+	first.node = anchor
+	first.mu.Unlock()
+	for i := 1; i <= chord.MaxFingerEntries-1; i++ {
+		left := &n.fingers[i]
+		right := &n.fingers[i+1]
+		left.mu.RLock()
+		right.mu.Lock()
+		if chord.BetweenInclusiveLow(n.ID(), right.start, left.node.ID()) {
+			right.node = left.node
+			left.mu.RUnlock()
+		} else {
+			left.mu.RUnlock()
+			next, err := peer.FindSuccessor(right.start)
+			if err != nil {
+				right.mu.Unlock()
+				return fmt.Errorf("failed to initialize remaining entries of finger table: %w", err)
+			}
+			right.node = next
+		}
+		right.mu.Unlock()
+	}
+
+	// n.update_others()
+	for i := 1; i <= chord.MaxFingerEntries; i++ {
+		p, _, err := n.findPredecessor(n.ID() - (1 << (i - 1)))
+		if err != nil {
+			return fmt.Errorf("failed to find predecessor of i = %d", i)
+		}
+		if err := p.UpdateFinger(i, n); err != nil {
+			return fmt.Errorf("failed to update finger of i = %d for node %d", i, p.ID())
+		}
+	}
 
 	n.startTasks()
 
@@ -137,7 +187,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	prevPredecessor = n.predecessor
 
 	// see issue https://github.com/zllovesuki/specter/issues/23
-	if !chord.Between(prevPredecessor.ID(), joiner.ID(), n.ID(), false) {
+	if !chord.BetweenInclusiveHigh(prevPredecessor.ID(), joiner.ID(), n.ID()) {
 		return nil, nil, chord.ErrJoinInvalidSuccessor
 	}
 

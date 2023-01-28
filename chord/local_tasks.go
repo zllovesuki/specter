@@ -2,7 +2,6 @@ package chord
 
 import (
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -54,7 +53,7 @@ func (n *LocalNode) stabilize(hasLock bool) error {
 			succList = chord.MakeSuccList(head, newSuccList, chord.ExtendedSuccessorEntries+1)
 			modified = true
 
-			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
+			if newSucc != nil && chord.BetweenStrict(n.ID(), newSucc.ID(), head.ID()) {
 				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
 					succList = chord.MakeSuccList(newSucc, newSuccList, chord.ExtendedSuccessorEntries+1)
@@ -101,38 +100,40 @@ func (n *LocalNode) updateSuccessorsList(listHash uint64, succList []chord.VNode
 }
 
 func (n *LocalNode) fixK(k int) (updated bool, err error) {
-	var f chord.VNode
-	next := chord.ModuloSum(n.ID(), 1<<(k-1))
-	f, err = n.FindSuccessor(next)
-	if err != nil {
-		return
-	}
-	if f == nil {
-		err = fmt.Errorf("no successor found for k = %d", k)
-		return
-	}
-	old := *n.fingers[k].Swap(&f)
-	if old == nil || old.ID() != f.ID() {
-		updated = true
-	}
-	return
+	return false, nil
+	// var f chord.VNode
+	// next := chord.ModuloSum(n.ID(), 1<<(k-1))
+	// f, err = n.FindSuccessor(next)
+	// if err != nil {
+	// 	return
+	// }
+	// if f == nil {
+	// 	err = fmt.Errorf("no successor found for k = %d", k)
+	// 	return
+	// }
+	// old := *n.fingers[k].Swap(&f)
+	// if old == nil || old.ID() != f.ID() {
+	// 	updated = true
+	// }
+	// return
 }
 
 func (n *LocalNode) fixFinger() error {
-	fixed := make([]int, 0)
-	for k := 1; k <= chord.MaxFingerEntries; k++ {
-		changed, err := n.fixK(k)
-		if err != nil {
-			continue
-		}
-		if changed {
-			fixed = append(fixed, k)
-		}
-	}
-	if len(fixed) > 0 {
-		n.Logger.Info("FingerTable entries updated", zap.Ints("fixed", fixed))
-	}
 	return nil
+	// fixed := make([]int, 0)
+	// for k := 1; k <= chord.MaxFingerEntries; k++ {
+	// 	changed, err := n.fixK(k)
+	// 	if err != nil {
+	// 		continue
+	// 	}
+	// 	if changed {
+	// 		fixed = append(fixed, k)
+	// 	}
+	// }
+	// if len(fixed) > 0 {
+	// 	n.Logger.Info("FingerTable entries updated", zap.Ints("fixed", fixed))
+	// }
+	// return nil
 }
 
 func (n *LocalNode) checkPredecessor() error {

@@ -108,7 +108,7 @@ func (m *MemoryKV) RangeKeys(low, high uint64) [][]byte {
 	keys := make([][]byte, 0)
 
 	m.s.Range(func(id uint64, kMap *skipmap.StringMap[*kvValue]) bool {
-		if chord.Between(low, id, high, true) {
+		if chord.BetweenInclusiveHigh(low, id, high) {
 			kMap.Range(func(key string, v *kvValue) bool {
 				if v.isDeleted() {
 					return true

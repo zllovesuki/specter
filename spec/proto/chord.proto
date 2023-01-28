@@ -42,6 +42,20 @@ message GetSuccessorsResponse {
     repeated Node successors = 1;
 }
 
+message ClosestPrecedingFingerRequest {
+    uint64 key = 1;
+}
+
+message ClosestPrecedingFingerResponse {
+    Node node = 1;
+}
+
+message UpdateFingerRequest {
+    int32 k = 1;
+    Node node = 2;
+}
+message UpdateFingerResponse {}
+
 enum MembershipChangeOperation {
     UNKNOWN_CHANGE = 0;
     JOIN_REQUEST = 1;

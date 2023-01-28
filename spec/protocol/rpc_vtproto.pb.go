@@ -122,6 +122,30 @@ func (m *RPC_Request) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0xca
 	}
+	if m.UpdateFingerRequest != nil {
+		size, err := m.UpdateFingerRequest.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0xa2
+	}
+	if m.ClosestPrecedingFingerRequest != nil {
+		size, err := m.ClosestPrecedingFingerRequest.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x9a
+	}
 	if m.GetSuccessorsRequest != nil {
 		size, err := m.GetSuccessorsRequest.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -271,6 +295,30 @@ func (m *RPC_Response) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x2
 		i--
 		dAtA[i] = 0xca
+	}
+	if m.UpdateFingerResponse != nil {
+		size, err := m.UpdateFingerResponse.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0xa2
+	}
+	if m.ClosestPrecedingFingerResponse != nil {
+		size, err := m.ClosestPrecedingFingerResponse.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x9a
 	}
 	if m.GetSuccessorsResponse != nil {
 		size, err := m.GetSuccessorsResponse.MarshalToSizedBufferVT(dAtA[:i])
@@ -481,6 +529,14 @@ func (m *RPC_Request) SizeVT() (n int) {
 		l = m.GetSuccessorsRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
+	if m.ClosestPrecedingFingerRequest != nil {
+		l = m.ClosestPrecedingFingerRequest.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
+	if m.UpdateFingerRequest != nil {
+		l = m.UpdateFingerRequest.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
 	if m.KvRequest != nil {
 		l = m.KvRequest.SizeVT()
 		n += 2 + l + sov(uint64(l))
@@ -531,6 +587,14 @@ func (m *RPC_Response) SizeVT() (n int) {
 	}
 	if m.GetSuccessorsResponse != nil {
 		l = m.GetSuccessorsResponse.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
+	if m.ClosestPrecedingFingerResponse != nil {
+		l = m.ClosestPrecedingFingerResponse.SizeVT()
+		n += 2 + l + sov(uint64(l))
+	}
+	if m.UpdateFingerResponse != nil {
+		l = m.UpdateFingerResponse.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
 	if m.KvResponse != nil {
@@ -947,6 +1011,78 @@ func (m *RPC_Request) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 35:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClosestPrecedingFingerRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ClosestPrecedingFingerRequest == nil {
+				m.ClosestPrecedingFingerRequest = &ClosestPrecedingFingerRequest{}
+			}
+			if err := m.ClosestPrecedingFingerRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 36:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UpdateFingerRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.UpdateFingerRequest == nil {
+				m.UpdateFingerRequest = &UpdateFingerRequest{}
+			}
+			if err := m.UpdateFingerRequest.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		case 41:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field KvRequest", wireType)
@@ -1353,6 +1489,78 @@ func (m *RPC_Response) UnmarshalVT(dAtA []byte) error {
 				m.GetSuccessorsResponse = &GetSuccessorsResponse{}
 			}
 			if err := m.GetSuccessorsResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 35:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClosestPrecedingFingerResponse", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ClosestPrecedingFingerResponse == nil {
+				m.ClosestPrecedingFingerResponse = &ClosestPrecedingFingerResponse{}
+			}
+			if err := m.ClosestPrecedingFingerResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 36:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UpdateFingerResponse", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.UpdateFingerResponse == nil {
+				m.UpdateFingerResponse = &UpdateFingerResponse{}
+			}
+			if err := m.UpdateFingerResponse.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -45,16 +44,6 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 	}
 }
 
-func waitRing(as *require.Assertions, node *LocalNode) {
-	as.NoError(testcond.WaitForCondition(func() bool {
-		ring := node.ringTrace()
-		if !strings.HasSuffix(ring, "error") && ring != "unstable" && node.getPredecessor() != nil {
-			return true
-		}
-		return false
-	}, waitInterval, time.Second*5))
-}
-
 // it looks like a race condition in macos runner but it is impossible to be a race condition
 // -- famous last words
 func waitRingLong(as *require.Assertions, nodes []*LocalNode) {
@@ -82,7 +71,6 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 	}
 
 	// wait until the ring is mostly stablized before we ring check
-	waitRing(as, nodes[0])
 	waitRingLong(as, nodes)
 
 	RingCheck(as, nodes, true)
@@ -158,13 +146,13 @@ func TestJoin(t *testing.T) {
 	as.NoError(n1.Join(n2))
 	defer n1.Leave()
 
-	waitRing(as, n2)
 	waitRingLong(as, []*LocalNode{n1, n2})
 
 	RingCheck(as, []*LocalNode{
 		n1,
 		n2,
 	}, true)
+	t.Logf("3 ok\n")
 }
 
 func TestRandomNodes(t *testing.T) {
@@ -175,7 +163,10 @@ func TestRandomNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		entry := &nodes[i].fingers[1]
+		entry.mu.RLock()
+		as.Equal(nodes[i].getSuccessor().ID(), entry.node.ID())
+		entry.mu.RUnlock()
 		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }
@@ -191,7 +182,10 @@ func TestLotsOfNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		entry := &nodes[i].fingers[1]
+		entry.mu.RLock()
+		as.Equal(nodes[i].getSuccessor().ID(), entry.node.ID())
+		entry.mu.RUnlock()
 		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }

@@ -171,7 +171,23 @@ func (n *VNode) RequestToLeave(leaver chord.VNode) error {
 }
 
 func (n *VNode) FinishLeave(stablize bool, release bool) error {
-	args := n.Called()
+	args := n.Called(stablize, release)
+	e := args.Error(0)
+	return e
+}
+
+func (n *VNode) ClosestPreceedingFinger(key uint64) (chord.VNode, error) {
+	args := n.Called(key)
+	p := args.Get(0)
+	e := args.Error(1)
+	if e != nil {
+		return nil, e
+	}
+	return p.(chord.VNode), nil
+}
+
+func (n *VNode) UpdateFinger(k int, node chord.VNode) error {
+	args := n.Called(k, node)
 	e := args.Error(0)
 	return e
 }

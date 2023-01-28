@@ -80,7 +80,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	}
 
 	if err := old.Ping(); err == nil {
-		if chord.Between(old.ID(), predecessor.ID(), n.ID(), false) {
+		if chord.BetweenStrict(old.ID(), predecessor.ID(), n.ID()) {
 			new = predecessor
 		}
 	} else {
@@ -107,53 +107,98 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 	return (*s)[0]
 }
 
+func (n *LocalNode) findPredecessor(key uint64) (chord.VNode, chord.VNode, error) {
+	var (
+		err         error
+		successors  []chord.VNode
+		predecessor chord.VNode = n
+	)
+	for {
+		successors, err = predecessor.GetSuccessors()
+		if err != nil {
+			return nil, nil, err
+		}
+		if chord.BetweenInclusiveHigh(predecessor.ID(), key, successors[0].ID()) {
+			break
+		}
+		predecessor, err = predecessor.ClosestPreceedingFinger(key)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return predecessor, successors[0], nil
+}
+
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	if err := n.checkNodeState(false); err != nil {
 		return nil, err
 	}
-	pre := n.getPredecessor()
-	if pre != nil && chord.Between(pre.ID(), key, n.ID(), true) {
-		return n, nil
+	// pre := n.getPredecessor()
+	// if pre != nil && chord.BetweenInclusiveHigh(pre.ID(), key, n.ID()) {
+	// 	return n, nil
+	// }
+	// succ := n.getSuccessor()
+	// if succ == nil {
+	// 	return nil, chord.ErrNodeNoSuccessor
+	// }
+	// // immediate successor
+	// if chord.BetweenInclusiveHigh(n.ID(), key, succ.ID()) {
+	// 	return succ, nil
+	// }
+	// // find next in ring according to finger table
+	// closest := n.ClosestPreceedingNode(key)
+	// // contact possibly remote node
+	// return closest.FindSuccessor(key)
+	_, succ, err := n.findPredecessor(key)
+	if err != nil {
+		return nil, err
 	}
-	succ := n.getSuccessor()
 	if succ == nil {
 		return nil, chord.ErrNodeNoSuccessor
 	}
-	// immediate successor
-	if chord.Between(n.ID(), key, succ.ID(), true) {
-		return succ, nil
-	}
-	// find next in ring according to finger table
-	closest := n.closestPreceedingNode(key)
-	// contact possibly remote node
-	return closest.FindSuccessor(key)
+	return succ, nil
 }
 
-func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
-	for k := chord.MaxFingerEntries; k >= 1; k-- {
-		finger := *n.fingers[k].Load()
-		if finger != nil {
-			if !fn(k, finger) {
-				break
-			}
+func (n *LocalNode) ClosestPreceedingFinger(key uint64) (chord.VNode, error) {
+	var (
+		entry     *fingerEntry
+		candidate chord.VNode
+	)
+	for i := chord.MaxFingerEntries; i >= 1; i-- {
+		entry = &n.fingers[i]
+		entry.mu.RLock()
+		if chord.BetweenStrict(n.ID(), entry.node.ID(), key) {
+			candidate = entry.node
+			entry.mu.RUnlock()
+			break
 		}
+		entry.mu.RUnlock()
 	}
+	if candidate != nil {
+		return candidate, nil
+	}
+	return n, nil
 }
 
-func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
-	var finger chord.VNode
-	n.fingerRange(func(_ int, f chord.VNode) bool {
-		if chord.Between(n.ID(), f.ID(), key, false) {
-			finger = f
-			return false
-		}
-		return true
-	})
-	if finger != nil {
-		return finger
+func (n *LocalNode) UpdateFinger(k int, node chord.VNode) error {
+	if k < 1 || k > chord.MaxFingerEntries {
+		return fmt.Errorf("k is out of bound")
 	}
-	// fallback to ourselves
-	return n
+	entry := &n.fingers[k]
+	entry.mu.Lock()
+	if !chord.BetweenInclusiveLow(n.ID(), node.ID(), entry.node.ID()) {
+		entry.mu.Unlock()
+		return nil
+	}
+	entry.node = node
+	entry.mu.Unlock()
+
+	prev := n.getPredecessor()
+	if prev != nil {
+		return prev.UpdateFinger(k, node)
+	}
+
+	return nil
 }
 
 func (n *LocalNode) getSuccessors() []chord.VNode {
@@ -213,7 +258,7 @@ func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, new
 		low = prevPredecessor.ID()
 	}
 
-	if !chord.Between(low, newPredecessor.ID(), n.ID(), false) {
+	if !chord.BetweenStrict(low, newPredecessor.ID(), n.ID()) {
 		n.Logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Uint64("prev", low), zap.Uint64("new", newPredecessor.ID()))
 		return
 	}

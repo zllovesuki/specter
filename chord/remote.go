@@ -195,6 +195,46 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 	return pre, nil
 }
 
+func (n *RemoteNode) ClosestPreceedingFinger(key uint64) (chord.VNode, error) {
+	rResp, err := n.doRequest(n.parentCtx, rpcTimeout, protocol.RPC_CLOSEST_PRECEDING_FINGER, func(rReq *protocol.RPC_Request) {
+		rReq.ClosestPrecedingFingerRequest = &protocol.ClosestPrecedingFingerRequest{
+			Key: key,
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := rResp.GetClosestPrecedingFingerResponse()
+	if resp.GetNode() == nil {
+		return nil, nil
+	}
+
+	if resp.GetNode().GetId() == n.ID() {
+		return n, nil
+	}
+
+	succ, err := createRPC(n.parentCtx, n.logger, n.rpc, resp.GetNode())
+	if err != nil {
+		if !chord.ErrorIsRetryable(err) {
+			n.logger.Error("creating new RemoteNode", zap.String("peer", resp.GetNode().String()), zap.Error(err))
+		}
+		return nil, err
+	}
+
+	return succ, nil
+}
+
+func (n *RemoteNode) UpdateFinger(k int, node chord.VNode) error {
+	_, err := n.doRequest(n.parentCtx, rpcTimeout, protocol.RPC_UPDATE_FINGER, func(rReq *protocol.RPC_Request) {
+		rReq.UpdateFingerRequest = &protocol.UpdateFingerRequest{
+			K:    int32(k),
+			Node: node.Identity(),
+		}
+	})
+	return err
+}
+
 func (n *RemoteNode) Put(ctx context.Context, key, value []byte) error {
 	_, err := n.doRequest(ctx, rpcTimeout, protocol.RPC_KV, func(rReq *protocol.RPC_Request) {
 		rReq.KvRequest = &protocol.KVRequest{

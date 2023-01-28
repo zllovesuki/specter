@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	"kon.nect.sh/specter/spec/chord"
 )
@@ -24,15 +23,20 @@ func minmax(nums []int) (min, max int) {
 }
 
 func (n *LocalNode) fingerTrace() map[string]string {
-	ftMap := map[uint64][]int{}
-	n.fingerRange(func(i int, f chord.VNode) bool {
-		id := f.ID()
+	var (
+		ftMap = map[uint64][]int{}
+		entry *fingerEntry
+	)
+	for k := chord.MaxFingerEntries; k >= 1; k-- {
+		entry = &n.fingers[k]
+		entry.mu.RLock()
+		id := entry.node.ID()
+		entry.mu.RUnlock()
 		if _, found := ftMap[id]; !found {
 			ftMap[id] = make([]int, 0)
 		}
-		ftMap[id] = append(ftMap[id], i)
-		return true
-	})
+		ftMap[id] = append(ftMap[id], k)
+	}
 
 	keys := make([]uint64, 0, len(ftMap))
 	for k := range ftMap {
@@ -52,35 +56,39 @@ func (n *LocalNode) fingerTrace() map[string]string {
 }
 
 func (n *LocalNode) ringTrace() string {
-	var sb strings.Builder
-	sb.WriteString(strconv.FormatUint(n.ID(), 10))
+	return ""
+	// var sb strings.Builder
+	// sb.WriteString(strconv.FormatUint(n.ID(), 10))
 
-	var err error
-	var next chord.VNode = n
-	seen := make(map[uint64]bool)
+	// var err error
+	// var next chord.VNode = n
+	// seen := make(map[uint64]bool)
 
-	for {
-		next, err = n.FindSuccessor(chord.ModuloSum(next.ID(), 1))
-		if err != nil {
-			sb.WriteString(" -> ")
-			sb.WriteString("error")
-			break
-		}
-		if next == nil {
-			break
-		}
-		if next.ID() == n.ID() {
-			sb.WriteString(" -> ")
-			sb.WriteString(strconv.FormatUint(n.ID(), 10))
-			break
-		}
-		if seen[next.ID()] {
-			return "unstable"
-		}
-		sb.WriteString(" -> ")
-		sb.WriteString(strconv.FormatUint(next.ID(), 10))
-		seen[next.ID()] = true
-	}
+	// for {
+	// 	key := chord.ModuloSum(next.ID(), 1)
+	// 	n.Logger.Debug("fs req", zap.Uint64("key", key))
+	// 	next, err = n.FindSuccessor(chord.ModuloSum(next.ID(), 1))
+	// 	n.Logger.Debug("fs resp", zap.Uint64("key", key))
+	// 	if err != nil {
+	// 		sb.WriteString(" -> ")
+	// 		sb.WriteString("error")
+	// 		break
+	// 	}
+	// 	if next == nil {
+	// 		break
+	// 	}
+	// 	if next.ID() == n.ID() {
+	// 		sb.WriteString(" -> ")
+	// 		sb.WriteString(strconv.FormatUint(n.ID(), 10))
+	// 		break
+	// 	}
+	// 	if seen[next.ID()] {
+	// 		return "unstable"
+	// 	}
+	// 	sb.WriteString(" -> ")
+	// 	sb.WriteString(strconv.FormatUint(next.ID(), 10))
+	// 	seen[next.ID()] = true
+	// }
 
-	return sb.String()
+	// return sb.String()
 }

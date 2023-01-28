@@ -44,7 +44,7 @@ func kvMiddleware[V any](
 			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))
 			return zeroV, chord.ErrKVStaleOwnership
 		}
-		if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
+		if n.surrogate != nil && chord.BetweenInclusiveHigh(n.ID(), id, n.surrogate.GetId()) {
 			n.Logger.Debug("KV Ownership moved", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
 			return zeroV, chord.ErrKVStaleOwnership
 		}
