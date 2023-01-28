@@ -7,8 +7,8 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
+	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/quic-go/quic-go"
-	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -27,7 +27,7 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
-	cachedConnections *skipmap.StringMap[*nodeConnection]
+	cachedConnections *xsync.MapOf[string, *nodeConnection]
 	cachedMutex       *atomic.KeyedRWMutex
 
 	started *uberAtomic.Bool

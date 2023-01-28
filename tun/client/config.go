@@ -7,7 +7,7 @@ import (
 
 	"kon.nect.sh/specter/spec/chord"
 
-	"github.com/zhangyunhao116/skipmap"
+	"github.com/puzpuzpuz/xsync/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,7 +18,7 @@ type Tunnel struct {
 }
 
 type Config struct {
-	router   *skipmap.StringMap[*url.URL]
+	router   *xsync.MapOf[string, *url.URL]
 	path     string
 	Apex     string   `yaml:"apex"`
 	ClientID uint64   `yaml:"clientId,omitempty"`
@@ -29,7 +29,7 @@ type Config struct {
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{
 		path:   path,
-		router: skipmap.NewString[*url.URL](),
+		router: xsync.NewMapOf[*url.URL](),
 	}
 	if err := cfg.readFile(); err != nil {
 		return nil, err

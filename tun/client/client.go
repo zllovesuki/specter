@@ -28,6 +28,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/orisano/wyhash"
+	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -48,7 +49,7 @@ type Client struct {
 	syncMu          sync.Mutex
 	config          *Config
 	rootDomain      *atomic.String
-	proxies         *skipmap.StringMap[*httpProxy]
+	proxies         *xsync.MapOf[string, *httpProxy]
 	connections     *skipmap.Uint64Map[*protocol.Node]
 	rpcClient       rpc.RPC
 }
@@ -59,7 +60,7 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 		serverTransport: t,
 		config:          cfg,
 		rootDomain:      atomic.NewString(""),
-		proxies:         skipmap.NewString[*httpProxy](),
+		proxies:         xsync.NewMapOf[*httpProxy](),
 		connections:     skipmap.NewUint64[*protocol.Node](),
 		rpcClient:       rpcImpl.NewRPC(ctx, logger, t),
 	}
@@ -475,7 +476,7 @@ func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
 }
 
 func (c *Client) getProxy(ctx context.Context, hostname string, u *url.URL) *httpProxy {
-	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
+	proxy, loaded := c.proxies.LoadOrCompute(hostname, func() *httpProxy {
 		c.logger.Info("Creating new proxy", zap.String("hostname", hostname))
 
 		proxy := httputil.NewSingleHostReverseProxy(u)
