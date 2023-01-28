@@ -18,6 +18,7 @@ import (
 	"time"
 
 	rpcImpl "kon.nect.sh/specter/rpc"
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -25,6 +26,7 @@ import (
 	"kon.nect.sh/specter/util/acceptor"
 	"kon.nect.sh/specter/util/router"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/orisano/wyhash"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
@@ -97,23 +99,33 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 	return nil
 }
 
-func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (*protocol.ClientResponse, error) {
-	var candidate *protocol.Node
-	c.connections.Range(func(id uint64, node *protocol.Node) bool {
-		candidate = node
-		return false
-	})
-	if candidate == nil {
-		return nil, fmt.Errorf("no rpc candidates available")
-	}
-	resp, err := c.rpcClient.Call(ctx, candidate, &protocol.RPC_Request{
-		Kind:          protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: req,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetClientResponse(), nil
+func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (resp *protocol.ClientResponse, err error) {
+	err = retry.Do(func() error {
+		var candidate *protocol.Node
+		c.connections.Range(func(id uint64, node *protocol.Node) bool {
+			candidate = node
+			return false
+		})
+		if candidate == nil {
+			return fmt.Errorf("no rpc candidates available")
+		}
+		rpcResp, err := c.rpcClient.Call(ctx, candidate, &protocol.RPC_Request{
+			Kind:          protocol.RPC_CLIENT_REQUEST,
+			ClientRequest: req,
+		})
+		if err != nil {
+			return err
+		}
+		resp = rpcResp.GetClientResponse()
+		return nil
+	},
+		retry.Context(ctx),
+		retry.Attempts(2),
+		retry.LastErrorOnly(true),
+		retry.Delay(time.Millisecond*500),
+		retry.RetryIf(chord.ErrorIsRetryable),
+	)
+	return
 }
 
 func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
