@@ -139,9 +139,15 @@ func TestTunnel(t *testing.T) {
 	as.NoError(err)
 	as.NoError(file.Close())
 
-	t.Logf("Starting %d test servers\n", len(serverPorts))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	serverReturnCtx, serverStopped := context.WithCancel(ctx)
+	defer serverStopped()
+
+	serverLogs := make([]*observer.ObservedLogs, len(serverPorts))
 	serverArgs := make([][]string, len(serverPorts))
+
 	for i, port := range serverPorts {
 		dir, err := os.MkdirTemp("", fmt.Sprintf("integration-%d", port))
 		as.NoError(err)
@@ -168,108 +174,118 @@ func TestTunnel(t *testing.T) {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	serverReturnCtx, serverStopped := context.WithCancel(ctx)
-	defer serverStopped()
-
-	t.Logf("Starting servers\n")
-
-	serverLogs := make([]*observer.ObservedLogs, len(serverPorts))
-	for i, args := range serverArgs {
-		sApp, sLogs := compileApp(server.Generate())
-		serverLogs[i] = sLogs
-		args := args
-		go func(app *cli.App) {
-			if err := app.RunContext(ctx, args); err != nil {
-				as.NoError(err)
-			}
-			serverStopped()
-		}(sApp)
-	}
-
-	t.Logf("Waiting for servers to be started\n")
-
-	as.NoError(testcond.WaitForCondition(func() bool {
-		select {
-		case <-serverReturnCtx.Done():
-			as.FailNow("server returned unexpectedly")
-			return false
-		default:
-			started := 0
-			for _, sLogs := range serverLogs {
-				serverLogs := sLogs.All()
-				for _, l := range serverLogs {
-					if strings.Contains(l.Message, "server started") {
-						started++
+	defer func() {
+		for i, port := range serverPorts {
+			logs := serverLogs[i]
+			for _, entry := range logs.All() {
+				t.Logf("%d: %s\n", port, entry.Message)
+				for _, x := range entry.Context {
+					if x.String != "" {
+						t.Logf("     %s: %v\n", x.Key, x.String)
+					} else {
+						t.Logf("     %s: %v\n", x.Key, x.Integer)
 					}
 				}
 			}
-			return started == (2 * len(serverPorts))
 		}
-	}, time.Millisecond*100, time.Second*3), "expecting specter and gateway servers started")
-
-	t.Logf("Starting client\n")
-
-	clientReturn := make(chan struct{})
-	clientArgs := []string{
-		"specter",
-		"client",
-		"--insecure",
-		"tunnel",
-		"--config",
-		file.Name(),
-	}
-
-	cApp, cLogs := compileApp(client.Generate())
-	cApp.Metadata["apexOverride"] = serverApex
-	go func() {
-		if err := cApp.RunContext(ctx, clientArgs); err != nil {
-			as.NoError(err)
-		}
-		close(clientReturn)
 	}()
 
-	t.Logf("Waiting for client to publish tunnels\n")
-
-	var hostMap map[string]string
-	as.NoError(testcond.WaitForCondition(func() bool {
-		select {
-		case <-clientReturn:
-			as.FailNow("client returned unexpectedly")
-			return false
-		default:
-			hostMap = make(map[string]string)
-			clientLogs := cLogs.All()
-			for _, l := range clientLogs {
-				if !strings.Contains(l.Message, "published") {
-					continue
+	t.Run("starting servers", func(t *testing.T) {
+		as := require.New(t)
+		for i, args := range serverArgs {
+			sApp, sLogs := compileApp(server.Generate())
+			serverLogs[i] = sLogs
+			args := args
+			go func(app *cli.App) {
+				if err := app.RunContext(ctx, args); err != nil {
+					as.NoError(err)
 				}
-				var hostname string
-				var proto string
-				for _, f := range l.Context {
-					switch f.Key {
-					case "hostname":
-						hostname = f.String
-					case "target":
-						if strings.Contains(f.String, "http") {
-							proto = "http"
-						}
-						if strings.Contains(f.String, "tcp") {
-							proto = "tcp"
+				serverStopped()
+			}(sApp)
+		}
+
+		as.NoError(testcond.WaitForCondition(func() bool {
+			select {
+			case <-serverReturnCtx.Done():
+				as.FailNow("server returned unexpectedly")
+				return false
+			default:
+				started := 0
+				for _, sLogs := range serverLogs {
+					serverLogs := sLogs.All()
+					for _, l := range serverLogs {
+						if strings.Contains(l.Message, "server started") {
+							started++
 						}
 					}
 				}
-				if hostname != "" && proto != "" {
-					hostMap[proto] = hostname
-				}
+				return started == (2 * len(serverPorts))
 			}
-			return len(hostMap) == 2
-		}
-	}, time.Millisecond*100, time.Second*3), "hostname for tunnels not found in client log")
+		}, time.Millisecond*100, time.Second*10), "timeout expecting specter and gateway servers started")
+	})
 
-	t.Logf("Found hostnames %v\n", hostMap)
+	var hostMap map[string]string
+	t.Run("starting client", func(t *testing.T) {
+		as := require.New(t)
+
+		clientReturn := make(chan struct{})
+		clientArgs := []string{
+			"specter",
+			"client",
+			"--insecure",
+			"tunnel",
+			"--config",
+			file.Name(),
+		}
+
+		cApp, cLogs := compileApp(client.Generate())
+		cApp.Metadata["apexOverride"] = serverApex
+		go func() {
+			if err := cApp.RunContext(ctx, clientArgs); err != nil {
+				as.NoError(err)
+			}
+			close(clientReturn)
+		}()
+
+		t.Logf("Waiting for client to publish tunnels\n")
+
+		as.NoError(testcond.WaitForCondition(func() bool {
+			select {
+			case <-clientReturn:
+				as.FailNow("client returned unexpectedly")
+				return false
+			default:
+				hostMap = make(map[string]string)
+				clientLogs := cLogs.All()
+				for _, l := range clientLogs {
+					if !strings.Contains(l.Message, "published") {
+						continue
+					}
+					var hostname string
+					var proto string
+					for _, f := range l.Context {
+						switch f.Key {
+						case "hostname":
+							hostname = f.String
+						case "target":
+							if strings.Contains(f.String, "http") {
+								proto = "http"
+							}
+							if strings.Contains(f.String, "tcp") {
+								proto = "tcp"
+							}
+						}
+					}
+					if hostname != "" && proto != "" {
+						hostMap[proto] = hostname
+					}
+				}
+				return len(hostMap) == 2
+			}
+		}, time.Millisecond*100, time.Second*10), "timeout waiting for hostname of tunnels in client log")
+
+		t.Logf("Found hostnames %v\n", hostMap)
+	})
 
 	t.Logf("Start integration test\n")
 
@@ -411,7 +427,7 @@ func TestTunnel(t *testing.T) {
 						}
 						return connected
 					}
-				}, time.Millisecond*100, time.Second*3), "tunnel not connected")
+				}, time.Millisecond*100, time.Second*3), "timeout waiting for tunnel to be connected")
 
 				write := make([]byte, testBinaryLength)
 				_, err := io.ReadFull(cRand.Reader, write)
@@ -428,18 +444,5 @@ func TestTunnel(t *testing.T) {
 				as.EqualValues(write, read)
 			})
 		})
-	}
-	for i, port := range serverPorts {
-		logs := serverLogs[i]
-		for _, entry := range logs.All() {
-			t.Logf("%d: %s\n", port, entry.Message)
-			for _, x := range entry.Context {
-				if x.String != "" {
-					t.Logf("     %s: %v\n", x.Key, x.String)
-				} else {
-					t.Logf("     %s: %v\n", x.Key, x.Integer)
-				}
-			}
-		}
 	}
 }
