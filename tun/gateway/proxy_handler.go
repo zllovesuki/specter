@@ -50,6 +50,7 @@ func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, err
 	return g.Tun.Dial(ctx, &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
 		Hostname: hostname,
+		Remote:   g.IdentityGetter().GetAddress(), // include gateway address as placeholder
 	})
 }
 

@@ -31,16 +31,17 @@ type DeadlineReadWriteCloser interface {
 }
 
 type GatewayConfig struct {
-	Tun          tun.Server
-	HTTPListener net.Listener
-	H2Listener   net.Listener
-	H3Listener   quic.EarlyListener
-	Logger       *zap.Logger
-	StatsHandler http.HandlerFunc
-	RootDomain   string
-	AdminUser    string
-	AdminPass    string
-	GatewayPort  int
+	Tun            tun.Server
+	HTTPListener   net.Listener
+	H2Listener     net.Listener
+	H3Listener     quic.EarlyListener
+	Logger         *zap.Logger
+	StatsHandler   http.HandlerFunc
+	IdentityGetter func() *protocol.Node
+	RootDomain     string
+	AdminUser      string
+	AdminPass      string
+	GatewayPort    int
 }
 
 type Gateway struct {
@@ -68,6 +69,13 @@ func getStdLogger(parent *zap.Logger, sub string) *log.Logger {
 }
 
 func New(conf GatewayConfig) *Gateway {
+	if conf.IdentityGetter == nil {
+		conf.IdentityGetter = func() *protocol.Node {
+			return &protocol.Node{
+				Address: conf.H2Listener.Addr().String(),
+			}
+		}
+	}
 	g := &Gateway{
 		GatewayConfig:       conf,
 		httpTunnelAcceptor:  acceptor.NewH2Acceptor(conf.H2Listener),
