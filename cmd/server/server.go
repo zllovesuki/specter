@@ -37,133 +37,135 @@ import (
 	"kon.nect.sh/challenger/cloudflare"
 )
 
-var Cmd = &cli.Command{
-	Name:  "server",
-	Usage: "start an specter server on the edge",
-	Description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum.
+func Generate() *cli.Command {
+	return &cli.Command{
+		Name:  "server",
+		Usage: "start an specter server on the edge",
+		Description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum.
 
 	Specter server provides an internal endpoint on /_internal under apex domain. To enable internal endpoint, provide username and password 
 	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.`,
-	ArgsUsage: " ",
-	Flags: []cli.Flag{
-		&cli.PathFlag{
-			Name:    "cert-dir",
-			Aliases: []string{"cert"},
-			Usage: `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes
+		ArgsUsage: " ",
+		Flags: []cli.Flag{
+			&cli.PathFlag{
+				Name:    "cert-dir",
+				Aliases: []string{"cert"},
+				Usage: `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes
 			Warning: do not use certificates issued by public CA, otherwise anyone can join your specter network`,
-			Required: true,
-		},
-		&cli.PathFlag{
-			Name:     "data-dir",
-			Aliases:  []string{"data"},
-			Usage:    "path to directory that will be used for persisting non-volatile KV data",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name: "join",
-			Usage: `a known specter server's advertise address.
+				Required: true,
+			},
+			&cli.PathFlag{
+				Name:     "data-dir",
+				Aliases:  []string{"data"},
+				Usage:    "path to directory that will be used for persisting non-volatile KV data",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name: "join",
+				Usage: `a known specter server's advertise address.
 			Absent of this flag will boostrap a new cluster with current node as the seed node`,
-		},
-		&cli.StringFlag{
-			Name:     "apex",
-			Usage:    "canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:        "listen-addr",
-			Aliases:     []string{"listen"},
-			DefaultText: fmt.Sprintf("%s:443", util.GetOutboundIP().String()),
-			Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP.
+			},
+			&cli.StringFlag{
+				Name:     "apex",
+				Usage:    "canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:        "listen-addr",
+				Aliases:     []string{"listen"},
+				DefaultText: fmt.Sprintf("%s:443", util.GetOutboundIP().String()),
+				Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP.
 			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:        "advertise-addr",
-			Aliases:     []string{"advertise"},
-			DefaultText: "same as listen-addr",
-			Usage: `address and port to advertise to specter servers and clients to connect to.
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:        "advertise-addr",
+				Aliases:     []string{"advertise"},
+				DefaultText: "same as listen-addr",
+				Usage: `address and port to advertise to specter servers and clients to connect to.
 			Note that specter will use advertised address to derive its Identity hash.`,
-		},
-		&cli.StringFlag{
-			Name:        "challenger",
-			DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
-			Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challanges
+			},
+			&cli.StringFlag{
+				Name:        "challenger",
+				DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
+				Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challanges
 			Absent of this flag will serve self-signed certificate.
 			Alternatively, you can set API token via the environment variable CF_API_TOKEN`,
-		},
-		&cli.StringFlag{
-			Name:        "sentry",
-			DefaultText: "https://public@sentry.example.com/1",
-			Usage:       "sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
-			EnvVars:     []string{"SENTRY_DSN"},
-		},
+			},
+			&cli.StringFlag{
+				Name:        "sentry",
+				DefaultText: "https://public@sentry.example.com/1",
+				Usage:       "sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
+				EnvVars:     []string{"SENTRY_DSN"},
+			},
 
-		// used for acme setup internally
-		&cli.StringFlag{
-			Name:   "email",
-			Hidden: true,
+			// used for acme setup internally
+			&cli.StringFlag{
+				Name:   "email",
+				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:    "cf_token",
+				Hidden:  true,
+				EnvVars: []string{"CF_API_TOKEN"},
+			},
+			&cli.StringFlag{
+				Name:   "cf_zone",
+				Hidden: true,
+			},
+			&cli.StringFlag{
+				Name:    "auth_user",
+				Hidden:  true,
+				EnvVars: []string{"INTERNAL_USER"},
+			},
+			&cli.StringFlag{
+				Name:    "auth_pass",
+				Hidden:  true,
+				EnvVars: []string{"INTERNAL_PASS"},
+			},
 		},
-		&cli.StringFlag{
-			Name:    "cf_token",
-			Hidden:  true,
-			EnvVars: []string{"CF_API_TOKEN"},
-		},
-		&cli.StringFlag{
-			Name:   "cf_zone",
-			Hidden: true,
-		},
-		&cli.StringFlag{
-			Name:    "auth_user",
-			Hidden:  true,
-			EnvVars: []string{"INTERNAL_USER"},
-		},
-		&cli.StringFlag{
-			Name:    "auth_pass",
-			Hidden:  true,
-			EnvVars: []string{"INTERNAL_PASS"},
-		},
-	},
-	Before: func(ctx *cli.Context) error {
-		if ctx.IsSet("challenger") {
-			parse, err := url.Parse(ctx.String("challenger"))
-			if err != nil {
-				return fmt.Errorf("error parsing challenger uri: %w", err)
-			}
-			email := parse.User.Username()
-			if email == "" {
-				return fmt.Errorf("missing email address")
-			}
-			if !ctx.IsSet("cf_token") {
-				cf, ok := parse.User.Password()
-				if !ok {
-					return fmt.Errorf("missing cloudflare api token")
+		Before: func(ctx *cli.Context) error {
+			if ctx.IsSet("challenger") {
+				parse, err := url.Parse(ctx.String("challenger"))
+				if err != nil {
+					return fmt.Errorf("error parsing challenger uri: %w", err)
 				}
-				ctx.Set("cf_token", cf)
-			}
-			hosted := parse.Hostname()
-			if hosted == "" {
-				return fmt.Errorf("missing hosted zone")
-			}
+				email := parse.User.Username()
+				if email == "" {
+					return fmt.Errorf("missing email address")
+				}
+				if !ctx.IsSet("cf_token") {
+					cf, ok := parse.User.Password()
+					if !ok {
+						return fmt.Errorf("missing cloudflare api token")
+					}
+					ctx.Set("cf_token", cf)
+				}
+				hosted := parse.Hostname()
+				if hosted == "" {
+					return fmt.Errorf("missing hosted zone")
+				}
 
-			ctx.Set("email", email)
-			ctx.Set("cf_zone", hosted)
+				ctx.Set("email", email)
+				ctx.Set("cf_zone", hosted)
 
-			if ds.IsDev(cipher.CertCA) {
-				return nil
-			} else {
-				p := &cloudflare.Provider{
-					APIToken: ctx.String("cf_token"),
-					RootZone: hosted,
+				if ds.IsDev(cipher.CertCA) {
+					return nil
+				} else {
+					p := &cloudflare.Provider{
+						APIToken: ctx.String("cf_token"),
+						RootZone: hosted,
+					}
+					if err := p.Validate(); err != nil {
+						return fmt.Errorf("error validating zone on cloudflare: %w", err)
+					}
+					return nil
 				}
-				if err := p.Validate(); err != nil {
-					return fmt.Errorf("error validating zone on cloudflare: %w", err)
-				}
-				return nil
 			}
-		}
-		return nil
-	},
-	Action: cmdServer,
+			return nil
+		},
+		Action: cmdServer,
+	}
 }
 
 type certBundle struct {

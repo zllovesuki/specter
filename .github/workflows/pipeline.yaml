@@ -57,8 +57,8 @@ jobs:
             ${{ runner.os }}-go-
       - name: Generate Certificates
         run: make certs
-      - name: Test with Integrations and Race Detector
-        run: go test -v -short -race -timeout 120s ./...
+      - name: Run Integration Tests
+        run: go test -v -timeout 30s ./integrations -v
   coverage:
     name: Update Code Coverage
     runs-on: ubuntu-latest

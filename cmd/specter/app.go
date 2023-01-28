@@ -40,8 +40,8 @@ var (
 			},
 		},
 		Commands: []*cli.Command{
-			server.Cmd,
-			client.Cmd,
+			server.Generate(),
+			client.Generate(),
 		},
 		Before: ConfigLogger,
 	}

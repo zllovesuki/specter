@@ -157,9 +157,9 @@ func TestTunnel(t *testing.T) {
 
 	serverLogs := make([]*observer.ObservedLogs, len(serverPorts))
 	for i, args := range serverArgs {
-		args := args
-		sApp, sLogs := compileApp(server.Cmd)
+		sApp, sLogs := compileApp(server.Generate())
 		serverLogs[i] = sLogs
+		args := args
 		go func(app *cli.App) {
 			if err := app.RunContext(ctx, args); err != nil {
 				as.NoError(err)
@@ -201,7 +201,7 @@ func TestTunnel(t *testing.T) {
 		file.Name(),
 	}
 
-	cApp, cLogs := compileApp(client.Cmd)
+	cApp, cLogs := compileApp(client.Generate())
 	go func() {
 		cApp.Metadata["apexOverride"] = serverApex
 		if err := cApp.RunContext(ctx, clientArgs); err != nil {
@@ -361,7 +361,7 @@ func TestTunnel(t *testing.T) {
 				connectReturnCtx, connectReturn := context.WithCancel(ctx)
 				defer connectReturn()
 
-				xApp, xLogs := compileApp(client.Cmd)
+				xApp, xLogs := compileApp(client.Generate())
 				go func() {
 					xApp.Metadata["connectOverride"] = hostMap["tcp"]
 					if err := xApp.RunContext(ctx, connectArgs); err != nil {
