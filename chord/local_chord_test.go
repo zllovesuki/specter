@@ -89,7 +89,7 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 	waitRing(as, nodes[0])
 	waitRingLong(as, nodes)
 
-	RingCheck(as, nodes, true)
+	RingCheck(t, as, nodes, true)
 
 	return nodes, func() {
 		for i := 0; i < num; i++ {
@@ -99,7 +99,7 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 }
 
 // should not be called after any of the nodes stopped
-func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
+func RingCheck(t *testing.T, as *require.Assertions, nodes []*LocalNode, counter bool) {
 	if len(nodes) == 0 {
 		return
 	}
@@ -108,7 +108,7 @@ func RingCheck(as *require.Assertions, nodes []*LocalNode, counter bool) {
 		as.NotNil(node.getSuccessor())
 	}
 
-	fmt.Printf("Ring: %s\n", nodes[0].ringTrace())
+	t.Logf("Ring: %s\n", nodes[0].ringTrace())
 
 	if len(nodes) == 1 {
 		as.Equal(nodes[0].ID(), nodes[0].getPredecessor().ID())
@@ -162,7 +162,7 @@ func TestCreate(t *testing.T) {
 
 	<-time.After(waitInterval)
 
-	RingCheck(as, []*LocalNode{n1}, true)
+	RingCheck(t, as, []*LocalNode{n1}, true)
 }
 
 func TestJoin(t *testing.T) {
@@ -179,7 +179,7 @@ func TestJoin(t *testing.T) {
 	waitRing(as, n2)
 	waitRingLong(as, []*LocalNode{n1, n2})
 
-	RingCheck(as, []*LocalNode{
+	RingCheck(t, as, []*LocalNode{
 		n1,
 		n2,
 	}, true)
