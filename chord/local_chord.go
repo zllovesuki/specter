@@ -103,6 +103,9 @@ func (n *LocalNode) getSuccessor() chord.VNode {
 	t := n.successorsMu.RLock()
 	s := n.successors
 	n.successorsMu.RUnlock(t)
+	if len(s) == 0 {
+		return nil
+	}
 	return s[0]
 }
 
