@@ -34,23 +34,46 @@ func kvMiddleware[V any](
 	default:
 		return zeroV, err
 	}
-	if succ.ID() == n.ID() {
-		// maybe we are joining or leaving
-		n.surrogateMu.RLock()
-		defer n.surrogateMu.RUnlock()
-		// maybe we are joining or leaving
-		state := n.state.Get()
-		if state != chord.Active {
-			n.Logger.Debug("KV Handler node is not in active state", zap.String("key", string(key)), zap.Uint64("id", id), zap.String("state", state.String()))
-			return zeroV, chord.ErrKVStaleOwnership
-		}
-		if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
-			n.Logger.Debug("KV Ownership moved", zap.String("key", string(key)), zap.Uint64("id", id), zap.Uint64("surrogate", n.surrogate.GetId()))
-			return zeroV, chord.ErrKVStaleOwnership
-		}
-		return handler(ctx, n.kv, targetLocal, id)
+
+	if succ.ID() != n.ID() {
+		// remote KV
+		return handler(ctx, succ, targetRemote, id)
 	}
-	return handler(ctx, succ, targetRemote, id)
+
+	// local KV
+	n.surrogateMu.RLock()
+	defer n.surrogateMu.RUnlock()
+
+	n.predecessorMu.RLock()
+	defer n.predecessorMu.RUnlock()
+
+	var (
+		surrogate = n.surrogate
+		pre       = n.predecessor
+		l         = n.Logger.With(
+			zap.String("key", string(key)),
+			zap.Uint64("id", id),
+			zap.Uint64("predecessor", pre.ID()),
+			zap.Uint64("surrogate", surrogate.GetId()),
+		)
+	)
+
+	// maybe we are joining or leaving
+	state := n.state.Get()
+	if state != chord.Active {
+		l.Debug("KV Handler node is not in active state", zap.String("state", state.String()))
+		return zeroV, chord.ErrKVStaleOwnership
+	}
+	if surrogate != nil && chord.Between(n.ID(), id, surrogate.GetId(), true) {
+		l.Debug("KV Ownership moved")
+		return zeroV, chord.ErrKVStaleOwnership
+	}
+	if pre != nil && !chord.Between(pre.ID(), id, n.ID(), true) {
+		l.Debug("Key not in range")
+		return zeroV, chord.ErrKVStaleOwnership
+	}
+
+	return handler(ctx, n.kv, targetLocal, id)
 }
 
 func (n *LocalNode) Put(ctx context.Context, key, value []byte) error {

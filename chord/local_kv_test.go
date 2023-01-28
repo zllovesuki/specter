@@ -445,8 +445,21 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	for i := numNodes - 1; i >= 0; i-- {
 		nodes[i].Leave()
 	}
+
+	lostIndicies := make([]int, 0)
 	k := nodes[0].kv.RangeKeys(0, 0)
-	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
+	if len(k) != numKeys {
+		for i := range keys {
+			val, err := nodes[0].kv.Get(context.Background(), keys[i])
+			as.NoError(err)
+
+			if !bytes.Equal(values[i], val) {
+				lostIndicies = append(lostIndicies, i)
+			}
+		}
+	}
+	t.Logf("lost indicies: %+v\n", lostIndicies)
+	as.Equal(0, len(lostIndicies), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndicies))
 }
 
 func TestConcurrentLeaveKV(t *testing.T) {
@@ -554,6 +567,18 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
 
+	lostIndicies := make([]int, 0)
 	k := nodes[0].kv.RangeKeys(0, 0)
-	as.Equal(numKeys, len(k), "expect %d keys to be found on the remaining node, but only %d keys found", numKeys, len(k))
+	if len(k) != numKeys {
+		for i := range keys {
+			val, err := nodes[0].kv.Get(context.Background(), keys[i])
+			as.NoError(err)
+
+			if !bytes.Equal(values[i], val) {
+				lostIndicies = append(lostIndicies, i)
+			}
+		}
+	}
+	t.Logf("lost indicies: %+v\n", lostIndicies)
+	as.Equal(0, len(lostIndicies), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndicies))
 }

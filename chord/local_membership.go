@@ -107,7 +107,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return succ.RequestToJoin(joiner)
 	}
 
-	n.Logger.Info("incoming join request", zap.Uint64("joiner", joiner.ID()))
+	n.Logger.Info("Incoming join request", zap.Uint64("joiner", joiner.ID()))
 
 	// change status to transferring (if allowed)
 	if !n.state.Transition(chord.Active, chord.Transferring) {
