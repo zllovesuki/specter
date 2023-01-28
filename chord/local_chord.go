@@ -100,9 +100,9 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 }
 
 func (n *LocalNode) getSuccessor() chord.VNode {
-	t := n.successorsMu.RLock()
+	n.successorsMu.RLock()
 	s := n.successors
-	n.successorsMu.RUnlock(t)
+	n.successorsMu.RUnlock()
 	if len(s) == 0 {
 		return nil
 	}
@@ -164,9 +164,9 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) getSuccessors() []chord.VNode {
-	t := n.successorsMu.RLock()
+	n.successorsMu.RLock()
 	s := n.successors
-	n.successorsMu.RUnlock(t)
+	n.successorsMu.RUnlock()
 
 	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries)
 
@@ -189,9 +189,9 @@ func (n *LocalNode) GetSuccessors() ([]chord.VNode, error) {
 }
 
 func (n *LocalNode) getPredecessor() chord.VNode {
-	t := n.predecessorMu.RLock()
+	n.predecessorMu.RLock()
 	p := n.predecessor
-	n.predecessorMu.RUnlock(t)
+	n.predecessorMu.RUnlock()
 	return p
 }
 

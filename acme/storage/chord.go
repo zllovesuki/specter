@@ -11,7 +11,7 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/zhangyunhao116/skipmap"
 )
 
 const (
@@ -22,7 +22,7 @@ type ChordStorage struct {
 	Logger *zap.Logger
 	KV     chord.KV
 
-	leaseToken     *xsync.MapOf[string, *leaseHolder]
+	leaseToken     *skipmap.StringMap[*leaseHolder]
 	retryInterval  time.Duration
 	leaseTTL       time.Duration
 	renewalInteval time.Duration
@@ -39,7 +39,7 @@ func New(logger *zap.Logger, kv chord.KV, cfg Config) (*ChordStorage, error) {
 	return &ChordStorage{
 		Logger:         logger,
 		KV:             kv,
-		leaseToken:     xsync.NewMapOf[*leaseHolder](),
+		leaseToken:     skipmap.NewString[*leaseHolder](),
 		retryInterval:  cfg.RetryInterval,
 		leaseTTL:       cfg.LeaseTTL,
 		renewalInteval: cfg.LeaseTTL / 4,

@@ -133,10 +133,9 @@ func (n *LocalNode) fixFinger() error {
 }
 
 func (n *LocalNode) checkPredecessor() error {
-	t := n.predecessorMu.RLock()
+	n.predecessorMu.RLock()
 	pre := n.predecessor
-	n.predecessorMu.RUnlock(t)
-
+	n.predecessorMu.RUnlock()
 	if pre == nil || pre.ID() == n.ID() {
 		return nil
 	}

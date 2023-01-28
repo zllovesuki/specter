@@ -15,8 +15,8 @@ import (
 	"kon.nect.sh/specter/util/atomic"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/quic-go/quic-go"
+	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -27,7 +27,7 @@ func NewQUIC(conf TransportConfig) *QUIC {
 	return &QUIC{
 		TransportConfig: conf,
 
-		cachedConnections: xsync.NewMapOf[*nodeConnection](),
+		cachedConnections: skipmap.NewString[*nodeConnection](),
 		cachedMutex:       atomic.NewKeyedRWMutex(),
 
 		streamChan: make(chan *transport.StreamDelegate, 32),

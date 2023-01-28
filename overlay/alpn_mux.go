@@ -9,13 +9,13 @@ import (
 
 	"kon.nect.sh/specter/util/acceptor"
 
-	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/quic-go/quic-go"
+	"github.com/zhangyunhao116/skipmap"
 )
 
 type ALPNMux struct {
 	listener quic.EarlyListener
-	mux      *xsync.MapOf[string, *protoCfg]
+	mux      *skipmap.StringMap[*protoCfg]
 }
 
 type protoCfg struct {
@@ -25,7 +25,7 @@ type protoCfg struct {
 
 func NewMux(listener net.PacketConn) (*ALPNMux, error) {
 	a := &ALPNMux{
-		mux: xsync.NewMapOf[*protoCfg](),
+		mux: skipmap.NewString[*protoCfg](),
 	}
 	q, err := quic.ListenEarly(listener, &tls.Config{
 		GetConfigForClient: a.getConfigForClient,

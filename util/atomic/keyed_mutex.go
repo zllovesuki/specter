@@ -1,25 +1,27 @@
 package atomic
 
 import (
-	"github.com/puzpuzpuz/xsync/v2"
+	"sync"
+
+	"github.com/zhangyunhao116/skipmap"
 )
 
 type KeyedRWMutex struct {
 	noCopy
-	mutexes *xsync.MapOf[string, *xsync.RBMutex]
+	mutexes *skipmap.StringMap[*sync.RWMutex]
 }
 
 func NewKeyedRWMutex() *KeyedRWMutex {
 	return &KeyedRWMutex{
-		mutexes: xsync.NewMapOf[*xsync.RBMutex](),
+		mutexes: skipmap.NewString[*sync.RWMutex](),
 	}
 }
 
-func (m *KeyedRWMutex) obtain(key string) (mu *xsync.RBMutex) {
-	mu, _ = m.mutexes.LoadOrCompute(key, func() *xsync.RBMutex {
-		return xsync.NewRBMutex()
+func (m *KeyedRWMutex) obtain(key string) *sync.RWMutex {
+	value, _ := m.mutexes.LoadOrStoreLazy(key, func() *sync.RWMutex {
+		return &sync.RWMutex{}
 	})
-	return
+	return value
 }
 
 func (m *KeyedRWMutex) Lock(key string) func() {
@@ -31,7 +33,7 @@ func (m *KeyedRWMutex) Lock(key string) func() {
 
 func (m *KeyedRWMutex) RLock(key string) func() {
 	mu := m.obtain(key)
-	t := mu.RLock()
+	mu.RLock()
 
-	return func() { mu.RUnlock(t) }
+	return mu.RUnlock
 }

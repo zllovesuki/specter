@@ -41,11 +41,11 @@ func kvMiddleware[V any](
 	}
 
 	// local KV
-	sT := n.surrogateMu.RLock()
-	defer n.surrogateMu.RUnlock(sT)
+	n.surrogateMu.RLock()
+	defer n.surrogateMu.RUnlock()
 
-	pT := n.predecessorMu.RLock()
-	defer n.predecessorMu.RUnlock(pT)
+	n.predecessorMu.RLock()
+	defer n.predecessorMu.RUnlock()
 
 	var (
 		surrogate = n.surrogate
