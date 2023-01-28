@@ -162,7 +162,7 @@ func (n *LocalNode) getSuccessors() []chord.VNode {
 		return []chord.VNode{}
 	}
 
-	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries+1)
+	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries)
 
 	for _, s := range *s {
 		if s == nil {

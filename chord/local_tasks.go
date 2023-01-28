@@ -51,13 +51,13 @@ func (n *LocalNode) stabilize(hasLock bool) error {
 		newSucc, spErr := head.GetPredecessor()
 		newSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			succList = chord.MakeSuccList(head, newSuccList, chord.ExtendedSuccessorEntries+1)
+			succList = chord.MakeSuccList(head, newSuccList, chord.ExtendedSuccessorEntries)
 			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
 				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					succList = chord.MakeSuccList(newSucc, newSuccList, chord.ExtendedSuccessorEntries+1)
+					succList = chord.MakeSuccList(newSucc, newSuccList, chord.ExtendedSuccessorEntries)
 					modified = true
 				}
 			}

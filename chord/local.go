@@ -16,7 +16,7 @@ type LocalNode struct {
 	surrogateMu    sync.RWMutex                                            // advanced mutex surrounding KV requests during Join/Leave
 	surrogate      *protocol.Node                                          // node's previous predecessor, used to guard against outdated KV requests
 	successorsMu   sync.Mutex                                              // advanced mutex surrounding successors during Join/Leave
-	successors     atomic.Pointer[[]chord.VNode]                           // node's immediate successors
+	successors     atomic.Pointer[[]chord.VNode]                           // node's extended list of successors
 	succListHash   *atomic.Uint64                                          // simple hash on the successors to determine if they have changed
 	kv             chord.KVProvider                                        // KV backing implementation
 	lastStabilized *atomic.Time                                            // informational only
