@@ -10,7 +10,7 @@ const (
 	// Also known as m in the original paper
 	MaxFingerEntries = 42
 	// Also known as L in the second paper
-	ExtendedSuccessorEntries = 3
+	ExtendedSuccessorEntries = 4
 
 	MaxIdentitifer uint64 = 1 << MaxFingerEntries
 )
