@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -47,6 +48,15 @@ func Generate() *cli.Command {
 						Name:  "tcp",
 						Usage: "fallback to connect to gateway via TLS/TCP instead of QUIC",
 					},
+				},
+				Before: func(ctx *cli.Context) error {
+					if _, ok := ctx.App.Metadata[PipeInKey]; !ok {
+						ctx.App.Metadata[PipeInKey] = os.Stdin
+					}
+					if _, ok := ctx.App.Metadata[PipeOutKey]; !ok {
+						ctx.App.Metadata[PipeOutKey] = os.Stdout
+					}
+					return nil
 				},
 				Action: cmdConnect,
 			},

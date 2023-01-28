@@ -3,14 +3,17 @@ package integrations
 import (
 	"bytes"
 	"context"
+	cRand "crypto/rand"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,10 +32,11 @@ import (
 )
 
 const (
-	testBody     = "yay"
-	testRespBody = "cool"
-	serverApex   = "dev.con.nect.sh"
-	yamlTemplate = `apex: 127.0.0.1:%d
+	testBinaryLength = 16
+	testBody         = "yay"
+	testRespBody     = "cool"
+	serverApex       = "dev.con.nect.sh"
+	yamlTemplate     = `apex: 127.0.0.1:%d
 tunnels:
   - target: %s
   - target: %s
@@ -105,6 +109,23 @@ func TestTunnel(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	as.NoError(err)
 	defer listener.Close()
+
+	var (
+		connectionAccepted atomic.Int32
+	)
+	defer func() {
+		as.Equal(int32(len(serverPorts)), connectionAccepted.Load(), "tcp target should have accpeted 3 connections")
+	}()
+	go func() {
+		for {
+			c, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			connectionAccepted.Add(1)
+			go io.Copy(c, c)
+		}
+	}()
 
 	t.Logf("Generating client config\n")
 
@@ -363,6 +384,11 @@ func TestTunnel(t *testing.T) {
 
 				xApp, xLogs := compileApp(client.Generate())
 				xApp.Metadata["connectOverride"] = hostMap["tcp"]
+
+				leftConn, rightConn := net.Pipe()
+				xApp.Metadata[client.PipeInKey] = leftConn
+				xApp.Metadata[client.PipeOutKey] = leftConn
+
 				go func() {
 					if err := xApp.RunContext(ctx, connectArgs); err != nil {
 						as.NoError(err)
@@ -386,6 +412,20 @@ func TestTunnel(t *testing.T) {
 						return connected
 					}
 				}, time.Millisecond*100, time.Second*3), "tunnel not connected")
+
+				write := make([]byte, testBinaryLength)
+				_, err := io.ReadFull(cRand.Reader, write)
+				as.NoError(err)
+
+				_, err = rightConn.Write(write)
+				as.NoError(err)
+
+				as.NoError(rightConn.SetReadDeadline(time.Now().Add(time.Second)))
+				read := make([]byte, testBinaryLength)
+				n, err := rightConn.Read(read)
+				as.NoError(err)
+				as.Equal(testBinaryLength, n)
+				as.EqualValues(write, read)
 			})
 		})
 	}
