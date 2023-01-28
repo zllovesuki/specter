@@ -27,6 +27,7 @@ type DiskKV struct {
 	queue         chan *mutationReq
 	log           *wal.Log
 	closeCh       chan struct{}
+	closeWg       sync.WaitGroup
 	closed        *atomic.Bool
 	cfg           Config
 	counter       uint64
@@ -95,12 +96,17 @@ func New(cfg Config) (*DiskKV, error) {
 	if err := d.replayLogs(); err != nil {
 		return nil, err
 	}
+
+	d.closeWg.Add(1)
+
 	return d, nil
 }
 
 func (d *DiskKV) Start() {
 	ticker := time.NewTicker(d.flushInterval)
 	defer ticker.Stop()
+
+	defer d.closeWg.Done()
 
 	d.logger.Info("Periodically flushing logs to disk", zap.Duration("interval", d.flushInterval))
 
@@ -145,6 +151,8 @@ func (d *DiskKV) Stop() {
 	}
 
 	close(d.closeCh)
+	d.closeWg.Wait()
+
 	d.logger.Info("Flushing logs to disk")
 
 	if err := d.log.Sync(); err != nil {
