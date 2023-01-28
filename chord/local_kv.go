@@ -53,10 +53,15 @@ func kvMiddleware[V any](
 		l         = n.Logger.With(
 			zap.String("key", string(key)),
 			zap.Uint64("id", id),
-			zap.Uint64("predecessor", pre.ID()),
-			zap.Uint64("surrogate", surrogate.GetId()),
 		)
 	)
+
+	if pre != nil {
+		l = l.With(zap.Uint64("predecessor", pre.ID()))
+	}
+	if surrogate != nil {
+		l = l.With(zap.Uint64("surrogate", surrogate.GetId()))
+	}
 
 	// maybe we are joining or leaving
 	state := n.state.Get()
