@@ -193,7 +193,9 @@ func TestRandomNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		nodes[i].fingers[1].computeView(func(node chord.VNode) {
+			as.Equal(nodes[i].getSuccessor().ID(), node.ID())
+		})
 		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }
@@ -209,7 +211,9 @@ func TestLotsOfNodes(t *testing.T) {
 	defer done()
 
 	for i := 0; i < num; i++ {
-		as.Equal(nodes[i].getSuccessor().ID(), (*nodes[i].fingers[1].Load()).ID())
+		nodes[i].fingers[1].computeView(func(node chord.VNode) {
+			as.Equal(nodes[i].getSuccessor().ID(), node.ID())
+		})
 		fmt.Printf("%d: %v\n---\n", nodes[i].ID(), nodes[i].fingerTrace())
 	}
 }

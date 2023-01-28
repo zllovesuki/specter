@@ -22,10 +22,16 @@ func (n *LocalNode) Create() error {
 	n.Logger.Info("Creating new Chord ring")
 
 	successors := chord.MakeSuccList(n, []chord.VNode{}, chord.ExtendedSuccessorEntries)
+	n.successorsMu.Lock()
 	n.succListHash.Store(n.hash(successors))
-	n.successors.Store(&successors)
-	var self chord.VNode = n
-	n.fingers[0].Store(&self)
+	n.successors = successors
+	n.successorsMu.Unlock()
+
+	for i := 1; i <= chord.MaxFingerEntries; i++ {
+		n.fingers[i].computeUpdate(func(entry *fingerEntry) {
+			entry.node = n
+		})
+	}
 
 	n.startTasks()
 
@@ -45,8 +51,11 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 		return err
 	}
 
+	n.successorsMu.Lock()
 	n.succListHash.Store(n.hash(successors))
-	n.successors.Store(&successors)
+	n.successors = successors
+	n.successorsMu.Unlock()
+
 	n.predecessorMu.Lock()
 	n.predecessor = predecessor
 	n.predecessorMu.Unlock()
@@ -153,10 +162,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 	if stablize {
 		n.Logger.Info("Join completed, joiner has requested to update pointers")
-		// ensure that stablize task won't trample over us
-		n.successorsMu.Lock()
-		n.stabilize(true)
-		n.successorsMu.Unlock()
+		n.stabilize()
 		n.fixFinger()
 	}
 	if release {
@@ -182,10 +188,7 @@ func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
 func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
 	if stablize {
 		n.Logger.Info("Leave completed, leaver has requested to update pointers")
-		// ensure that stablize task won't trample over us
-		n.successorsMu.Lock()
-		n.stabilize(true)
-		n.successorsMu.Unlock()
+		n.stabilize()
 		n.fixFinger()
 	}
 	if release {

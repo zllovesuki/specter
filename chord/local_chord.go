@@ -100,11 +100,10 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 }
 
 func (n *LocalNode) getSuccessor() chord.VNode {
-	s := n.successors.Load()
-	if s == nil {
-		return nil
-	}
-	return (*s)[0]
+	n.successorsMu.RLock()
+	s := n.successors
+	n.successorsMu.RUnlock()
+	return s[0]
 }
 
 func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
@@ -129,20 +128,25 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	return closest.FindSuccessor(key)
 }
 
-func (n *LocalNode) fingerRange(fn func(k int, f chord.VNode) bool) {
+func (n *LocalNode) fingerRangeView(fn func(k int, f chord.VNode) bool) {
+	done := false
 	for k := chord.MaxFingerEntries; k >= 1; k-- {
-		finger := *n.fingers[k].Load()
-		if finger != nil {
-			if !fn(k, finger) {
-				break
-			}
+		if done {
+			return
 		}
+		n.fingers[k].computeView(func(node chord.VNode) {
+			if node != nil {
+				if !fn(k, node) {
+					done = true
+				}
+			}
+		})
 	}
 }
 
 func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 	var finger chord.VNode
-	n.fingerRange(func(_ int, f chord.VNode) bool {
+	n.fingerRangeView(func(_ int, f chord.VNode) bool {
 		if chord.Between(n.ID(), f.ID(), key, false) {
 			finger = f
 			return false
@@ -157,14 +161,13 @@ func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
 }
 
 func (n *LocalNode) getSuccessors() []chord.VNode {
-	s := n.successors.Load()
-	if s == nil {
-		return []chord.VNode{}
-	}
+	n.successorsMu.RLock()
+	s := n.successors
+	n.successorsMu.RUnlock()
 
 	list := make([]chord.VNode, 0, chord.ExtendedSuccessorEntries)
 
-	for _, s := range *s {
+	for _, s := range s {
 		if s == nil {
 			continue
 		}

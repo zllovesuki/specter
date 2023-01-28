@@ -25,7 +25,7 @@ func minmax(nums []int) (min, max int) {
 
 func (n *LocalNode) fingerTrace() map[string]string {
 	ftMap := map[uint64][]int{}
-	n.fingerRange(func(i int, f chord.VNode) bool {
+	n.fingerRangeView(func(i int, f chord.VNode) bool {
 		id := f.ID()
 		if _, found := ftMap[id]; !found {
 			ftMap[id] = make([]int, 0)
