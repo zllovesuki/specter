@@ -39,13 +39,18 @@ yeet-server:
 	docker compose -f compose-server.yaml down
 	docker compose -f compose-server.yaml stop
 	docker compose -f compose-server.yaml rm
-	docker image prune -f
-	docker volume prune -f
 
 yeet-client:
 	docker compose -f compose-client.yaml down
 	docker compose -f compose-client.yaml stop
 	docker compose -f compose-client.yaml rm
+
+yeet-validator:
+	docker compose -f compose-validator.yaml down
+	docker compose -f compose-validator.yaml stop
+	docker compose -f compose-validator.yaml rm
+
+prune:
 	docker image prune -f
 	docker volume prune -f
 

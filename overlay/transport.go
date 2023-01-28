@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -13,6 +14,7 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
@@ -47,33 +49,53 @@ func makeCachedKey(peer *protocol.Node) string {
 }
 
 func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
-	qKey := makeCachedKey(peer)
+	var (
+		qKey = makeCachedKey(peer)
+		q    quic.EarlyConnection
+	)
 
-	rUnlock := t.cachedMutex.RLock(qKey)
-	if sQ, ok := t.cachedConnections.Load(qKey); ok {
+	if err := retry.Do(func() error {
+		rUnlock := t.cachedMutex.RLock(qKey)
+		if cached, ok := t.cachedConnections.Load(qKey); ok {
+			rUnlock()
+			q = cached.quic
+			return nil
+		}
 		rUnlock()
-		// t.Logger.Debug("Reusing quic connection from reuseMap", zap.String("key", qKey))
-		return sQ.quic, nil
-	}
-	rUnlock()
 
-	if peer.GetAddress() == "" {
-		return nil, transport.ErrNoDirect
-	}
+		if peer.GetAddress() == "" {
+			return transport.ErrNoDirect
+		}
 
-	t.Logger.Debug("Creating new QUIC connection", zap.String("peer", peer.String()))
+		t.Logger.Debug("Creating new QUIC connection", zap.String("peer", peer.String()))
 
-	dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
-	defer dialCancel()
+		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
+		defer dialCancel()
 
-	q, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
-	if err != nil {
-		return nil, err
-	}
+		newQ, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
+		if err != nil {
+			return err
+		}
 
-	q, err = t.handleOutgoing(ctx, q)
-	if err != nil {
-		t.Logger.Error("outgoing connection reuse error", zap.String("peer", peer.String()), zap.Error(err))
+		reused, err := t.handleOutgoing(ctx, newQ)
+		if err != nil {
+			return err
+		}
+
+		q = reused
+		return nil
+	},
+		retry.Attempts(2),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(n uint, err error) {
+			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.String("peer", peer.String()), zap.Error(err))
+		}),
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "invalid state")
+		}),
+	); err != nil {
+		t.Logger.Error("Failed to establish connection", zap.String("peer", peer.String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -223,6 +245,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				} else {
 					// other: cached incoming
 					//    us: cached outgoing
+					fresh.quic.CloseWithError(508, "Previously cached connection was reused")
 					return cache, true, nil
 				}
 			} else {
@@ -241,6 +264,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				if cache.direction == directionIncoming {
 					// other: cached outgoing
 					//    us: cached incoming
+					// we will let the receiver side close the connection
 					return cache, true, nil
 				} else {
 					// other: cached outgoing
@@ -397,8 +421,10 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 		}
 		go func(prev quic.EarlyConnection) {
 			if _, err := t.handleIncoming(ctx, prev); err != nil {
-				t.Logger.Error("incoming connection reuse error", zap.Error(err))
-				q.CloseWithError(500, "Error handling incoming connection")
+				t.Logger.Error("Incoming connection reuse error", zap.Error(err))
+				// TODO: figure out a better way to ensure that the peer received cache status before closing
+				time.Sleep(time.Second)
+				prev.CloseWithError(406, err.Error())
 			}
 		}(q)
 	}
