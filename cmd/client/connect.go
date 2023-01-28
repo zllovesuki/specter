@@ -90,7 +90,12 @@ func cmdConnect(ctx *cli.Context) error {
 		}
 	}()
 
-	logger.Info("received signal to stop", zap.String("signal", (<-sigs).String()))
+	select {
+	case sig := <-sigs:
+		logger.Info("received signal to stop", zap.String("signal", sig.String()))
+	case <-ctx.Context.Done():
+		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	}
 
 	return nil
 }

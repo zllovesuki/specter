@@ -57,7 +57,12 @@ func cmdListen(ctx *cli.Context) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.Info("received signal to stop", zap.String("signal", (<-sigs).String()))
+	select {
+	case sig := <-sigs:
+		logger.Info("received signal to stop", zap.String("signal", sig.String()))
+	case <-ctx.Context.Done():
+		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	}
 
 	return nil
 }
