@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/url"
@@ -46,7 +47,9 @@ func Generate() *cli.Command {
 		Description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum.
 
 	Specter server provides an internal endpoint on /_internal under apex domain. To enable internal endpoint, provide username and password 
-	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.`,
+	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.
+
+	Warning: do not use certificates issued by public CA for inter-node certificates, otherwise anyone can join your specter network`,
 		ArgsUsage: " ",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -55,24 +58,20 @@ func Generate() *cli.Command {
 				Required: true,
 			},
 			&cli.PathFlag{
-				Name:    "cert-dir",
-				Aliases: []string{"cert"},
-				Usage: `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes
-			Warning: do not use certificates issued by public CA, otherwise anyone can join your specter network`,
-				Required: true,
-			},
-			&cli.PathFlag{
 				Name:     "data-dir",
 				Aliases:  []string{"data"},
 				Usage:    "path to directory that will be used for persisting non-volatile KV data",
 				Required: true,
 			},
-			&cli.StringFlag{
-				Name:        "advertise-addr",
-				Aliases:     []string{"advertise"},
-				DefaultText: "same as listen-addr",
-				Usage: `address and port to advertise to specter servers and clients to connect to.
-			Note that specter will use advertised address to derive its Identity hash.`,
+			&cli.PathFlag{
+				Name:    "cert-dir",
+				Aliases: []string{"cert"},
+				Usage:   `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes`,
+			},
+			&cli.BoolFlag{
+				Name: "cert-env",
+				Usage: `load ca.crt (CERT_CA), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
+			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
 			},
 			&cli.StringFlag{
 				Name:        "listen-addr",
@@ -91,6 +90,13 @@ func Generate() *cli.Command {
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
 				Usage:       "override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+			},
+			&cli.StringFlag{
+				Name:        "advertise-addr",
+				Aliases:     []string{"advertise"},
+				DefaultText: "same as listen-addr",
+				Usage: `address and port to advertise to specter servers and clients to connect to.
+			Note that specter will use advertised address to derive its Identity hash.`,
 			},
 			&cli.StringFlag{
 				Name: "join",
@@ -135,8 +141,26 @@ func Generate() *cli.Command {
 				Hidden:  true,
 				EnvVars: []string{"INTERNAL_PASS"},
 			},
+			&cli.StringFlag{
+				Name:    "env_ca",
+				Hidden:  true,
+				EnvVars: []string{"CERT_CA"},
+			},
+			&cli.StringFlag{
+				Name:    "env_node",
+				Hidden:  true,
+				EnvVars: []string{"CERT_NODE"},
+			},
+			&cli.StringFlag{
+				Name:    "env_node_key",
+				Hidden:  true,
+				EnvVars: []string{"CERT_NODE_KEY"},
+			},
 		},
 		Before: func(ctx *cli.Context) error {
+			if !ctx.IsSet("cert-dir") && !ctx.IsSet("cert-env") {
+				return fmt.Errorf("no certificate loader is specified")
+			}
 			if ctx.IsSet("challenger") {
 				parse, err := url.Parse(ctx.String("challenger"))
 				if err != nil {
@@ -185,7 +209,7 @@ type certBundle struct {
 	node tls.Certificate
 }
 
-func certLoader(dir string) (*certBundle, error) {
+func certLoaderFilesystem(dir string) (*certBundle, error) {
 	files := []string{"ca.crt", "node.crt", "node.key"}
 	for i, name := range files {
 		files[i] = filepath.Join(dir, name)
@@ -205,6 +229,33 @@ func certLoader(dir string) (*certBundle, error) {
 	return &certBundle{
 		ca:   caCertPool,
 		node: nodeCert,
+	}, nil
+}
+
+func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
+	caCert, err := base64.StdEncoding.DecodeString(ctx.String("env_ca"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode CERT_CA: %w", err)
+	}
+	nodeCert, err := base64.StdEncoding.DecodeString(ctx.String("env_node"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode CERT_NODE: %w", err)
+	}
+	nodeKey, err := base64.StdEncoding.DecodeString(ctx.String("env_node_key"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode CERT_NODE_KEY: %w", err)
+	}
+	caCertPool := x509.NewCertPool()
+	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+		return nil, fmt.Errorf("unable to use provided ca bundle")
+	}
+	pair, err := tls.X509KeyPair(nodeCert, nodeKey)
+	if err != nil {
+		return nil, fmt.Errorf("creating cert/key from env: %w", err)
+	}
+	return &certBundle{
+		ca:   caCertPool,
+		node: pair,
 	}, nil
 }
 
@@ -353,6 +404,19 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("error parsing advertise port: %w", err)
 	}
 
+	var bundle *certBundle
+	if ctx.IsSet("cert-dir") {
+		bundle, err = certLoaderFilesystem(ctx.Path("cert-dir"))
+		if err != nil {
+			return fmt.Errorf("error loading certificates from directory: %w", err)
+		}
+	} else if ctx.IsSet("cert-env") {
+		bundle, err = certLoaderEnv(ctx)
+		if err != nil {
+			return fmt.Errorf("error loading certificates from environment variable: %w", err)
+		}
+	}
+
 	listenCfg := &net.ListenConfig{}
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
@@ -390,11 +454,6 @@ func cmdServer(ctx *cli.Context) error {
 	tunnelIdentity := &protocol.Node{
 		Id:      chord.Hash([]byte(tunnelName)),
 		Address: advertise,
-	}
-
-	bundle, err := certLoader(ctx.Path("cert-dir"))
-	if err != nil {
-		return fmt.Errorf("error loading certificates from directory: %w", err)
 	}
 
 	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
