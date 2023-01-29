@@ -2,4 +2,5 @@ bin/
 .vscode/
 /certs
 /data
+/fly
 cover.out

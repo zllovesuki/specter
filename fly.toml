@@ -1,0 +1,34 @@
+# fly.toml file generated for specter on 2023-01-28T18:13:50-08:00
+
+app = "specter"
+
+kill_timeout = 180
+
+[build]
+  dockerfile = "Dockerfile.flyio"
+
+# flyctl volumes create kv --size 1
+[mounts]
+  source = "kv"
+  destination = "/data/kv"
+
+[[services]]
+  internal_port = 443
+  protocol = "udp"
+
+  [[services.ports]]
+    port = "443"
+
+[[services]]
+  internal_port = 443
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "443"
+
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "80"

@@ -74,12 +74,11 @@ func Generate() *cli.Command {
 			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
 			},
 			&cli.StringFlag{
-				Name:        "listen-addr",
-				Aliases:     []string{"listen"},
-				DefaultText: fmt.Sprintf("%s:443", ip.String()),
+				Name:    "listen-addr",
+				Aliases: []string{"listen"},
+				Value:   fmt.Sprintf("%s:443", ip.String()),
 				Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overriden).
 			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
-				Required: true,
 			},
 			&cli.StringFlag{
 				Name:        "listen-tcp",
@@ -95,6 +94,7 @@ func Generate() *cli.Command {
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
 				DefaultText: "same as listen-addr",
+				Value:       fmt.Sprintf("%s:443", ip.String()),
 				Usage: `address and port to advertise to specter servers and clients to connect to.
 			Note that specter will use advertised address to derive its Identity hash.`,
 			},
@@ -106,9 +106,10 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name:        "challenger",
 				DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
+				EnvVars:     []string{"ACME_URI"},
 				Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challenges
 			Absent of this flag will serve self-signed certificate.
-			Alternatively, you can set API token via the environment variable CF_API_TOKEN`,
+			Alternatively, you can set the URI and API token via the environment variable ACME_URI and CF_API_TOKEN, respectively`,
 			},
 			&cli.StringFlag{
 				Name:        "sentry",

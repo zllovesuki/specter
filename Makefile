@@ -162,6 +162,28 @@ certs:
 	# Sign and generate node certificate
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev/openssl.txt
 
+fly_deploy:
+	flyctl deploy --build-arg GIT_HASH=$$(git rev-parse --short HEAD)
+
+fly_certs:
+	mkdir fly
+	# Create CA key
+	openssl ecparam -name prime256v1 -genkey -noout -out fly/ca.key
+	# Generate CA CSR
+	openssl req -new -key fly/ca.key -out fly/ca.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=ca.dev"
+	# Verify CA CSR
+	openssl req -text -in fly/ca.csr -noout -verify
+	# Generate self-signed CA
+	openssl x509 -signkey fly/ca.key -in fly/ca.csr -req -days 3650 -out fly/ca.crt
+	# Generate node key
+	openssl ecparam -name prime256v1 -genkey -noout -out fly/node.key
+	# Generate node CSR
+	openssl req -new -key fly/node.key -out fly/node.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=node.ca.dev"
+	# Verify node CSR
+	openssl req -text -in fly/node.csr -noout -verify
+	# Sign and generate node certificate
+	openssl x509 -req -CA fly/ca.crt -CAkey fly/ca.key -in fly/node.csr -out fly/node.crt -days 3650 -CAcreateserial -extfile fly.txt
+
 licenses:
 	go-licenses save kon.nect.sh/specter --save_path=./licenses
 	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt

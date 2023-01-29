@@ -1,0 +1,19 @@
+FROM golang:1.19.4-alpine as builder
+RUN apk --no-cache add ca-certificates upx
+WORKDIR /app
+COPY . .
+
+ARG GIT_HASH=head
+RUN CGO_ENABLED=0 GOARM=7 GOAMD64=v3 \
+    go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' -buildvcs=false \
+    -ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=${GIT_HASH}" \
+    -o bin/specter .
+RUN upx --best --lzma bin/specter
+
+FROM scratch
+WORKDIR /app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/bin/specter /app/specter
+
+ENTRYPOINT ["/app/specter"]
+CMD ["server", "--data", "/data/kv", "--cert-env", "--listen-tcp", "0.0.0.0:443", "--listen-udp", "fly-global-services:443", "--apex", "fly.specter.im", "--advertise", "fly.specter.im:443"]
