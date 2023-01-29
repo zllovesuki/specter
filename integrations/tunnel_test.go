@@ -54,8 +54,11 @@ type TestWsMsg struct {
 func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
 	observedZapCore, observedLogs := observer.New(zap.DebugLevel)
 	observedLogger := zap.New(observedZapCore)
+	cmd.HideHelp = true
 	return &cli.App{
-		Name: "specter",
+		Name:        "specter",
+		HideHelp:    true,
+		HideVersion: true,
 		Commands: []*cli.Command{
 			cmd,
 		},
