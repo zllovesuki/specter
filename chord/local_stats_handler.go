@@ -30,6 +30,10 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	fmt.Fprintf(w, "Current state: %s\n", n.state.Get().String())
 	fmt.Fprintf(w, "State history: %v\n", n.state.History())
 	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "Chord RPC qps: %.2f\n", n.chordRate.RatePerInterval())
+	fmt.Fprintf(w, "   KV RPC qps: %.2f\n", n.kvRate.RatePerInterval())
+	fmt.Fprintf(w, " Outbound qps: %.2f\n", n.ChordClient.RatePer(time.Second))
+	fmt.Fprintf(w, "---\n")
 
 	nodesTable := tablewriter.NewWriter(w)
 	nodesTable.SetHeader([]string{"Where", "ID", "Address"})

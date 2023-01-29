@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -14,6 +15,7 @@ import (
 type MemoryTransport struct {
 	Identify *protocol.Node
 	Other    chan *transport.StreamDelegate
+	Self     chan *transport.StreamDelegate
 }
 
 // SelfTransport returns a transport.Transport that when .DialStream() is invoked, .AcceptStream()
@@ -22,6 +24,7 @@ func SelfTransport() *MemoryTransport {
 	s := make(chan *transport.StreamDelegate, 1)
 	t := &MemoryTransport{
 		Other: s,
+		Self:  s,
 	}
 	return t
 }
@@ -33,9 +36,11 @@ func PipeTransport() (*MemoryTransport, *MemoryTransport) {
 	s2 := make(chan *transport.StreamDelegate, 1)
 	t1 := &MemoryTransport{
 		Other: s2,
+		Self:  s1,
 	}
 	t2 := &MemoryTransport{
 		Other: s1,
+		Self:  s2,
 	}
 	return t1, t2
 }
@@ -46,16 +51,20 @@ func (t *MemoryTransport) Identity() *protocol.Node {
 
 func (t *MemoryTransport) DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
 	c1, c2 := net.Pipe()
-	t.Other <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   peer,
-		Kind:       kind,
+	select {
+	case t.Other <- &transport.StreamDelegate{
+		Conn:     c1,
+		Identity: peer,
+		Kind:     kind,
+	}:
+	default:
+		panic(fmt.Sprintf("blocked on dialing %s", peer.String()))
 	}
 	return c2, nil
 }
 
 func (t *MemoryTransport) AcceptStream() <-chan *transport.StreamDelegate {
-	return t.Other
+	return t.Self
 }
 
 func (t *MemoryTransport) SupportDatagram() bool {

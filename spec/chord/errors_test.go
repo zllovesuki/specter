@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"kon.nect.sh/specter/spec/protocol"
+	"github.com/twitchtv/twirp"
 )
 
 type errorWrapper struct {
@@ -42,9 +42,9 @@ func TestErrorMapper(t *testing.T) {
 		ErrKVLeaseInvalidTTL,
 	}
 
-	call := func(_ *protocol.RPC_Response, err error) (*protocol.RPC_Response, error) {
+	call := func(_ any, err error) (any, error) {
 		// type squashing
-		return nil, ErrorMapper(&errorWrapper{err})
+		return nil, ErrorMapper(twirp.Internal.Error(err.Error()))
 	}
 
 	for _, real := range errors {

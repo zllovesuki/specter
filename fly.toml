@@ -7,6 +7,9 @@ kill_timeout = 180
 [build]
   dockerfile = "Dockerfile.flyio"
 
+[env]
+  GOMEMLIMIT = "200MiB"
+
 # flyctl volumes create kv --size 1
 [mounts]
   source = "kv"

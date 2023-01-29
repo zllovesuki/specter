@@ -2,246 +2,318 @@ package chord
 
 import (
 	"context"
-	"fmt"
+	"net"
+	"net/http"
 
-	"kon.nect.sh/specter/rpc"
-	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/util"
+	"kon.nect.sh/specter/util/ratecounter"
 	"kon.nect.sh/specter/util/router"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
 )
 
-func (n *LocalNode) AttachRouter(ctx context.Context, router *router.StreamRouter) {
-	rpcServer := rpc.NewRPC(ctx, n.Logger.With(zap.String("pov", "local_rpc")), nil)
-	router.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
-		defer delegate.Connection.Close()
-
-		l := n.Logger.With(
-			zap.Any("peer", delegate.Identity),
-			zap.String("remote", delegate.Connection.RemoteAddr().String()),
-			zap.String("local", delegate.Connection.LocalAddr().String()),
+func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Context {
+	delegation := rpc.GetDelegation(ctx)
+	if delegation != nil {
+		service, _ := twirp.ServiceName(ctx)
+		method, _ := twirp.MethodName(ctx)
+		n.Logger.Error("Error handling RPC request",
+			zap.Uint64("peer", delegation.Identity.GetId()),
+			zap.String("service", service),
+			zap.String("method", method),
+			zap.Error(err),
 		)
+	}
+	return ctx
+}
 
-		if err := rpcServer.HandleRequest(ctx, delegate.Connection, n.rpcHandler); err != nil {
-			l.Error("Error handling RPC request", zap.Error(err))
-		}
+func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Context) (context.Context, error) {
+	return func(ctx context.Context) (context.Context, error) {
+		rate.Increment()
+		return ctx, nil
+	}
+}
+
+func (n *LocalNode) AttachRouter(ctx context.Context, router *router.StreamRouter) {
+	n.stopWg.Add(1)
+
+	r := &rpcServer{
+		baseContext: ctx,
+		logger:      n.Logger,
+		local:       n,
+	}
+	nsTwirp := protocol.NewVNodeServiceServer(
+		r,
+		twirp.WithServerHooks(&twirp.ServerHooks{
+			RequestReceived: n.getIncrementor(n.chordRate),
+			Error:           n.logError,
+		}),
+	)
+	ksTwirp := protocol.NewKVServiceServer(
+		r,
+		twirp.WithServerHooks(&twirp.ServerHooks{
+			RequestReceived: n.getIncrementor(n.kvRate),
+			Error:           n.logError,
+		}),
+	)
+
+	rpcHandler := chi.NewRouter()
+	rpcHandler.Use(middleware.Recoverer)
+	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractSerializedContext(nsTwirp))
+	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractSerializedContext(ksTwirp))
+
+	srv := &http.Server{
+		BaseContext: func(l net.Listener) context.Context {
+			return ctx
+		},
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return rpc.WithDelegation(ctx, c.(*transport.StreamDelegate))
+		},
+		ReadTimeout: rpcTimeout,
+		Handler:     rpcHandler,
+		ErrorLog:    util.GetStdLogger(n.Logger, "rpc_server"),
+	}
+
+	go srv.Serve(n.rpcAcceptor)
+	go func() {
+		defer n.stopWg.Done()
+
+		<-n.stopCh
+		n.rpcAcceptor.Close()
+	}()
+
+	router.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+		n.rpcAcceptor.Handle(delegate)
 	})
 }
 
-func (n *LocalNode) rpcHandler(ctx context.Context, req *protocol.RPC_Request) (*protocol.RPC_Response, error) {
-	if err := n.checkNodeState(false); err != nil {
+type rpcServer struct {
+	baseContext context.Context
+	logger      *zap.Logger
+	local       *LocalNode
+}
+
+var _ protocol.KVService = (*rpcServer)(nil)
+var _ protocol.VNodeService = (*rpcServer)(nil)
+
+func (r *rpcServer) Identity(_ context.Context, _ *protocol.IdentityRequest) (*protocol.IdentityResponse, error) {
+	return &protocol.IdentityResponse{
+		Identity: r.local.Identity(),
+	}, nil
+}
+
+func (r *rpcServer) Ping(_ context.Context, _ *protocol.PingRequest) (*protocol.PingResponse, error) {
+	if err := r.local.Ping(); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.PingResponse{}, nil
+}
+
+func (r *rpcServer) Notify(_ context.Context, req *protocol.NotifyRequest) (*protocol.NotifyResponse, error) {
+	predecessor := req.GetPredecessor()
+
+	vnode, err := createRPC(r.baseContext, r.logger, r.local.ChordClient, predecessor)
+	if err != nil {
+		return nil, twirp.Internal.Error(err.Error())
+	}
+
+	err = r.local.Notify(vnode)
+	if err != nil {
+		return nil, twirp.Internal.Error(err.Error())
+	}
+
+	return &protocol.NotifyResponse{}, nil
+}
+
+func (r *rpcServer) FindSuccessor(_ context.Context, req *protocol.FindSuccessorRequest) (*protocol.FindSuccessorResponse, error) {
+	key := req.GetKey()
+	vnode, err := r.local.FindSuccessor(key)
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.FindSuccessorResponse{
+		Successor: vnode.Identity(),
+	}, nil
+}
+
+func (r *rpcServer) GetSuccessors(_ context.Context, _ *protocol.GetSuccessorsRequest) (*protocol.GetSuccessorsResponse, error) {
+	vnodes, err := r.local.GetSuccessors()
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	identities := make([]*protocol.Node, 0)
+	for _, vnode := range vnodes {
+		if vnode == nil {
+			continue
+		}
+		identities = append(identities, vnode.Identity())
+	}
+	return &protocol.GetSuccessorsResponse{
+		Successors: identities,
+	}, nil
+}
+
+func (r *rpcServer) GetPredecessor(_ context.Context, _ *protocol.GetPredecessorRequest) (*protocol.GetPredecessorResponse, error) {
+	vnode, err := r.local.GetPredecessor()
+	if err != nil {
 		return nil, err
 	}
+	var pre *protocol.Node
+	if vnode != nil {
+		pre = vnode.Identity()
+	}
+	return &protocol.GetPredecessorResponse{
+		Predecessor: pre,
+	}, nil
+}
 
-	resp := &protocol.RPC_Response{}
-	var vnode chord.VNode
-	var err error
-
-	switch req.GetKind() {
-	case protocol.RPC_IDENTITY:
-		resp.IdentityResponse = &protocol.IdentityResponse{
-			Identity: n.Identity(),
-		}
-
-	case protocol.RPC_PING:
-		resp.PingResponse = &protocol.PingResponse{}
-		if err := n.Ping(); err != nil {
-			return nil, err
-		}
-
-	case protocol.RPC_NOTIFY:
-		resp.NotifyResponse = &protocol.NotifyResponse{}
-		predecessor := req.GetNotifyRequest().GetPredecessor()
-
-		vnode, err = createRPC(ctx, n.Logger, n.RPCClient, predecessor)
-		if err != nil {
-			return nil, err
-		}
-
-		err = n.Notify(vnode)
-		if err != nil {
-			return nil, err
-		}
-
-	case protocol.RPC_FIND_SUCCESSOR:
-		key := req.GetFindSuccessorRequest().GetKey()
-		vnode, err = n.FindSuccessor(key)
-		if err != nil {
-			return nil, err
-		}
-		resp.FindSuccessorResponse = &protocol.FindSuccessorResponse{
-			Successor: vnode.Identity(),
-		}
-
-	case protocol.RPC_GET_SUCCESSORS:
-		var vnodes []chord.VNode
-
-		vnodes, err = n.GetSuccessors()
-		if err != nil {
-			return nil, err
-		}
-
-		identities := make([]*protocol.Node, 0)
-		for _, vnode := range vnodes {
-			if vnode == nil {
-				continue
-			}
-			identities = append(identities, vnode.Identity())
-		}
-		resp.GetSuccessorsResponse = &protocol.GetSuccessorsResponse{
-			Successors: identities,
-		}
-
-	case protocol.RPC_GET_PREDECESSOR:
-		vnode, err = n.GetPredecessor()
-		if err != nil {
-			return nil, err
-		}
-		var pre *protocol.Node
-		if vnode != nil {
-			pre = vnode.Identity()
-		}
-		resp.GetPredecessorResponse = &protocol.GetPredecessorResponse{
-			Predecessor: pre,
-		}
-
-	case protocol.RPC_MEMBERSHIP_CHANGE:
-		chReq := req.GetMembershipRequest()
-		chResp := &protocol.MembershipChangeResponse{}
-		switch chReq.GetOp() {
-		case protocol.MembershipChangeOperation_JOIN_REQUEST:
-			joiner := chReq.GetJoiner()
-			vnode, err = createRPC(ctx, n.Logger, n.RPCClient, joiner)
-			if err != nil {
-				return nil, err
-			}
-
-			pre, vnodes, err := n.RequestToJoin(vnode)
-			if err != nil {
-				return nil, err
-			}
-			chResp.Predecessor = pre.Identity()
-
-			identities := make([]*protocol.Node, 0)
-			for _, vnode := range vnodes {
-				if vnode == nil {
-					continue
-				}
-				identities = append(identities, vnode.Identity())
-			}
-			chResp.Successors = identities
-
-		case protocol.MembershipChangeOperation_JOIN_FINISH:
-			if err := n.FinishJoin(chReq.GetStablize(), chReq.GetRelease()); err != nil {
-				return nil, err
-			}
-
-		case protocol.MembershipChangeOperation_LEAVE_REQUEST:
-			leaver := chReq.GetLeaver()
-			vnode, err = createRPC(ctx, n.Logger, n.RPCClient, leaver)
-			if err != nil {
-				return nil, err
-			}
-			if err := n.RequestToLeave(vnode); err != nil {
-				return nil, err
-			}
-
-		case protocol.MembershipChangeOperation_LEAVE_FINISH:
-			if err := n.FinishLeave(chReq.GetStablize(), chReq.GetRelease()); err != nil {
-				return nil, err
-			}
-
-		default:
-			n.Logger.Warn("Unknown Membership Change Operation", zap.String("Op", chReq.GetOp().String()))
-			return nil, fmt.Errorf("unknown Membership Change Operation: %s", chReq.GetOp())
-		}
-		resp.MembershipResponse = chResp
-
-	case protocol.RPC_KV:
-		kvReq := req.GetKvRequest()
-		kvResp := &protocol.KVResponse{}
-
-		reqCtx := chord.WithRequestContext(ctx, req.GetRequestContext())
-
-		switch kvReq.GetOp() {
-		case protocol.KVOperation_SIMPLE_GET:
-			val, err := n.Get(ctx, kvReq.GetKey())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Value = val
-		case protocol.KVOperation_SIMPLE_PUT:
-			if err := n.Put(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
-				return nil, err
-			}
-		case protocol.KVOperation_SIMPLE_DELETE:
-			if err := n.Delete(reqCtx, kvReq.GetKey()); err != nil {
-				return nil, err
-			}
-
-		case protocol.KVOperation_PREFIX_APPEND:
-			if err := n.PrefixAppend(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
-				return nil, err
-			}
-		case protocol.KVOperation_PREFIX_LIST:
-			val, err := n.PrefixList(reqCtx, kvReq.GetKey())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Keys = val
-		case protocol.KVOperation_PREFIX_CONTAINS:
-			b, err := n.PrefixContains(reqCtx, kvReq.GetKey(), kvReq.GetValue())
-			if err != nil {
-				return nil, err
-			}
-			if b {
-				kvResp.Value = []byte{1}
-			}
-		case protocol.KVOperation_PREFIX_REMOVE:
-			if err := n.PrefixRemove(reqCtx, kvReq.GetKey(), kvReq.GetValue()); err != nil {
-				return nil, err
-			}
-
-		case protocol.KVOperation_LEASE_ACQUIRE:
-			lease := kvReq.GetLease()
-			token, err := n.Acquire(reqCtx, kvReq.GetKey(), lease.GetTtl().AsDuration())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Lease = &protocol.KVLease{
-				Token: token,
-			}
-		case protocol.KVOperation_LEASE_RENEWAL:
-			lease := kvReq.GetLease()
-			token, err := n.Renew(reqCtx, kvReq.GetKey(), lease.GetTtl().AsDuration(), lease.GetToken())
-			if err != nil {
-				return nil, err
-			}
-			kvResp.Lease = &protocol.KVLease{
-				Token: token,
-			}
-		case protocol.KVOperation_LEASE_RELEASE:
-			lease := kvReq.GetLease()
-			if err := n.Release(reqCtx, kvReq.GetKey(), lease.GetToken()); err != nil {
-				return nil, err
-			}
-
-		case protocol.KVOperation_IMPORT:
-			if err := n.Import(reqCtx, kvReq.GetKeys(), kvReq.GetValues()); err != nil {
-				return nil, err
-			}
-		default:
-			n.Logger.Warn("Unknown KV Operation", zap.String("Op", kvReq.GetOp().String()))
-			return nil, fmt.Errorf("unknown KV Operation: %s", kvReq.GetOp())
-		}
-
-		resp.KvResponse = kvResp
-	default:
-		n.Logger.Warn("Unknown RPC Call", zap.String("kind", req.GetKind().String()))
-		return nil, fmt.Errorf("unknown RPC call: %s", req.GetKind())
+func (r *rpcServer) RequestToJoin(_ context.Context, req *protocol.RequestToJoinRequest) (*protocol.RequestToJoinResponse, error) {
+	joiner := req.GetJoiner()
+	vnode, err := createRPC(r.baseContext, r.logger, r.local.ChordClient, joiner)
+	if err != nil {
+		return nil, twirp.Internal.Error(err.Error())
 	}
 
-	return resp, nil
+	pre, vnodes, err := r.local.RequestToJoin(vnode)
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+
+	successors := make([]*protocol.Node, 0)
+	for _, vnode := range vnodes {
+		if vnode == nil {
+			continue
+		}
+		successors = append(successors, vnode.Identity())
+	}
+
+	return &protocol.RequestToJoinResponse{
+		Predecessor: pre.Identity(),
+		Successors:  successors,
+	}, nil
+}
+
+func (r *rpcServer) FinishJoin(_ context.Context, req *protocol.MembershipConclusionRequest) (*protocol.MembershipConclusionResponse, error) {
+	if err := r.local.FinishJoin(req.GetStablize(), req.GetRelease()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.MembershipConclusionResponse{}, nil
+}
+
+func (r *rpcServer) RequestToLeave(_ context.Context, req *protocol.RequestToLeaveRequest) (*protocol.RequestToLeaveResponse, error) {
+	leaver := req.GetLeaver()
+	vnode, err := createRPC(r.baseContext, r.logger, r.local.ChordClient, leaver)
+	if err != nil {
+		return nil, twirp.Internal.Error(err.Error())
+	}
+	if err := r.local.RequestToLeave(vnode); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.RequestToLeaveResponse{}, nil
+}
+
+func (r *rpcServer) FinishLeave(_ context.Context, req *protocol.MembershipConclusionRequest) (*protocol.MembershipConclusionResponse, error) {
+	if err := r.local.FinishLeave(req.GetStablize(), req.GetRelease()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.MembershipConclusionResponse{}, nil
+}
+
+func (r *rpcServer) Put(ctx context.Context, req *protocol.SimpleRequest) (*protocol.SimpleResponse, error) {
+	if err := r.local.Put(ctx, req.GetKey(), req.GetValue()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.SimpleResponse{}, nil
+}
+
+func (r *rpcServer) Get(ctx context.Context, req *protocol.SimpleRequest) (*protocol.SimpleResponse, error) {
+	val, err := r.local.Get(ctx, req.GetKey())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.SimpleResponse{
+		Value: val,
+	}, nil
+}
+
+func (r *rpcServer) Delete(ctx context.Context, req *protocol.SimpleRequest) (*protocol.SimpleResponse, error) {
+	err := r.local.Delete(ctx, req.GetKey())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.SimpleResponse{}, nil
+}
+
+func (r *rpcServer) Append(ctx context.Context, req *protocol.PrefixRequest) (*protocol.PrefixResponse, error) {
+	if err := r.local.PrefixAppend(ctx, req.GetPrefix(), req.GetChild()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.PrefixResponse{}, nil
+}
+
+func (r *rpcServer) List(ctx context.Context, req *protocol.PrefixRequest) (*protocol.PrefixResponse, error) {
+	children, err := r.local.PrefixList(ctx, req.GetPrefix())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.PrefixResponse{
+		Children: children,
+	}, nil
+}
+
+func (r *rpcServer) Contains(ctx context.Context, req *protocol.PrefixRequest) (*protocol.PrefixResponse, error) {
+	exists, err := r.local.PrefixContains(ctx, req.GetPrefix(), req.GetChild())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.PrefixResponse{
+		Exists: exists,
+	}, nil
+}
+
+func (r *rpcServer) Remove(ctx context.Context, req *protocol.PrefixRequest) (*protocol.PrefixResponse, error) {
+	if err := r.local.PrefixRemove(ctx, req.GetPrefix(), req.GetChild()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.PrefixResponse{}, nil
+}
+
+func (r *rpcServer) Acquire(ctx context.Context, req *protocol.LeaseRequest) (*protocol.LeaseResponse, error) {
+	token, err := r.local.Acquire(ctx, req.GetLease(), req.GetTtl().AsDuration())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.LeaseResponse{
+		Token: token,
+	}, nil
+}
+
+func (r *rpcServer) Renew(ctx context.Context, req *protocol.LeaseRequest) (*protocol.LeaseResponse, error) {
+	token, err := r.local.Renew(ctx, req.GetLease(), req.GetTtl().AsDuration(), req.GetPrevToken())
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.LeaseResponse{
+		Token: token,
+	}, nil
+}
+
+func (r *rpcServer) Release(ctx context.Context, req *protocol.LeaseRequest) (*protocol.LeaseResponse, error) {
+	if err := r.local.Release(ctx, req.GetLease(), req.GetPrevToken()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.LeaseResponse{}, nil
+}
+
+func (r *rpcServer) Import(ctx context.Context, req *protocol.ImportRequest) (*protocol.ImportResponse, error) {
+	if err := r.local.Import(ctx, req.GetKeys(), req.GetValues()); err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+	return &protocol.ImportResponse{}, nil
 }

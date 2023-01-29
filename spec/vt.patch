@@ -1,0 +1,60 @@
+diff --git a/spec/protocol/chord.twirp.go b/spec/protocol/chord.twirp.go
+index d9561c8..13eee81 100644
+--- a/spec/protocol/chord.twirp.go
++++ b/spec/protocol/chord.twirp.go
+@@ -27,6 +27,11 @@ import url "net/url"
+ // See https://twitchtv.github.io/twirp/docs/version_matrix.html
+ const _ = twirp.TwirpPackageMinVersion_8_1_0
+ 
++type vtMarshaler interface {
++	MarshalVT() (dAtA []byte, err error)
++	UnmarshalVT(dAtA []byte) error
++}
++
+ // ======================
+ // VNodeService Interface
+ // ======================
+@@ -3432,8 +3437,8 @@ func withoutRedirects(in *http.Client) *http.Client {
+ }
+ 
+ // doProtobufRequest makes a Protobuf request to the remote Twirp service.
+-func doProtobufRequest(ctx context.Context, client HTTPClient, hooks *twirp.ClientHooks, url string, in, out proto.Message) (_ context.Context, err error) {
+-	reqBodyBytes, err := proto.Marshal(in)
++func doProtobufRequest(ctx context.Context, client HTTPClient, hooks *twirp.ClientHooks, url string, in, out vtMarshaler) (_ context.Context, err error) {
++	reqBodyBytes, err := in.MarshalVT()
+ 	if err != nil {
+ 		return ctx, wrapInternal(err, "failed to marshal proto request")
+ 	}
+@@ -3474,7 +3479,7 @@ func doProtobufRequest(ctx context.Context, client HTTPClient, hooks *twirp.Clie
+ 		return ctx, wrapInternal(err, "aborted because context was done")
+ 	}
+ 
+-	if err = proto.Unmarshal(respBodyBytes, out); err != nil {
++	if err = out.UnmarshalVT(respBodyBytes); err != nil {
+ 		return ctx, wrapInternal(err, "failed to unmarshal proto response")
+ 	}
+ 	return ctx, nil
+diff --git a/spec/protocol/kv.twirp.go b/spec/protocol/kv.twirp.go
+index bc9a25d..22e8da2 100644
+--- a/spec/protocol/kv.twirp.go
++++ b/spec/protocol/kv.twirp.go
+@@ -12,7 +12,6 @@ import strconv "strconv"
+ import strings "strings"
+ 
+ import protojson "google.golang.org/protobuf/encoding/protojson"
+-import proto "google.golang.org/protobuf/proto"
+ import twirp "github.com/twitchtv/twirp"
+ import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
+ 
+diff --git a/spec/protocol/tunnel.twirp.go b/spec/protocol/tunnel.twirp.go
+index d4d6eeb..f750a35 100644
+--- a/spec/protocol/tunnel.twirp.go
++++ b/spec/protocol/tunnel.twirp.go
+@@ -12,7 +12,6 @@ import strconv "strconv"
+ import strings "strings"
+ 
+ import protojson "google.golang.org/protobuf/encoding/protojson"
+-import proto "google.golang.org/protobuf/proto"
+ import twirp "github.com/twitchtv/twirp"
+ import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
+ 

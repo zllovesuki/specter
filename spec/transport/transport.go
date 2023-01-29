@@ -13,9 +13,9 @@ const (
 )
 
 type StreamDelegate struct {
-	Identity   *protocol.Node
-	Connection net.Conn
-	Kind       protocol.Stream_Type
+	net.Conn
+	Identity *protocol.Node
+	Kind     protocol.Stream_Type
 }
 
 type DatagramDelegate struct {
