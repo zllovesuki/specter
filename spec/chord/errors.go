@@ -11,6 +11,7 @@ var (
 	ErrNodeGone        = fmt.Errorf("chord: node is not part of the chord ring")
 	ErrNodeNotStarted  = fmt.Errorf("chord: node is not running")
 	ErrNodeNoSuccessor = fmt.Errorf("chord: node has no successor, possibly invalid chord ring")
+	ErrNodeNil         = fmt.Errorf("chord: node cannot be nil")
 
 	ErrDuplicateJoinerID    = fmt.Errorf("chord/membership: joining node has duplicate ID as its successor")
 	ErrJoinInvalidState     = fmt.Errorf("chord/membership: node cannot handle join request at the moment")
@@ -40,7 +41,7 @@ func ErrorIsRetryable(err error) bool {
 
 	case ErrNodeGone, ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
 		ErrKVSimpleConflict, ErrKVPrefixConflict, ErrKVLeaseConflict,
-		ErrKVLeaseExpired, ErrKVLeaseInvalidTTL:
+		ErrKVLeaseExpired, ErrKVLeaseInvalidTTL, ErrNodeNil:
 		fallthrough
 	default:
 		return false
@@ -67,6 +68,8 @@ func ErrorMapper(err error) error {
 		parsedErr = ErrNodeGone
 	case ErrNodeNoSuccessor.Error():
 		parsedErr = ErrNodeNoSuccessor
+	case ErrNodeNil.Error():
+		parsedErr = ErrNodeNil
 
 	case ErrDuplicateJoinerID.Error():
 		parsedErr = ErrDuplicateJoinerID

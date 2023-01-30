@@ -98,12 +98,8 @@ func (s *Server) injectClientIdentity(ctx context.Context) (context.Context, err
 		if len(auth) == 0 {
 			return ctx, twirp.Unauthenticated.Error("encoded client token missing in authorization header")
 		}
-		encoded, err := base64.StdEncoding.DecodeString(auth)
-		if err != nil {
-			return ctx, twirp.Unauthenticated.Errorf("cannot decode token: %w", err)
-		}
 		token := &protocol.ClientToken{
-			Token: encoded,
+			Token: []byte(auth),
 		}
 		verifiedClient, err := s.getClientByToken(ctx, token)
 		if err != nil {
@@ -160,7 +156,7 @@ func (s *Server) RegisterIdentity(ctx context.Context, req *protocol.RegisterIde
 }
 
 func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*protocol.GetNodesResponse, error) {
-	_, err := verifyIdentity(ctx)
+	_, _, err := extractAuthenticated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +186,7 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 }
 
 func (s *Server) GenerateHostname(ctx context.Context, req *protocol.GenerateHostnameRequest) (*protocol.GenerateHostnameResponse, error) {
-	token := rpc.GetClientToken(ctx)
-	if token == nil {
-		return nil, twirp.Unauthenticated.Error("client is unauthenticated")
-	}
-	_, err := verifyIdentity(ctx)
+	token, _, err := extractAuthenticated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -210,11 +202,7 @@ func (s *Server) GenerateHostname(ctx context.Context, req *protocol.GenerateHos
 }
 
 func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelRequest) (*protocol.PublishTunnelResponse, error) {
-	token := rpc.GetClientToken(ctx)
-	if token == nil {
-		return nil, twirp.Unauthenticated.Error("client is unauthenticated")
-	}
-	verifiedClient, err := verifyIdentity(ctx)
+	token, verifiedClient, err := extractAuthenticated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -302,19 +290,23 @@ func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientTok
 	return client, nil
 }
 
-func verifyIdentity(ctx context.Context) (*protocol.Node, error) {
+func extractAuthenticated(ctx context.Context) (*protocol.ClientToken, *protocol.Node, error) {
+	token := rpc.GetClientToken(ctx)
+	if token == nil {
+		return nil, nil, twirp.Unauthenticated.Error("client is unauthenticated")
+	}
 	verifiedClient := rpc.GetClientIdentity(ctx)
 	if verifiedClient == nil {
-		return nil, twirp.Unauthenticated.Error("client is unauthenticated")
+		return nil, nil, twirp.Unauthenticated.Error("client is unauthenticated")
 	}
 	delegation := rpc.GetDelegation(ctx)
 	if delegation == nil {
-		return nil, twirp.Internal.Error("delegation missing in context")
+		return nil, nil, twirp.Internal.Error("delegation missing in context")
 	}
 	if delegation.Identity.GetId() != verifiedClient.GetId() {
-		return nil, twirp.PermissionDenied.Error("requesting client is not the same as connected client")
+		return nil, nil, twirp.PermissionDenied.Error("requesting client is not the same as connected client")
 	}
-	return verifiedClient, nil
+	return token, verifiedClient, nil
 }
 
 func uniqueNodes(nodes []*protocol.Node) []*protocol.Node {

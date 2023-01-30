@@ -40,7 +40,7 @@ func TestRPC(t *testing.T) {
 		Address: "127.0.0.1:1234",
 	}
 	node1 := NewLocalNode(NodeConfig{
-		Logger:                   logger.With(zap.Uint64("node", identity1.GetId())),
+		BaseLogger:               logger,
 		Identity:                 identity1,
 		KVProvider:               memory.WithHashFn(chord.Hash),
 		FixFingerInterval:        time.Millisecond * 100,
@@ -146,8 +146,8 @@ func TestRemoteRPCContext(t *testing.T) {
 	ksTwirp := protocol.NewKVServiceServer(m)
 
 	rpcHandler := chi.NewRouter()
-	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractSerializedContext(nsTwirp))
-	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractSerializedContext(ksTwirp))
+	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractContext(nsTwirp))
+	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractContext(ksTwirp))
 
 	tp := mocks.SelfTransport()
 
@@ -183,8 +183,6 @@ func TestRemoteRPCContext(t *testing.T) {
 	rpcCaller := rpc.DynamicChordClient(ctx, tp)
 	r, err := NewRemoteNode(ctx, logger, rpcCaller, peer)
 	as.NoError(err)
-
-	defer r.Stop()
 
 	err = r.Put(rpc.WithContext(ctx, &protocol.Context{
 		RequestTarget: protocol.Context_KV_REPLICATION,

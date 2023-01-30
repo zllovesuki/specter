@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -94,7 +93,7 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 			}
 			token, ok := ctx.Value(contextClientTokenKey).(*protocol.ClientToken)
 			if ok {
-				r.Header.Set("authorization", base64.StdEncoding.EncodeToString(token.GetToken()))
+				r.Header.Set("authorization", string(token.GetToken()))
 			}
 			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://tunnel as key
 			return ctx, nil

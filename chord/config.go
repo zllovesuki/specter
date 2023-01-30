@@ -15,7 +15,7 @@ import (
 type NodeConfig struct {
 	KVProvider               chord.KVProvider
 	ChordClient              rpc.ChordClient
-	Logger                   *zap.Logger
+	BaseLogger               *zap.Logger
 	Identity                 *protocol.Node
 	NodesRTT                 rtt.Recorder
 	StablizeInterval         time.Duration
@@ -27,8 +27,8 @@ func (c *NodeConfig) Validate() error {
 	if c == nil {
 		return errors.New("nil NodeConfig")
 	}
-	if c.Logger == nil {
-		return errors.New("nil Logger")
+	if c.BaseLogger == nil {
+		return errors.New("nil BaseLogger")
 	}
 	if c.Identity == nil {
 		return errors.New("nil Identity")

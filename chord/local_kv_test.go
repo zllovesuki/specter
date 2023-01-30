@@ -403,7 +403,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	// wait until the ring is fully stablized before we check for missing values
 	awaitStablizedGlobally(t, as, time.Second*10, nodes)
 
-	nodes[0].Logger.Debug("Starting test validation")
+	nodes[0].logger.Debug("Starting test validation")
 
 	found := 0
 	missingIndicies := make([]int, 0)
@@ -516,7 +516,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 
 	<-syncA
 
-	nodes[0].Logger.Debug("Starting test validation")
+	nodes[0].logger.Debug("Starting test validation")
 
 	found := 0
 	missingIndicies := make([]int, 0)

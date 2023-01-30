@@ -142,7 +142,7 @@ func DeserializeContextHeader(ctx context.Context, r http.Header) (context.Conte
 }
 
 // Middleware to attach the deserialized RPC context to the current request
-func ExtractSerializedContext(base http.Handler) http.Handler {
+func ExtractContext(base http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, ok := DeserializeContextHeader(r.Context(), r.Header)
 		if ok {

@@ -462,9 +462,6 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
-	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
-	tunnelLogger := logger.With(zap.String("component", "tunnel"), zap.Uint64("node", tunnelIdentity.GetId()))
-
 	alpnMux, err := overlay.NewMux(udpListener)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
@@ -479,7 +476,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	chordRTT := rtt.NewInstrumentation(20)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:      chordLogger,
+		Logger:      logger.With(zap.String("component", "chordTransport"), zap.Uint64("node", chordIdentity.GetId())),
 		Endpoint:    chordIdentity,
 		ClientTLS:   chordTLS,
 		RTTRecorder: chordRTT,
@@ -488,7 +485,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	// TODO: measure rtt to client to build routing table with cost
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:   tunnelLogger,
+		Logger:   logger.With(zap.String("component", "tunnelTransport"), zap.Uint64("node", tunnelIdentity.GetId())),
 		Endpoint: tunnelIdentity,
 	})
 	defer tunnelTransport.Stop()
@@ -512,7 +509,7 @@ func cmdServer(ctx *cli.Context) error {
 	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
 
 	chordNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
-		Logger:                   chordLogger,
+		BaseLogger:               logger,
 		ChordClient:              chordClient,
 		Identity:                 chordIdentity,
 		KVProvider:               kvProvider,
@@ -531,7 +528,7 @@ func cmdServer(ctx *cli.Context) error {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
-		p, err := chordImpl.NewRemoteNode(ctx.Context, chordLogger, chordClient, &protocol.Node{
+		p, err := chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, &protocol.Node{
 			Unknown: true,
 			Address: ctx.String("join"),
 		})
@@ -571,7 +568,13 @@ func cmdServer(ctx *cli.Context) error {
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
-	tunServer := server.New(tunnelLogger, chordNode, tunnelTransport, chordTransport, rootDomain)
+	tunServer := server.New(
+		logger.With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
+		chordNode,
+		tunnelTransport,
+		chordTransport,
+		rootDomain,
+	)
 	defer tunServer.Stop()
 
 	tunServer.AttachRouter(ctx.Context, streamRouter)

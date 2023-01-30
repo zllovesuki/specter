@@ -24,6 +24,7 @@ func TestErrorMapper(t *testing.T) {
 		ErrNodeGone,
 		ErrNodeNotStarted,
 		ErrNodeNoSuccessor,
+		ErrNodeNil,
 
 		ErrDuplicateJoinerID,
 		ErrJoinInvalidSuccessor,

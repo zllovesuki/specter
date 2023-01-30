@@ -72,7 +72,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	if old == nil {
 		new = predecessor
 		n.predecessor = predecessor
-		n.Logger.Info("Discovered new predecessor via Notify",
+		n.logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Object("predecessor", predecessor.Identity()),
 		)
@@ -89,7 +89,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 
 	if new != nil {
 		n.predecessor = new
-		n.Logger.Info("Discovered new predecessor via Notify",
+		n.logger.Info("Discovered new predecessor via Notify",
 			zap.Object("previous", old.Identity()),
 			zap.Object("predecessor", new.Identity()),
 		)
@@ -220,7 +220,7 @@ func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, new
 	}
 
 	if !chord.Between(low.ID(), newPredecessor.ID(), n.ID(), false) {
-		n.Logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Object("prev", low.Identity()), zap.Object("new", newPredecessor.Identity()))
+		n.logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Object("prev", low.Identity()), zap.Object("new", newPredecessor.Identity()))
 		return
 	}
 
@@ -229,7 +229,7 @@ func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, new
 		return nil
 	}
 
-	n.Logger.Info("transferring keys to new predecessor", zap.Object("predecessor", newPredecessor.Identity()), zap.Int("num_keys", len(keys)))
+	n.logger.Info("transferring keys to new predecessor", zap.Object("predecessor", newPredecessor.Identity()), zap.Int("num_keys", len(keys)))
 
 	values = n.kv.Export(keys)
 
@@ -252,7 +252,7 @@ func (n *LocalNode) transferKeysDownward(ctx context.Context, successor chord.VN
 		return nil
 	}
 
-	n.Logger.Info("transferring keys to successor", zap.Object("successor", successor.Identity()), zap.Int("num_keys", len(keys)))
+	n.logger.Info("transferring keys to successor", zap.Object("successor", successor.Identity()), zap.Int("num_keys", len(keys)))
 
 	values := n.kv.Export(keys)
 

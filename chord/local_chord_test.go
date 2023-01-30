@@ -43,7 +43,7 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 	m.On("Snapshot", mock.Anything, mock.Anything).Return(&rtt.Statistics{})
 
 	return NodeConfig{
-		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
+		BaseLogger:               logger,
 		ChordClient:              new(mocks.ChordClient),
 		Identity:                 iden,
 		KVProvider:               memory.WithHashFn(chord.Hash),

@@ -63,7 +63,7 @@ func (n *LocalNode) stabilize() error {
 			}
 			break
 		}
-		n.Logger.Debug("Skipping over successor", zap.Object("head", head.Identity()), zap.Uint64s("succ", v2d(succList)))
+		n.logger.Debug("Skipping over successor", zap.Object("head", head.Identity()), zap.Uint64s("succ", v2d(succList)))
 		succList = succList[1:]
 	}
 
@@ -79,7 +79,7 @@ func (n *LocalNode) stabilize() error {
 	if modified && len(succList) > 0 && n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
 		succ := succList[0]
 		if err := succ.Notify(n); err != nil {
-			n.Logger.Error("Error notifying successor about us", zap.Object("successor", succ.Identity()), zap.Error(err))
+			n.logger.Error("Error notifying successor about us", zap.Object("successor", succ.Identity()), zap.Error(err))
 		}
 	}
 
@@ -90,7 +90,7 @@ func (n *LocalNode) updateSuccessorsList(listHash uint64, succList []chord.VNode
 	n.succListHash.Store(listHash)
 	n.successors = succList
 
-	n.Logger.Info("Discovered new successors via Stablize",
+	n.logger.Info("Discovered new successors via Stablize",
 		zap.Uint64s("successors", v2d(succList)),
 	)
 }
@@ -127,7 +127,7 @@ func (n *LocalNode) fixFinger() error {
 		}
 	}
 	if len(fixed) > 0 {
-		n.Logger.Info("FingerTable entries updated", zap.Ints("fixed", fixed))
+		n.logger.Info("FingerTable entries updated", zap.Ints("fixed", fixed))
 	}
 	return nil
 }
@@ -145,7 +145,7 @@ func (n *LocalNode) checkPredecessor() error {
 		n.predecessorMu.Lock()
 		if n.predecessor == pre {
 			n.predecessor = nil
-			n.Logger.Info("Discovered dead predecessor",
+			n.logger.Info("Discovered dead predecessor",
 				zap.Object("old", pre.Identity()),
 				zap.String("new", "nil"),
 			)
@@ -162,11 +162,11 @@ func (n *LocalNode) periodicStablize() {
 	for {
 		select {
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping Stablize task")
+			n.logger.Debug("Stopping Stablize task")
 			return
 		default:
 			if err := n.stabilize(); err != nil {
-				n.Logger.Error("Stablize task", zap.Error(err))
+				n.logger.Error("Stablize task", zap.Error(err))
 			}
 			time.Sleep(n.StablizeInterval)
 		}
@@ -179,7 +179,7 @@ func (n *LocalNode) periodicPredecessorCheck() {
 	for {
 		select {
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping predecessor checking task")
+			n.logger.Debug("Stopping predecessor checking task")
 			return
 		default:
 			n.checkPredecessor()
@@ -195,7 +195,7 @@ func (n *LocalNode) periodicFixFingers() {
 	for {
 		select {
 		case <-n.stopCh:
-			n.Logger.Debug("Stopping FixFinger task")
+			n.logger.Debug("Stopping FixFinger task")
 			return
 		default:
 			n.fixFinger()

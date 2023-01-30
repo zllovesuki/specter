@@ -19,18 +19,23 @@ const (
 
 type RemoteNode struct {
 	baseContext context.Context
+	baseLogger  *zap.Logger
 	logger      *zap.Logger
-	id          *protocol.Node
+	identity    *protocol.Node
 	chordClient rpc.ChordClient
 }
 
 var _ chord.VNode = (*RemoteNode)(nil)
 
-func NewRemoteNode(ctx context.Context, logger *zap.Logger, chordClient rpc.ChordClient, peer *protocol.Node) (*RemoteNode, error) {
+func NewRemoteNode(ctx context.Context, baseLogger *zap.Logger, chordClient rpc.ChordClient, peer *protocol.Node) (*RemoteNode, error) {
+	if peer == nil {
+		return nil, chord.ErrNodeNil
+	}
+
 	n := &RemoteNode{
 		baseContext: ctx,
-		id:          peer,
-		logger:      logger,
+		baseLogger:  baseLogger,
+		identity:    peer,
 		chordClient: chordClient,
 	}
 
@@ -39,6 +44,7 @@ func NewRemoteNode(ctx context.Context, logger *zap.Logger, chordClient rpc.Chor
 			return nil, err
 		}
 	}
+	n.logger = baseLogger.With(zap.String("component", "remoteNode"), zap.Object("node", n.identity))
 	return n, nil
 }
 
@@ -48,26 +54,24 @@ func (n *RemoteNode) handshake(r rpc.ChordClient, node *protocol.Node) error {
 
 	resp, err := r.Identity(ctx, &protocol.IdentityRequest{})
 	if err != nil {
-		if !chord.ErrorIsRetryable(err) {
-			n.logger.Error("remote Identity RPC", zap.Object("node", n.Identity()), zap.Error(err))
-		}
+		n.baseLogger.Error("error obtaining Identity of RemoteNode", zap.Object("peer", node), zap.Error(err))
 		return err
 	}
 
-	n.id = resp.GetIdentity()
+	n.identity = resp.GetIdentity()
 	return nil
 }
 
 func (n *RemoteNode) ID() uint64 {
-	return n.id.GetId()
+	return n.identity.GetId()
 }
 
 func (n *RemoteNode) Identity() *protocol.Node {
-	return n.id
+	return n.identity
 }
 
 func (n *RemoteNode) Ping() error {
-	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), pingTimeout)
+	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), pingTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Ping(ctx, &protocol.PingRequest{})
@@ -76,7 +80,7 @@ func (n *RemoteNode) Ping() error {
 }
 
 func (n *RemoteNode) Notify(predecessor chord.VNode) error {
-	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Notify(ctx, &protocol.NotifyRequest{
@@ -87,7 +91,7 @@ func (n *RemoteNode) Notify(predecessor chord.VNode) error {
 }
 
 func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.FindSuccessor(ctx, &protocol.FindSuccessorRequest{
@@ -105,11 +109,9 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return n, nil
 	}
 
-	succ, err := createRPC(n.baseContext, n.logger, n.chordClient, resp.GetSuccessor())
+	succ, err := NewRemoteNode(n.baseContext, n.baseLogger, n.chordClient, resp.GetSuccessor())
 	if err != nil {
-		if !chord.ErrorIsRetryable(err) {
-			n.logger.Error("creating new RemoteNode in FindSuccessor", zap.Object("peer", resp.GetSuccessor()), zap.Error(err))
-		}
+		n.logger.Error("error creating new RemoteNode in FindSuccessor", zap.Object("peer", resp.GetSuccessor()), zap.Error(err))
 		return nil, err
 	}
 
@@ -117,7 +119,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 }
 
 func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.GetSuccessors(ctx, &protocol.GetSuccessorsRequest{})
@@ -129,11 +131,9 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 	nodes := make([]chord.VNode, 0, len(succList))
 
 	for _, succ := range succList {
-		node, err := createRPC(n.baseContext, n.logger, n.chordClient, succ)
+		node, err := NewRemoteNode(n.baseContext, n.baseLogger, n.chordClient, succ)
 		if err != nil {
-			if !chord.ErrorIsRetryable(err) {
-				n.logger.Error("create RemoteNote in GetSuccessors", zap.Object("peer", n.Identity()), zap.Error(err))
-			}
+			n.logger.Error("error creating RemoteNote in GetSuccessors", zap.Object("peer", n.Identity()), zap.Error(err))
 			continue
 		}
 		nodes = append(nodes, node)
@@ -143,7 +143,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 }
 
 func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
-	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.GetPredecessor(ctx, &protocol.GetPredecessorRequest{})
@@ -158,7 +158,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 		return n, nil
 	}
 
-	pre, err := createRPC(n.baseContext, n.logger, n.chordClient, resp.GetPredecessor())
+	pre, err := NewRemoteNode(n.baseContext, n.baseLogger, n.chordClient, resp.GetPredecessor())
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (n *RemoteNode) GetPredecessor() (chord.VNode, error) {
 }
 
 func (n *RemoteNode) Put(ctx context.Context, key, value []byte) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Put(reqCtx, &protocol.SimpleRequest{
@@ -179,7 +179,7 @@ func (n *RemoteNode) Put(ctx context.Context, key, value []byte) error {
 }
 
 func (n *RemoteNode) Get(ctx context.Context, key []byte) ([]byte, error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.Get(reqCtx, &protocol.SimpleRequest{
@@ -192,7 +192,7 @@ func (n *RemoteNode) Get(ctx context.Context, key []byte) ([]byte, error) {
 }
 
 func (n *RemoteNode) Delete(ctx context.Context, key []byte) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Delete(reqCtx, &protocol.SimpleRequest{
@@ -203,7 +203,7 @@ func (n *RemoteNode) Delete(ctx context.Context, key []byte) error {
 }
 
 func (n *RemoteNode) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Append(reqCtx, &protocol.PrefixRequest{
@@ -215,7 +215,7 @@ func (n *RemoteNode) PrefixAppend(ctx context.Context, prefix []byte, child []by
 }
 
 func (n *RemoteNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.List(reqCtx, &protocol.PrefixRequest{
@@ -228,7 +228,7 @@ func (n *RemoteNode) PrefixList(ctx context.Context, prefix []byte) ([][]byte, e
 }
 
 func (n *RemoteNode) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.Contains(reqCtx, &protocol.PrefixRequest{
@@ -242,7 +242,7 @@ func (n *RemoteNode) PrefixContains(ctx context.Context, prefix []byte, child []
 }
 
 func (n *RemoteNode) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Remove(reqCtx, &protocol.PrefixRequest{
@@ -254,7 +254,7 @@ func (n *RemoteNode) PrefixRemove(ctx context.Context, prefix []byte, child []by
 }
 
 func (n *RemoteNode) Acquire(ctx context.Context, lease []byte, ttl time.Duration) (uint64, error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.Acquire(reqCtx, &protocol.LeaseRequest{
@@ -268,7 +268,7 @@ func (n *RemoteNode) Acquire(ctx context.Context, lease []byte, ttl time.Duratio
 }
 
 func (n *RemoteNode) Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.Renew(reqCtx, &protocol.LeaseRequest{
@@ -283,7 +283,7 @@ func (n *RemoteNode) Renew(ctx context.Context, lease []byte, ttl time.Duration,
 }
 
 func (n *RemoteNode) Release(ctx context.Context, lease []byte, token uint64) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Release(reqCtx, &protocol.LeaseRequest{
@@ -295,7 +295,7 @@ func (n *RemoteNode) Release(ctx context.Context, lease []byte, token uint64) er
 }
 
 func (n *RemoteNode) Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.Import(reqCtx, &protocol.ImportRequest{
@@ -307,7 +307,7 @@ func (n *RemoteNode) Import(ctx context.Context, keys [][]byte, values []*protoc
 }
 
 func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	resp, err := n.chordClient.RequestToJoin(reqCtx, &protocol.RequestToJoinRequest{
@@ -320,14 +320,14 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 	pre := resp.GetPredecessor()
 	succList := resp.GetSuccessors()
 
-	pp, err := createRPC(n.baseContext, n.logger, n.chordClient, pre)
+	pp, err := NewRemoteNode(n.baseContext, n.baseLogger, n.chordClient, pre)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	nodes := make([]chord.VNode, 0, len(succList))
 	for _, succ := range succList {
-		node, err := createRPC(n.baseContext, n.logger, n.chordClient, succ)
+		node, err := NewRemoteNode(n.baseContext, n.baseLogger, n.chordClient, succ)
 		if err != nil {
 			continue
 		}
@@ -338,7 +338,7 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 }
 
 func (n *RemoteNode) FinishJoin(stablize bool, release bool) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.FinishJoin(reqCtx, &protocol.MembershipConclusionRequest{
@@ -350,7 +350,7 @@ func (n *RemoteNode) FinishJoin(stablize bool, release bool) error {
 }
 
 func (n *RemoteNode) RequestToLeave(leaver chord.VNode) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.RequestToLeave(reqCtx, &protocol.RequestToLeaveRequest{
@@ -361,7 +361,7 @@ func (n *RemoteNode) RequestToLeave(leaver chord.VNode) error {
 }
 
 func (n *RemoteNode) FinishLeave(stablize bool, release bool) error {
-	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.id), rpcTimeout)
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.FinishLeave(reqCtx, &protocol.MembershipConclusionRequest{
@@ -370,7 +370,4 @@ func (n *RemoteNode) FinishLeave(stablize bool, release bool) error {
 	})
 
 	return chord.ErrorMapper(err)
-}
-
-func (n *RemoteNode) Stop() {
 }

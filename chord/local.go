@@ -10,9 +10,11 @@ import (
 	"kon.nect.sh/specter/util/ratecounter"
 
 	"go.uber.org/atomic"
+	"go.uber.org/zap"
 )
 
 type LocalNode struct {
+	logger         *zap.Logger
 	predecessorMu  sync.RWMutex                            // simple mutex surrounding operations on predecessor
 	predecessor    chord.VNode                             // nord's immediate predecessor
 	_              [0]any                                  //
@@ -65,6 +67,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	}
 	n := &LocalNode{
 		NodeConfig:     conf,
+		logger:         conf.BaseLogger.With(zap.String("component", "localNode"), zap.Uint64("node", conf.Identity.GetId())),
 		state:          NewNodeState(chord.Inactive),
 		succListHash:   atomic.NewUint64(conf.Identity.GetId()),
 		kv:             conf.KVProvider,
