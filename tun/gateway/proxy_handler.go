@@ -47,10 +47,10 @@ func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, err
 		return nil, fmt.Errorf("not implemented")
 	}
 	g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
-	return g.Tun.Dial(ctx, &protocol.Link{
+	return g.TunnelServer.Dial(ctx, &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
 		Hostname: hostname,
-		Remote:   g.IdentityGetter().GetAddress(), // include gateway address as placeholder
+		Remote:   g.TunnelServer.Identity().GetAddress(), // include gateway address as placeholder
 	})
 }
 

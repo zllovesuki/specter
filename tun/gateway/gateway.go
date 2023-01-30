@@ -30,17 +30,16 @@ type DeadlineReadWriteCloser interface {
 }
 
 type GatewayConfig struct {
-	Tun            tun.Server
-	HTTPListener   net.Listener
-	H2Listener     net.Listener
-	H3Listener     quic.EarlyListener
-	Logger         *zap.Logger
-	StatsHandler   http.HandlerFunc
-	IdentityGetter func() *protocol.Node
-	RootDomain     string
-	AdminUser      string
-	AdminPass      string
-	GatewayPort    int
+	TunnelServer tun.Server
+	HTTPListener net.Listener
+	H2Listener   net.Listener
+	H3Listener   quic.EarlyListener
+	Logger       *zap.Logger
+	StatsHandler http.HandlerFunc
+	RootDomain   string
+	AdminUser    string
+	AdminPass    string
+	GatewayPort  int
 }
 
 type Gateway struct {
@@ -60,13 +59,6 @@ type Gateway struct {
 }
 
 func New(conf GatewayConfig) *Gateway {
-	if conf.IdentityGetter == nil {
-		conf.IdentityGetter = func() *protocol.Node {
-			return &protocol.Node{
-				Address: conf.H2Listener.Addr().String(),
-			}
-		}
-	}
 	g := &Gateway{
 		GatewayConfig:       conf,
 		httpTunnelAcceptor:  acceptor.NewH2Acceptor(conf.H2Listener),
@@ -327,7 +319,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	conn.SetReadDeadline(time.Time{})
 
 	parts := strings.SplitN(host, ".", 2)
-	c, err = g.Tun.Dial(ctx, &protocol.Link{
+	c, err = g.TunnelServer.Dial(ctx, &protocol.Link{
 		Alpn:     protocol.Link_TCP,
 		Hostname: parts[0],
 		Remote:   remote,

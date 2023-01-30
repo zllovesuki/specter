@@ -486,6 +486,7 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer chordTransport.Stop()
 
+	// TODO: measure rtt to client to build routing table with cost
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:   tunnelLogger,
 		Endpoint: tunnelIdentity,
@@ -579,17 +580,16 @@ func cmdServer(ctx *cli.Context) error {
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
 	gw := gateway.New(gateway.GatewayConfig{
-		Logger:         logger.With(zap.String("component", "gateway")),
-		Tun:            tunServer,
-		HTTPListener:   httpListener,
-		H2Listener:     gwH2Listener,
-		H3Listener:     gwH3Listener,
-		StatsHandler:   chordNode.StatsHandler,
-		RootDomain:     rootDomain,
-		GatewayPort:    int(advertisePort),
-		AdminUser:      ctx.String("auth_user"),
-		AdminPass:      ctx.String("auth_pass"),
-		IdentityGetter: tunnelTransport.Identity,
+		Logger:       logger.With(zap.String("component", "gateway")),
+		TunnelServer: tunServer,
+		HTTPListener: httpListener,
+		H2Listener:   gwH2Listener,
+		H3Listener:   gwH3Listener,
+		StatsHandler: chordNode.StatsHandler,
+		RootDomain:   rootDomain,
+		GatewayPort:  int(advertisePort),
+		AdminUser:    ctx.String("auth_user"),
+		AdminPass:    ctx.String("auth_pass"),
 	})
 	defer gw.Close()
 

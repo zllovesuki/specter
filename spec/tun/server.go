@@ -14,5 +14,6 @@ var (
 )
 
 type Server interface {
+	Identity() *protocol.Node
 	Dial(context.Context, *protocol.Link) (net.Conn, error)
 }

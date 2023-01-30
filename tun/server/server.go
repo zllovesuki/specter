@@ -48,6 +48,10 @@ func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport,
 	}
 }
 
+func (s *Server) Identity() *protocol.Node {
+	return s.tunnelTransport.Identity()
+}
+
 func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
 		l := s.logger.With(
@@ -102,12 +106,13 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
+
 	l := s.logger.With(
 		zap.String("hostname", bundle.GetHostname()),
 		zap.Uint64("client", bundle.GetClient().GetId()),
 	)
 	l.Debug("received proxy stream from remote node",
-		zap.Uint64("remote_chord", delegation.Identity.GetId()),
+		zap.Object("remote_chord", delegation.Identity),
 		zap.Object("chord", bundle.GetChord()),
 		zap.Object("tun", bundle.GetTun()))
 
@@ -131,6 +136,7 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 		zap.String("hostname", bundle.GetHostname()),
 		zap.Uint64("client", bundle.GetClient().GetId()),
 	)
+
 	if bundle.GetTun().GetId() == s.tunnelTransport.Identity().GetId() {
 		l.Debug("client is connected to us, opening direct stream")
 
