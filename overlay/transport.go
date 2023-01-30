@@ -33,6 +33,9 @@ func NewQUIC(conf TransportConfig) *QUIC {
 		streamChan: make(chan *transport.StreamDelegate, 32),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
 
+		rttChan: make(chan *transport.DatagramDelegate, 8),
+		rttMap:  skipmap.NewString[*skipmap.Uint64Map[int64]](),
+
 		started: uberAtomic.NewBool(false),
 		closed:  uberAtomic.NewBool(false),
 	}
@@ -351,7 +354,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic
 	if err != nil {
 		return nil, err
 	}
-	defer stream.Close()
+	defer WrapQuicConnection(stream, q).Close()
 
 	c, reused, err := t.reuseConnection(ctx, q, stream, directionIncoming)
 	if err != nil {
@@ -373,7 +376,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 	if err != nil {
 		return nil, err
 	}
-	defer stream.Close()
+	defer WrapQuicConnection(stream, q).Close()
 
 	c, reused, err := t.reuseConnection(ctx, q, stream, directionOutgoing)
 	if err != nil {
@@ -397,6 +400,9 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 	l.Debug("Starting goroutines to handle streams and datagrams")
 	go t.handleConnection(ctx, q, peer)
 	go t.handleDatagram(ctx, q, peer)
+	if t.RTTRecorder != nil {
+		go t.sendRTTSyn(ctx, q, peer)
+	}
 	go func(q quic.Connection) {
 		<-q.Context().Done()
 		l.Info("Connection with peer closed", zap.Error(q.Context().Err()))
@@ -409,6 +415,7 @@ func (t *QUIC) background(ctx context.Context) {
 		return
 	}
 	go t.reaper(ctx)
+	go t.handleRTTAck(ctx)
 }
 
 func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListener) error {
@@ -446,7 +453,7 @@ func (t *QUIC) AcceptStream() <-chan *transport.StreamDelegate {
 }
 
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
-	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()))
+	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.String("peer", peer.String()))
 	for {
 		b, err := q.ReceiveMessage()
 		if err != nil {
@@ -462,11 +469,28 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 		}
 		switch data.GetType() {
 		case protocol.Datagram_ALIVE:
+		case protocol.Datagram_RTT_SYN:
+			data.Type = protocol.Datagram_RTT_ACK
+			buf, err := data.MarshalVT()
+			if err != nil {
+				logger.Error("error encoding rtt ack datagram to proto", zap.Error(err))
+				continue
+			}
+			if err := q.SendMessage(buf); err != nil {
+				logger.Error("error sending rtt ack datagram", zap.Error(err))
+				continue
+			}
+		case protocol.Datagram_RTT_ACK:
+			select {
+			case t.rttChan <- &transport.DatagramDelegate{Buffer: data.GetData(), Identity: peer}:
+			default:
+				logger.Warn("rtt ack buffer full, dropping datagram")
+			}
 		case protocol.Datagram_DATA:
 			select {
 			case t.dgramChan <- &transport.DatagramDelegate{Buffer: data.GetData(), Identity: peer}:
 			default:
-				logger.Warn("datagram data buffer full, dropping datagram")
+				logger.Warn("data buffer full, dropping datagram")
 			}
 		default:
 			logger.Warn("unknown datagram type: %s", zap.String("type", data.GetType().String()))

@@ -51,6 +51,16 @@ func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport,
 
 func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) {
 	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
+		l := s.logger.With(
+			zap.Any("peer", delegate.Identity),
+			zap.String("remote", delegate.RemoteAddr().String()),
+			zap.String("local", delegate.LocalAddr().String()),
+		)
+		defer func() {
+			if err := recover(); err != nil {
+				l.Warn("Panic recovered while handling proxy connection", zap.Any("error", err))
+			}
+		}()
 		s.handleProxyConn(ctx, delegate)
 	})
 	router.HandleTunnel(protocol.Stream_DIRECT, func(delegate *transport.StreamDelegate) {
@@ -157,7 +167,7 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	}
 }
 
-// TODO: make routing selection more intelligent
+// TODO: make routing selection more intelligent with rtt
 func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	isNoDirect := false
 	for k := 1; k <= tun.NumRedundantLinks; k++ {

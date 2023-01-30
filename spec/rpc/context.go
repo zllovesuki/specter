@@ -24,7 +24,7 @@ const (
 	contextClientTokenKey    = rpcContextKey("client-token")      // *protocol.ClientToken from client or parsed from the header
 	contextClientIdentityKey = rpcContextKey("client-identity")   // *protocol.Node of client as matched with delegation and token
 	contextDelegationKey     = rpcContextKey("stream-delegation") // *transport.StreamDelegation of the rpc request
-	contextDisablePoolKey    = rpcContextKey("disable-http-pool")
+	contextDisablePoolKey    = rpcContextKey("disable-http-pool") // disable HTTP client pooling. Used in test to avoid lingering connections
 )
 
 // Disable HTTP client pool for this client
@@ -103,7 +103,7 @@ func GetDelegation(ctx context.Context) *transport.StreamDelegate {
 }
 
 // Serialize RPC context as http headers
-func InjectContextHeader(ctx context.Context, r http.Header) {
+func SerializeContextHeader(ctx context.Context, r http.Header) {
 	rCtx, ok := ctx.Value(contextRPCContextKey).(*protocol.Context)
 	if !ok {
 		return

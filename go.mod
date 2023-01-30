@@ -14,6 +14,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v3 v3.1.2
 	github.com/mholt/acmez v1.0.4
+	github.com/montanaflynn/stats v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/orisano/wyhash v1.1.0
 	github.com/quic-go/quic-go v0.31.1

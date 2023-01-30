@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/rtt"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -36,14 +37,29 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	fmt.Fprintf(w, "---\n")
 
 	nodesTable := tablewriter.NewWriter(w)
-	nodesTable.SetHeader([]string{"Where", "ID", "Address"})
-	nodesTable.Append([]string{"Predecessor", fmt.Sprintf("%v", pre.ID()), pre.Identity().GetAddress()})
-	nodesTable.Append([]string{"Local", fmt.Sprintf("%v", n.ID()), n.Identity().GetAddress()})
+	nodesTable.SetHeader([]string{"Where", "ID", "Address", "RTT (-10s)"})
+	nodesTable.Append([]string{
+		"Predecessor",
+		fmt.Sprintf("%v", pre.ID()),
+		pre.Identity().GetAddress(),
+		n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(pre.Identity()), time.Second*10).String(),
+	})
+	nodesTable.Append([]string{
+		"Local",
+		fmt.Sprintf("%v", n.ID()),
+		n.Identity().GetAddress(),
+		n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(n.Identity()), time.Second*10).String(),
+	})
 
 	for _, succ := range succList {
-		nodesTable.Append([]string{fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries), fmt.Sprintf("%v", succ.ID()), succ.Identity().GetAddress()})
+		nodesTable.Append([]string{
+			fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries),
+			fmt.Sprintf("%v", succ.ID()),
+			succ.Identity().GetAddress(),
+			n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(succ.Identity()), time.Second*10).String(),
+		})
 	}
-	nodesTable.SetCaption(true, fmt.Sprintf("(stablized: %s)", n.lastStabilized.Load().Round(time.Second).String()))
+	nodesTable.SetCaption(true, fmt.Sprintf("(Last stablized: %s)", n.lastStabilized.Load().Round(time.Second).String()))
 	nodesTable.SetAutoMergeCells(true)
 	nodesTable.SetRowLine(true)
 	nodesTable.Render()
@@ -94,7 +110,7 @@ func (n *LocalNode) printSummary(w http.ResponseWriter) {
 		}
 		keysTable.Append(row)
 	}
-	keysTable.SetCaption(true, "(X in owner column indicates incorrect owner)")
+	keysTable.SetCaption(true, fmt.Sprintf("(With %d keys; X in owner column indicates incorrect owner)", len(keys)))
 	keysTable.SetAutoMergeCells(true)
 	keysTable.SetRowLine(true)
 	keysTable.Render()
@@ -111,7 +127,7 @@ func (n *LocalNode) printKey(w http.ResponseWriter, r *http.Request, key string)
 }
 
 func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "text/plain")
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
 
 	query := r.URL.Query()
 	if query.Has("key") {

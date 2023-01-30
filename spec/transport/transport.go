@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	ConnectTimeout = time.Second * 10
+	ConnectTimeout     = time.Second * 10
+	RTTMeasureInterval = time.Second * 3
 )
 
 type StreamDelegate struct {
