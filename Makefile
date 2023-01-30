@@ -2,6 +2,7 @@ PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/a
 
 BUILD=$(shell git rev-parse --short HEAD)
 PROTOC_GO=`which protoc-gen-go`
+PROTOC_TWIRP=`which protoc-gen-twirp`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 
 COUNT=3
@@ -84,14 +85,26 @@ docker:
 	docker buildx build -t specter:$(BUILD) -f Dockerfile .
 
 proto:
+	rm -rf ./spec/protocol/*.go
 	protoc \
+		--plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
+		--plugin protoc-gen-twirp="$(PROTOC_TWIRP)" \
+		--plugin protoc-gen-go="$(PROTOC_GO)" \
+		--go_out=. \
+		--twirp_out=. \
+		--go-vtproto_out=. \
 		--go_opt=module=kon.nect.sh/specter \
+		--twirp_opt=module=kon.nect.sh/specter \
 		--go-vtproto_opt=module=kon.nect.sh/specter \
-		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
-		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
-		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
-		--go-vtproto_opt=pool=kon.nect.sh/specter/spec/protocol.RPC \
+		--go-vtproto_opt=features=marshal+unmarshal+size \
 		./spec/proto/*.proto
+	for twirp in ./spec/protocol/*.twirp.go; \
+		do \
+		echo 'Updating' $${twirp}; \
+		sed -i -e 's/respBytes, err := proto.Marshal(respContent)/respBytes, err := respContent.MarshalVT()/g' $${twirp}; \
+		sed -i -e 's/if err = proto.Unmarshal(buf, reqContent); err != nil {/if err = reqContent.UnmarshalVT(buf); err != nil {/g' $${twirp}; \
+		done;
+	git apply spec/vt.patch
 
 proto_aof_kv:
 	protoc \
@@ -110,6 +123,7 @@ benchmark_kv:
 dep:
 	go install golang.org/x/tools/cmd/stringer@latest
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
+	go install github.com/twitchtv/twirp/protoc-gen-twirp@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install honnef.co/go/tools/cmd/staticcheck@2022.1.3
 
@@ -167,22 +181,15 @@ fly_deploy:
 
 fly_certs:
 	mkdir fly
-	# Create CA key
 	openssl ecparam -name prime256v1 -genkey -noout -out fly/ca.key
-	# Generate CA CSR
 	openssl req -new -key fly/ca.key -out fly/ca.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=ca.dev"
-	# Verify CA CSR
 	openssl req -text -in fly/ca.csr -noout -verify
-	# Generate self-signed CA
 	openssl x509 -signkey fly/ca.key -in fly/ca.csr -req -days 3650 -out fly/ca.crt
-	# Generate node key
 	openssl ecparam -name prime256v1 -genkey -noout -out fly/node.key
-	# Generate node CSR
 	openssl req -new -key fly/node.key -out fly/node.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=node.ca.dev"
-	# Verify node CSR
 	openssl req -text -in fly/node.csr -noout -verify
-	# Sign and generate node certificate
 	openssl x509 -req -CA fly/ca.crt -CAkey fly/ca.key -in fly/node.csr -out fly/node.crt -days 3650 -CAcreateserial -extfile fly.txt
+	flyctl secrets set CERT_CA=$$(cat fly/ca.crt | openssl enc -A -base64) CERT_NODE=$$(cat fly/node.crt | openssl enc -A -base64) CERT_NODE_KEY=$$(cat fly/node.key | openssl enc -A -base64)
 
 licenses:
 	go-licenses save kon.nect.sh/specter --save_path=./licenses

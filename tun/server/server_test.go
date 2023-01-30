@@ -58,13 +58,16 @@ func getExpected(link *protocol.Link) [][]byte {
 
 func getIdentities() (*protocol.Node, *protocol.Node, *protocol.Node) {
 	cl := &protocol.Node{
-		Id: chord.Random(),
+		Address: "client:123",
+		Id:      chord.Random(),
 	}
 	ch := &protocol.Node{
-		Id: chord.Random(),
+		Address: "chord:123",
+		Id:      chord.Random(),
 	}
 	tn := &protocol.Node{
-		Id: chord.Random(),
+		Address: "tunnel:123",
+		Id:      chord.Random(),
 	}
 	return cl, ch, tn
 }
@@ -296,9 +299,9 @@ func TestHandleRemoteConnection(t *testing.T) {
 	serv.MustRegister(ctx)
 
 	chordChan <- &transport.StreamDelegate{
-		Connection: c1,
-		Identity:   &protocol.Node{Id: chord.Random()},
-		Kind:       protocol.Stream_PROXY,
+		Conn:     c1,
+		Identity: &protocol.Node{Id: chord.Random()},
+		Kind:     protocol.Stream_PROXY,
 	}
 
 	select {

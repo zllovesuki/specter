@@ -7,6 +7,14 @@ option go_package = "kon.nect.sh/specter/spec/protocol";
 import "spec/proto/node.proto";
 import "google/protobuf/descriptor.proto";
 
+service TunnelService {
+    rpc Ping(ClientPingRequest) returns (ClientPingResponse);
+    rpc RegisterIdentity(RegisterIdentityRequest) returns (RegisterIdentityResponse);
+    rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+    rpc GenerateHostname(GenerateHostnameRequest) returns (GenerateHostnameResponse);
+    rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
+}
+
 message Tunnel {
     Node client = 1;
     Node chord = 2;
@@ -15,38 +23,11 @@ message Tunnel {
     string hostname = 10;
 }
 
-enum TunnelRPC {
-    UNKNOWN_RPC = 0;
-
-    IDENTITY = 1;
-    NODES = 2;
-    HOSTNAME = 3;
-    TUNNEL = 4;
-    PING = 5;
-}
-
 message ClientToken {
     bytes token = 1;
 }
 
-message ClientRequest {
-    ClientToken token = 1;
-    TunnelRPC kind = 2;
-
-    RegisterIdentityRequest registerRequest = 5;
-    GetNodesRequest nodesRequest = 6;
-    GenerateHostnameRequest hostnameRequest = 7;
-    PublishTunnelRequest tunnelRequest = 8;
-}
-
-message ClientResponse {
-    RegisterIdentityResponse registerResponse = 5;
-    GetNodesResponse nodesResponse = 6;
-    GenerateHostnameResponse hostnameResponse = 7;
-    PublishTunnelResponse tunnelResponse = 8;
-
-    ClientPingResponse pingResponse = 15;
-}
+message ClientPingRequest {}
 
 message ClientPingResponse {
     Node node = 1;

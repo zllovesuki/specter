@@ -6,6 +6,23 @@ option go_package = "kon.nect.sh/specter/spec/protocol";
 
 import "spec/proto/node.proto";
 
+service VNodeService {
+    rpc Identity(IdentityRequest) returns (IdentityResponse);
+    rpc Ping(PingRequest) returns (PingResponse);
+
+    rpc Notify(NotifyRequest) returns (NotifyResponse);
+    rpc FindSuccessor(FindSuccessorRequest) returns (FindSuccessorResponse);
+    rpc GetSuccessors(GetSuccessorsRequest) returns (GetSuccessorsResponse);
+    rpc GetPredecessor(GetPredecessorRequest) returns (GetPredecessorResponse);
+
+    rpc RequestToJoin(RequestToJoinRequest) returns (RequestToJoinResponse);
+    rpc FinishJoin(MembershipConclusionRequest) returns (MembershipConclusionResponse);
+    rpc RequestToLeave(RequestToLeaveRequest) returns (RequestToLeaveResponse);
+    rpc FinishLeave(MembershipConclusionRequest) returns (MembershipConclusionResponse);
+}
+
+message Empty {}
+
 message IdentityRequest {}
 
 message IdentityResponse {
@@ -42,26 +59,24 @@ message GetSuccessorsResponse {
     repeated Node successors = 1;
 }
 
-enum MembershipChangeOperation {
-    UNKNOWN_CHANGE = 0;
-    JOIN_REQUEST = 1;
-    JOIN_FINISH = 2;
-    LEAVE_REQUEST = 3;
-    LEAVE_FINISH = 4;
+message RequestToJoinRequest {
+    Node joiner = 1;
 }
 
-message MembershipChangeRequest {
-    MembershipChangeOperation op = 1;
-    // used by RequestToJoin
-    Node joiner = 2;
-    // used by RequestToLeave
-    Node leaver = 3;
-    // used by both JoinFinish and LeaveFinish
-    bool stablize = 4;
-    bool release = 5;
-}
-
-message MembershipChangeResponse {
+message RequestToJoinResponse {
     Node predecessor = 1;
     repeated Node successors = 2;
 }
+
+message RequestToLeaveRequest {
+    Node leaver = 1;
+}
+
+message RequestToLeaveResponse {}
+
+message MembershipConclusionRequest {
+    bool stablize = 1;
+    bool release = 2;
+}
+
+message MembershipConclusionResponse {}

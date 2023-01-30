@@ -13,7 +13,7 @@ import (
 
 type NodeConfig struct {
 	KVProvider               chord.KVProvider
-	RPCClient                rpc.RPC
+	ChordClient              rpc.ChordClient
 	Logger                   *zap.Logger
 	Identity                 *protocol.Node
 	StablizeInterval         time.Duration
@@ -34,8 +34,8 @@ func (c *NodeConfig) Validate() error {
 	if c.Identity.GetId() >= (1 << chord.MaxFingerEntries) {
 		return errors.New("invalid Identity ID")
 	}
-	if c.RPCClient == nil {
-		return errors.New("nil RPC Client")
+	if c.ChordClient == nil {
+		return errors.New("nil ChordClient")
 	}
 	if c.StablizeInterval <= 0 {
 		return errors.New("invalid StablizeInterval, must be positive")

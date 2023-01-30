@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	rpcImpl "kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -43,6 +42,7 @@ const (
 
 type Client struct {
 	logger          *zap.Logger
+	parentCtx       context.Context
 	serverTransport transport.Transport
 	configMu        sync.RWMutex
 	syncMu          sync.Mutex
@@ -50,18 +50,19 @@ type Client struct {
 	rootDomain      *atomic.String
 	proxies         *skipmap.StringMap[*httpProxy]
 	connections     *skipmap.Uint64Map[*protocol.Node]
-	rpcClient       rpc.RPC
+	tunnelClient    protocol.TunnelService
 }
 
 func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config) (*Client, error) {
 	c := &Client{
 		logger:          logger.With(zap.Uint64("id", t.Identity().GetId())),
+		parentCtx:       ctx,
 		serverTransport: t,
 		config:          cfg,
 		rootDomain:      atomic.NewString(""),
 		proxies:         skipmap.NewString[*httpProxy](),
 		connections:     skipmap.NewUint64[*protocol.Node](),
-		rpcClient:       rpcImpl.NewRPC(ctx, logger, t),
+		tunnelClient:    rpc.DynamicTunnelClient(ctx, t),
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
@@ -88,6 +89,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 
 	callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
+
 	resp, err := c.Ping(callCtx, node)
 	if err != nil {
 		return err
@@ -99,9 +101,12 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 	return nil
 }
 
-func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (resp *protocol.ClientResponse, err error) {
+func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node) (V, error)) (resp V, err error) {
 	err = retry.Do(func() error {
-		var candidate *protocol.Node
+		var (
+			candidate *protocol.Node
+			rpcError  error
+		)
 		c.connections.Range(func(id uint64, node *protocol.Node) bool {
 			candidate = node
 			return false
@@ -109,15 +114,8 @@ func (c *Client) rpcCall(ctx context.Context, req *protocol.ClientRequest) (resp
 		if candidate == nil {
 			return fmt.Errorf("no rpc candidates available")
 		}
-		rpcResp, err := c.rpcClient.Call(ctx, candidate, &protocol.RPC_Request{
-			Kind:          protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: req,
-		})
-		if err != nil {
-			return err
-		}
-		resp = rpcResp.GetClientResponse()
-		return nil
+		resp, rpcError = fn(candidate)
+		return chord.ErrorMapper(rpcError)
 	},
 		retry.Context(ctx),
 		retry.Attempts(2),
@@ -244,17 +242,17 @@ func (c *Client) Register(ctx context.Context) error {
 	defer c.configMu.Unlock()
 
 	if c.config.Token != "" {
-		req := &protocol.ClientRequest{
-			Kind: protocol.TunnelRPC_PING,
-			Token: &protocol.ClientToken{
+		resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ClientPingResponse, error) {
+			ctx = rpc.WithClientToken(ctx, &protocol.ClientToken{
 				Token: []byte(c.config.Token),
-			},
-		}
-		resp, err := c.rpcCall(ctx, req)
+			})
+			ctx = rpc.WithNode(ctx, node)
+			return c.tunnelClient.Ping(ctx, &protocol.ClientPingRequest{})
+		})
 		if err != nil {
 			return err
 		}
-		root := resp.GetPingResponse().GetApex()
+		root := resp.GetApex()
 		c.rootDomain.Store(root)
 
 		c.logger.Info("Reusing existing client token")
@@ -262,18 +260,18 @@ func (c *Client) Register(ctx context.Context) error {
 		return nil
 	}
 
-	req := &protocol.ClientRequest{
-		Kind: protocol.TunnelRPC_IDENTITY,
-		RegisterRequest: &protocol.RegisterIdentityRequest{
+	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisterIdentityResponse, error) {
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.RegisterIdentity(ctx, &protocol.RegisterIdentityRequest{
 			Client: c.serverTransport.Identity(),
-		},
-	}
-	resp, err := c.rpcCall(ctx, req)
+		})
+	})
 	if err != nil {
 		return err
 	}
-	token := resp.GetRegisterResponse().GetToken().GetToken()
-	root := resp.GetRegisterResponse().GetApex()
+
+	token := resp.GetToken().GetToken()
+	root := resp.GetApex()
 	c.rootDomain.Store(root)
 	c.config.Token = string(token)
 
@@ -286,45 +284,31 @@ func (c *Client) Register(ctx context.Context) error {
 }
 
 func (c *Client) Ping(ctx context.Context, node *protocol.Node) (*protocol.ClientPingResponse, error) {
-	req := &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind: protocol.TunnelRPC_PING,
-		},
-	}
-	resp, err := c.rpcClient.Call(ctx, node, req)
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetClientResponse().GetPingResponse(), nil
+	return c.tunnelClient.Ping(rpc.WithNode(ctx, node), &protocol.ClientPingRequest{})
 }
 
 func (c *Client) RequestHostname(ctx context.Context) (string, error) {
-	req := &protocol.ClientRequest{
-		Kind:  protocol.TunnelRPC_HOSTNAME,
-		Token: c.getToken(),
-		RegisterRequest: &protocol.RegisterIdentityRequest{
-			Client: c.serverTransport.Identity(),
-		},
-	}
-	resp, err := c.rpcCall(ctx, req)
+	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GenerateHostnameResponse, error) {
+		ctx = rpc.WithClientToken(ctx, c.getToken())
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.GenerateHostname(ctx, &protocol.GenerateHostnameRequest{})
+	})
 	if err != nil {
 		return "", err
 	}
-	return resp.GetHostnameResponse().GetHostname(), nil
+	return resp.GetHostname(), nil
 }
 
 func (c *Client) RequestCandidates(ctx context.Context) ([]*protocol.Node, error) {
-	req := &protocol.ClientRequest{
-		Kind:         protocol.TunnelRPC_NODES,
-		Token:        c.getToken(),
-		NodesRequest: &protocol.GetNodesRequest{},
-	}
-	resp, err := c.rpcCall(ctx, req)
+	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GetNodesResponse, error) {
+		ctx = rpc.WithClientToken(ctx, c.getToken())
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.GetNodes(ctx, &protocol.GetNodesRequest{})
+	})
 	if err != nil {
 		return nil, err
 	}
-	return resp.GetNodesResponse().GetNodes(), nil
+	return resp.GetNodes(), nil
 }
 
 func (c *Client) SyncConfigTunnels(ctx context.Context) {
@@ -373,19 +357,18 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 }
 
 func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
-	req := &protocol.ClientRequest{
-		Kind:  protocol.TunnelRPC_TUNNEL,
-		Token: c.getToken(),
-		TunnelRequest: &protocol.PublishTunnelRequest{
+	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.PublishTunnelResponse, error) {
+		ctx = rpc.WithClientToken(ctx, c.getToken())
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.PublishTunnel(ctx, &protocol.PublishTunnelRequest{
 			Hostname: hostname,
 			Servers:  connected,
-		},
-	}
-	resp, err := c.rpcCall(ctx, req)
+		})
+	})
 	if err != nil {
 		return nil, err
 	}
-	return resp.GetTunnelResponse().GetPublished(), nil
+	return resp.GetPublished(), nil
 }
 
 func (c *Client) reloadOnSignal(ctx context.Context) {
@@ -419,16 +402,16 @@ func (c *Client) Accept(ctx context.Context) {
 
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
 		link := &protocol.Link{}
-		if err := rpc.Receive(delegation.Connection, link); err != nil {
+		if err := rpc.Receive(delegation, link); err != nil {
 			c.logger.Error("Receiving link information from gateway", zap.Error(err))
-			delegation.Connection.Close()
+			delegation.Close()
 			return
 		}
 		hostname := link.Hostname
 		u, ok := c.config.router.Load(hostname)
 		if !ok {
 			c.logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
-			delegation.Connection.Close()
+			delegation.Close()
 			return
 		}
 
@@ -439,14 +422,14 @@ func (c *Client) Accept(ctx context.Context) {
 
 		switch link.GetAlpn() {
 		case protocol.Link_HTTP:
-			c.getProxy(ctx, hostname, u).acceptor.Handle(delegation.Connection)
+			c.getProxy(ctx, hostname, u).acceptor.Handle(delegation)
 
 		case protocol.Link_TCP:
-			c.forward(ctx, delegation.Connection, u.Host)
+			c.forward(ctx, delegation, u.Host)
 
 		default:
 			c.logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
-			delegation.Connection.Close()
+			delegation.Close()
 		}
 	})
 }

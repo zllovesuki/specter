@@ -6,6 +6,7 @@ import (
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 
 	"go.uber.org/zap"
 )
@@ -19,7 +20,7 @@ func kvMiddleware[V any](
 ) (V, error) {
 	var zeroV V
 	id := chord.Hash(key)
-	reqCtx := chord.GetRequestContext(ctx)
+	reqCtx := rpc.GetContext(ctx)
 	// if it is a replication request, bypass ownership checks
 	if reqCtx.GetRequestTarget() == protocol.Context_KV_REPLICATION {
 		return handler(ctx, n.kv, targetReplication, id)

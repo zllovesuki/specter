@@ -17,7 +17,7 @@ import (
 
 	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/spec/chord"
-	mocks "kon.nect.sh/specter/spec/mocks"
+	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/util/testcond"
 
@@ -40,8 +40,8 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 
 	return NodeConfig{
 		Logger:                   logger.With(zap.Uint64("node", iden.GetId())),
+		ChordClient:              new(mocks.ChordClient),
 		Identity:                 iden,
-		RPCClient:                new(mocks.RPC),
 		KVProvider:               memory.WithHashFn(chord.Hash),
 		FixFingerInterval:        defaultInterval * 3,
 		StablizeInterval:         defaultInterval * 5,

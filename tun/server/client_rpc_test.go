@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"testing"
 
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/router"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	mocks "kon.nect.sh/specter/spec/mocks"
 )
 
 type sVNode struct {
@@ -96,21 +96,13 @@ func TestRPCRegisterClientOK(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
-
-	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: cli,
-			},
-		},
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+	resp, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{
+		Client: cli,
 	})
+
 	as.NoError(err)
-	tResp := resp.GetClientResponse()
-	as.NotNil(tResp.GetRegisterResponse())
-	as.NotNil(tResp.GetRegisterResponse().GetToken())
+	as.NotNil(resp.GetToken())
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -136,52 +128,35 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	requests := []*protocol.ClientRequest{
+	requests := []*protocol.RegisterIdentityRequest{
 		// missing Client
 		{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: nil,
-			},
+			Client: nil,
 		},
 
 		// has Client but does not match the connected client
 		{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: &protocol.Node{
-					Id: chord.Random(),
-				},
+			Client: &protocol.Node{
+				Id: chord.Random(),
 			},
 		},
 
 		// has Client but not connected
 		{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: cli,
-			},
+			Client: cli,
 		},
 
 		// has Client and connected but KV failed
 		{
-			Kind: protocol.TunnelRPC_IDENTITY,
-			RegisterRequest: &protocol.RegisterIdentityRequest{
-				Client: cli,
-			},
+			Client: cli,
 		},
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-			Kind:          protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: req,
-		})
+		_, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), req)
 		as.Error(err)
-		tResp := resp.GetClientResponse()
-		as.Nil(tResp.GetRegisterResponse())
 	}
 
 	node.AssertExpectations(t)
@@ -206,21 +181,13 @@ func TestRPCPingOK(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind: protocol.TunnelRPC_PING,
-		},
-	})
+	resp, err := cRPC.Ping(rpc.WithNode(ctx, cli), &protocol.ClientPingRequest{})
+
 	as.NoError(err)
-	as.NotNil(resp.GetClientResponse())
-	as.NotNil(resp.GetClientResponse().GetPingResponse())
-
-	r := resp.GetClientResponse().GetPingResponse()
-	as.Equal(testRootDomain, r.GetApex())
-	as.Equal(tn.GetId(), r.GetNode().GetId())
+	as.Equal(testRootDomain, resp.GetApex())
+	as.Equal(tn.GetId(), resp.GetNode().GetId())
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -249,49 +216,37 @@ func TestRPCPingConditional(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
 	tests := []struct {
-		req         *protocol.ClientRequest
+		token       *protocol.ClientToken
 		expectError bool
 	}{
 		{
-			req: &protocol.ClientRequest{
-				Kind: protocol.TunnelRPC_PING,
+			expectError: false,
+		},
+		{
+			token: &protocol.ClientToken{
+				Token: []byte("correct"),
 			},
 			expectError: false,
 		},
 		{
-			req: &protocol.ClientRequest{
-				Kind: protocol.TunnelRPC_PING,
-				Token: &protocol.ClientToken{
-					Token: []byte("correct"),
-				},
-			},
-			expectError: false,
-		},
-		{
-			req: &protocol.ClientRequest{
-				Kind: protocol.TunnelRPC_PING,
-				Token: &protocol.ClientToken{
-					Token: []byte("incorrect"),
-				},
+			token: &protocol.ClientToken{
+				Token: []byte("incorrect"),
 			},
 			expectError: true,
 		},
 	}
 
 	for _, req := range tests {
-		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-			Kind:          protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: req.req,
-		})
+		callCtx := rpc.WithClientToken(ctx, req.token)
+		resp, err := cRPC.Ping(rpc.WithNode(callCtx, cli), &protocol.ClientPingRequest{})
 		if req.expectError {
 			as.Error(err)
 		} else {
 			as.NoError(err)
-			as.NotNil(resp.GetClientResponse())
-			as.Equal(testRootDomain, resp.GetClientResponse().GetPingResponse().GetApex())
+			as.Equal(testRootDomain, resp.GetApex())
 		}
 	}
 
@@ -343,22 +298,15 @@ func TestRPCGetNodesUnique(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_NODES,
-			Token: token,
-		},
-	})
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.GetNodes(rpc.WithNode(callCtx, cli), &protocol.GetNodesRequest{})
 	as.NoError(err)
-	as.NotNil(resp.ClientResponse)
-	as.NotNil(resp.ClientResponse.NodesResponse)
 
 	// should only have ourself
-	as.Len(resp.GetClientResponse().GetNodesResponse().GetNodes(), 1)
-	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn}))
+	as.Len(resp.GetNodes(), 1)
+	as.True(assertNodes(resp.GetNodes(), []*protocol.Node{tn}))
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -418,22 +366,15 @@ func TestRPCGetNodes(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_NODES,
-			Token: token,
-		},
-	})
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.GetNodes(rpc.WithNode(callCtx, cli), &protocol.GetNodesRequest{})
+
 	as.NoError(err)
-	as.NotNil(resp.ClientResponse)
-	as.NotNil(resp.ClientResponse.NodesResponse)
-
-	as.Len(resp.GetClientResponse().GetNodesResponse().GetNodes(), tun.NumRedundantLinks)
-	as.True(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{tn, nodes[0], nodes[1]}))
-	as.False(assertNodes(resp.GetClientResponse().GetNodesResponse().GetNodes(), []*protocol.Node{nodes[2]}))
+	as.Len(resp.GetNodes(), tun.NumRedundantLinks)
+	as.True(assertNodes(resp.GetNodes(), []*protocol.Node{tn, nodes[0], nodes[1]}))
+	as.False(assertNodes(resp.GetNodes(), []*protocol.Node{nodes[2]}))
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -478,20 +419,13 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:            protocol.TunnelRPC_HOSTNAME,
-			Token:           token,
-			HostnameRequest: &protocol.GenerateHostnameRequest{},
-		},
-	})
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.GenerateHostname(rpc.WithNode(callCtx, cli), &protocol.GenerateHostnameRequest{})
 	as.NoError(err)
-	tResp := resp.GetClientResponse()
-	as.NotNil(tResp.GetHostnameResponse())
-	as.NotEmpty(tResp.GetHostnameResponse().GetHostname())
+
+	as.NotEmpty(resp.GetHostname())
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -515,27 +449,20 @@ func TestRPCOtherFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	requests := []*protocol.ClientRequest{
+	requests := []*protocol.ClientToken{
 		// non-existent token
 		{
-			Kind: protocol.TunnelRPC_HOSTNAME,
-			Token: &protocol.ClientToken{
-				Token: []byte("nah"),
-			},
-			HostnameRequest: &protocol.GenerateHostnameRequest{},
+			Token: []byte("nah"),
 		},
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-			Kind:          protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: req,
-		})
+		callCtx := rpc.WithClientToken(ctx, req)
+		resp, err := cRPC.GenerateHostname(rpc.WithNode(callCtx, cli), &protocol.GenerateHostnameRequest{})
 		as.Error(err)
-		tResp := resp.GetClientResponse()
-		as.Nil(tResp.GetRegisterResponse())
+		as.Nil(resp)
 	}
 
 	node.AssertExpectations(t)
@@ -633,24 +560,17 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	resp, err := cRPC.Call(ctx, nil, &protocol.RPC_Request{
-		Kind: protocol.RPC_CLIENT_REQUEST,
-		ClientRequest: &protocol.ClientRequest{
-			Kind:  protocol.TunnelRPC_TUNNEL,
-			Token: token,
-			TunnelRequest: &protocol.PublishTunnelRequest{
-				Hostname: hostname,
-				Servers:  nodes,
-			},
-		},
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.PublishTunnel(rpc.WithNode(callCtx, cli), &protocol.PublishTunnelRequest{
+		Hostname: hostname,
+		Servers:  nodes,
 	})
+
 	as.NoError(err)
-	as.NotNil(resp.GetClientResponse())
-	tResp := resp.GetClientResponse()
-	as.NotNil(tResp.GetTunnelResponse())
-	as.Len(tResp.GetTunnelResponse().GetPublished(), len(nodes))
+	as.NotNil(resp)
+	as.Len(resp.GetPublished(), len(nodes))
 
 	node.AssertExpectations(t)
 }
@@ -705,20 +625,18 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.NewRPC(ctx, logger, tp)
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	requests := []*protocol.ClientRequest{
+	requests := []struct {
+		req   *protocol.PublishTunnelRequest
+		token *protocol.ClientToken
+	}{
 		// missing Token
-		{
-			Kind:          protocol.TunnelRPC_TUNNEL,
-			TunnelRequest: &protocol.PublishTunnelRequest{},
-		},
-
+		{},
 		// has token but hostname not requested
 		{
-			Kind:  protocol.TunnelRPC_TUNNEL,
-			Token: token,
-			TunnelRequest: &protocol.PublishTunnelRequest{
+			token: token,
+			req: &protocol.PublishTunnelRequest{
 				Hostname: "nil",
 				Servers: []*protocol.Node{
 					{
@@ -727,34 +645,28 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 				},
 			},
 		},
-
 		// has token but not enough servers
 		{
-			Kind:  protocol.TunnelRPC_TUNNEL,
-			Token: token,
-			TunnelRequest: &protocol.PublishTunnelRequest{
+			token: token,
+			req: &protocol.PublishTunnelRequest{
 				Servers: nil,
 			},
 		},
 
 		// has token but too many servers
 		{
-			Kind:  protocol.TunnelRPC_TUNNEL,
-			Token: token,
-			TunnelRequest: &protocol.PublishTunnelRequest{
+			token: token,
+			req: &protocol.PublishTunnelRequest{
 				Servers: makeNodes(tun.NumRedundantLinks * 2),
 			},
 		},
 	}
 
 	for _, req := range requests {
-		resp, err := cRPC.Call(ctx, cli, &protocol.RPC_Request{
-			Kind:          protocol.RPC_CLIENT_REQUEST,
-			ClientRequest: req,
-		})
+		callCtx := rpc.WithClientToken(ctx, token)
+		resp, err := cRPC.PublishTunnel(rpc.WithNode(callCtx, cli), req.req)
 		as.Error(err)
-		tResp := resp.GetClientResponse()
-		as.Nil(tResp.GetRegisterResponse())
+		as.Nil(resp)
 	}
 
 	node.AssertExpectations(t)

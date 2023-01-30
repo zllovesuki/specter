@@ -6,23 +6,52 @@ option go_package = "kon.nect.sh/specter/spec/protocol";
 
 import "google/protobuf/duration.proto";
 
-enum KVOperation {
-    UNKNOWN_OP = 0;
+service KVService {
+    rpc Put(SimpleRequest) returns (SimpleResponse);
+    rpc Get(SimpleRequest) returns (SimpleResponse);
+    rpc Delete(SimpleRequest) returns (SimpleResponse);
 
-    SIMPLE_PUT = 1;
-    SIMPLE_GET = 2;
-    SIMPLE_DELETE = 3;
+    rpc Append(PrefixRequest) returns (PrefixResponse);
+    rpc List(PrefixRequest) returns (PrefixResponse);
+    rpc Contains(PrefixRequest) returns (PrefixResponse);
+    rpc Remove(PrefixRequest) returns (PrefixResponse);
 
-    PREFIX_APPEND = 5;
-    PREFIX_LIST = 6;
-    PREFIX_REMOVE = 7;
-    PREFIX_CONTAINS = 8;
-    
-    LEASE_ACQUIRE = 10;
-    LEASE_RENEWAL = 11;
-    LEASE_RELEASE = 12;
+    rpc Acquire(LeaseRequest) returns (LeaseResponse);
+    rpc Renew(LeaseRequest) returns (LeaseResponse);
+    rpc Release(LeaseRequest) returns (LeaseResponse);
 
-    IMPORT = 20;
+    rpc Import(ImportRequest) returns (ImportResponse);
+}
+
+message SimpleRequest {
+    bytes key = 1;
+    bytes value = 2;
+}
+
+message SimpleResponse {
+    bytes value = 1;
+}
+
+message PrefixRequest {
+    bytes prefix = 1;
+    bytes child = 2;
+}
+
+message PrefixResponse {
+    repeated bytes children = 1;
+    bool exists = 2;
+}
+
+message LeaseRequest {
+    bytes lease = 1;
+    uint64 new_token = 2;
+    uint64 prev_token = 3;
+
+    google.protobuf.Duration ttl = 5;
+}
+
+message LeaseResponse {
+    uint64 token = 1;
 }
 
 message KVTransfer {
@@ -31,32 +60,9 @@ message KVTransfer {
     uint64 lease_token = 3;
 }
 
-message KVLease {
-    google.protobuf.Duration ttl = 1;
-    uint64 token = 2;
+message ImportRequest {
+    repeated bytes keys = 1;
+    repeated KVTransfer values = 2;
 }
 
-message KVRequest {
-    KVOperation op = 1;
-
-    bytes key = 2;
-    bytes value = 3;
-
-    KVLease lease = 5;
-
-    repeated bytes keys = 10;
-
-    repeated KVTransfer values = 20;
-}
-
-message KVResponse {
-    KVOperation op = 1;
-
-    bytes value = 2;
-
-    KVLease lease = 5;
-
-    repeated bytes keys = 10;
-
-    repeated KVTransfer values = 20;
-}
+message ImportResponse {}

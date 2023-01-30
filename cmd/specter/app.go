@@ -26,7 +26,7 @@ var (
 		Version:         Build,
 		HideHelpCommand: true,
 		Copyright:       "miragespace.com, licensed under MIT.\nSee https://github.com/zllovesuki/specter/blob/main/ThirdPartyLicenses.txt for third-party licenses.",
-		Description:     "like ngrok, but ambitious and also with DHT for flavor",
+		Description:     "like ngrok, but more ambitious with DHT for flavor",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "verbose",
@@ -78,6 +78,9 @@ func ConfigApp(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 	if errata.ConfigDNS() {
 		logger.Info("errata: net.Resolver configured with custom dialer")
+	}
+	if errata.ConfigUDPBuffer() {
+		logger.Info("errata: net.core.rmem_max is set to 2500000")
 	}
 	return nil
 }

@@ -19,10 +19,10 @@ import (
 	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
-	"kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
@@ -461,7 +461,6 @@ func cmdServer(ctx *cli.Context) error {
 		tun.ALPN(protocol.Link_SPECTER_CHORD),
 	})
 
-	rpcLogger := logger.With(zap.String("component", "rpc_client"), zap.Uint64("node", chordIdentity.GetId()))
 	chordLogger := logger.With(zap.String("component", "chord"), zap.Uint64("node", chordIdentity.GetId()))
 	tunnelLogger := logger.With(zap.String("component", "tunnel"), zap.Uint64("node", tunnelIdentity.GetId()))
 
@@ -506,16 +505,16 @@ func cmdServer(ctx *cli.Context) error {
 	streamRouter := router.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	go streamRouter.Accept(ctx.Context)
 
-	rpcClient := rpc.NewRPC(ctx.Context, rpcLogger, chordTransport)
+	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
 
 	chordNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
 		Logger:                   chordLogger,
+		ChordClient:              chordClient,
 		Identity:                 chordIdentity,
 		KVProvider:               kvProvider,
 		FixFingerInterval:        time.Second * 3,
 		StablizeInterval:         time.Second * 5,
 		PredecessorCheckInterval: time.Second * 7,
-		RPCClient:                rpcClient,
 	})
 	defer chordNode.Leave()
 
@@ -527,7 +526,7 @@ func cmdServer(ctx *cli.Context) error {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
-		p, err := chordImpl.NewRemoteNode(ctx.Context, chordLogger, rpcClient, &protocol.Node{
+		p, err := chordImpl.NewRemoteNode(ctx.Context, chordLogger, chordClient, &protocol.Node{
 			Unknown: true,
 			Address: ctx.String("join"),
 		})

@@ -6,12 +6,12 @@ import (
 	"net"
 	"time"
 
-	rpcImpl "kon.nect.sh/specter/rpc"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util/acceptor"
 	"kon.nect.sh/specter/util/router"
 
 	"go.uber.org/zap"
@@ -32,6 +32,7 @@ type Server struct {
 	chord           chord.VNode
 	tunnelTransport transport.Transport
 	chordTransport  transport.Transport
+	rpcAcceptor     *acceptor.HTTP2Acceptor
 	rootDomain      string
 }
 
@@ -44,33 +45,20 @@ func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport,
 		tunnelTransport: tunnelTrans,
 		chordTransport:  chordTrans,
 		rootDomain:      rootDomain,
+		rpcAcceptor:     acceptor.NewH2Acceptor(nil),
 	}
 }
 
 func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) {
-	rpcServer := rpcImpl.NewRPC(ctx, s.logger.With(zap.String("pov", "client_rpc")), nil)
-	rpcServer.LimitMessageSize(2048)
-
 	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
 		s.handleProxyConn(ctx, delegate)
 	})
 	router.HandleTunnel(protocol.Stream_DIRECT, func(delegate *transport.StreamDelegate) {
 		// client uses this to register connection
 		// but it is a no-op on the server side
-		delegate.Connection.Close()
+		delegate.Close()
 	})
-	router.HandleTunnel(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
-		defer delegate.Connection.Close()
-
-		l := s.logger.With(
-			zap.Any("peer", delegate.Identity),
-			zap.String("remote", delegate.Connection.RemoteAddr().String()),
-			zap.String("local", delegate.Connection.LocalAddr().String()),
-		)
-		if err := rpcServer.HandleRequest(ctx, delegate.Connection, s.rpcHandlerMiddlerware(delegate.Identity)); err != nil {
-			l.Error("Error handling RPC request", zap.Error(err))
-		}
-	})
+	s.attachRPC(ctx, router)
 }
 
 func (s *Server) MustRegister(ctx context.Context) {
@@ -91,16 +79,16 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	var clientConn net.Conn
 
 	defer func() {
-		tun.SendStatusProto(delegation.Connection, err)
+		tun.SendStatusProto(delegation, err)
 		if err != nil {
-			delegation.Connection.Close()
+			delegation.Close()
 			return
 		}
-		tun.Pipe(delegation.Connection, clientConn)
+		tun.Pipe(delegation, clientConn)
 	}()
 
 	bundle := &protocol.Tunnel{}
-	err = rpc.Receive(delegation.Connection, bundle)
+	err = rpc.Receive(delegation, bundle)
 	if err != nil {
 		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
 		return
@@ -212,6 +200,8 @@ func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error
 }
 
 func (s *Server) Stop() {
+	s.rpcAcceptor.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 

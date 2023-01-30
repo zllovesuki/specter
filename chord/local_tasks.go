@@ -156,46 +156,51 @@ func (n *LocalNode) checkPredecessor() error {
 }
 
 func (n *LocalNode) periodicStablize() {
+	defer n.stopWg.Done()
+
+	time.Sleep(n.StablizeInterval)
 	for {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping Stablize task")
-			n.stopWg.Done()
 			return
 		default:
 			if err := n.stabilize(); err != nil {
 				n.Logger.Error("Stablize task", zap.Error(err))
 			}
+			time.Sleep(n.StablizeInterval)
 		}
-		<-time.After(n.StablizeInterval)
 	}
 }
 
 func (n *LocalNode) periodicPredecessorCheck() {
+	defer n.stopWg.Done()
+
 	for {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping predecessor checking task")
-			n.stopWg.Done()
 			return
 		default:
 			n.checkPredecessor()
+			time.Sleep(n.PredecessorCheckInterval)
 		}
-		<-time.After(n.PredecessorCheckInterval)
 	}
 }
 
 func (n *LocalNode) periodicFixFingers() {
+	defer n.stopWg.Done()
+
+	time.Sleep(n.FixFingerInterval)
 	for {
 		select {
 		case <-n.stopCh:
 			n.Logger.Debug("Stopping FixFinger task")
-			n.stopWg.Done()
 			return
 		default:
 			n.fixFinger()
+			time.Sleep(n.FixFingerInterval)
 		}
-		<-time.After(n.FixFingerInterval)
 	}
 }
 

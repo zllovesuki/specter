@@ -4,90 +4,10 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "kon.nect.sh/specter/spec/protocol";
 
-import "spec/proto/chord.proto";
-import "spec/proto/kv.proto";
-import "spec/proto/tun.proto";
-
 message Context {
     enum TargetType {
         UNKNOWN = 0;
         KV_REPLICATION = 1;
     }
     TargetType requestTarget = 1;
-}
-
-message RPC {
-    enum Type {
-        UNKNOWN_DIR = 0;
-        REQUEST = 1;
-        REPLY = 2;
-    }
-
-    enum Kind {
-        UNKNOWN_TYPE = 0;
-
-        // chord
-        PING = 1;
-        NOTIFY = 2;
-        FIND_SUCCESSOR = 3;
-        GET_PREDECESSOR = 4;
-        KV = 5;
-        GET_SUCCESSORS = 6;
-
-        IDENTITY = 10;
-
-        MEMBERSHIP_CHANGE = 11;
-
-        // tunnel
-        CLIENT_REQUEST = 50;
-    }
-
-    Type type = 1;
-    uint64 ring = 2;
-
-    message Request {
-        Kind kind = 1;
-
-        Context requestContext = 2;
-
-        IdentityRequest identityRequest = 5;
-
-        PingRequest pingRequest = 10;
-        NotifyRequest notifyRequest = 11;
-
-        FindSuccessorRequest findSuccessorRequest = 20;
-        GetPredecessorRequest getPredecessorRequest = 21;
-
-        GetSuccessorsRequest getSuccessorsRequest = 30;
-
-        KVRequest kvRequest = 41;
-
-        MembershipChangeRequest membershipRequest = 50;
-
-        ClientRequest clientRequest = 60;
-    }
-
-    message Response {
-        bytes error = 1;
-
-        IdentityResponse identityResponse = 5;
-
-        PingResponse pingResponse = 10;
-        NotifyResponse notifyResponse = 11;
-
-        FindSuccessorResponse findSuccessorResponse = 20;
-        GetPredecessorResponse getPredecessorResponse = 21;
-
-        GetSuccessorsResponse getSuccessorsResponse = 30;
-
-        KVResponse kvResponse = 41;
-        
-        MembershipChangeResponse membershipResponse = 50;
-
-        ClientResponse clientResponse = 60;
-    }
-
-    Request request = 10;
-    Response response = 11;
-
 }

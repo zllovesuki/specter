@@ -20,6 +20,7 @@ require (
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/wal v1.1.7
+	github.com/twitchtv/twirp v8.1.3+incompatible
 	github.com/urfave/cli/v2 v2.24.1
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0

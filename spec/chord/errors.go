@@ -3,6 +3,8 @@ package chord
 import (
 	"context"
 	"fmt"
+
+	"github.com/twitchtv/twirp"
 )
 
 var (
@@ -52,7 +54,13 @@ func ErrorMapper(err error) error {
 		return err
 	}
 	var parsedErr error
-	switch err.Error() {
+
+	srcErr := err.Error()
+	if twirpErr, ok := err.(twirp.Error); ok {
+		srcErr = twirpErr.Msg()
+	}
+
+	switch srcErr {
 	case ErrNodeNotStarted.Error():
 		parsedErr = ErrNodeNotStarted
 	case ErrNodeGone.Error():

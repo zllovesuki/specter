@@ -3,9 +3,7 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -13,8 +11,9 @@ import (
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/tun/gateway/httprate"
+	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
+	"kon.nect.sh/specter/util/httprate"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-yamux/v3"
@@ -60,14 +59,6 @@ type Gateway struct {
 	GatewayConfig
 }
 
-func getStdLogger(parent *zap.Logger, sub string) *log.Logger {
-	logger, err := zap.NewStdLogAt(parent.With(zap.String("subsystem", sub)), zapcore.WarnLevel)
-	if err != nil {
-		panic(fmt.Errorf("error getting proxy logger: %w", err))
-	}
-	return logger
-}
-
 func New(conf GatewayConfig) *Gateway {
 	if conf.IdentityGetter == nil {
 		conf.IdentityGetter = func() *protocol.Node {
@@ -105,16 +96,16 @@ func New(conf GatewayConfig) *Gateway {
 		MaxIdleTimeout:       time.Second * 60,
 	}
 	apex := g.apexMux()
-	proxyHandler := g.proxyHandler(getStdLogger(filteredLogger, "httpProxy"))
+	proxyHandler := g.proxyHandler(util.GetStdLogger(filteredLogger, "httpProxy"))
 	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
-		ErrorLog:          getStdLogger(filteredLogger, "tcpApex"),
+		ErrorLog:          util.GetStdLogger(filteredLogger, "tcpApex"),
 	}
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           proxyHandler,
-		ErrorLog:          getStdLogger(filteredLogger, "h2Tunnel"),
+		ErrorLog:          util.GetStdLogger(filteredLogger, "h2Tunnel"),
 	}
 	g.quicApexServer = &http3.Server{
 		QuicConfig:      qCfg,
@@ -130,7 +121,7 @@ func New(conf GatewayConfig) *Gateway {
 		Addr:              "127.0.0.1:9999",
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
-		ErrorLog:          getStdLogger(filteredLogger, "localApex"),
+		ErrorLog:          util.GetStdLogger(filteredLogger, "localApex"),
 	}
 	g.httpServer = &http.Server{
 		ReadHeaderTimeout: 5 * time.Second,
@@ -138,7 +129,7 @@ func New(conf GatewayConfig) *Gateway {
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       5 * time.Second,
 		Handler:           http.HandlerFunc(g.httpRedirect),
-		ErrorLog:          getStdLogger(filteredLogger, "httpRedirect"),
+		ErrorLog:          util.GetStdLogger(filteredLogger, "httpRedirect"),
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 	if conf.AdminUser == "" || conf.AdminPass == "" {

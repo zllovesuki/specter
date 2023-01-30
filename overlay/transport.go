@@ -515,9 +515,9 @@ func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protoc
 
 	select {
 	case t.streamChan <- &transport.StreamDelegate{
-		Connection: WrapQuicConnection(stream, q),
-		Identity:   peer,
-		Kind:       rr.GetType(),
+		Conn:     WrapQuicConnection(stream, q),
+		Identity: peer,
+		Kind:     rr.GetType(),
 	}:
 	default:
 		l.Warn("Stream channel full, dropping incoming stream",
