@@ -18,7 +18,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/httprate"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -49,7 +48,7 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 	return ctx
 }
 
-func (s *Server) attachRPC(ctx context.Context, router *router.StreamRouter) {
+func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) {
 	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
 		RequestRouted: s.injectClientIdentity,
 		Error:         s.logError,

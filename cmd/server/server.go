@@ -24,11 +24,11 @@ import (
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 	"kon.nect.sh/specter/util"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"github.com/caddyserver/certmagic"
@@ -505,7 +505,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	go kvProvider.Start()
 
-	streamRouter := router.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
+	streamRouter := transport.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	go streamRouter.Accept(ctx.Context)
 
 	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)

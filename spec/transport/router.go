@@ -1,25 +1,25 @@
-package router
+package transport
 
 import (
 	"context"
 	"sync"
 
-	"go.uber.org/zap"
 	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
+
+	"go.uber.org/zap"
 )
 
-type StreamHandler func(delegate *transport.StreamDelegate)
+type StreamHandler func(delegate *StreamDelegate)
 
 type StreamRouter struct {
 	logger         *zap.Logger
 	chordHandlers  sync.Map
 	tunnelHandlers sync.Map
-	chordStream    <-chan *transport.StreamDelegate
-	clientStream   <-chan *transport.StreamDelegate
+	chordStream    <-chan *StreamDelegate
+	clientStream   <-chan *StreamDelegate
 }
 
-func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport transport.Transport) *StreamRouter {
+func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport Transport) *StreamRouter {
 	router := &StreamRouter{
 		logger: logger,
 	}
@@ -46,7 +46,7 @@ func (s *StreamRouter) acceptChord(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case delegate := <-s.chordStream:
-			go func(delegate *transport.StreamDelegate) {
+			go func(delegate *StreamDelegate) {
 				handler, ok := s.chordHandlers.Load(delegate.Kind)
 				if !ok {
 					s.logger.Warn("No handler found for chord transport delegate",
@@ -67,7 +67,7 @@ func (s *StreamRouter) acceptClient(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case delegate := <-s.clientStream:
-			go func(delegate *transport.StreamDelegate) {
+			go func(delegate *StreamDelegate) {
 				handler, ok := s.tunnelHandlers.Load(delegate.Kind)
 				if !ok {
 					s.logger.Warn("No handler found for tunnel transport delegate",

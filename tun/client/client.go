@@ -26,7 +26,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/orisano/wyhash"
@@ -426,7 +425,7 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 func (c *Client) Accept(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
 
-	streamRouter := router.NewStreamRouter(c.logger, nil, c.serverTransport)
+	streamRouter := transport.NewStreamRouter(c.logger, nil, c.serverTransport)
 	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)

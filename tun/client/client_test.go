@@ -18,7 +18,6 @@ import (
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
 	"kon.nect.sh/specter/util/httprate"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -38,7 +37,7 @@ func TestMain(m *testing.M) {
 func setupRPC(ctx context.Context,
 	logger *zap.Logger,
 	s protocol.TunnelService,
-	router *router.StreamRouter,
+	router *transport.StreamRouter,
 	acc *acceptor.HTTP2Acceptor,
 	token *protocol.ClientToken,
 	verifiedClient *protocol.Node,
@@ -96,7 +95,7 @@ func TestPublishPreferenceRTT(t *testing.T) {
 	defer cancel()
 
 	s := new(mocks.TunnelService)
-	router := router.NewStreamRouter(logger, nil, t2)
+	router := transport.NewStreamRouter(logger, nil, t2)
 	acc := acceptor.NewH2Acceptor(nil)
 	defer acc.Close()
 

@@ -10,7 +10,6 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/ratecounter"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -40,7 +39,7 @@ func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Cont
 	}
 }
 
-func (n *LocalNode) AttachRouter(ctx context.Context, router *router.StreamRouter) {
+func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	n.stopWg.Add(1)
 
 	r := &rpcServer{

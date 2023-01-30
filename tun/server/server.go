@@ -12,7 +12,6 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/router"
 
 	"go.uber.org/zap"
 )
@@ -49,7 +48,7 @@ func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport,
 	}
 }
 
-func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) {
+func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
 		l := s.logger.With(
 			zap.Object("peer", delegate.Identity),

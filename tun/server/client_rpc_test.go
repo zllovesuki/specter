@@ -9,8 +9,8 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -91,7 +91,7 @@ func TestRPCRegisterClientOK(t *testing.T) {
 	).Return(nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -123,7 +123,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(nil).Once()
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -176,7 +176,7 @@ func TestRPCPingOK(t *testing.T) {
 	clientT.On("Identity").Return(tn)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -211,7 +211,7 @@ func TestRPCPingConditional(t *testing.T) {
 	clientT.On("Identity").Return(tn)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -293,7 +293,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -361,7 +361,7 @@ func TestRPCGetNodes(t *testing.T) {
 	})).Return(pairBuf, nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -414,7 +414,7 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 	).Return(nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -444,7 +444,7 @@ func TestRPCOtherFailed(t *testing.T) {
 	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -555,7 +555,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	).Return(true, nil)
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)
@@ -620,7 +620,7 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	).Return(nil).Once()
 
 	tp := mocks.SelfTransport()
-	streamRouter := router.NewStreamRouter(logger, nil, tp)
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)

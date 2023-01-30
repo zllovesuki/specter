@@ -14,7 +14,6 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -251,7 +250,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 		return assertBytes(v, buf)
 	})).Return(nil)
 
-	streamRouter := router.NewStreamRouter(logger, chordT, clientT)
+	streamRouter := transport.NewStreamRouter(logger, chordT, clientT)
 	go streamRouter.Accept(ctx)
 
 	serv.AttachRouter(ctx, streamRouter)

@@ -16,7 +16,6 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/router"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/mock"
@@ -51,7 +50,7 @@ func TestRPC(t *testing.T) {
 		NodesRTT:                 new(mocks.Measurement),
 	})
 
-	streamRouter1 := router.NewStreamRouter(logger, t1, nil)
+	streamRouter1 := transport.NewStreamRouter(logger, t1, nil)
 	node1.AttachRouter(ctx, streamRouter1)
 	go streamRouter1.Accept(ctx)
 
@@ -167,7 +166,7 @@ func TestRemoteRPCContext(t *testing.T) {
 
 	go srv.Serve(acceptor)
 
-	streamRouter := router.NewStreamRouter(logger, tp, nil)
+	streamRouter := transport.NewStreamRouter(logger, tp, nil)
 	go streamRouter.Accept(ctx)
 
 	streamRouter.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
