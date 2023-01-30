@@ -49,7 +49,7 @@ func (n *RemoteNode) handshake(r rpc.ChordClient, node *protocol.Node) error {
 	resp, err := r.Identity(ctx, &protocol.IdentityRequest{})
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
-			n.logger.Error("remote Identity RPC", zap.String("node", n.Identity().String()), zap.Error(err))
+			n.logger.Error("remote Identity RPC", zap.Object("node", n.Identity()), zap.Error(err))
 		}
 		return err
 	}
@@ -108,7 +108,7 @@ func (n *RemoteNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	succ, err := createRPC(n.baseContext, n.logger, n.chordClient, resp.GetSuccessor())
 	if err != nil {
 		if !chord.ErrorIsRetryable(err) {
-			n.logger.Error("creating new RemoteNode in FindSuccessor", zap.String("peer", resp.GetSuccessor().String()), zap.Error(err))
+			n.logger.Error("creating new RemoteNode in FindSuccessor", zap.Object("peer", resp.GetSuccessor()), zap.Error(err))
 		}
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (n *RemoteNode) GetSuccessors() ([]chord.VNode, error) {
 		node, err := createRPC(n.baseContext, n.logger, n.chordClient, succ)
 		if err != nil {
 			if !chord.ErrorIsRetryable(err) {
-				n.logger.Error("create RemoteNote in GetSuccessors", zap.String("peer", n.Identity().String()), zap.Error(err))
+				n.logger.Error("create RemoteNote in GetSuccessors", zap.Object("peer", n.Identity()), zap.Error(err))
 			}
 			continue
 		}

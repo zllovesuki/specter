@@ -62,7 +62,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 
 	n.startTasks()
 
-	n.Logger.Info("Successfully joined Chord ring", zap.Uint64("predecessor", predecessor.ID()), zap.Uint64("successor", successors[0].ID()))
+	n.Logger.Info("Successfully joined Chord ring", zap.Object("predecessor", predecessor.Identity()), zap.Object("successor", successors[0].Identity()))
 
 	if err := predecessor.FinishJoin(true, false); err != nil { // advisory to let predecessor update successor list
 		n.Logger.Warn("error sending advisory to predecessor", zap.Error(err))
@@ -79,7 +79,7 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, succ
 	err = retry.Do(func() error {
 		var joinErr error
 		n.Logger.Info("Joining Chord ring",
-			zap.String("via", peer.Identity().GetAddress()),
+			zap.Object("via", peer.Identity()),
 		)
 		predecessor, successors, joinErr = peer.RequestToJoin(n)
 		return joinErr
@@ -107,11 +107,11 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return succ.RequestToJoin(joiner)
 	}
 
-	n.Logger.Info("Incoming join request", zap.Uint64("joiner", joiner.ID()))
+	n.Logger.Info("Incoming join request", zap.Object("joiner", joiner.Identity()))
 
 	// change status to transferring (if allowed)
 	if !n.state.Transition(chord.Active, chord.Transferring) {
-		n.Logger.Info("rejecting join request because current state is not Active", zap.Uint64("joiner", joiner.ID()))
+		n.Logger.Info("rejecting join request because current state is not Active", zap.Object("joiner", joiner.Identity()))
 		return nil, nil, chord.ErrJoinInvalidState
 	}
 
@@ -176,7 +176,7 @@ func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 }
 
 func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
-	n.Logger.Info("incoming leave request", zap.Uint64("leaver", leaver.ID()))
+	n.Logger.Info("incoming leave request", zap.Object("leaver", leaver.Identity()))
 
 	if !n.state.Transition(chord.Active, chord.Transferring) {
 		n.Logger.Warn("rejecting leave request because current state is not Active")
@@ -295,7 +295,7 @@ func (n *LocalNode) executeLeave() (pre, succ chord.VNode, err error) {
 	defer cancel()
 
 	if err := n.transferKeysDownward(ctx, succ); err != nil {
-		n.Logger.Error("Transferring KV to successor", zap.Uint64("successor", succ.ID()), zap.Error(err))
+		n.Logger.Error("Transferring KV to successor", zap.Object("successor", succ.Identity()), zap.Error(err))
 		// release held lock and try again
 		n.state.Set(chord.Active)
 		if err := succ.FinishLeave(false, true); err != nil {

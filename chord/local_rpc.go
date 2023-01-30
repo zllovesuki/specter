@@ -24,7 +24,7 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
 		n.Logger.Error("Error handling RPC request",
-			zap.Uint64("peer", delegation.Identity.GetId()),
+			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
 			zap.String("method", method),
 			zap.Error(err),

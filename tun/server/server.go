@@ -52,7 +52,7 @@ func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport,
 func (s *Server) AttachRouter(ctx context.Context, router *router.StreamRouter) {
 	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
 		l := s.logger.With(
-			zap.Any("peer", delegate.Identity),
+			zap.Object("peer", delegate.Identity),
 			zap.String("remote", delegate.RemoteAddr().String()),
 			zap.String("local", delegate.LocalAddr().String()),
 		)
@@ -109,8 +109,8 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	)
 	l.Debug("received proxy stream from remote node",
 		zap.Uint64("remote_chord", delegation.Identity.GetId()),
-		zap.Uint64("chord", bundle.GetChord().GetId()),
-		zap.Uint64("tun", bundle.GetTun().GetId()))
+		zap.Object("chord", bundle.GetChord()),
+		zap.Object("tun", bundle.GetTun()))
 
 	if bundle.GetTun().GetId() != s.tunnelTransport.Identity().GetId() {
 		l.Warn("received remote connection for the wrong server",
@@ -138,8 +138,8 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 		return s.tunnelTransport.DialStream(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
-			zap.Uint64("chord", bundle.GetChord().GetId()),
-			zap.Uint64("tun", bundle.GetTun().GetId()))
+			zap.Object("chord", bundle.GetChord()),
+			zap.Object("tun", bundle.GetTun()))
 
 		conn, err := s.chordTransport.DialStream(ctx, bundle.GetChord(), protocol.Stream_PROXY)
 		if err != nil {

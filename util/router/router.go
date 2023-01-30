@@ -50,7 +50,7 @@ func (s *StreamRouter) acceptChord(ctx context.Context) {
 				handler, ok := s.chordHandlers.Load(delegate.Kind)
 				if !ok {
 					s.logger.Warn("No handler found for chord transport delegate",
-						zap.String("peer", delegate.Identity.String()),
+						zap.Object("peer", delegate.Identity),
 						zap.String("kind", delegate.Kind.String()),
 					)
 					return
@@ -71,7 +71,7 @@ func (s *StreamRouter) acceptClient(ctx context.Context) {
 				handler, ok := s.tunnelHandlers.Load(delegate.Kind)
 				if !ok {
 					s.logger.Warn("No handler found for tunnel transport delegate",
-						zap.String("peer", delegate.Identity.String()),
+						zap.Object("peer", delegate.Identity),
 						zap.String("kind", delegate.Kind.String()),
 					)
 					return

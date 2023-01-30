@@ -183,7 +183,9 @@ func TestTunnel(t *testing.T) {
 			for _, entry := range logs.All() {
 				t.Logf("%d: %s\n", port, entry.Message)
 				for _, x := range entry.Context {
-					if x.String != "" {
+					if x.Interface != nil {
+						t.Logf("     %s: %v\n", x.Key, x.Interface)
+					} else if x.String != "" {
 						t.Logf("     %s: %v\n", x.Key, x.String)
 					} else {
 						t.Logf("     %s: %v\n", x.Key, x.Integer)

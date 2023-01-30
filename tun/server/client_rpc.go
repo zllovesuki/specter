@@ -40,7 +40,7 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 		method, _ := twirp.MethodName(ctx)
 		s.logger.Error("Error handling RPC request",
 			zap.String("remote", delegation.RemoteAddr().String()),
-			zap.Uint64("peer", delegation.Identity.GetId()),
+			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
 			zap.String("method", method),
 			zap.Error(err),

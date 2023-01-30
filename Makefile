@@ -85,7 +85,6 @@ docker:
 	docker buildx build -t specter:$(BUILD) -f Dockerfile .
 
 proto:
-	rm -rf ./spec/protocol/*.go
 	protoc \
 		--plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
 		--plugin protoc-gen-twirp="$(PROTOC_TWIRP)" \

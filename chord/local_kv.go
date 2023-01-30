@@ -58,10 +58,10 @@ func kvMiddleware[V any](
 	)
 
 	if pre != nil {
-		l = l.With(zap.Uint64("predecessor", pre.ID()))
+		l = l.With(zap.Object("predecessor", pre.Identity()))
 	}
 	if surrogate != nil {
-		l = l.With(zap.Uint64("surrogate", surrogate.GetId()))
+		l = l.With(zap.Object("surrogate", surrogate))
 	}
 
 	// maybe we are joining or leaving

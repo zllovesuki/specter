@@ -63,7 +63,7 @@ func (n *LocalNode) stabilize() error {
 			}
 			break
 		}
-		n.Logger.Debug("Skipping over successor", zap.Uint64("head", head.ID()), zap.Uint64s("succ", v2d(succList)))
+		n.Logger.Debug("Skipping over successor", zap.Object("head", head.Identity()), zap.Uint64s("succ", v2d(succList)))
 		succList = succList[1:]
 	}
 
@@ -79,7 +79,7 @@ func (n *LocalNode) stabilize() error {
 	if modified && len(succList) > 0 && n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
 		succ := succList[0]
 		if err := succ.Notify(n); err != nil {
-			n.Logger.Error("Error notifying successor about us", zap.Uint64("successor", succ.ID()), zap.Error(err))
+			n.Logger.Error("Error notifying successor about us", zap.Object("successor", succ.Identity()), zap.Error(err))
 		}
 	}
 
@@ -146,7 +146,7 @@ func (n *LocalNode) checkPredecessor() error {
 		if n.predecessor == pre {
 			n.predecessor = nil
 			n.Logger.Info("Discovered dead predecessor",
-				zap.Uint64("old", pre.ID()),
+				zap.Object("old", pre.Identity()),
 				zap.String("new", "nil"),
 			)
 		}

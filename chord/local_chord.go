@@ -74,7 +74,7 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		n.predecessor = predecessor
 		n.Logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
-			zap.Uint64("predecessor", predecessor.ID()),
+			zap.Object("predecessor", predecessor.Identity()),
 		)
 		return nil
 	}
@@ -90,8 +90,8 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	if new != nil {
 		n.predecessor = new
 		n.Logger.Info("Discovered new predecessor via Notify",
-			zap.Uint64("previous", old.ID()),
-			zap.Uint64("predecessor", new.ID()),
+			zap.Object("previous", old.Identity()),
+			zap.Object("predecessor", new.Identity()),
 		)
 	}
 
@@ -207,29 +207,29 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, newPredecessor chord.VNode) (err error) {
 	var keys [][]byte
 	var values []*protocol.KVTransfer
-	var low uint64
+	var low chord.VNode
 
 	if newPredecessor.ID() == n.ID() {
 		return nil
 	}
 
 	if prevPredecessor == nil {
-		low = n.ID()
+		low = n
 	} else {
-		low = prevPredecessor.ID()
+		low = prevPredecessor
 	}
 
-	if !chord.Between(low, newPredecessor.ID(), n.ID(), false) {
-		n.Logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Uint64("prev", low), zap.Uint64("new", newPredecessor.ID()))
+	if !chord.Between(low.ID(), newPredecessor.ID(), n.ID(), false) {
+		n.Logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Object("prev", low.Identity()), zap.Object("new", newPredecessor.Identity()))
 		return
 	}
 
-	keys = n.kv.RangeKeys(low, newPredecessor.ID())
+	keys = n.kv.RangeKeys(low.ID(), newPredecessor.ID())
 	if len(keys) == 0 {
 		return nil
 	}
 
-	n.Logger.Info("transferring keys to new predecessor", zap.Uint64("predecessor", newPredecessor.ID()), zap.Int("num_keys", len(keys)))
+	n.Logger.Info("transferring keys to new predecessor", zap.Object("predecessor", newPredecessor.Identity()), zap.Int("num_keys", len(keys)))
 
 	values = n.kv.Export(keys)
 
@@ -252,7 +252,7 @@ func (n *LocalNode) transferKeysDownward(ctx context.Context, successor chord.VN
 		return nil
 	}
 
-	n.Logger.Info("transferring keys to successor", zap.Uint64("successor", successor.ID()), zap.Int("num_keys", len(keys)))
+	n.Logger.Info("transferring keys to successor", zap.Object("successor", successor.Identity()), zap.Int("num_keys", len(keys)))
 
 	values := n.kv.Export(keys)
 

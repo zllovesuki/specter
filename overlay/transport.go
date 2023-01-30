@@ -70,7 +70,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 			return transport.ErrNoDirect
 		}
 
-		t.Logger.Debug("Creating new QUIC connection", zap.String("peer", peer.String()))
+		t.Logger.Debug("Creating new QUIC connection", zap.Object("peer", peer))
 
 		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 		defer dialCancel()
@@ -92,13 +92,13 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		retry.Context(ctx),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(n uint, err error) {
-			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.String("peer", peer.String()), zap.Error(err))
+			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.Object("peer", peer), zap.Error(err))
 		}),
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), "invalid state")
 		}),
 	); err != nil {
-		t.Logger.Error("Failed to establish connection", zap.String("peer", peer.String()), zap.Error(err))
+		t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))
 		return nil, err
 	}
 
@@ -393,7 +393,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *protocol.Node, dir direction) {
 	l := t.Logger.With(
 		zap.String("remote", q.RemoteAddr().String()),
-		zap.String("peer", peer.String()),
+		zap.Object("peer", peer),
 		zap.String("direction", dir.String()),
 		zap.String("key", makeCachedKey(peer)),
 	)
@@ -453,7 +453,7 @@ func (t *QUIC) AcceptStream() <-chan *transport.StreamDelegate {
 }
 
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
-	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.String("peer", peer.String()))
+	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 	for {
 		b, err := q.ReceiveMessage()
 		if err != nil {
@@ -503,7 +503,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
-				t.Logger.Error("Error accepting new stream from peer", zap.String("peer", peer.String()), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
+				t.Logger.Error("Error accepting new stream from peer", zap.Object("peer", peer), zap.String("remote", q.RemoteAddr().String()), zap.Error(err))
 			}
 			return
 		}
@@ -512,7 +512,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 }
 
 func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protocol.Node) {
-	l := t.Logger.With(zap.String("peer", peer.String()))
+	l := t.Logger.With(zap.Object("peer", peer))
 
 	var err error
 	defer func() {

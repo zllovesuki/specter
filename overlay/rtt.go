@@ -21,7 +21,7 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 		return
 	}
 
-	l := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.String("peer", peer.String()))
+	l := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 
 	var (
 		qKey                      = makeCachedKey(peer)
@@ -80,7 +80,7 @@ func (t *QUIC) handleRTTAck(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case d = <-t.rttChan:
-			l = t.Logger.With(zap.String("peer", d.Identity.String()))
+			l = t.Logger.With(zap.Object("peer", d.Identity))
 			qKey = makeCachedKey(d.Identity)
 			mapper, ok = t.rttMap.Load(qKey)
 			if !ok {
