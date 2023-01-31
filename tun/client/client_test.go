@@ -192,7 +192,13 @@ func setupClient(t *testing.T, as *require.Assertions, ctx context.Context, logg
 
 	setupRPC(ctx, logger, s, router, acc, token, cl)
 
-	client, err := NewClient(rpc.DisablePooling(ctx), logger, t1, cfg, rr, reload)
+	client, err := NewClient(rpc.DisablePooling(ctx), ClientConfig{
+		Logger:          logger,
+		Configuration:   cfg,
+		ServerTransport: t1,
+		Recorder:        rr,
+		ReloadSignal:    reload,
+	})
 	as.NoError(err)
 
 	as.NoError(client.Register(ctx))

@@ -45,41 +45,43 @@ const (
 	rpcTimeout     = time.Second * 5
 )
 
-type Client struct {
-	configMu        sync.RWMutex
-	closeWg         sync.WaitGroup
-	syncMu          sync.Mutex
-	tunnelClient    protocol.TunnelService
-	serverTransport transport.Transport
-	rtt             rtt.Recorder
-	parentCtx       context.Context
-	config          *Config
-	rootDomain      *atomic.String
-	proxies         *skipmap.StringMap[*httpProxy]
-	connections     *skipmap.Uint64Map[*protocol.Node]
-	logger          *zap.Logger
-	reload          <-chan os.Signal
-	closeCh         chan struct{}
-	closed          atomic.Bool
+type ClientConfig struct {
+	Logger           *zap.Logger
+	Configuration    *Config
+	ServerTransport  transport.Transport
+	Recorder         rtt.Recorder
+	ReloadSignal     <-chan os.Signal
+	DisableTargetTLS bool
 }
 
-func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config, r rtt.Recorder, reload <-chan os.Signal) (*Client, error) {
+type Client struct {
+	configMu     sync.RWMutex
+	closeWg      sync.WaitGroup
+	syncMu       sync.Mutex
+	tunnelClient protocol.TunnelService
+	parentCtx    context.Context
+	rootDomain   *atomic.String
+	proxies      *skipmap.StringMap[*httpProxy]
+	connections  *skipmap.Uint64Map[*protocol.Node]
+	closeCh      chan struct{}
+	closed       atomic.Bool
+	ClientConfig
+}
+
+func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
+	cfg.Logger = cfg.Logger.With(zap.Uint64("id", cfg.ServerTransport.Identity().GetId()))
 	c := &Client{
-		logger:          logger.With(zap.Uint64("id", t.Identity().GetId())),
-		parentCtx:       ctx,
-		serverTransport: t,
-		config:          cfg,
-		rootDomain:      atomic.NewString(""),
-		proxies:         skipmap.NewString[*httpProxy](),
-		connections:     skipmap.NewUint64[*protocol.Node](),
-		tunnelClient:    rpc.DynamicTunnelClient(ctx, t),
-		rtt:             r,
-		reload:          reload,
-		closeCh:         make(chan struct{}),
+		ClientConfig: cfg,
+		parentCtx:    ctx,
+		rootDomain:   atomic.NewString(""),
+		proxies:      skipmap.NewString[*httpProxy](),
+		connections:  skipmap.NewUint64[*protocol.Node](),
+		tunnelClient: rpc.DynamicTunnelClient(ctx, cfg.ServerTransport),
+		closeCh:      make(chan struct{}),
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
-		Address: cfg.Apex,
+		Address: cfg.Configuration.Apex,
 	}); err != nil {
 		return nil, fmt.Errorf("error connecting to apex: %w", err)
 	}
@@ -92,7 +94,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 		return err
 	}
 
-	c.logger.Info("Waiting for RTT measurement...", zap.Duration("max", transport.RTTMeasureInterval))
+	c.Logger.Info("Waiting for RTT measurement...", zap.Duration("max", transport.RTTMeasureInterval))
 	time.Sleep(util.RandomTimeRange(transport.RTTMeasureInterval))
 
 	c.SyncConfigTunnels(ctx)
@@ -113,7 +115,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 	}
 
 	identity := resp.GetNode()
-	c.logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
+	c.Logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
 	c.connections.Store(identity.GetId(), identity)
 	return nil
 }
@@ -176,7 +178,7 @@ func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dea
 
 func (c *Client) getToken() *protocol.ClientToken {
 	c.configMu.RLock()
-	token := c.config.Token
+	token := c.Configuration.Token
 	c.configMu.RUnlock()
 	return &protocol.ClientToken{
 		Token: []byte(token),
@@ -210,7 +212,7 @@ func (c *Client) periodicReconnection(ctx context.Context) {
 		case <-ticker.C:
 			prev, failed := c.getAliveNodes(ctx)
 			if failed > 0 {
-				c.logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
+				c.Logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
 			}
 			if err := c.maintainConnections(ctx); err != nil {
 				continue
@@ -218,15 +220,15 @@ func (c *Client) periodicReconnection(ctx context.Context) {
 			now, _ := c.getAliveNodes(ctx)
 
 			c.configMu.RLock()
-			seed := c.config.ClientID
+			seed := c.Configuration.ClientID
 			c.configMu.RUnlock()
 
 			pH := c.hash(seed, prev)
 			nH := c.hash(seed, now)
-			c.logger.Debug("Alive nodes delta", zap.Int("prevNum", len(prev)), zap.Uint64("prevHash", pH), zap.Int("currNum", len(now)), zap.Uint64("currHash", nH))
+			c.Logger.Debug("Alive nodes delta", zap.Int("prevNum", len(prev)), zap.Uint64("prevHash", pH), zap.Int("currNum", len(now)), zap.Uint64("currHash", nH))
 
 			if failed > 0 || pH != nH {
-				c.logger.Info("Connections with specter server have changed", zap.Int("previous", len(prev)), zap.Int("current", len(now)))
+				c.Logger.Info("Connections with specter server have changed", zap.Int("previous", len(prev)), zap.Int("current", len(now)))
 				c.SyncConfigTunnels(ctx)
 			}
 		}
@@ -241,7 +243,7 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
+	c.Logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
 
 	for _, node := range nodes {
 		err := func() error {
@@ -262,10 +264,10 @@ func (c *Client) Register(ctx context.Context) error {
 	c.configMu.Lock()
 	defer c.configMu.Unlock()
 
-	if c.config.Token != "" {
+	if c.Configuration.Token != "" {
 		resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ClientPingResponse, error) {
 			ctx = rpc.WithClientToken(ctx, &protocol.ClientToken{
-				Token: []byte(c.config.Token),
+				Token: []byte(c.Configuration.Token),
 			})
 			ctx = rpc.WithNode(ctx, node)
 			return c.tunnelClient.Ping(ctx, &protocol.ClientPingRequest{})
@@ -276,7 +278,7 @@ func (c *Client) Register(ctx context.Context) error {
 		root := resp.GetApex()
 		c.rootDomain.Store(root)
 
-		c.logger.Info("Reusing existing client token")
+		c.Logger.Info("Reusing existing client token")
 
 		return nil
 	}
@@ -284,7 +286,7 @@ func (c *Client) Register(ctx context.Context) error {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisterIdentityResponse, error) {
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.RegisterIdentity(ctx, &protocol.RegisterIdentityRequest{
-			Client: c.serverTransport.Identity(),
+			Client: c.ServerTransport.Identity(),
 		})
 	})
 	if err != nil {
@@ -294,12 +296,12 @@ func (c *Client) Register(ctx context.Context) error {
 	token := resp.GetToken().GetToken()
 	root := resp.GetApex()
 	c.rootDomain.Store(root)
-	c.config.Token = string(token)
+	c.Configuration.Token = string(token)
 
-	c.logger.Info("Client token obtained via apex")
+	c.Logger.Info("Client token obtained via apex")
 
-	if err := c.config.writeFile(); err != nil {
-		c.logger.Error("Error saving token to config file", zap.Error(err))
+	if err := c.Configuration.writeFile(); err != nil {
+		c.Logger.Error("Error saving token to config file", zap.Error(err))
 	}
 	return nil
 }
@@ -337,16 +339,16 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 	defer c.syncMu.Unlock()
 
 	c.configMu.RLock()
-	tunnels := append([]Tunnel{}, c.config.Tunnels...)
+	tunnels := append([]Tunnel{}, c.Configuration.Tunnels...)
 	c.configMu.RUnlock()
 
-	c.logger.Info("Synchronizing tunnels in config file with specter", zap.Int("tunnels", len(tunnels)))
+	c.Logger.Info("Synchronizing tunnels in config file with specter", zap.Int("tunnels", len(tunnels)))
 
 	for i, tunnel := range tunnels {
 		if tunnel.Hostname == "" && tunnel.Target != "" {
 			name, err := c.RequestHostname(ctx)
 			if err != nil {
-				c.logger.Error("Failed to request hostname", zap.String("target", tunnel.Target), zap.Error(err))
+				c.Logger.Error("Failed to request hostname", zap.String("target", tunnel.Target), zap.Error(err))
 				continue
 			}
 			tunnels[i].Hostname = name
@@ -358,7 +360,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	rttLookup := make(map[string]time.Duration)
 	for _, n := range connected {
-		m := c.rtt.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)
+		m := c.Recorder.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)
 		if m == nil {
 			continue
 		}
@@ -376,7 +378,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		return l < r
 	})
 
-	c.logger.Debug("rtt information", zap.String("table", fmt.Sprint(rttLookup)))
+	c.Logger.Debug("rtt information", zap.String("table", fmt.Sprint(rttLookup)))
 
 	for _, tunnel := range tunnels {
 		if tunnel.Hostname == "" {
@@ -384,18 +386,18 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		}
 		published, err := c.PublishTunnel(ctx, tunnel.Hostname, connected)
 		if err != nil {
-			c.logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
+			c.Logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
 			continue
 		}
-		c.logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, apex)), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
+		c.Logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, apex)), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
 	}
 
 	c.configMu.Lock()
-	c.config.Tunnels = tunnels
-	if err := c.config.writeFile(); err != nil {
-		c.logger.Error("Error saving token to config file", zap.Error(err))
+	c.Configuration.Tunnels = tunnels
+	if err := c.Configuration.writeFile(); err != nil {
+		c.Logger.Error("Error saving token to config file", zap.Error(err))
 	}
-	c.config.buildRouter()
+	c.Configuration.buildRouter()
 	c.configMu.Unlock()
 }
 
@@ -423,11 +425,11 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 			return
 		case <-ctx.Done():
 			return
-		case <-c.reload:
-			c.logger.Info("Received SIGHUP, reloading config")
+		case <-c.ReloadSignal:
+			c.Logger.Info("Received SIGHUP, reloading config")
 			c.configMu.Lock()
-			if err := c.config.reloadFile(); err != nil {
-				c.logger.Error("Error reloading config file", zap.Error(err))
+			if err := c.Configuration.reloadFile(); err != nil {
+				c.Logger.Error("Error reloading config file", zap.Error(err))
 				c.configMu.Unlock()
 				continue
 			}
@@ -438,27 +440,27 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 }
 
 func (c *Client) Start(ctx context.Context) {
-	c.logger.Info("Listening for tunnel traffic")
+	c.Logger.Info("Listening for tunnel traffic")
 
 	c.closeWg.Add(2)
 
-	streamRouter := transport.NewStreamRouter(c.logger, nil, c.serverTransport)
+	streamRouter := transport.NewStreamRouter(c.Logger, nil, c.ServerTransport)
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
 		link := &protocol.Link{}
 		if err := rpc.Receive(delegation, link); err != nil {
-			c.logger.Error("Receiving link information from gateway", zap.Error(err))
+			c.Logger.Error("Receiving link information from gateway", zap.Error(err))
 			delegation.Close()
 			return
 		}
 		hostname := link.Hostname
-		u, ok := c.config.router.Load(hostname)
+		u, ok := c.Configuration.router.Load(hostname)
 		if !ok {
-			c.logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
+			c.Logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
 			delegation.Close()
 			return
 		}
 
-		c.logger.Info("Incoming connection from gateway",
+		c.Logger.Info("Incoming connection from gateway",
 			zap.String("protocol", link.Alpn.String()),
 			zap.String("hostname", link.Hostname),
 			zap.String("remote", link.Remote))
@@ -471,7 +473,7 @@ func (c *Client) Start(ctx context.Context) {
 			c.forwardStream(ctx, delegation, u)
 
 		default:
-			c.logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
+			c.Logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
 			delegation.Close()
 		}
 	})
@@ -486,7 +488,7 @@ func (c *Client) Close() {
 		return
 	}
 	c.proxies.Range(func(key string, proxy *httpProxy) bool {
-		c.logger.Info("Shutting down proxy", zap.String("hostname", key))
+		c.Logger.Info("Shutting down proxy", zap.String("hostname", key))
 		proxy.acceptor.Close()
 		return true
 	})
@@ -514,7 +516,7 @@ func (c *Client) forwardStream(ctx context.Context, remote net.Conn, u *url.URL)
 		err = fmt.Errorf("unknown scheme: %s", u.Scheme)
 	}
 	if err != nil {
-		c.logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
+		c.Logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
 		tun.SendStatusProto(remote, err)
 		remote.Close()
 		return
@@ -525,12 +527,15 @@ func (c *Client) forwardStream(ctx context.Context, remote net.Conn, u *url.URL)
 
 func (c *Client) getHTTPProxy(ctx context.Context, hostname string, u *url.URL) *httpProxy {
 	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
-		c.logger.Info("Creating new proxy", zap.String("hostname", hostname))
+		c.Logger.Info("Creating new proxy", zap.String("hostname", hostname))
 
 		tp := &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+				ServerName:         u.Host,
+				InsecureSkipVerify: c.DisableTargetTLS,
 			},
+			MaxIdleConns:    10,
+			IdleConnTimeout: time.Minute,
 		}
 
 		isPipe := false
@@ -563,17 +568,17 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, u *url.URL) 
 				// this is expected
 				return
 			}
-			c.logger.Error("Error forwarding http/https request", zap.Error(e))
+			c.Logger.Error("Error forwarding http/https request", zap.Error(e))
 			rw.WriteHeader(http.StatusBadGateway)
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
-		proxy.ErrorLog = zap.NewStdLog(c.logger)
+		proxy.ErrorLog = zap.NewStdLog(c.Logger)
 
 		accepter := acceptor.NewH2Acceptor(nil)
 		h2s := &http2.Server{}
 		forwarder := &http.Server{
 			Handler:           h2c.NewHandler(proxy, h2s),
-			ErrorLog:          zap.NewStdLog(c.logger),
+			ErrorLog:          zap.NewStdLog(c.Logger),
 			ReadHeaderTimeout: time.Second * 15,
 		}
 
