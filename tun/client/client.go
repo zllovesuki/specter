@@ -34,8 +34,11 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+var (
+	checkInterval = time.Second * 30
+)
+
 const (
-	checkInterval  = time.Second * 30
 	connectTimeout = time.Second * 3
 	rpcTimeout     = time.Second * 5
 )
@@ -420,14 +423,10 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 	}
 }
 
-func (c *Client) Accept(ctx context.Context) {
+func (c *Client) Start(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
 
 	streamRouter := transport.NewStreamRouter(c.logger, nil, c.serverTransport)
-	go streamRouter.Accept(ctx)
-	go c.periodicReconnection(ctx)
-	go c.reloadOnSignal(ctx)
-
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
 		link := &protocol.Link{}
 		if err := rpc.Receive(delegation, link); err != nil {
@@ -460,6 +459,10 @@ func (c *Client) Accept(ctx context.Context) {
 			delegation.Close()
 		}
 	})
+
+	go streamRouter.Accept(ctx)
+	go c.periodicReconnection(ctx)
+	go c.reloadOnSignal(ctx)
 }
 
 func (c *Client) Close() {

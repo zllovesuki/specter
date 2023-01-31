@@ -72,7 +72,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
-	go c.Accept(ctx.Context)
+	c.Start(ctx.Context)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
