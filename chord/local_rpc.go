@@ -23,13 +23,20 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
-		n.BaseLogger.Error("Error handling RPC request",
+		l := n.BaseLogger.With(
 			zap.String("component", "rpc_server"),
 			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
 			zap.String("method", method),
-			zap.Error(err),
 		)
+		cause, key := rpc.GetErrorMeta(err)
+		if cause != "" {
+			l = l.With(zap.String("cause", cause))
+		}
+		if key != "" {
+			l = l.With(zap.String("kv-key", key))
+		}
+		l.Error("Error handling RPC request", zap.Error(err))
 	}
 	return ctx
 }

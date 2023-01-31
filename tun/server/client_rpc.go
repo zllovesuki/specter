@@ -37,13 +37,20 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
-		s.logger.Error("Error handling RPC request",
+		l := s.logger.With(
 			zap.String("remote", delegation.RemoteAddr().String()),
 			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
 			zap.String("method", method),
-			zap.Error(err),
 		)
+		cause, key := rpc.GetErrorMeta(err)
+		if cause != "" {
+			l = l.With(zap.String("cause", cause))
+		}
+		if key != "" {
+			l = l.With(zap.String("kv-key", key))
+		}
+		l.Error("Error handling RPC request", zap.Error(err))
 	}
 	return ctx
 }
@@ -146,7 +153,7 @@ func (s *Server) RegisterIdentity(ctx context.Context, req *protocol.RegisterIde
 	}
 
 	if err := s.saveClientToken(ctx, token, client); err != nil {
-		return nil, twirp.FailedPrecondition.Error(err.Error())
+		return nil, rpc.WrapErrorKV(tun.ClientTokenKey(token), err)
 	}
 
 	return &protocol.RegisterIdentityResponse{
@@ -173,9 +180,10 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 		if chord == nil {
 			continue
 		}
-		identities, err := s.lookupIdentities(ctx, tun.IdentitiesChordKey(chord.Identity()))
+		key := tun.IdentitiesChordKey(chord.Identity())
+		identities, err := s.lookupIdentities(ctx, key)
 		if err != nil {
-			return nil, twirp.FailedPrecondition.Error(err.Error())
+			return nil, rpc.WrapErrorKV(key, err)
 		}
 		servers = append(servers, identities.GetTun())
 	}
@@ -192,8 +200,9 @@ func (s *Server) GenerateHostname(ctx context.Context, req *protocol.GenerateHos
 	}
 
 	hostname := strings.Join(generator.MustGenerate(5), "-")
-	if err := s.chord.PrefixAppend(ctx, []byte(tun.ClientHostnamesPrefix(token)), []byte(hostname)); err != nil {
-		return nil, twirp.FailedPrecondition.Error(err.Error())
+	prefix := tun.ClientHostnamesPrefix(token)
+	if err := s.chord.PrefixAppend(ctx, []byte(prefix), []byte(hostname)); err != nil {
+		return nil, rpc.WrapErrorKV(prefix, err)
 	}
 
 	return &protocol.GenerateHostnameResponse{
@@ -222,9 +231,10 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
 	hostname := req.GetHostname()
-	b, err := s.chord.PrefixContains(ctx, []byte(tun.ClientHostnamesPrefix(token)), []byte(hostname))
+	prefix := tun.ClientHostnamesPrefix(token)
+	b, err := s.chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
 	if err != nil {
-		return nil, twirp.FailedPrecondition.Error(err.Error())
+		return nil, rpc.WrapErrorKV(prefix, err)
 	}
 	if !b {
 		return nil, twirp.PermissionDenied.Errorf("hostname %s is not registered", hostname)
@@ -232,9 +242,10 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 
 	identities := make([]*protocol.IdentitiesPair, len(requested))
 	for k, server := range requested {
-		identity, err := s.lookupIdentities(ctx, tun.IdentitiesTunnelKey(server))
+		key := tun.IdentitiesTunnelKey(server)
+		identity, err := s.lookupIdentities(ctx, key)
 		if err != nil {
-			return nil, twirp.FailedPrecondition.Error(err.Error())
+			return nil, rpc.WrapErrorKV(key, err)
 		}
 		identities[k] = identity
 	}
