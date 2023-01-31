@@ -222,5 +222,7 @@ gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 kon.nect.sh/challenger v1.0.1 h1:xCTexUlgsDBwJXXdm/5BbR4Ly+l654v87zyYtzv2e6c=
 kon.nect.sh/challenger v1.0.1/go.mod h1:iJ0SFBcAqbTBqRLZoTjvisQ8AukkvXo/UqUp1Sprn14=
+kon.nect.sh/httprate v0.7.2 h1:ZNcW7sIWgybZg8SMtjnp84d0mTfX8MKhnQqaEw90vSA=
+kon.nect.sh/httprate v0.7.2/go.mod h1:okBrZo0pt9qlIo2iJd5A+5GxCFSCn2Jmi9d30qMK2Tw=
 moul.io/zapfilter v1.7.0 h1:7aFrG4N72bDH9a2BtYUuUaDS981Dxu3qybWfeqaeBDU=
 moul.io/zapfilter v1.7.0/go.mod h1:M+N2s+qZiA+bzRoyKMVRxyuERijS2ovi2pnMyiOGMvc=

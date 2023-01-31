@@ -17,13 +17,13 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
-	"kon.nect.sh/specter/util/httprate"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sethvargo/go-diceware/diceware"
 	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
+	"kon.nect.sh/httprate"
 )
 
 var generator, _ = diceware.NewGenerator(nil)

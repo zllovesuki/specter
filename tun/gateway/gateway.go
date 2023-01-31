@@ -13,7 +13,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/httprate"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-yamux/v3"
@@ -21,6 +20,7 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"kon.nect.sh/httprate"
 	"moul.io/zapfilter"
 )
 

@@ -21,7 +21,6 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/httprate"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -65,7 +64,6 @@ func setupRPC(ctx context.Context,
 
 	rpcHandler := chi.NewRouter()
 	rpcHandler.Use(middleware.Recoverer)
-	rpcHandler.Use(httprate.LimitByIP(10, time.Second))
 	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
 	rpcHandler.Mount(tunTwirp.PathPrefix(), rpc.ExtractAuthorizationHeader(tunTwirp))
 

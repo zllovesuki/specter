@@ -32,6 +32,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/challenger v1.0.1
+	kon.nect.sh/httprate v0.7.2
 	moul.io/zapfilter v1.7.0
 )
 
