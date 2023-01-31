@@ -206,7 +206,12 @@ func (n *LocalNode) Leave() {
 	case chord.Inactive, chord.Leaving, chord.Left:
 		return
 	}
+
+	left := false
 	defer func() {
+		if !left {
+			return
+		}
 		close(n.stopCh)
 		n.stopWg.Wait()
 	}()
@@ -233,6 +238,8 @@ func (n *LocalNode) Leave() {
 		n.logger.Error("Unable to leave ring: out of attempts", zap.Error(err))
 		return
 	}
+
+	left = true
 
 	n.logger.Info("Sending advisory to update pointers and releasing membership locks")
 
