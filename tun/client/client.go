@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
+	"kon.nect.sh/specter/util/pipe"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/orisano/wyhash"
@@ -44,18 +46,21 @@ const (
 )
 
 type Client struct {
-	logger          *zap.Logger
-	parentCtx       context.Context
-	serverTransport transport.Transport
 	configMu        sync.RWMutex
+	closeWg         sync.WaitGroup
 	syncMu          sync.Mutex
+	tunnelClient    protocol.TunnelService
+	serverTransport transport.Transport
+	rtt             rtt.Recorder
+	parentCtx       context.Context
 	config          *Config
 	rootDomain      *atomic.String
 	proxies         *skipmap.StringMap[*httpProxy]
 	connections     *skipmap.Uint64Map[*protocol.Node]
-	tunnelClient    protocol.TunnelService
-	rtt             rtt.Recorder
+	logger          *zap.Logger
 	reload          <-chan os.Signal
+	closeCh         chan struct{}
+	closed          atomic.Bool
 }
 
 func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config, r rtt.Recorder, reload <-chan os.Signal) (*Client, error) {
@@ -70,6 +75,7 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 		tunnelClient:    rpc.DynamicTunnelClient(ctx, t),
 		rtt:             r,
 		reload:          reload,
+		closeCh:         make(chan struct{}),
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
@@ -190,11 +196,15 @@ func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
 }
 
 func (c *Client) periodicReconnection(ctx context.Context) {
+	defer c.closeWg.Done()
+
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
+		case <-c.closeCh:
+			return
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
@@ -405,8 +415,12 @@ func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected [
 }
 
 func (c *Client) reloadOnSignal(ctx context.Context) {
+	defer c.closeWg.Done()
+
 	for {
 		select {
+		case <-c.closeCh:
+			return
 		case <-ctx.Done():
 			return
 		case <-c.reload:
@@ -425,6 +439,8 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 
 func (c *Client) Start(ctx context.Context) {
 	c.logger.Info("Listening for tunnel traffic")
+
+	c.closeWg.Add(2)
 
 	streamRouter := transport.NewStreamRouter(c.logger, nil, c.serverTransport)
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
@@ -449,10 +465,10 @@ func (c *Client) Start(ctx context.Context) {
 
 		switch link.GetAlpn() {
 		case protocol.Link_HTTP:
-			c.getProxy(ctx, hostname, u).acceptor.Handle(delegation)
+			c.getHTTPProxy(ctx, hostname, u).acceptor.Handle(delegation)
 
 		case protocol.Link_TCP:
-			c.forward(ctx, delegation, u.Host)
+			c.forwardStream(ctx, delegation, u)
 
 		default:
 			c.logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
@@ -466,20 +482,39 @@ func (c *Client) Start(ctx context.Context) {
 }
 
 func (c *Client) Close() {
+	if !c.closed.CompareAndSwap(false, true) {
+		return
+	}
 	c.proxies.Range(func(key string, proxy *httpProxy) bool {
 		c.logger.Info("Shutting down proxy", zap.String("hostname", key))
 		proxy.acceptor.Close()
 		return true
 	})
+	close(c.closeCh)
+	c.closeWg.Wait()
 }
 
-func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
-	dialer := &net.Dialer{
-		Timeout: time.Second * 3,
+func (c *Client) forwardStream(ctx context.Context, remote net.Conn, u *url.URL) {
+	var (
+		target string
+		local  net.Conn
+		err    error
+	)
+	switch u.Scheme {
+	case "tcp":
+		dialer := &net.Dialer{
+			Timeout: time.Second * 3,
+		}
+		target = u.Host
+		local, err = dialer.DialContext(ctx, "tcp", u.Host)
+	case "unix", "winio":
+		target = u.Path
+		local, err = pipe.DialPipe(ctx, u.Path)
+	default:
+		err = fmt.Errorf("unknown scheme: %s", u.Scheme)
 	}
-	local, err := dialer.DialContext(ctx, "tcp", dest)
 	if err != nil {
-		c.logger.Error("forwarding connection", zap.Error(err))
+		c.logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
 		tun.SendStatusProto(remote, err)
 		remote.Close()
 		return
@@ -488,30 +523,47 @@ func (c *Client) forward(ctx context.Context, remote net.Conn, dest string) {
 	tun.Pipe(remote, local)
 }
 
-func (c *Client) getProxy(ctx context.Context, hostname string, u *url.URL) *httpProxy {
+func (c *Client) getHTTPProxy(ctx context.Context, hostname string, u *url.URL) *httpProxy {
 	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
 		c.logger.Info("Creating new proxy", zap.String("hostname", hostname))
 
+		tp := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+
+		isPipe := false
+		switch u.Scheme {
+		case "unix", "winio":
+			isPipe = true
+			tp.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return pipe.DialPipe(ctx, u.Path)
+			}
+		}
 		proxy := httputil.NewSingleHostReverseProxy(u)
 		d := proxy.Director
 		// https://stackoverflow.com/a/53007606
 		// need to overwrite Host field
 		proxy.Director = func(r *http.Request) {
 			d(r)
-			r.Host = u.Host
+			if isPipe {
+				r.Host = "pipe"
+				r.URL.Host = "pipe"
+				r.URL.Scheme = "http"
+				r.URL.Path = strings.ReplaceAll(r.URL.Path, u.Path, "")
+			} else {
+				r.Host = u.Host
+			}
 		}
-		proxy.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
+		proxy.Transport = tp
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
 			if errors.Is(e, context.Canceled) ||
 				errors.Is(e, io.EOF) {
 				// this is expected
 				return
 			}
-			c.logger.Error("forwarding http/https request", zap.Error(e))
+			c.logger.Error("Error forwarding http/https request", zap.Error(e))
 			rw.WriteHeader(http.StatusBadGateway)
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
