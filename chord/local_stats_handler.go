@@ -14,6 +14,48 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+func minmax(nums []int) (min, max int) {
+	min = nums[0]
+	max = nums[0]
+	for _, num := range nums {
+		if num > max {
+			max = num
+		}
+		if num < min {
+			min = num
+		}
+	}
+	return
+}
+
+func (n *LocalNode) fingerTrace() map[string]string {
+	ftMap := map[uint64][]int{}
+	n.fingerRangeView(func(i int, f chord.VNode) bool {
+		id := f.ID()
+		if _, found := ftMap[id]; !found {
+			ftMap[id] = make([]int, 0)
+		}
+		ftMap[id] = append(ftMap[id], i)
+		return true
+	})
+
+	keys := make([]uint64, 0, len(ftMap))
+	for k := range ftMap {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	f := make(map[string]string)
+	for _, k := range keys {
+		min, max := minmax(ftMap[k])
+		f[fmt.Sprintf("%d/%d", min, max)] = strconv.FormatUint(k, 10)
+	}
+
+	return f
+}
+
 func (n *LocalNode) printSummary(w http.ResponseWriter) {
 	pre, err := n.GetPredecessor()
 	if err != nil {

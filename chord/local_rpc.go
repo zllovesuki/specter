@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 
-	"kon.nect.sh/specter/chord/service"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -24,7 +23,8 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
-		n.logger.Error("Error handling RPC request",
+		n.BaseLogger.Error("Error handling RPC request",
+			zap.String("component", "rpc_server"),
 			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
 			zap.String("method", method),
@@ -44,7 +44,7 @@ func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Cont
 func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	n.stopWg.Add(1)
 
-	r := &service.Server{
+	r := &Server{
 		LocalNode: n,
 		Factory: func(node *protocol.Node) (chord.VNode, error) {
 			return NewRemoteNode(ctx, n.BaseLogger, n.ChordClient, node)

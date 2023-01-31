@@ -40,15 +40,20 @@ func NewRemoteNode(ctx context.Context, baseLogger *zap.Logger, chordClient rpc.
 	}
 
 	if peer.GetUnknown() {
-		if err := n.handshake(n.chordClient, peer); err != nil {
+		if err := n.getIdentity(n.chordClient, peer); err != nil {
 			return nil, err
 		}
 	}
 	n.logger = baseLogger.With(zap.String("component", "remoteNode"), zap.Object("node", n.identity))
+
 	return n, nil
 }
 
-func (n *RemoteNode) handshake(r rpc.ChordClient, node *protocol.Node) error {
+func (n *RemoteNode) getIdentity(r rpc.ChordClient, node *protocol.Node) error {
+	if node.GetAddress() == "" {
+		return chord.ErrNodeNil
+	}
+
 	ctx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, node), rpcTimeout)
 	defer cancel()
 
