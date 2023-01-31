@@ -12,10 +12,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/signal"
 	"sort"
 	"sync"
-	"syscall"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -54,9 +52,10 @@ type Client struct {
 	connections     *skipmap.Uint64Map[*protocol.Node]
 	tunnelClient    protocol.TunnelService
 	rtt             rtt.Recorder
+	reload          <-chan os.Signal
 }
 
-func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config, r rtt.Recorder) (*Client, error) {
+func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, cfg *Config, r rtt.Recorder, reload <-chan os.Signal) (*Client, error) {
 	c := &Client{
 		logger:          logger.With(zap.Uint64("id", t.Identity().GetId())),
 		parentCtx:       ctx,
@@ -67,6 +66,7 @@ func NewClient(ctx context.Context, logger *zap.Logger, t transport.Transport, c
 		connections:     skipmap.NewUint64[*protocol.Node](),
 		tunnelClient:    rpc.DynamicTunnelClient(ctx, t),
 		rtt:             r,
+		reload:          reload,
 	}
 
 	if err := c.openRPC(ctx, &protocol.Node{
@@ -402,14 +402,12 @@ func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected [
 }
 
 func (c *Client) reloadOnSignal(ctx context.Context) {
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, syscall.SIGHUP)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-s:
+		case <-c.reload:
+			c.logger.Info("Received SIGHUP, reloading config")
 			c.configMu.Lock()
 			if err := c.config.reloadFile(); err != nil {
 				c.logger.Error("Error reloading config file", zap.Error(err))

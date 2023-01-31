@@ -51,11 +51,14 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGHUP)
+
 	transportRTT := rttImpl.NewInstrumentation(20)
 	transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
 	defer transport.Stop()
 
-	c, err := client.NewClient(ctx.Context, logger, transport, cfg, transportRTT)
+	c, err := client.NewClient(ctx.Context, logger, transport, cfg, transportRTT, s)
 	if err != nil {
 		return err
 	}

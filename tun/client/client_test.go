@@ -2,10 +2,14 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -28,6 +32,11 @@ import (
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+)
+
+const (
+	testHostname = "abcd"
+	testApex     = "specter.dev"
 )
 
 func TestMain(m *testing.M) {
@@ -80,37 +89,7 @@ func setupRPC(ctx context.Context,
 	})
 }
 
-func TestPublishPreferenceRTT(t *testing.T) {
-	as := require.New(t)
-	logger := zaptest.NewLogger(t)
-
-	t1, t2 := mocks.PipeTransport()
-	rr := new(mocks.Measurement)
-
-	file, err := os.CreateTemp("", "client")
-	as.NoError(err)
-	defer os.Remove(file.Name())
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	s := new(mocks.TunnelService)
-	router := transport.NewStreamRouter(logger, nil, t2)
-	acc := acceptor.NewH2Acceptor(nil)
-	defer acc.Close()
-
-	token := &protocol.ClientToken{
-		Token: []byte("test"),
-	}
-	cl := &protocol.Node{
-		Id: chord.Random(),
-	}
-	node := &protocol.Node{
-		Id:      chord.Random(),
-		Address: "127.0.0.2:4567",
-	}
-	apex := "127.0.0.1:1234"
-
+func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, node *protocol.Node) []*protocol.Node {
 	fakeNodes := []*protocol.Node{
 		{
 			Id:      1,
@@ -149,20 +128,56 @@ func TestPublishPreferenceRTT(t *testing.T) {
 			return delegation.Identity.String() == n.String()
 		}), mock.Anything).Return(&protocol.ClientPingResponse{
 			Node: fakeNodes[i],
-			Apex: "127.0.0.1",
+			Apex: testApex,
 		}, nil)
 	}
 
 	s.On("Ping", mock.Anything, mock.Anything).Return(&protocol.ClientPingResponse{
 		Node: node,
-		Apex: "127.0.0.1",
+		Apex: testApex,
 	}, nil)
 	s.On("GetNodes", mock.Anything, mock.Anything).Return(&protocol.GetNodesResponse{
 		Nodes: fakeNodes,
 	}, nil)
 	s.On("GenerateHostname", mock.Anything, mock.Anything).Return(&protocol.GenerateHostnameResponse{
-		Hostname: "abcd",
+		Hostname: testHostname,
 	}, nil)
+
+	return fakeNodes
+}
+
+func TestPublishPreferenceRTT(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	t1, t2 := mocks.PipeTransport()
+	rr := new(mocks.Measurement)
+
+	file, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(file.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := new(mocks.TunnelService)
+	router := transport.NewStreamRouter(logger, nil, t2)
+	acc := acceptor.NewH2Acceptor(nil)
+	defer acc.Close()
+
+	token := &protocol.ClientToken{
+		Token: []byte("test"),
+	}
+	cl := &protocol.Node{
+		Id: chord.Random(),
+	}
+	node := &protocol.Node{
+		Id:      chord.Random(),
+		Address: "127.0.0.2:4567",
+	}
+
+	fakeNodes := setupFakeNodes(rr, s, node)
+
 	s.On("PublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.PublishTunnelRequest) bool {
 		// ensure that the node with the lowest latency is the first preference
 		return len(req.GetServers()) > 0 && req.GetServers()[0].GetId() == fakeNodes[1].GetId()
@@ -177,7 +192,7 @@ func TestPublishPreferenceRTT(t *testing.T) {
 	cfg := &Config{
 		path:     file.Name(),
 		router:   skipmap.NewString[*url.URL](),
-		Apex:     apex,
+		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),
 		Tunnels: []Tunnel{
@@ -186,10 +201,190 @@ func TestPublishPreferenceRTT(t *testing.T) {
 			},
 		},
 	}
-	client, err := NewClient(rpc.DisablePooling(ctx), logger, t1, cfg, rr)
+	as.NoError(cfg.validate())
+
+	client, err := NewClient(rpc.DisablePooling(ctx), logger, t1, cfg, rr, nil)
 	as.NoError(err)
+	defer client.Close()
 
 	as.NoError(client.Register(ctx))
 
 	as.NoError(client.Initialize(ctx))
+
+	rr.AssertExpectations(t)
+	s.AssertExpectations(t)
+}
+
+func TestReloadOnSignal(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	t1, t2 := mocks.PipeTransport()
+	rr := new(mocks.Measurement)
+
+	file, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(file.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := new(mocks.TunnelService)
+	router := transport.NewStreamRouter(logger, nil, t2)
+	acc := acceptor.NewH2Acceptor(nil)
+	defer acc.Close()
+
+	token := &protocol.ClientToken{
+		Token: []byte("test"),
+	}
+	cl := &protocol.Node{
+		Id: chord.Random(),
+	}
+	node := &protocol.Node{
+		Id:      chord.Random(),
+		Address: "127.0.0.2:4567",
+	}
+	apex := "127.0.0.1:1234"
+
+	fakeNodes := setupFakeNodes(rr, s, node)
+
+	s.On("PublishTunnel", mock.Anything, mock.Anything).Return(&protocol.PublishTunnelResponse{
+		Published: fakeNodes,
+	}, nil).Times(2) // because reload
+
+	go router.Accept(ctx)
+
+	setupRPC(ctx, logger, s, router, acc, token, cl)
+
+	cfg := &Config{
+		path:     file.Name(),
+		router:   skipmap.NewString[*url.URL](),
+		Apex:     apex,
+		ClientID: cl.GetId(),
+		Token:    string(token.GetToken()),
+		Tunnels: []Tunnel{
+			{
+				Target: "tcp://127.0.0.1:1234",
+			},
+		},
+	}
+	as.NoError(cfg.validate())
+
+	reload := make(chan os.Signal, 1)
+
+	client, err := NewClient(rpc.DisablePooling(ctx), logger, t1, cfg, rr, reload)
+	as.NoError(err)
+	defer client.Close()
+
+	as.NoError(client.Register(ctx))
+
+	as.NoError(client.Initialize(ctx))
+
+	go client.Accept(ctx)
+
+	// send reload signal
+	reload <- syscall.SIGHUP
+
+	time.Sleep(time.Second)
+
+	rr.AssertExpectations(t)
+	s.AssertExpectations(t)
+}
+
+func TestProxy(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	t1, t2 := mocks.PipeTransport()
+	rr := new(mocks.Measurement)
+
+	file, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(file.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "ok")
+	}))
+	defer ts.Close()
+
+	s := new(mocks.TunnelService)
+
+	router := transport.NewStreamRouter(logger, nil, t2)
+	acc := acceptor.NewH2Acceptor(nil)
+	defer acc.Close()
+
+	token := &protocol.ClientToken{
+		Token: []byte("test"),
+	}
+	cl := &protocol.Node{
+		Id: chord.Random(),
+	}
+	node := &protocol.Node{
+		Id:      chord.Random(),
+		Address: "127.0.0.2:4567",
+	}
+	apex := "127.0.0.1:1234"
+
+	fakeNodes := setupFakeNodes(rr, s, node)
+
+	s.On("PublishTunnel", mock.Anything, mock.Anything).Return(&protocol.PublishTunnelResponse{
+		Published: fakeNodes,
+	}, nil).Times(1)
+
+	go router.Accept(ctx)
+
+	setupRPC(ctx, logger, s, router, acc, token, cl)
+
+	cfg := &Config{
+		path:     file.Name(),
+		router:   skipmap.NewString[*url.URL](),
+		Apex:     apex,
+		ClientID: cl.GetId(),
+		Token:    string(token.GetToken()),
+		Tunnels: []Tunnel{
+			{
+				Target: ts.URL,
+			},
+		},
+	}
+	as.NoError(cfg.validate())
+
+	client, err := NewClient(rpc.DisablePooling(ctx), logger, t1, cfg, rr, nil)
+	as.NoError(err)
+	defer client.Close()
+
+	as.NoError(client.Register(ctx))
+
+	as.NoError(client.Initialize(ctx))
+
+	go client.Accept(ctx)
+
+	httpCl := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: -1,
+			DisableKeepAlives:   true,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				c1, err := t2.DialStream(ctx, cl, protocol.Stream_DIRECT)
+				as.NoError(err)
+				as.NoError(rpc.Send(c1, &protocol.Link{
+					Alpn:     protocol.Link_HTTP,
+					Hostname: testHostname,
+				}))
+				return c1, nil
+			},
+		},
+	}
+	resp, err := httpCl.Get("http://test/")
+	as.NoError(err)
+	defer resp.Body.Close()
+
+	buf, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+	as.Equal("ok", string(buf))
+
+	rr.AssertExpectations(t)
+	s.AssertExpectations(t)
 }
