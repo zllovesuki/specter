@@ -69,7 +69,7 @@ release: $(PLATFORMS)
 
 compat: GOAMD64 = v1
 compat: GOARM = 6
-compat: ext := -compat
+compat: ext = -compat$(word 3, $(plat_temp))
 compat: release
 
 $(PLATFORMS):
