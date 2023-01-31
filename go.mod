@@ -22,7 +22,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/wal v1.1.7
 	github.com/twitchtv/twirp v8.1.3+incompatible
-	github.com/urfave/cli/v2 v2.24.1
+	github.com/urfave/cli/v2 v2.24.2
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
 	go.uber.org/atomic v1.10.0
@@ -50,7 +50,7 @@ require (
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
-	github.com/onsi/ginkgo/v2 v2.7.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.8.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-18 v0.2.0 // indirect
@@ -67,7 +67,7 @@ require (
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp v0.0.0-20230125214544-b3c2aaf6208d // indirect
+	golang.org/x/exp v0.0.0-20230130200758-8bd7c9d05862 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
