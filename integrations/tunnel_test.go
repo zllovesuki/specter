@@ -239,6 +239,7 @@ func TestTunnel(t *testing.T) {
 			"client",
 			"--insecure",
 			"tunnel",
+			"--disable-tls",
 			"--config",
 			file.Name(),
 		}

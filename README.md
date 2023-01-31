@@ -32,6 +32,40 @@ Similar to t, specter also:
 2. Supports tunneling _L7_(HTTP/S)/_L4_(TCP) traffic over a single TLS port;
 3. Manages Let's Encrypt certificate via dns01 challange for gateway hostname.
 
+specter also has some interesting features:
+
+1. Support tunneling TCP or HTTP to Unix socket and Windows named pipe (!);
+2. When connecting to the tunnel from gateway, error is propagated from the client.
+
+## Client Configuration
+
+A sample barebone YAML config is needed:
+
+```yaml
+apex: specter.im:443
+tunnels:
+  # following are shown as examples of what is valid
+  - target: tcp://127.0.0.1:22
+  - target: http://127.0.0.1:5173
+  - target: https://example.com
+  - target: unix:///run/unicorn.sock
+  - target: \\.\pipe\debugger-ipc
+```
+
+On initial connection with specter gateway server, your configuration file will be updated:
+
+```yaml
+apex: specter.im:443
+clientId: 3607296620713
+token: x1FuGot1dTlwpfKLRush4VJJ8yl1clcJNzUIiYq9K9s=
+tunnels:
+  - target: tcp://127.0.0.1:22
+    hostname: overnight-graph-caboose-list-boney
+  - target: http://127.0.0.1:5173
+    hostname: dreamless-spirits-episode-gloomy-path
+  # ...
+```
+
 ## Status
 
 | **Component**  | Status | Description                                                                |
@@ -56,6 +90,8 @@ The following should be installed on your machine:
 - [protoc](https://grpc.io/docs/protoc-installation)
 - [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
 - [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
+
+Windows development support is limited, you may have to run `go test` manually instead of `make test`. However WSL is a great environment.
 
 Run `make dev-server-acme` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
 

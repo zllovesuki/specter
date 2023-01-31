@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/CAFxX/atomic128 v0.2.0
+	github.com/Microsoft/go-winio v0.6.0
 	github.com/TheZeroSlave/zapsentry v1.12.0
 	github.com/avast/retry-go/v4 v4.3.2
 	github.com/caddyserver/certmagic v0.17.2

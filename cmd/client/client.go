@@ -36,6 +36,11 @@ func Generate() *cli.Command {
 						Usage:    "path to config yaml file.",
 						Required: true,
 					},
+					&cli.BoolFlag{
+						Name:  "disable-tls",
+						Usage: "disable tls verification when connecting to HTTPS target",
+						Value: false,
+					},
 				},
 				Action: cmdTunnel,
 			},
