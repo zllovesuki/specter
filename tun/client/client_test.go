@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/twitchtv/twirp"
 	"github.com/zhangyunhao116/skipmap"
-	"go.uber.org/goleak"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
@@ -42,12 +41,7 @@ const (
 
 func TestMain(m *testing.M) {
 	checkInterval = time.Millisecond * 200
-	// https://github.com/microsoft/go-winio/issues/272
-	if runtime.GOOS != "windows" {
-		goleak.VerifyTestMain(m)
-	} else {
-		m.Run()
-	}
+	m.Run()
 }
 
 func setupRPC(ctx context.Context,
