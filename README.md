@@ -1,5 +1,7 @@
 # 👻 Specter
+
 [![GoDoc](https://godoc.org/github.com/urfave/cli?status.svg)](https://pkg.go.dev/kon.nect.sh/specter)
+![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/zllovesuki/specter/pipeline.yaml?branch=main)
 ![badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zllovesuki/49efb3a7978bf0df7d91bfad39da7092/raw/specter.json?style=flat)
 
 ## What is it?
@@ -13,31 +15,33 @@ Specter is the spiritual successor of [t](https://github.com/zllovesuki/t/), ano
 (Also this is an excuse for me to play with DHT 😛)
 
 Specter has these improvements over t:
+
 1. Utilizes Chord DHT (with improvements) for distributed KV storage to store routing information;
-    - t uses a simple periodic updates via [hashicorp/memberlist](https://github.com/hashicorp/memberlist)
-    - meaning that if you have 100 nodes each with 100 clients connected, every single node has to maintain an 100*100 list about where the client is connected to
+   - t uses a simple periodic updates via [hashicorp/memberlist](https://github.com/hashicorp/memberlist)
+   - meaning that if you have 100 nodes each with 100 clients connected, every single node has to maintain an 100\*100 list about where the client is connected to
 2. Redundant connections from client to edge nodes and self-healing to maintain the tunnel;
-    - t only connects to 1 public node and can encounter downtime when a node is having an outage
-    - this has caused headache in production usage and causes assets to be unreachable
+   - t only connects to 1 public node and can encounter downtime when a node is having an outage
+   - this has caused headache in production usage and causes assets to be unreachable
 3. Robust testing to ensure correctness (`make full_test`).
-    - t has _zero_ tests whatsoever
-    - development is difficult as I have no confidence on correctness
+   - t has _zero_ tests whatsoever
+   - development is difficult as I have no confidence on correctness
 
 Similar to t, specter also:
+
 1. Uses [quic](https://github.com/lucas-clemente/quic-go) and _only_ quic for inter-nodes/node-client transport. However the transport (see `spec/transport`) is easily extensible;
 2. Supports tunneling _L7_(HTTP/S)/_L4_(TCP) traffic over a single TLS port;
 3. Manages Let's Encrypt certificate via dns01 challange for gateway hostname.
 
 ## Status
 
-| **Component**  | Status | Description                                                 |
-|----------------|--------|-------------------------------------------------------------|
-| Chord DHT      | Stable | Chord implementation is stable to be used as a dependency   |
-| Chord KV       | Beta   | Key consistency is maintained during concurrent Join/Leave  |
-| Tunnel Core    | Beta   | Storage format is subjected to change                       |
-| Tunnel Gateway | Beta   | Unified multiplexing for TLS and QUIC with status feedback  |
-| Server         | Beta   | Server now supports persisting client tunnels               |
-| Client         | Beta   | Client can publish multiple tunnels with redundant links    |
+| **Component**  | Status | Description                                                                |
+| -------------- | ------ | -------------------------------------------------------------------------- |
+| Chord DHT      | Stable | Chord implementation is stable to be used as a dependency                  |
+| Chord KV       | Stable | Key consistency is maintained during concurrent Join/Leave                 |
+| Tunnel Core    | Beta   | RTT based intelligent routing is in development                            |
+| Tunnel Gateway | Beta   | Unified multiplexing for TCP/TLS and QUIC with status feedback             |
+| Tunnel Server  | Beta   | Server now supports persisting client tunnels                              |
+| Tunnel Client  | Beta   | Client can publish multiple tunnels with redundant links with RTT tracking |
 
 ## Roadmap
 
@@ -46,6 +50,7 @@ Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q
 ## Development
 
 The following should be installed on your machine:
+
 - Docker with buildx support
 - Go 1.19+ (`atomic.Pointer`)
 - [protoc](https://grpc.io/docs/protoc-installation)
@@ -63,14 +68,17 @@ For changes unrelated to KV, `make test` should be sufficient. Any changes to KV
 ## References
 
 Chord:
+
 - Original Chord paper: [Chord: A Scalable Peer-to-peer Lookup Protocol for Internet Applications](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf)
 - Improvement on the original paper: [How to Make Chord Correct](https://arxiv.org/pdf/1502.06461.pdf)
 
 Key Consistency:
+
 - Inspiraion on join/leave KV correctness: [Atomic Data Access in Distributed Hash Tables](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.71.6111&rep=rep1&type=pdf)
 - Partial atomic ring maintenance implementation: [Atomic Ring Maintenance for Distributed Hash Table](https://www.diva-portal.org/smash/get/diva2:1041775/FULLTEXT01.pdf), full dissertation is available [here](https://www.diva-portal.org/smash/get/diva2:1041220/FULLTEXT01.pdf)
-    - We can see it in action in [concurrent_join.log](dev/concurrent_join.log) where the concurrent join attempt is blocked and asked to try again.
-    - This is a departure from the paper where it asks for a lock queue.
+  - We can see it in action in [concurrent_join.log](dev/concurrent_join.log) where the concurrent join attempt is blocked and asked to try again.
+  - This is a departure from the paper where it asks for a lock queue.
 
 KV Persistence:
+
 - Inspired by Redis' AOF format, by appending log when mutation occurs, and replay mutation logs on start-up to restore state: [Redis persistence](https://redis.io/docs/manual/persistence/)
