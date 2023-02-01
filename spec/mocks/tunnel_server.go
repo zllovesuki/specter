@@ -37,3 +37,13 @@ func (m *TunnelServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn,
 	}
 	return c.(net.Conn), e
 }
+
+func (m *TunnelServer) DialInternal(ctx context.Context, node *protocol.Node) (net.Conn, error) {
+	args := m.Called(ctx, node)
+	c := args.Get(0)
+	e := args.Error(1)
+	if c == nil {
+		return nil, e
+	}
+	return c.(net.Conn), e
+}

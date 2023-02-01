@@ -12,6 +12,7 @@ message Stream {
         RPC = 1;
         DIRECT = 2;
         PROXY = 3;
+        INTERNAL = 4;
     }
 
     Type type = 1;
