@@ -593,10 +593,11 @@ func cmdServer(ctx *cli.Context) error {
 		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),
 		AdminPass:    ctx.String("auth_pass"),
+		StreamRouter: streamRouter,
 	})
 	defer gw.Close()
 
-	go gw.Start(ctx.Context)
+	gw.Start(ctx.Context)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

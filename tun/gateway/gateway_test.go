@@ -22,6 +22,7 @@ import (
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/libp2p/go-yamux/v3"
@@ -195,13 +196,14 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		},
+		StreamRouter: transport.NewStreamRouter(logger, nil, nil),
 	}
 
 	g := New(conf)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go g.Start(ctx)
 	go alpnMux.Accept(ctx)
+	g.Start(ctx)
 
 	return udpPort, tcpPort, mockS, func() {
 		cancel()

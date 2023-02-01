@@ -2,7 +2,11 @@
 
 package pipe
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"net"
+)
 
 func DialPipe(ctx context.Context, path string) (net.Conn, error) {
 	return nil, errors.New("Not implemented")

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
@@ -36,6 +37,7 @@ type GatewayConfig struct {
 	H3Listener   quic.EarlyListener
 	Logger       *zap.Logger
 	StatsHandler http.HandlerFunc
+	StreamRouter *transport.StreamRouter
 	RootDomain   string
 	AdminUser    string
 	AdminPass    string
@@ -59,19 +61,16 @@ type Gateway struct {
 }
 
 func New(conf GatewayConfig) *Gateway {
+	if conf.AdminUser == "" || conf.AdminPass == "" {
+		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
+	}
+
 	g := &Gateway{
 		GatewayConfig:       conf,
 		httpTunnelAcceptor:  acceptor.NewH2Acceptor(conf.H2Listener),
 		tcpApexAcceptor:     acceptor.NewH2Acceptor(conf.H2Listener),
 		http3TunnelAcceptor: acceptor.NewH3Acceptor(conf.H3Listener),
 		quicApexAcceptor:    acceptor.NewH3Acceptor(conf.H3Listener),
-		apexServer: &apexServer{
-			statsHandler: conf.StatsHandler,
-			limiter:      httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
-			rootDomain:   conf.RootDomain,
-			authUser:     conf.AdminUser,
-			authPass:     conf.AdminPass,
-		},
 	}
 
 	// filter out unproductive messages
@@ -81,14 +80,30 @@ func New(conf GatewayConfig) *Gateway {
 			return !strings.HasPrefix(e.Message, "http: URL query contains semicolon")
 		}),
 	)
+	proxyHandler := g.proxyHandler(util.GetStdLogger(filteredLogger, "httpProxy"))
 
 	qCfg := &quic.Config{
 		HandshakeIdleTimeout: time.Second * 5,
 		KeepAlivePeriod:      time.Second * 30,
 		MaxIdleTimeout:       time.Second * 60,
 	}
-	apex := g.apexMux()
-	proxyHandler := g.proxyHandler(util.GetStdLogger(filteredLogger, "httpProxy"))
+
+	apex := chi.NewRouter()
+	apex.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
+			h.ServeHTTP(w, r)
+		})
+	})
+	g.apexServer = &apexServer{
+		statsHandler:  conf.StatsHandler,
+		limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
+		internalProxy: g.getInternalProxyHandler(),
+		rootDomain:    conf.RootDomain,
+		authUser:      conf.AdminUser,
+		authPass:      conf.AdminPass,
+	}
+	g.apexServer.Mount(apex)
 	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
@@ -124,22 +139,8 @@ func New(conf GatewayConfig) *Gateway {
 		ErrorLog:          util.GetStdLogger(filteredLogger, "httpRedirect"),
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
-	if conf.AdminUser == "" || conf.AdminPass == "" {
-		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
-	}
-	return g
-}
 
-func (g *Gateway) apexMux() http.Handler {
-	r := chi.NewRouter()
-	r.Use(func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
-			h.ServeHTTP(w, r)
-		})
-	})
-	g.apexServer.Mount(r)
-	return r
+	return g
 }
 
 func (g *Gateway) Start(ctx context.Context) {
@@ -166,9 +167,11 @@ func (g *Gateway) Start(ctx context.Context) {
 		go g.httpServer.Serve(g.HTTPListener)
 	}
 
-	g.Logger.Info("gateway server started")
+	g.StreamRouter.HandleChord(protocol.Stream_INTERNAL, func(delegate *transport.StreamDelegate) {
+		g.tcpApexAcceptor.Handle(delegate)
+	})
 
-	<-ctx.Done()
+	g.Logger.Info("gateway server started")
 }
 
 func (g *Gateway) Close() {

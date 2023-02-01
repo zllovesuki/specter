@@ -172,6 +172,13 @@ func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn
 	}
 }
 
+func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Conn, error) {
+	if node.GetAddress() == "" || node.GetId() == 0 || node.GetUnknown() {
+		return nil, transport.ErrNoDirect
+	}
+	return s.chordTransport.DialStream(ctx, node, protocol.Stream_INTERNAL)
+}
+
 // TODO: make routing selection more intelligent with rtt
 func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	isNoDirect := false
