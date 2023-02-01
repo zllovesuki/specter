@@ -44,34 +44,50 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	if err := n.checkNodeState(false); err != nil {
 		return err
 	}
-	var old chord.VNode
-	var new chord.VNode
 
-	n.surrogateMu.Lock()
-	defer n.surrogateMu.Unlock()
+	var (
+		surrogate *protocol.Node
+		old       chord.VNode
+		new       chord.VNode
+	)
 
 	defer func() {
 		if new == nil {
 			return
 		}
-		if new.ID() == n.ID() {
-			n.surrogate = nil
-		} else {
-			n.surrogate = new.Identity()
+		n.surrogateMu.Lock()
+		if surrogate == n.surrogate {
+			if new.ID() == n.ID() {
+				n.surrogate = nil
+			} else {
+				n.surrogate = new.Identity()
+			}
 		}
+		n.surrogateMu.Unlock()
+
+		n.predecessorMu.Lock()
+		if old == n.predecessor {
+			n.predecessor = new
+		}
+		n.predecessorMu.Unlock()
 	}()
 
-	n.predecessorMu.Lock()
-	defer n.predecessorMu.Unlock()
+	n.surrogateMu.RLock()
+	surrogate = n.surrogate
+	n.surrogateMu.RUnlock()
 
+	n.predecessorMu.RLock()
 	old = n.predecessor
+	n.predecessorMu.RUnlock()
+
+	// predecessor has not changed
 	if old != nil && old.ID() == predecessor.ID() {
 		return nil
 	}
 
+	// we have no predecessor
 	if old == nil {
 		new = predecessor
-		n.predecessor = predecessor
 		n.logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Object("predecessor", predecessor.Identity()),
@@ -79,16 +95,18 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 		return nil
 	}
 
+	// new predecessor, check connectivity
 	if err := old.Ping(); err == nil {
+		// old predecessor is still alive, check if new predecessor is "closer"
 		if chord.Between(old.ID(), predecessor.ID(), n.ID(), false) {
 			new = predecessor
 		}
 	} else {
+		// old predecessor is dead
 		new = predecessor
 	}
 
 	if new != nil {
-		n.predecessor = new
 		n.logger.Info("Discovered new predecessor via Notify",
 			zap.Object("previous", old.Identity()),
 			zap.Object("predecessor", new.Identity()),
@@ -96,7 +114,6 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	}
 
 	return nil
-
 }
 
 func (n *LocalNode) getSuccessor() chord.VNode {

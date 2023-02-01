@@ -107,27 +107,21 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return succ.RequestToJoin(joiner)
 	}
 
+	var (
+		prevPredecessor chord.VNode
+		joined          bool
+	)
+
 	n.logger.Info("Incoming join request", zap.Object("joiner", joiner.Identity()))
+
+	n.surrogateMu.Lock()
+	defer n.surrogateMu.Unlock()
 
 	// change status to transferring (if allowed)
 	if !n.state.Transition(chord.Active, chord.Transferring) {
 		n.logger.Info("rejecting join request because current state is not Active", zap.Object("joiner", joiner.Identity()))
 		return nil, nil, chord.ErrJoinInvalidState
 	}
-
-	var (
-		prevPredecessor chord.VNode
-		joined          bool
-	)
-
-	// transfer key range to new node, and set surrogate pointer to new node.
-	// paper calls for forwarding but that's too hard
-	// let the caller retries
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	n.surrogateMu.Lock()
-	defer n.surrogateMu.Unlock()
 
 	// TODO: instrument how long it took to grab the lock and the duration it was held for
 	n.predecessorMu.Lock()
@@ -149,6 +143,12 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	if !chord.Between(prevPredecessor.ID(), joiner.ID(), n.ID(), false) {
 		return nil, nil, chord.ErrJoinInvalidSuccessor
 	}
+
+	// transfer key range to new node, and set surrogate pointer to new node.
+	// paper calls for forwarding but that's too hard
+	// let the caller retries
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := n.transferKeysUpward(ctx, prevPredecessor, joiner); err != nil {
 		return nil, nil, chord.ErrJoinTransferFailure
