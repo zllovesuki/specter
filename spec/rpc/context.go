@@ -37,6 +37,14 @@ func WithNode(ctx context.Context, node *protocol.Node) context.Context {
 	return context.WithValue(ctx, contextNodeKey, node)
 }
 
+// Retrieve the node of this request
+func GetNode(ctx context.Context) *protocol.Node {
+	if node, ok := ctx.Value(contextNodeKey).(*protocol.Node); ok {
+		return node
+	}
+	return nil
+}
+
 // Send RPC context for this request
 func WithContext(ctx context.Context, rpcCtx *protocol.Context) context.Context {
 	return context.WithValue(ctx, contextRPCContextKey, rpcCtx)

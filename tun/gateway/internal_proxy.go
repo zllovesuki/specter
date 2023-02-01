@@ -10,6 +10,8 @@ import (
 	"strconv"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 
 	"go.uber.org/zap"
 )
@@ -21,6 +23,28 @@ const (
 )
 
 func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+		Scheme: "http",
+		Host:   g.RootDomain,
+	})
+	proxy.Transport = &http.Transport{
+		DisableKeepAlives:   false,
+		MaxIdleConnsPerHost: -1,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			target := rpc.GetNode(ctx)
+			if target == nil {
+				return nil, transport.ErrNoDirect
+			}
+			return g.TunnelServer.DialInternal(ctx, target)
+		},
+	}
+	director := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		director(r)
+		r.Header.Set(internalProxyForwarded, "true")
+		r.Header.Del(internalProxyNodeAddress)
+		r.Header.Del(internalProxyNodeId)
+	}
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var (
@@ -44,24 +68,9 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 				Address: targetAddress,
 				Id:      targerId,
 			}
-			proxy := httputil.NewSingleHostReverseProxy(&url.URL{
-				Scheme: "http",
-				Host:   g.RootDomain,
-			})
-			proxy.Transport = &http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return g.TunnelServer.DialInternal(ctx, target)
-				},
-			}
-			director := proxy.Director
-			proxy.Director = func(r *http.Request) {
-				director(r)
-				r.Header.Set(internalProxyForwarded, "true")
-				r.Header.Del(internalProxyNodeAddress)
-				r.Header.Del(internalProxyNodeId)
-			}
+			r = r.WithContext(rpc.WithNode(r.Context(), target))
 
-			g.Logger.Info("Proxying internal request", zap.Object("target", target))
+			g.Logger.Debug("Proxying internal request", zap.Object("target", target))
 			proxy.ServeHTTP(w, r)
 		})
 	}

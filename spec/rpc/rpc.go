@@ -30,9 +30,9 @@ type ChordClient interface {
 
 func getDynamicDialer(baseCtx context.Context, transport transport.Transport) func(reqCtx context.Context, _, _ string) (net.Conn, error) {
 	return func(reqCtx context.Context, _, _ string) (net.Conn, error) {
-		peer, ok := reqCtx.Value(contextNodeKey).(*protocol.Node)
-		if !ok {
-			return nil, fmt.Errorf("keys.ContextNodeKey not found in context")
+		peer := GetNode(reqCtx)
+		if peer == nil {
+			return nil, fmt.Errorf("node not found in context")
 		}
 		return transport.DialStream(baseCtx, peer, protocol.Stream_RPC)
 	}
@@ -45,9 +45,9 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 
 	injector := &twirp.ClientHooks{
 		RequestPrepared: func(ctx context.Context, r *http.Request) (context.Context, error) {
-			peer, ok := ctx.Value(contextNodeKey).(*protocol.Node)
-			if !ok {
-				return nil, fmt.Errorf("keys.ContextNodeKey not found in context")
+			peer := GetNode(ctx)
+			if peer == nil {
+				return nil, fmt.Errorf("node not found in context")
 			}
 			SerializeContextHeader(ctx, r.Header)
 			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://chord as key
@@ -87,12 +87,12 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.Transport) protocol.TunnelService {
 	injector := &twirp.ClientHooks{
 		RequestPrepared: func(ctx context.Context, r *http.Request) (context.Context, error) {
-			peer, ok := ctx.Value(contextNodeKey).(*protocol.Node)
-			if !ok {
-				return nil, fmt.Errorf("keys.ContextNodeKey not found in context")
+			peer := GetNode(ctx)
+			if peer == nil {
+				return nil, fmt.Errorf("peer not found in context")
 			}
-			token, ok := ctx.Value(contextClientTokenKey).(*protocol.ClientToken)
-			if ok {
+			token := GetClientToken(ctx)
+			if token != nil {
 				r.Header.Set("authorization", string(token.GetToken()))
 			}
 			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://tunnel as key
