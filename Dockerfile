@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM --platform=$BUILDPLATFORM golang:1.20-alpine as builder
-RUN apk --no-cache add ca-certificates git upx
+RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
 
@@ -12,7 +12,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' \
     -ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=`git rev-parse --short HEAD`" \
     -o bin/specter .
-RUN upx --best --lzma bin/specter
 
 FROM scratch
 WORKDIR /app

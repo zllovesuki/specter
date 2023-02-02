@@ -58,9 +58,11 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 
 	// default to http client pooling
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxIdleConnsPerHost = 10
+	t.MaxConnsPerHost = 15
+	t.MaxIdleConnsPerHost = 5
+	t.DisableCompression = true
 	t.IdleConnTimeout = time.Minute
-	t.DialContext = getDynamicDialer(baseContext, chordTransport)
+	t.DialTLSContext = getDynamicDialer(baseContext, chordTransport)
 	c := &http.Client{
 		Transport: t,
 	}
@@ -75,8 +77,8 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 		protocol.KVService
 		*ratecounter.Rate
 	}{
-		VNodeService: protocol.NewVNodeServiceProtobufClient("http://chord", c, twirp.WithClientHooks(injector)),
-		KVService:    protocol.NewKVServiceProtobufClient("http://chord", c, twirp.WithClientHooks(injector)),
+		VNodeService: protocol.NewVNodeServiceProtobufClient("https://chord", c, twirp.WithClientHooks(injector)),
+		KVService:    protocol.NewKVServiceProtobufClient("https://chord", c, twirp.WithClientHooks(injector)),
 		Rate:         outboundRate,
 	}
 }
@@ -102,9 +104,11 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 
 	// default to http client pooling
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxIdleConnsPerHost = 2
+	t.MaxConnsPerHost = 3
+	t.MaxIdleConnsPerHost = 1
+	t.DisableCompression = true
 	t.IdleConnTimeout = time.Minute
-	t.DialContext = getDynamicDialer(baseContext, tunnelTransport)
+	t.DialTLSContext = getDynamicDialer(baseContext, tunnelTransport)
 	c := &http.Client{
 		Transport: t,
 	}
@@ -114,7 +118,7 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 		t.MaxConnsPerHost = -1
 	}
 
-	return protocol.NewTunnelServiceProtobufClient("http://tunnel", c, twirp.WithClientHooks(injector))
+	return protocol.NewTunnelServiceProtobufClient("https://tunnel", c, twirp.WithClientHooks(injector))
 }
 
 // Middleware to attach the authorization header to the current request. The value can be retrieve with GetAuthorization()
