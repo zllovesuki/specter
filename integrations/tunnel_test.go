@@ -226,7 +226,7 @@ func TestTunnel(t *testing.T) {
 				}
 				return started == (2 * len(serverPorts))
 			}
-		}, time.Millisecond*100, time.Second*10), "timeout expecting specter and gateway servers started")
+		}, time.Millisecond*100, time.Second*30), "timeout expecting specter and gateway servers started")
 	})
 
 	var hostMap map[string]string

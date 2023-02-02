@@ -41,7 +41,7 @@ var (
 )
 
 const (
-	connectTimeout = time.Second * 3
+	connectTimeout = time.Second * 5
 	rpcTimeout     = time.Second * 5
 )
 

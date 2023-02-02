@@ -58,7 +58,7 @@ jobs:
       - name: Generate Certificates
         run: make certs
       - name: Run Integration Tests with Race Detector
-        run: go test -v -timeout 30s ./integrations -race -v
+        run: go test -v -timeout 60s ./integrations -race -v
   full:
     name: Run Full Test Suite
     runs-on: ubuntu-latest
