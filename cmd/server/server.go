@@ -494,7 +494,7 @@ func cmdServer(ctx *cli.Context) error {
 		Logger:        logger.With(zap.String("component", "kv")),
 		HasnFn:        chord.Hash,
 		DataDir:       ctx.String("data-dir"),
-		FlushInterval: time.Second,
+		FlushInterval: time.Second * 3,
 	})
 	if err != nil {
 		return fmt.Errorf("initializing kv storage: %w", err)
