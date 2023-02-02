@@ -1,0 +1,23 @@
+base:
+  file: "base.txt"
+  beforerun: "rm -f -- base.txt"
+  run: "go run types_gen.go && go test -run=NOTEST -bench=.+/.+/skipset -cpu=1,4,8,16 -benchtime=100000x -count=20 -timeout=60m > base.txt"
+  maxerr: 5
+  maxrun: 5
+
+cmp:
+  file: "latest.txt"
+  beforerun: "rm -f -- latest.txt"
+  run: "go run types_gen.go && go test -run=NOTEST -bench=.+/.+/skipset -cpu=1,4,8,16 -benchtime=100000x -count=20 -timeout=60m > latest.txt"
+  afterrun: "benchstat -alpha=0.001 base.txt latest.txt"
+  ignore: "Contains50Hits"
+  maxerr: 5
+  maxrun: 5
+
+release:
+  file: "release.txt"
+  beforerun: "rm -f -- release.txt"
+  run: "go run types_gen.go && go test -run=NOTEST -bench=. -cpu=1,4,8,16 -benchtime=100000x -count=20 -timeout=60m > release.txt"
+  afterrun: "benchstat release.txt"
+  ignore: "Contains50Hits"
+  maxerr: 20

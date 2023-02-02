@@ -1,0 +1,22 @@
+base:
+  file: "base.txt"
+  beforerun: "rm -f -- base.txt"
+  run: "go test -run=NOTEST -bench=. -count=5 > base.txt"
+  maxrun: 3
+  maxerr: 5
+
+cmp:
+  file: "latest.txt"
+  beforerun: "rm -f -- latest.txt"
+  run: "go test -run=NOTEST -bench=. -count=5 > latest.txt"
+  afterrun: "benchstat base.txt latest.txt"
+  maxrun: 3
+  maxerr: 5
+
+release:
+  file: "r0.txt"
+  beforerun: "rm -f -- r0.txt && rm -f -- r1.txt"
+  run: "env BENCHMARK_TARGET=std go test -run=NOTEST -bench=. -count=5 -timeout=60m > r0.txt && go test -run=NOTEST -bench=. -count=5 -timeout=60m > r1.txt"
+  afterrun: "benchstat r0.txt r1.txt"
+  maxrun: 1
+  maxerr: 100
