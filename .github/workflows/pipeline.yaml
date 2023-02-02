@@ -143,9 +143,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build release binaries with WAL helper
-        run: make release wal=1
+        run: make -j$(nproc) release wal=1
       - name: Build compatability binaries
-        run: make compat
+        run: make -j$(nproc) compat
       - name: Rolling release on main
         uses: softprops/action-gh-release@v1
         with:
