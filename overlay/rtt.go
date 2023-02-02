@@ -29,10 +29,10 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 		counter uint64            = 1
 		rttBuf  protocol.Datagram = protocol.Datagram{
 			Type: protocol.Datagram_RTT_SYN,
+			Data: make([]byte, 8),
 		}
-		err        error
-		buf        []byte
-		counterBuf [8]byte
+		err error
+		buf []byte
 	)
 
 	t.rttMap.Store(qKey, mapper)
@@ -44,8 +44,7 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 		case <-q.Context().Done():
 			return
 		default:
-			binary.BigEndian.PutUint64(counterBuf[:], counter)
-			rttBuf.Data = counterBuf[:]
+			binary.BigEndian.PutUint64(rttBuf.Data, counter)
 			buf, err = rttBuf.MarshalVT()
 			if err != nil {
 				l.Error("error encoding rtt syn datagram to proto", zap.Error(err))
