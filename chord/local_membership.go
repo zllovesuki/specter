@@ -15,9 +15,10 @@ const (
 )
 
 func (n *LocalNode) Create() error {
-	if !n.state.Transition(chord.Inactive, chord.Joining) {
-		return fmt.Errorf("node is not inactive")
+	if _, ok := n.state.Transition(chord.Inactive, chord.Joining); !ok {
+		return fmt.Errorf("node is not Inactive")
 	}
+	fmt.Printf("%s\n", n.state.Get())
 
 	n.logger.Info("Creating new Chord ring")
 
@@ -41,8 +42,8 @@ func (n *LocalNode) Create() error {
 }
 
 func (n *LocalNode) Join(peer chord.VNode) error {
-	if !n.state.Transition(chord.Inactive, chord.Joining) {
-		return fmt.Errorf("node is not inactive")
+	if _, ok := n.state.Transition(chord.Inactive, chord.Joining); !ok {
+		return fmt.Errorf("node is not Inactive")
 	}
 
 	predecessor, successors, err := n.executeJoin(peer)
@@ -118,8 +119,11 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	defer n.surrogateMu.Unlock()
 
 	// change status to transferring (if allowed)
-	if !n.state.Transition(chord.Active, chord.Transferring) {
-		n.logger.Info("rejecting join request because current state is not Active", zap.Object("joiner", joiner.Identity()))
+	if curr, ok := n.state.Transition(chord.Active, chord.Transferring); !ok {
+		n.logger.Info("Rejecting join request because current state is not Active",
+			zap.String("current", curr.String()),
+			zap.Object("joiner", joiner.Identity()),
+		)
 		return nil, nil, chord.ErrJoinInvalidState
 	}
 
@@ -167,8 +171,8 @@ func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 	}
 	if release {
 		n.logger.Info("Join completed, joiner has requested to release membership lock")
-		if !n.state.Transition(chord.Transferring, chord.Active) {
-			n.logger.Error("Unable to release membership lock", zap.String("state", n.state.Get().String()))
+		if curr, ok := n.state.Transition(chord.Transferring, chord.Active); !ok {
+			n.logger.Error("Unable to release membership lock", zap.String("state", curr.String()))
 			return chord.ErrJoinInvalidState
 		}
 	}
@@ -178,8 +182,8 @@ func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
 func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
 	n.logger.Info("incoming leave request", zap.Object("leaver", leaver.Identity()))
 
-	if !n.state.Transition(chord.Active, chord.Transferring) {
-		n.logger.Warn("rejecting leave request because current state is not Active")
+	if curr, ok := n.state.Transition(chord.Active, chord.Transferring); !ok {
+		n.logger.Warn("Rejecting leave request because current state is not Active", zap.String("state", curr.String()))
 		return chord.ErrLeaveInvalidState
 	}
 	return nil
@@ -193,8 +197,8 @@ func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
 	}
 	if release {
 		n.logger.Info("Leave completed, leaver has requested to release membership lock")
-		if !n.state.Transition(chord.Transferring, chord.Active) {
-			n.logger.Error("Unable to release membership lock", zap.String("state", n.state.Get().String()))
+		if curr, ok := n.state.Transition(chord.Transferring, chord.Active); !ok {
+			n.logger.Error("Unable to release membership lock", zap.String("state", curr.String()))
 			return chord.ErrLeaveInvalidState
 		}
 	}
@@ -276,7 +280,8 @@ func (n *LocalNode) executeLeave() (pre, succ chord.VNode, err error) {
 		if err = succ.RequestToLeave(n); err != nil {
 			return
 		}
-		if !n.state.Transition(chord.Active, chord.Leaving) {
+		if curr, ok := n.state.Transition(chord.Active, chord.Leaving); !ok {
+			n.logger.Warn("Unable to acquire local leave lock", zap.String("state", curr.String()))
 			if err := succ.FinishLeave(false, true); err != nil { // release successor lock and try again
 				n.logger.Warn("error releasing leave lock in successor", zap.Error(err))
 			}
@@ -284,7 +289,8 @@ func (n *LocalNode) executeLeave() (pre, succ chord.VNode, err error) {
 		}
 		n.logger.Info("Leave locks acquired (succ -> self)")
 	} else {
-		if !n.state.Transition(chord.Active, chord.Leaving) {
+		if curr, ok := n.state.Transition(chord.Active, chord.Leaving); !ok {
+			n.logger.Warn("Unable to acquire local leave lock", zap.String("state", curr.String()))
 			return nil, nil, chord.ErrLeaveInvalidState
 		}
 		if err := succ.RequestToLeave(n); err != nil {

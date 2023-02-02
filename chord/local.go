@@ -68,7 +68,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	n := &LocalNode{
 		NodeConfig:     conf,
 		logger:         conf.BaseLogger.With(zap.String("component", "localNode"), zap.Uint64("node", conf.Identity.GetId())),
-		state:          NewNodeState(chord.Inactive),
+		state:          newNodeState(chord.Inactive),
 		succListHash:   atomic.NewUint64(conf.Identity.GetId()),
 		kv:             conf.KVProvider,
 		lastStabilized: atomic.NewTime(time.Time{}),

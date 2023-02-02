@@ -2,51 +2,46 @@ package chord
 
 import (
 	"runtime"
+	"sync/atomic"
 
 	"kon.nect.sh/specter/spec/chord"
 
-	"github.com/CAFxX/atomic128"
 	"github.com/zhangyunhao116/skipmap"
 )
 
-// nodeState is an extension of chord.State, but with 16-bytes storage
-// as opposed to 8-bytes, because the addition of logical timestamp
-// to track state change history.
 type nodeState struct {
-	state   atomic128.Uint128
+	state   atomic.Uint64
 	history *skipmap.Uint64Map[chord.State]
 }
 
-func NewNodeState(initial chord.State) *nodeState {
+func newNodeState(initial chord.State) *nodeState {
 	s := &nodeState{
-		state:   atomic128.Uint128{},
+		state:   atomic.Uint64{},
 		history: skipmap.NewUint64[chord.State](),
 	}
-	atomic128.StoreUint128(&s.state, [2]uint64{
-		0,                 // logical timestamp
-		(uint64)(initial), // state at timestamp
-	})
+	var index uint64 = 0
+	var state uint64 = (uint64)(initial)
+	s.state.Store((index << 4) | state)
 	s.history.Store(0, initial)
 	return s
 }
 
-func (s *nodeState) Transition(expected chord.State, new chord.State) bool {
-	curr := atomic128.LoadUint128(&s.state)
-	prev := [2]uint64{curr[0], (uint64)(expected)}
-	next := [2]uint64{curr[0] + 1, (uint64)(new)}
-	if atomic128.CompareAndSwapUint128(&s.state, prev, next) {
-		s.history.Store(next[0], new)
-		return true
+func (s *nodeState) Transition(exp chord.State, nxt chord.State) (chord.State, bool) {
+	curr := s.state.Load()
+	currIndex := curr >> 4
+	prev := (currIndex << 4) | (uint64)(exp)
+	nextIndex := currIndex + 1
+	next := (nextIndex << 4) | (uint64)(nxt)
+	if s.state.CompareAndSwap(prev, next) {
+		s.history.Store(nextIndex, nxt)
+		return nxt, true
 	}
-	return false
+	return chord.State(curr & 0b1111), false
 }
 
 func (s *nodeState) Set(val chord.State) {
 	for {
-		curr := atomic128.LoadUint128(&s.state)
-		next := [2]uint64{curr[0] + 1, (uint64)(val)}
-		if atomic128.CompareAndSwapUint128(&s.state, curr, next) {
-			s.history.Store(next[0], val)
+		if _, ok := s.Transition(s.Get(), val); ok {
 			break
 		}
 		runtime.Gosched()
@@ -54,7 +49,7 @@ func (s *nodeState) Set(val chord.State) {
 }
 
 func (s *nodeState) Get() chord.State {
-	return chord.State(atomic128.LoadUint128(&s.state)[1])
+	return chord.State(s.state.Load() & 0b1111)
 }
 
 func (s *nodeState) History() []chord.State {
