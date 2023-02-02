@@ -37,6 +37,7 @@ func All[V comparable](fnCtx context.Context, fns ...func(fnCtx context.Context)
 	select {
 	case <-done:
 	case <-fnCtx.Done():
+		// TODO: should we wait for fn() to exit with context.DeadlineExceeded?
 	}
 	for i := range fns {
 		if atomicErrors[i].Load() != nil {
