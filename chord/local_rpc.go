@@ -19,6 +19,9 @@ import (
 )
 
 func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Context {
+	if err.Code() == twirp.FailedPrecondition {
+		return ctx
+	}
 	delegation := rpc.GetDelegation(ctx)
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)

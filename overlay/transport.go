@@ -95,7 +95,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.Object("peer", peer), zap.Error(err))
 		}),
 		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "invalid state")
+			return strings.Contains(err.Error(), reuseErrorState)
 		}),
 	); err != nil {
 		t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))
@@ -231,7 +231,7 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 	}
 	go func(q quic.Connection) {
 		<-q.Context().Done()
-		l.Info("Connection with peer closed", zap.Error(q.Context().Err()))
+		l.Debug("Connection with peer closed", zap.Error(q.Context().Err()))
 		t.reapPeer(q, peer)
 	}(q)
 }
@@ -254,7 +254,9 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 		}
 		go func(q quic.EarlyConnection) {
 			if _, err := t.handleIncoming(ctx, q); err != nil {
-				t.Logger.Error("Incoming connection reuse error", zap.String("endpoint", q.RemoteAddr().String()), zap.Error(err))
+				if !strings.Contains(err.Error(), reuseErrorState) {
+					t.Logger.Error("Incoming connection reuse error", zap.String("endpoint", q.RemoteAddr().String()), zap.Error(err))
+				}
 				// TODO: figure out a better way to ensure that the peer received cache status before closing
 				time.Sleep(time.Second)
 				q.CloseWithError(406, err.Error())

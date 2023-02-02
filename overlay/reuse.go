@@ -12,6 +12,14 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	reuseErrorState = "invalid state"
+)
+
+func wrapReuseError(msg string) error {
+	return fmt.Errorf("%s: %s", reuseErrorState, msg)
+}
+
 func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s quic.Stream, dir direction) (*nodeConnection, bool, error) {
 	negotiation := &protocol.Connection{
 		Identity: t.Endpoint,
@@ -88,22 +96,22 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				if cache.direction == directionIncoming {
 					// other: cached incoming
 					//    us: cached incoming
-					return nil, false, fmt.Errorf("invalid state: both peers have cached incoming connections")
+					return nil, false, wrapReuseError("both peers have cached incoming connections")
 				} else {
 					// other: cached incoming
 					//    us: cached outgoing
-					fresh.quic.CloseWithError(508, "Previously cached connection was reused")
+					fresh.quic.CloseWithError(508, wrapReuseError("previously cached connection was reused").Error())
 					return cache, true, nil
 				}
 			} else {
 				if dir == directionIncoming {
 					// other: cached incoming
 					//    us:    new incoming
-					return nil, false, fmt.Errorf("invalid state: both peers have incoming connections")
+					return nil, false, wrapReuseError("both peers have incoming connections")
 				} else {
 					// other: cached incoming
 					//    us:    new outgoing
-					return nil, false, fmt.Errorf("invalid state: other peer has cached connection while we are establishing a new outgoing connection")
+					return nil, false, wrapReuseError("other peer has cached connection while we are establishing a new outgoing connection")
 				}
 			}
 		case protocol.Connection_OUTGOING:
@@ -116,21 +124,21 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				} else {
 					// other: cached outgoing
 					//    us: cached outgoing
-					return nil, false, fmt.Errorf("invalid state: both peers have cached outgoing connections")
+					return nil, false, wrapReuseError("both peers have cached outgoing connections")
 				}
 			} else {
 				if dir == directionIncoming {
 					// other: cached outgoing
 					//    us:    new incoming
-					return nil, false, fmt.Errorf("invalid state: other peer has cached connection while we are handling a new incoming connection")
+					return nil, false, wrapReuseError("other peer has cached connection while we are handling a new incoming connection")
 				} else {
 					// other: cached outgoing
 					//    us:    new outgoing
-					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+					return nil, false, wrapReuseError("both peers have outgoing connections")
 				}
 			}
 		default:
-			return nil, false, fmt.Errorf("invalid state: unknown transport cache direction")
+			return nil, false, fmt.Errorf("unknown transport cache direction")
 		}
 	case protocol.Connection_FRESH:
 		switch negotiation.CacheDirection {
@@ -139,26 +147,28 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				if cache.direction == directionIncoming {
 					// other:    new incoming
 					//    us: cached incoming
-					return nil, false, fmt.Errorf("invalid state: both peers have cached incoming connections")
+					return nil, false, wrapReuseError("both peers have cached incoming connections")
 				} else {
 					// other:    new incoming
 					//    us: cached outgoing
-					return nil, false, fmt.Errorf("invalid state: we have cached connection while peer is handling a new incoming connection")
+					return nil, false, wrapReuseError("we have cached connection while peer is handling a new incoming connection")
 				}
 			} else {
 				if dir == directionIncoming {
 					// other:    new incoming
 					//    us:    new incoming
-					return nil, false, fmt.Errorf("invalid state: both peers have incoming connections")
+					return nil, false, wrapReuseError("both peers have incoming connections")
 				} else {
-					// other:    new incoming
-					//    us:    new outgoing
 					// need to check again because we released the lock
 					cache, cached = t.cachedConnections.Load(qKey)
 					if cached {
-						fresh.quic.CloseWithError(508, "Previously cached connection was reused")
+						// other:    new incoming
+						//    us: cached
+						fresh.quic.CloseWithError(508, wrapReuseError("previously cached connection was reused").Error())
 						return cache, true, nil
 					} else {
+						// other:    new incoming
+						//    us:    new outgoing
 						t.cachedConnections.Store(qKey, fresh)
 						return fresh, false, nil
 					}
@@ -169,37 +179,37 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				if cache.direction == directionIncoming {
 					// other:    new outgoing
 					//    us: cached incoming
-					// it is likely that concurrent reuse was issued by the other peer, therefore they should
-					// try again with the cached connection
-					return nil, false, fmt.Errorf("invalid state: we have cached connection while peer is establishing a new outgoing connection")
+					return nil, false, wrapReuseError("we have cached connection while peer is establishing a new outgoing connection")
 				} else {
 					// other:    new outgoing
 					//    us: cached outgoing
-					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+					return nil, false, wrapReuseError("both peers have outgoing connections")
 				}
 			} else {
 				if dir == directionIncoming {
-					// other:    new outgoing
-					//    us:    new incoming
 					// need to check again because we released the lock
 					cache, cached = t.cachedConnections.Load(qKey)
 					if cached {
-						fresh.quic.CloseWithError(508, "Previously cached connection was reused")
+						// other:    new outgoing
+						//    us: cached
+						fresh.quic.CloseWithError(508, wrapReuseError("previously cached connection was reused").Error())
 						return cache, true, nil
 					} else {
+						// other:    new outgoing
+						//    us:    new incoming
 						t.cachedConnections.Store(qKey, fresh)
 						return fresh, false, nil
 					}
 				} else {
 					// other:    new outgoing
 					//    us:    new outgoing
-					return nil, false, fmt.Errorf("invalid state: both peers have outgoing connections")
+					return nil, false, wrapReuseError("both peers have outgoing connections")
 				}
 			}
 		default:
-			return nil, false, fmt.Errorf("invalid state: unknown transport cache direction")
+			return nil, false, fmt.Errorf("unknown transport cache direction")
 		}
 	default:
-		return nil, false, fmt.Errorf("invalid state: unknown transport cache state")
+		return nil, false, fmt.Errorf("unknown transport cache state")
 	}
 }

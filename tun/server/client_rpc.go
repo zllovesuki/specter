@@ -36,6 +36,9 @@ const (
 )
 
 func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context {
+	if err.Code() == twirp.FailedPrecondition {
+		return ctx
+	}
 	delegation := rpc.GetDelegation(ctx)
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
@@ -173,7 +176,7 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 
 	successors, err := s.chord.GetSuccessors()
 	if err != nil {
-		return nil, twirp.FailedPrecondition.Error(err.Error())
+		return nil, twirp.Internal.Error(err.Error())
 	}
 
 	vnodes := chord.MakeSuccList(s.chord, successors, tun.NumRedundantLinks)
@@ -241,7 +244,7 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 
 	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
-		return nil, twirp.FailedPrecondition.Errorf("error acquiring lease for publishing: %w", err)
+		return nil, twirp.Internal.Errorf("error acquiring lease for publishing: %w", err)
 	}
 	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
