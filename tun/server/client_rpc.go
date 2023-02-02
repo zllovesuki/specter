@@ -17,6 +17,7 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
+	"kon.nect.sh/specter/util/promise"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,6 +31,8 @@ var generator, _ = diceware.NewGenerator(nil)
 
 const (
 	testDatagramData = "test"
+	lookupTimeout    = time.Second * 3
+	publishTimeout   = time.Second * 3
 )
 
 func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context {
@@ -174,18 +177,30 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 	}
 
 	vnodes := chord.MakeSuccList(s.chord, successors, tun.NumRedundantLinks)
-
-	servers := make([]*protocol.Node, 0)
+	lookupJobs := make([]func(context.Context) (*protocol.Node, error), 0)
 	for _, chord := range vnodes {
 		if chord == nil {
 			continue
 		}
-		key := tun.IdentitiesChordKey(chord.Identity())
-		identities, err := s.lookupIdentities(ctx, key)
+		chord := chord
+		lookupJobs = append(lookupJobs, func(fnCtx context.Context) (*protocol.Node, error) {
+			key := tun.IdentitiesChordKey(chord.Identity())
+			identities, err := s.lookupIdentities(fnCtx, key)
+			if err != nil {
+				return nil, rpc.WrapErrorKV(key, err)
+			}
+			return identities.GetTun(), nil
+		})
+	}
+
+	lookupCtx, loopupCtx := context.WithTimeout(ctx, lookupTimeout)
+	defer loopupCtx()
+
+	servers, errors := promise.All(lookupCtx, lookupJobs...)
+	for _, err := range errors {
 		if err != nil {
-			return nil, rpc.WrapErrorKV(key, err)
+			return nil, err
 		}
-		servers = append(servers, identities.GetTun())
 	}
 
 	return &protocol.GetNodesResponse{
@@ -226,7 +241,7 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 
 	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
-		return nil, twirp.FailedPrecondition.Errorf("error acquiring token: %w", err)
+		return nil, twirp.FailedPrecondition.Errorf("error acquiring lease for publishing: %w", err)
 	}
 	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
@@ -240,33 +255,72 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 		return nil, twirp.PermissionDenied.Errorf("hostname %s is not registered", hostname)
 	}
 
-	identities := make([]*protocol.IdentitiesPair, len(requested))
-	for k, server := range requested {
+	lookupJobs := make([]func(context.Context) (*protocol.IdentitiesPair, error), len(requested))
+	for i, server := range requested {
 		key := tun.IdentitiesTunnelKey(server)
-		identity, err := s.lookupIdentities(ctx, key)
-		if err != nil {
-			return nil, rpc.WrapErrorKV(key, err)
+		lookupJobs[i] = func(fnCtx context.Context) (*protocol.IdentitiesPair, error) {
+			identities, err := s.lookupIdentities(fnCtx, key)
+			if err != nil {
+				return nil, rpc.WrapErrorKV(key, err)
+			}
+			return identities, nil
 		}
-		identities[k] = identity
 	}
 
-	published := make([]*protocol.Node, 0)
-	for k, identity := range identities {
-		bundle := &protocol.Tunnel{
-			Client:   verifiedClient,
-			Chord:    identity.GetChord(),
-			Tun:      identity.GetTun(),
-			Hostname: hostname,
-		}
-		val, err := bundle.MarshalVT()
+	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
+	defer lookupCancel()
+
+	identities, errors := promise.All(lookupCtx, lookupJobs...)
+	for _, err := range errors {
 		if err != nil {
-			return nil, twirp.Internal.Error(err.Error())
+			return nil, err
 		}
-		key := tun.RoutingKey(hostname, k+1)
-		if err := s.chord.Put(ctx, []byte(key), val); err != nil {
+	}
+
+	publishJobs := make([]func(context.Context) (*protocol.Node, error), len(identities))
+	for i, identity := range identities {
+		i := i
+		identity := identity
+		publishJobs[i] = func(fnCtx context.Context) (*protocol.Node, error) {
+			bundle := &protocol.Tunnel{
+				Client:   verifiedClient,
+				Chord:    identity.GetChord(),
+				Tun:      identity.GetTun(),
+				Hostname: hostname,
+			}
+			val, err := bundle.MarshalVT()
+			if err != nil {
+				return nil, err
+			}
+			key := tun.RoutingKey(hostname, i+1)
+			if err := s.chord.Put(fnCtx, []byte(key), val); err != nil {
+				s.logger.Error("Error publishing route", zap.String("key", key), zap.Error(err))
+				return nil, nil
+			}
+			return identity.GetTun(), nil
+		}
+	}
+
+	publishCtx, publishCancel := context.WithTimeout(ctx, publishTimeout)
+	defer publishCancel()
+
+	maybePublished, errors := promise.All(publishCtx, publishJobs...)
+	for _, err := range errors {
+		if err != nil {
+			return nil, twirp.InternalError(err.Error())
+		}
+	}
+	// need to filter possible nil
+	published := make([]*protocol.Node, 0)
+	for _, node := range maybePublished {
+		if node == nil {
 			continue
 		}
-		published = append(published, identity.GetTun())
+		published = append(published, node)
+	}
+
+	if len(published) == 0 {
+		return nil, twirp.Unavailable.Error("unable to publish any routes")
 	}
 
 	return &protocol.PublishTunnelResponse{
