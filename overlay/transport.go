@@ -309,8 +309,15 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				} else {
 					// other:    new incoming
 					//    us:    new outgoing
-					t.cachedConnections.Store(qKey, fresh)
-					return fresh, false, nil
+					// need to check again because we released the lock
+					cache, cached = t.cachedConnections.Load(qKey)
+					if cached {
+						fresh.quic.CloseWithError(508, "Previously cached connection was reused")
+						return cache, true, nil
+					} else {
+						t.cachedConnections.Store(qKey, fresh)
+						return fresh, false, nil
+					}
 				}
 			}
 		case protocol.Connection_OUTGOING:
@@ -330,8 +337,15 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 				if dir == directionIncoming {
 					// other:    new outgoing
 					//    us:    new incoming
-					t.cachedConnections.Store(qKey, fresh)
-					return fresh, false, nil
+					// need to check again because we released the lock
+					cache, cached = t.cachedConnections.Load(qKey)
+					if cached {
+						fresh.quic.CloseWithError(508, "Previously cached connection was reused")
+						return cache, true, nil
+					} else {
+						t.cachedConnections.Store(qKey, fresh)
+						return fresh, false, nil
+					}
 				} else {
 					// other:    new outgoing
 					//    us:    new outgoing
