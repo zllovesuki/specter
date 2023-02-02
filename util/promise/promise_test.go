@@ -18,9 +18,9 @@ func TestConcurrent(t *testing.T) {
 	as := require.New(t)
 
 	wait := []time.Duration{
-		time.Second,
-		time.Second * 2,
-		time.Second * 3,
+		time.Millisecond * 500,
+		time.Millisecond * 1000,
+		time.Millisecond * 1500,
 	}
 
 	jobs := make([]func(context.Context) (time.Duration, error), 0)
@@ -32,7 +32,7 @@ func TestConcurrent(t *testing.T) {
 		})
 	}
 
-	jobCtx, jobCancel := context.WithTimeout(context.Background(), time.Second*5)
+	jobCtx, jobCancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer jobCancel()
 
 	start := time.Now()
@@ -51,9 +51,9 @@ func TestConcurrentError(t *testing.T) {
 	as := require.New(t)
 
 	wait := []time.Duration{
-		time.Second,
-		time.Second * 2,
-		time.Second * 3,
+		time.Millisecond * 500,
+		time.Millisecond * 1000,
+		time.Millisecond * 1500,
 	}
 
 	jobs := make([]func(context.Context) (time.Duration, error), 0)
@@ -69,7 +69,7 @@ func TestConcurrentError(t *testing.T) {
 		})
 	}
 
-	jobCtx, jobCancel := context.WithTimeout(context.Background(), time.Second*5)
+	jobCtx, jobCancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer jobCancel()
 
 	start := time.Now()
@@ -80,6 +80,47 @@ func TestConcurrentError(t *testing.T) {
 		if i == 1 {
 			as.Error(err)
 			as.Equal(results[i], time.Duration(0))
+		} else {
+			as.NoError(err)
+			as.Equal(results[i], wait[i])
+		}
+	}
+
+	as.Less(end.Sub(start), wait[0]+wait[1]+wait[2])
+}
+
+func TestWaitReturn(t *testing.T) {
+	as := require.New(t)
+
+	wait := []time.Duration{
+		time.Millisecond * 500,
+		time.Millisecond * 1000,
+		time.Millisecond * 1500,
+	}
+
+	jobs := make([]func(context.Context) (time.Duration, error), 0)
+	for _, d := range wait {
+		d := d
+		jobs = append(jobs, func(ctx context.Context) (time.Duration, error) {
+			select {
+			case <-ctx.Done():
+				return time.Duration(0), ctx.Err()
+			case <-time.After(d):
+				return d, nil
+			}
+		})
+	}
+
+	jobCtx, jobCancel := context.WithTimeout(context.Background(), time.Millisecond*750) // note that we are intentionally time out fast
+	defer jobCancel()
+
+	start := time.Now()
+	results, errors := All(jobCtx, jobs...)
+	end := time.Now()
+
+	for i, err := range errors {
+		if results[i] == time.Duration(0) {
+			as.ErrorIs(err, context.DeadlineExceeded)
 		} else {
 			as.NoError(err)
 			as.Equal(results[i], wait[i])

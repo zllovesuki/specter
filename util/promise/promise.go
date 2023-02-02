@@ -3,18 +3,16 @@ package promise
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 )
 
+// All provides similar concurrency to JavaScript's Promise.All, however with 1 distinction. []func that
+// are passed in must respect fnCtx cancellation and returns, otherwise All will block even if fnCtx is cancelled.
 func All[V comparable](fnCtx context.Context, fns ...func(fnCtx context.Context) (V, error)) ([]V, []error) {
 	var (
-		wg            = sync.WaitGroup{}
-		results       = make([]V, len(fns))
-		errors        = make([]error, len(fns))
-		atomicResults = make([]atomic.Value, len(fns))
-		atomicErrors  = make([]atomic.Value, len(fns))
-		done          = make(chan struct{}, 1)
-		zeroV         V
+		wg      = sync.WaitGroup{}
+		results = make([]V, len(fns))
+		errors  = make([]error, len(fns))
+		done    = make(chan struct{}, 1)
 	)
 	wg.Add(len(fns))
 	go func() {
@@ -26,27 +24,17 @@ func All[V comparable](fnCtx context.Context, fns ...func(fnCtx context.Context)
 			defer wg.Done()
 			v, e := fn(fnCtx)
 			if e != nil {
-				atomicErrors[i].Store(e)
+				errors[i] = e
 				return
 			}
-			if v != zeroV {
-				atomicResults[i].Store(v)
-			}
+			results[i] = v
 		}(i, fn)
 	}
 	select {
 	case <-done:
 	case <-fnCtx.Done():
-		// TODO: should we wait for fn() to exit with context.DeadlineExceeded?
-	}
-	for i := range fns {
-		if atomicErrors[i].Load() != nil {
-			errors[i] = atomicErrors[i].Load().(error)
-			continue
-		}
-		if atomicResults[i].Load() != nil {
-			results[i] = atomicResults[i].Load().(V)
-		}
+		// assert that the fn returns first
+		<-done
 	}
 	return results, errors
 }
