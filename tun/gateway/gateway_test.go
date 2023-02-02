@@ -22,7 +22,6 @@ import (
 	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/libp2p/go-yamux/v3"
@@ -196,14 +195,13 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		},
-		StreamRouter: transport.NewStreamRouter(logger, nil, nil),
 	}
 
 	g := New(conf)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go alpnMux.Accept(ctx)
-	g.Start(ctx)
+	g.MustStart(ctx)
 
 	return udpPort, tcpPort, mockS, func() {
 		cancel()
@@ -226,7 +224,7 @@ func TestH2HTTPNotFound(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrDestinationNotFound)
 
@@ -258,7 +256,7 @@ func TestH3HTTPNotFound(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrDestinationNotFound)
 
@@ -290,7 +288,7 @@ func TestHTTPNotConnected(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrTunnelClientNotConnected)
 
@@ -359,7 +357,7 @@ func TestH1HTTPFound(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 
@@ -403,7 +401,7 @@ func TestH2HTTPFound(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 
@@ -445,7 +443,7 @@ func TestH3HTTPFound(t *testing.T) {
 		Id:      chord.Random(),
 		Address: "127.0.0.1:1234",
 	})
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_HTTP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 
@@ -476,7 +474,7 @@ func TestH2TCPNotFound(t *testing.T) {
 
 	testHost := "hello"
 
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrDestinationNotFound)
 
@@ -514,7 +512,7 @@ func TestH3TCPNotFound(t *testing.T) {
 
 	testHost := "hello"
 
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrDestinationNotFound)
 
@@ -547,7 +545,7 @@ func TestTCPNotConnected(t *testing.T) {
 
 	testHost := "hello"
 
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
 	})).Return(nil, tun.ErrTunnelClientNotConnected)
 
@@ -597,7 +595,7 @@ func TestH2TCPFound(t *testing.T) {
 		as.Equal(bufLength, n)
 	}()
 
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 
@@ -661,7 +659,7 @@ func TestH3TCPFound(t *testing.T) {
 		as.Equal(bufLength, n)
 	}()
 
-	mockS.On("Dial", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
+	mockS.On("DialClient", mock.Anything, mock.MatchedBy(func(l *protocol.Link) bool {
 		return l.GetAlpn() == protocol.Link_TCP && l.GetHostname() == testHost
 	})).Return(c1, nil)
 

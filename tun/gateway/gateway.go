@@ -37,7 +37,6 @@ type GatewayConfig struct {
 	H3Listener   quic.EarlyListener
 	Logger       *zap.Logger
 	StatsHandler http.HandlerFunc
-	StreamRouter *transport.StreamRouter
 	RootDomain   string
 	AdminUser    string
 	AdminPass    string
@@ -143,7 +142,13 @@ func New(conf GatewayConfig) *Gateway {
 	return g
 }
 
-func (g *Gateway) Start(ctx context.Context) {
+func (g *Gateway) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
+	router.HandleChord(protocol.Stream_INTERNAL, func(delegate *transport.StreamDelegate) {
+		g.tcpApexAcceptor.Handle(delegate)
+	})
+}
+
+func (g *Gateway) MustStart(ctx context.Context) {
 	// provide application context
 	g.h2TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.tcpApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
@@ -166,10 +171,6 @@ func (g *Gateway) Start(ctx context.Context) {
 		g.Logger.Info("Enabling HTTP (80) redirect to HTTPS (443)")
 		go g.httpServer.Serve(g.HTTPListener)
 	}
-
-	g.StreamRouter.HandleChord(protocol.Stream_INTERNAL, func(delegate *transport.StreamDelegate) {
-		g.tcpApexAcceptor.Handle(delegate)
-	})
 
 	g.Logger.Info("gateway server started")
 }
@@ -322,7 +323,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	conn.SetReadDeadline(time.Time{})
 
 	parts := strings.SplitN(host, ".", 2)
-	c, err = g.TunnelServer.Dial(ctx, &protocol.Link{
+	c, err = g.TunnelServer.DialClient(ctx, &protocol.Link{
 		Alpn:     protocol.Link_TCP,
 		Hostname: parts[0],
 		Remote:   remote,

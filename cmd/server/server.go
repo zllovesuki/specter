@@ -507,7 +507,6 @@ func cmdServer(ctx *cli.Context) error {
 	go streamRouter.Accept(ctx.Context)
 
 	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
-
 	chordNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
 		BaseLogger:               logger,
 		ChordClient:              chordClient,
@@ -593,11 +592,11 @@ func cmdServer(ctx *cli.Context) error {
 		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),
 		AdminPass:    ctx.String("auth_pass"),
-		StreamRouter: streamRouter,
 	})
 	defer gw.Close()
 
-	gw.Start(ctx.Context)
+	gw.AttachRouter(ctx.Context, streamRouter)
+	gw.MustStart(ctx.Context)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

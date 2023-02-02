@@ -28,7 +28,7 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 		Host:   g.RootDomain,
 	})
 	proxy.Transport = &http.Transport{
-		DisableKeepAlives:   false,
+		DisableKeepAlives:   true,
 		MaxIdleConnsPerHost: -1,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			target := rpc.GetNode(ctx)
@@ -44,6 +44,10 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 		r.Header.Set(internalProxyForwarded, "true")
 		r.Header.Del(internalProxyNodeAddress)
 		r.Header.Del(internalProxyNodeId)
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		w.WriteHeader(http.StatusBadGateway)
+		fmt.Fprintf(w, "error proxying internal request: %v", err)
 	}
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

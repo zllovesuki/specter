@@ -28,7 +28,7 @@ func (m *TunnelServer) Identity() *protocol.Node {
 	return n.(*protocol.Node)
 }
 
-func (m *TunnelServer) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
+func (m *TunnelServer) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	args := m.Called(ctx, link)
 	c := args.Get(0)
 	e := args.Error(1)

@@ -42,6 +42,8 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 
 	mockS = new(mocks.TunnelServer)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	conf := GatewayConfig{
 		Logger:       logger,
 		TunnelServer: mockS,
@@ -55,13 +57,10 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		},
-		StreamRouter: streamRouter,
 	}
-
 	g := New(conf)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	g.Start(ctx)
+	g.AttachRouter(ctx, streamRouter)
+	g.MustStart(ctx)
 
 	go alpnMux.Accept(ctx)
 

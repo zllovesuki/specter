@@ -180,7 +180,7 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 }
 
 // TODO: make routing selection more intelligent with rtt
-func (s *Server) Dial(ctx context.Context, link *protocol.Link) (net.Conn, error) {
+func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	isNoDirect := false
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.RoutingKey(link.GetHostname(), k)

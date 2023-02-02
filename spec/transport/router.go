@@ -16,7 +16,7 @@ type StreamRouter struct {
 	chordHandlers  sync.Map
 	tunnelHandlers sync.Map
 	chordStream    <-chan *StreamDelegate
-	clientStream   <-chan *StreamDelegate
+	tunnelStream   <-chan *StreamDelegate
 }
 
 func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport Transport) *StreamRouter {
@@ -27,7 +27,7 @@ func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport Transpo
 		router.chordStream = chordTransport.AcceptStream()
 	}
 	if tunnelTransport != nil {
-		router.clientStream = tunnelTransport.AcceptStream()
+		router.tunnelStream = tunnelTransport.AcceptStream()
 	}
 	return router
 }
@@ -46,38 +46,34 @@ func (s *StreamRouter) acceptChord(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case delegate := <-s.chordStream:
-			go func(delegate *StreamDelegate) {
-				handler, ok := s.chordHandlers.Load(delegate.Kind)
-				if !ok {
-					s.logger.Warn("No handler found for chord transport delegate",
-						zap.Object("peer", delegate.Identity),
-						zap.String("kind", delegate.Kind.String()),
-					)
-					return
-				}
-				handler.(StreamHandler)(delegate)
-			}(delegate)
+			handler, ok := s.chordHandlers.Load(delegate.Kind)
+			if !ok {
+				s.logger.Warn("No handler found for chord transport delegate",
+					zap.Object("peer", delegate.Identity),
+					zap.String("kind", delegate.Kind.String()),
+				)
+				continue
+			}
+			go handler.(StreamHandler)(delegate)
 		}
 	}
 }
 
-func (s *StreamRouter) acceptClient(ctx context.Context) {
+func (s *StreamRouter) acceptTunnel(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case delegate := <-s.clientStream:
-			go func(delegate *StreamDelegate) {
-				handler, ok := s.tunnelHandlers.Load(delegate.Kind)
-				if !ok {
-					s.logger.Warn("No handler found for tunnel transport delegate",
-						zap.Object("peer", delegate.Identity),
-						zap.String("kind", delegate.Kind.String()),
-					)
-					return
-				}
-				handler.(StreamHandler)(delegate)
-			}(delegate)
+		case delegate := <-s.tunnelStream:
+			handler, ok := s.tunnelHandlers.Load(delegate.Kind)
+			if !ok {
+				s.logger.Warn("No handler found for tunnel transport delegate",
+					zap.Object("peer", delegate.Identity),
+					zap.String("kind", delegate.Kind.String()),
+				)
+				continue
+			}
+			go handler.(StreamHandler)(delegate)
 		}
 	}
 }
@@ -85,8 +81,10 @@ func (s *StreamRouter) acceptClient(ctx context.Context) {
 func (s *StreamRouter) Accept(ctx context.Context) {
 	if s.chordStream != nil {
 		go s.acceptChord(ctx)
+		go s.acceptChord(ctx)
 	}
-	if s.clientStream != nil {
-		go s.acceptClient(ctx)
+	if s.tunnelStream != nil {
+		go s.acceptTunnel(ctx)
+		go s.acceptTunnel(ctx)
 	}
 }

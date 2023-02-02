@@ -86,7 +86,7 @@ func TestContinueLookupOnError(t *testing.T) {
 		return assertBytes(k, expected...)
 	})).Return(nil, fmt.Errorf("panic"))
 
-	c, err := serv.Dial(context.Background(), link)
+	c, err := serv.DialClient(context.Background(), link)
 	as.Error(err)
 	as.Nil(c)
 
@@ -137,7 +137,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 		return n.GetId() == cli.GetId()
 	}), protocol.Stream_DIRECT).Return(c1, nil)
 
-	_, err = serv.Dial(context.Background(), link)
+	_, err = serv.DialClient(context.Background(), link)
 	as.NoError(err)
 
 	node.AssertExpectations(t)
@@ -197,7 +197,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 		return n.GetId() == cht.GetId()
 	}), protocol.Stream_PROXY).Return(c1, nil)
 
-	_, err = serv.Dial(context.Background(), link)
+	_, err = serv.DialClient(context.Background(), link)
 	as.NoError(err)
 
 	node.AssertExpectations(t)
