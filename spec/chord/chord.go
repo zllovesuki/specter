@@ -1,8 +1,7 @@
 package chord
 
 import (
-	"crypto/sha1"
-	"encoding/binary"
+	"hash/fnv"
 	"math/rand"
 )
 
@@ -13,8 +12,10 @@ const (
 )
 
 func Hash(b []byte) uint64 {
-	sum := sha1.Sum(b)
-	return binary.LittleEndian.Uint64(sum[:8]) >> (64 - MaxFingerEntries)
+	h := fnv.New64a()
+	h.Write(b)
+	// keep lower M-bits of the avalanched, which is the same as modulo
+	return h.Sum64() & (MaxIdentitifer - 1)
 }
 
 func ModuloSum(x, y uint64) uint64 {
