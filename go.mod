@@ -38,6 +38,8 @@ require (
 
 replace github.com/libp2p/go-yamux/v3 => github.com/zllovesuki/go-yamux/v3 v3.1.3-0.20230123001349-cf75f3123f5e
 
+replace github.com/quic-go/quic-go => github.com/zllovesuki/quic-go v0.28.2-0.20230203111036-a7bac64652cc
+
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
