@@ -310,7 +310,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 			conn.Close()
 			return
 		}
-		go tun.Pipe(conn, c)
+		tun.Pipe(conn, c)
 	}()
 
 	// because of quic's early connection, the client need to "poke" us before
