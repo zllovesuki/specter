@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/maphash"
 	"io"
 	"net"
 	"net/http"
@@ -29,6 +28,7 @@ import (
 	"kon.nect.sh/specter/util/pipe"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/orisano/wyhash"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -38,7 +38,6 @@ import (
 
 var (
 	checkInterval = time.Second * 30
-	hashSeed      = maphash.MakeSeed()
 )
 
 const (
@@ -189,8 +188,7 @@ func (c *Client) getToken() *protocol.ClientToken {
 func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
 	var buf [8]byte
 
-	hasher := maphash.Hash{}
-	hasher.SetSeed(hashSeed)
+	hasher := wyhash.New(seed)
 
 	for _, node := range nodes {
 		binary.BigEndian.PutUint64(buf[:], node.GetId())

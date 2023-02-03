@@ -16,6 +16,7 @@ require (
 	github.com/mholt/acmez v1.0.4
 	github.com/montanaflynn/stats v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/orisano/wyhash v1.1.0
 	github.com/quic-go/quic-go v0.32.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.1
@@ -31,7 +32,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/challenger v1.0.1
-	kon.nect.sh/httprate v0.7.3
+	kon.nect.sh/httprate v0.7.2
 	moul.io/zapfilter v1.7.0
 )
 
