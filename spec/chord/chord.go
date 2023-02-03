@@ -26,7 +26,7 @@ func Hash(b []byte) uint64 {
 	h.Write(b)
 	d := h.Sum64()
 	hasherPool.Put(h)
-	return d % MaxIdentitifer
+	return d >> (64 - MaxFingerEntries)
 }
 
 func ModuloSum(x, y uint64) uint64 {
@@ -35,7 +35,7 @@ func ModuloSum(x, y uint64) uint64 {
 }
 
 func Random() uint64 {
-	return rand.Uint64() % MaxIdentitifer
+	return rand.Uint64() >> (64 - MaxFingerEntries)
 }
 
 func Between(low, target, high uint64, inclusive bool) bool {

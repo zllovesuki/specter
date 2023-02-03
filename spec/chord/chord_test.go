@@ -13,13 +13,13 @@ func TestHash(t *testing.T) {
 	as := require.New(t)
 
 	b := []byte("test key")
-	as.Equal(wyhash.Sum64(MaxIdentitifer, b)%MaxIdentitifer, Hash(b))
+	as.Equal(wyhash.Sum64(MaxIdentitifer, b)>>(64-MaxFingerEntries), Hash(b))
 }
 
 func TestModulo(t *testing.T) {
 	var (
 		as        = require.New(t)
-		x  uint64 = 1 << 24
+		x  uint64 = 1 << 60
 		y  uint64 = 1 << 28
 	)
 
