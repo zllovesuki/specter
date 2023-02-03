@@ -1,11 +1,9 @@
 package chord
 
 import (
-	"hash"
+	"crypto/sha1"
+	"encoding/binary"
 	"math/rand"
-	"sync"
-
-	"github.com/orisano/wyhash"
 )
 
 const (
@@ -14,19 +12,9 @@ const (
 	MaxIdentitifer           uint64 = 1 << MaxFingerEntries
 )
 
-var hasherPool = sync.Pool{
-	New: func() any {
-		return wyhash.New(MaxIdentitifer)
-	},
-}
-
 func Hash(b []byte) uint64 {
-	h := hasherPool.Get().(hash.Hash64)
-	h.Reset()
-	h.Write(b)
-	d := h.Sum64()
-	hasherPool.Put(h)
-	return d >> (64 - MaxFingerEntries)
+	sum := sha1.Sum(b)
+	return binary.LittleEndian.Uint64(sum[:8]) >> (64 - MaxFingerEntries)
 }
 
 func ModuloSum(x, y uint64) uint64 {

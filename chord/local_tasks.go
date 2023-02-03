@@ -3,13 +3,15 @@ package chord
 import (
 	"encoding/binary"
 	"fmt"
+	"hash/maphash"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
 
-	"github.com/orisano/wyhash"
 	"go.uber.org/zap"
 )
+
+var hashSeed = maphash.MakeSeed()
 
 func v2d(n []chord.VNode) []uint64 {
 	x := make([]uint64, 0)
@@ -26,7 +28,8 @@ func v2d(n []chord.VNode) []uint64 {
 // we have the possbility of cyclical ring that will have ourself
 // in the successor list
 func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
-	hasher := wyhash.New(chord.MaxIdentitifer)
+	hasher := maphash.Hash{}
+	hasher.SetSeed(hashSeed)
 	buf := make([]byte, 8)
 	for _, node := range nodes {
 		if node == nil {

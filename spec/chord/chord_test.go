@@ -5,16 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/orisano/wyhash"
 	"github.com/stretchr/testify/require"
 )
-
-func TestHash(t *testing.T) {
-	as := require.New(t)
-
-	b := []byte("test key")
-	as.Equal(wyhash.Sum64(MaxIdentitifer, b)>>(64-MaxFingerEntries), Hash(b))
-}
 
 func TestModulo(t *testing.T) {
 	var (
