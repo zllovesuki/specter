@@ -17,7 +17,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-func (m *Tunnel) MarshalVT() (dAtA []byte, err error) {
+func (m *TunnelRoute) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -30,12 +30,12 @@ func (m *Tunnel) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Tunnel) MarshalToVT(dAtA []byte) (int, error) {
+func (m *TunnelRoute) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *Tunnel) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *TunnelRoute) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -54,8 +54,8 @@ func (m *Tunnel) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x52
 	}
-	if m.Tun != nil {
-		size, err := m.Tun.MarshalToSizedBufferVT(dAtA[:i])
+	if m.TunnelDestination != nil {
+		size, err := m.TunnelDestination.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -64,8 +64,8 @@ func (m *Tunnel) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Chord != nil {
-		size, err := m.Chord.MarshalToSizedBufferVT(dAtA[:i])
+	if m.ChordDestination != nil {
+		size, err := m.ChordDestination.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -74,8 +74,8 @@ func (m *Tunnel) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Client != nil {
-		size, err := m.Client.MarshalToSizedBufferVT(dAtA[:i])
+	if m.ClientDestination != nil {
+		size, err := m.ClientDestination.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -603,7 +603,7 @@ func (m *Link) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *IdentitiesPair) MarshalVT() (dAtA []byte, err error) {
+func (m *TunnelDestination) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -616,12 +616,12 @@ func (m *IdentitiesPair) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *IdentitiesPair) MarshalToVT(dAtA []byte) (int, error) {
+func (m *TunnelDestination) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *IdentitiesPair) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *TunnelDestination) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -633,8 +633,8 @@ func (m *IdentitiesPair) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Tun != nil {
-		size, err := m.Tun.MarshalToSizedBufferVT(dAtA[:i])
+	if m.Tunnel != nil {
+		size, err := m.Tunnel.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -701,22 +701,22 @@ func (m *TunnelStatus) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Tunnel) SizeVT() (n int) {
+func (m *TunnelRoute) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Client != nil {
-		l = m.Client.SizeVT()
+	if m.ClientDestination != nil {
+		l = m.ClientDestination.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Chord != nil {
-		l = m.Chord.SizeVT()
+	if m.ChordDestination != nil {
+		l = m.ChordDestination.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Tun != nil {
-		l = m.Tun.SizeVT()
+	if m.TunnelDestination != nil {
+		l = m.TunnelDestination.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	l = len(m.Hostname)
@@ -908,7 +908,7 @@ func (m *Link) SizeVT() (n int) {
 	return n
 }
 
-func (m *IdentitiesPair) SizeVT() (n int) {
+func (m *TunnelDestination) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -918,8 +918,8 @@ func (m *IdentitiesPair) SizeVT() (n int) {
 		l = m.Chord.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.Tun != nil {
-		l = m.Tun.SizeVT()
+	if m.Tunnel != nil {
+		l = m.Tunnel.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
 	n += len(m.unknownFields)
@@ -943,7 +943,7 @@ func (m *TunnelStatus) SizeVT() (n int) {
 	return n
 }
 
-func (m *Tunnel) UnmarshalVT(dAtA []byte) error {
+func (m *TunnelRoute) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -966,15 +966,15 @@ func (m *Tunnel) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Tunnel: wiretype end group for non-group")
+			return fmt.Errorf("proto: TunnelRoute: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Tunnel: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: TunnelRoute: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Client", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientDestination", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1001,16 +1001,16 @@ func (m *Tunnel) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Client == nil {
-				m.Client = &Node{}
+			if m.ClientDestination == nil {
+				m.ClientDestination = &Node{}
 			}
-			if err := m.Client.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.ClientDestination.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Chord", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ChordDestination", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1037,16 +1037,16 @@ func (m *Tunnel) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Chord == nil {
-				m.Chord = &Node{}
+			if m.ChordDestination == nil {
+				m.ChordDestination = &Node{}
 			}
-			if err := m.Chord.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.ChordDestination.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Tun", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TunnelDestination", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1073,10 +1073,10 @@ func (m *Tunnel) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Tun == nil {
-				m.Tun = &Node{}
+			if m.TunnelDestination == nil {
+				m.TunnelDestination = &Node{}
 			}
-			if err := m.Tun.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.TunnelDestination.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2201,7 +2201,7 @@ func (m *Link) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *IdentitiesPair) UnmarshalVT(dAtA []byte) error {
+func (m *TunnelDestination) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2224,10 +2224,10 @@ func (m *IdentitiesPair) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: IdentitiesPair: wiretype end group for non-group")
+			return fmt.Errorf("proto: TunnelDestination: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: IdentitiesPair: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: TunnelDestination: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -2268,7 +2268,7 @@ func (m *IdentitiesPair) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Tun", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Tunnel", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -2295,10 +2295,10 @@ func (m *IdentitiesPair) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Tun == nil {
-				m.Tun = &Node{}
+			if m.Tunnel == nil {
+				m.Tunnel = &Node{}
 			}
-			if err := m.Tun.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Tunnel.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

@@ -104,11 +104,11 @@ func TestLookupSuccessDirect(t *testing.T) {
 	}
 
 	cli, cht, tn := getIdentities()
-	bundle := &protocol.Tunnel{
-		Client:   cli,
-		Chord:    cht,
-		Tun:      tn,
-		Hostname: link.GetHostname(),
+	bundle := &protocol.TunnelRoute{
+		ClientDestination: cli,
+		ChordDestination:  cht,
+		TunnelDestination: tn,
+		Hostname:          link.GetHostname(),
 	}
 	bundleBuf, err := bundle.MarshalVT()
 	as.NoError(err)
@@ -155,11 +155,11 @@ func TestLookupSuccessRemote(t *testing.T) {
 	}
 
 	cli, cht, tn := getIdentities()
-	bundle := &protocol.Tunnel{
-		Client:   cli,
-		Chord:    cht,
-		Tun:      tn,
-		Hostname: link.GetHostname(),
+	bundle := &protocol.TunnelRoute{
+		ClientDestination: cli,
+		ChordDestination:  cht,
+		TunnelDestination: tn,
+		Hostname:          link.GetHostname(),
 	}
 	bundleBuf, err := bundle.MarshalVT()
 	as.NoError(err)
@@ -179,7 +179,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 	c1, c2 := net.Pipe()
 	go func() {
 		// the remote node should receive the bundle
-		bundle := &protocol.Tunnel{}
+		bundle := &protocol.TunnelRoute{}
 		err := rpc.Receive(c2, bundle)
 		as.NoError(err)
 
@@ -210,11 +210,11 @@ func TestHandleRemoteConnection(t *testing.T) {
 
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
-	bundle := &protocol.Tunnel{
-		Client:   cli,
-		Chord:    cht,
-		Tun:      tn,
-		Hostname: "test",
+	bundle := &protocol.TunnelRoute{
+		ClientDestination: cli,
+		ChordDestination:  cht,
+		TunnelDestination: tn,
+		Hostname:          "test",
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -234,14 +234,14 @@ func TestHandleRemoteConnection(t *testing.T) {
 	// on start up (Accept), identities should get published
 	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
-			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunnelKey(tn)),
+			[]byte(tun.DestinationByChordKey(cht)),
+			[]byte(tun.DestinationByTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	}), mock.MatchedBy(func(v []byte) bool {
-		pair := &protocol.IdentitiesPair{
-			Chord: cht,
-			Tun:   tn,
+		pair := &protocol.TunnelDestination{
+			Chord:  cht,
+			Tunnel: tn,
 		}
 		buf, err := pair.MarshalVT()
 		if err != nil {

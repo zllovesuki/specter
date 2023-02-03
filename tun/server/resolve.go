@@ -17,20 +17,20 @@ const (
 	kvRetryInterval = time.Second * 2
 )
 
-func (s *Server) publishIdentities(ctx context.Context) error {
-	identities := &protocol.IdentitiesPair{
-		Chord: s.chordTransport.Identity(),
-		Tun:   s.tunnelTransport.Identity(),
+func (s *Server) publishDestinations(ctx context.Context) error {
+	destinations := &protocol.TunnelDestination{
+		Chord:  s.chordTransport.Identity(),
+		Tunnel: s.tunnelTransport.Identity(),
 	}
 
-	buf, err := identities.MarshalVT()
+	buf, err := destinations.MarshalVT()
 	if err != nil {
 		return err
 	}
 
 	keys := []string{
-		tun.IdentitiesChordKey(s.chordTransport.Identity()),
-		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
+		tun.DestinationByChordKey(s.chordTransport.Identity()),
+		tun.DestinationByTunnelKey(s.tunnelTransport.Identity()),
 	}
 
 	if err := retry.Do(func() error {
@@ -50,17 +50,17 @@ func (s *Server) publishIdentities(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Info("identities published on chord",
+	s.logger.Info("Destinations published on chord",
 		zap.String("chord", keys[0]),
-		zap.String("tun", keys[1]))
+		zap.String("tunnel", keys[1]))
 
 	return nil
 }
 
-func (s *Server) unpublishIdentities(ctx context.Context) {
+func (s *Server) unpublishDestinations(ctx context.Context) {
 	keys := []string{
-		tun.IdentitiesChordKey(s.chordTransport.Identity()),
-		tun.IdentitiesTunnelKey(s.tunnelTransport.Identity()),
+		tun.DestinationByChordKey(s.chordTransport.Identity()),
+		tun.DestinationByTunnelKey(s.tunnelTransport.Identity()),
 	}
 
 	if err := retry.Do(func() error {
@@ -77,25 +77,25 @@ func (s *Server) unpublishIdentities(ctx context.Context) {
 		retry.Delay(kvRetryInterval),
 		retry.RetryIf(chord.ErrorIsRetryable),
 	); err != nil {
-		s.logger.Error("failed to unpublish identifies on chord", zap.Error(err))
+		s.logger.Error("Failed to unpublish destinations on chord", zap.Error(err))
 	}
 
-	s.logger.Info("identities unpublished on chord",
+	s.logger.Info("Destination unpublished on chord",
 		zap.String("chord", keys[0]),
-		zap.String("tun", keys[1]))
+		zap.String("tunnel", keys[1]))
 }
 
-func (s *Server) lookupIdentities(ctx context.Context, key string) (*protocol.IdentitiesPair, error) {
+func (s *Server) lookupDestination(ctx context.Context, key string) (*protocol.TunnelDestination, error) {
 	buf, err := s.chord.Get(ctx, []byte(key))
 	if err != nil {
 		return nil, err
 	}
 	if len(buf) == 0 {
-		return nil, fmt.Errorf("no identities pair found with key: %s", key)
+		return nil, fmt.Errorf("no destination found with key: %s", key)
 	}
-	identities := &protocol.IdentitiesPair{}
-	if err := identities.UnmarshalVT(buf); err != nil {
-		return nil, fmt.Errorf("identities decode failure: %w", err)
+	dst := &protocol.TunnelDestination{}
+	if err := dst.UnmarshalVT(buf); err != nil {
+		return nil, fmt.Errorf("tunnel destination decode failure: %w", err)
 	}
-	return identities, nil
+	return dst, nil
 }

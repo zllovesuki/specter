@@ -280,9 +280,9 @@ func TestRPCGetNodesUnique(t *testing.T) {
 		}),
 	).Return(clientBuf, nil)
 
-	pair := &protocol.IdentitiesPair{
-		Chord: cht,
-		Tun:   tn,
+	pair := &protocol.TunnelDestination{
+		Chord:  cht,
+		Tunnel: tn,
 	}
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
@@ -343,9 +343,9 @@ func TestRPCGetNodes(t *testing.T) {
 
 	nodes, vlist := makeNodeList(chord.ExtendedSuccessorEntries)
 
-	pair := &protocol.IdentitiesPair{
-		Chord: cht,
-		Tun:   tn,
+	pair := &protocol.TunnelDestination{
+		Chord:  cht,
+		Tunnel: tn,
 	}
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
@@ -353,9 +353,9 @@ func TestRPCGetNodes(t *testing.T) {
 	node.On("GetSuccessors").Return(vlist, nil)
 	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := make([][]byte, len(nodes)+1)
-		exp[0] = []byte(tun.IdentitiesChordKey(cht))
+		exp[0] = []byte(tun.DestinationByChordKey(cht))
 		for i := 1; i < len(exp); i++ {
-			exp[i] = []byte(tun.IdentitiesChordKey(nodes[i-1]))
+			exp[i] = []byte(tun.DestinationByChordKey(nodes[i-1]))
 		}
 		return assertBytes(k, exp...)
 	})).Return(pairBuf, nil)
@@ -482,9 +482,9 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 
 	nodes, _ := makeNodeList(tun.NumRedundantLinks)
 
-	pair := &protocol.IdentitiesPair{
-		Chord: cht,
-		Tun:   tn,
+	pair := &protocol.TunnelDestination{
+		Chord:  cht,
+		Tunnel: tn,
 	}
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
@@ -510,9 +510,9 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 		mock.Anything,
 		mock.MatchedBy(func(k []byte) bool {
 			exp := make([][]byte, len(nodes)+1)
-			exp[0] = []byte(tun.IdentitiesTunnelKey(cht))
+			exp[0] = []byte(tun.DestinationByTunnelKey(cht))
 			for i := 1; i < len(exp); i++ {
-				exp[i] = []byte(tun.IdentitiesTunnelKey(nodes[i-1]))
+				exp[i] = []byte(tun.DestinationByTunnelKey(nodes[i-1]))
 			}
 			return assertBytes(k, exp...)
 		}),

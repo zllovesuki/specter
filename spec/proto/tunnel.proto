@@ -15,10 +15,10 @@ service TunnelService {
     rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
 }
 
-message Tunnel {
-    Node client = 1;
-    Node chord = 2;
-    Node tun = 3;
+message TunnelRoute {
+    Node clientDestination = 1;
+    Node chordDestination = 2;
+    Node tunnelDestination  = 3;
 
     string hostname = 10;
 }
@@ -85,9 +85,9 @@ message Link {
     string remote = 3;
 }
 
-message IdentitiesPair {
+message TunnelDestination {
     Node chord = 1;
-    Node tun = 2;
+    Node tunnel = 2;
 }
 
 enum TunnelStatusCode {

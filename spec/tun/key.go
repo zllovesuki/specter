@@ -6,12 +6,12 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 )
 
-func IdentitiesChordKey(chord *protocol.Node) string {
-	return fmt.Sprintf("/identities/chord/%s/%d", chord.GetAddress(), chord.GetId())
+func DestinationByChordKey(chord *protocol.Node) string {
+	return fmt.Sprintf("/destination/chord/%s/%d", chord.GetAddress(), chord.GetId())
 }
 
-func IdentitiesTunnelKey(tun *protocol.Node) string {
-	return fmt.Sprintf("/identities/tunnel/%s/%d", tun.GetAddress(), tun.GetId())
+func DestinationByTunnelKey(tunnel *protocol.Node) string {
+	return fmt.Sprintf("/destination/tunnel/%s/%d", tunnel.GetAddress(), tunnel.GetId())
 }
 
 func RoutingKey(hostname string, num int) string {

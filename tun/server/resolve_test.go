@@ -27,12 +27,12 @@ func TestIdentitiesRoutine(t *testing.T) {
 	// On start up -> publish
 	node.On("Put", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
-			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunnelKey(tn)),
+			[]byte(tun.DestinationByChordKey(cht)),
+			[]byte(tun.DestinationByTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	}), mock.MatchedBy(func(v []byte) bool {
-		pair := &protocol.IdentitiesPair{}
+		pair := &protocol.TunnelDestination{}
 		err := pair.UnmarshalVT(v)
 		if err != nil {
 			return false
@@ -40,7 +40,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 		if pair.GetChord().GetId() != cht.GetId() {
 			return false
 		}
-		if pair.GetTun().GetId() != tn.GetId() {
+		if pair.GetTunnel().GetId() != tn.GetId() {
 			return false
 		}
 		return true
@@ -49,8 +49,8 @@ func TestIdentitiesRoutine(t *testing.T) {
 	// On stop -> unpublish
 	node.On("Delete", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		exp := [][]byte{
-			[]byte(tun.IdentitiesChordKey(cht)),
-			[]byte(tun.IdentitiesTunnelKey(tn)),
+			[]byte(tun.DestinationByChordKey(cht)),
+			[]byte(tun.DestinationByTunnelKey(tn)),
 		}
 		return assertBytes(k, exp...)
 	})).Return(nil)

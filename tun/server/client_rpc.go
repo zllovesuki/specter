@@ -187,12 +187,12 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 		}
 		chord := chord
 		lookupJobs = append(lookupJobs, func(fnCtx context.Context) (*protocol.Node, error) {
-			key := tun.IdentitiesChordKey(chord.Identity())
-			identities, err := s.lookupIdentities(fnCtx, key)
+			key := tun.DestinationByChordKey(chord.Identity())
+			destination, err := s.lookupDestination(fnCtx, key)
 			if err != nil {
 				return nil, rpc.WrapErrorKV(key, err)
 			}
-			return identities.GetTun(), nil
+			return destination.GetTunnel(), nil
 		})
 	}
 
@@ -258,38 +258,38 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 		return nil, twirp.PermissionDenied.Errorf("hostname %s is not registered", hostname)
 	}
 
-	lookupJobs := make([]func(context.Context) (*protocol.IdentitiesPair, error), len(requested))
+	lookupJobs := make([]func(context.Context) (*protocol.TunnelDestination, error), len(requested))
 	for i, server := range requested {
-		key := tun.IdentitiesTunnelKey(server)
-		lookupJobs[i] = func(fnCtx context.Context) (*protocol.IdentitiesPair, error) {
-			identities, err := s.lookupIdentities(fnCtx, key)
+		key := tun.DestinationByTunnelKey(server)
+		lookupJobs[i] = func(fnCtx context.Context) (*protocol.TunnelDestination, error) {
+			destination, err := s.lookupDestination(fnCtx, key)
 			if err != nil {
 				return nil, rpc.WrapErrorKV(key, err)
 			}
-			return identities, nil
+			return destination, nil
 		}
 	}
 
 	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
 	defer lookupCancel()
 
-	identities, errors := promise.All(lookupCtx, lookupJobs...)
+	destinations, errors := promise.All(lookupCtx, lookupJobs...)
 	for _, err := range errors {
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	publishJobs := make([]func(context.Context) (*protocol.Node, error), len(identities))
-	for i, identity := range identities {
+	publishJobs := make([]func(context.Context) (*protocol.Node, error), len(destinations))
+	for i, destination := range destinations {
 		i := i
-		identity := identity
+		dst := destination
 		publishJobs[i] = func(fnCtx context.Context) (*protocol.Node, error) {
-			bundle := &protocol.Tunnel{
-				Client:   verifiedClient,
-				Chord:    identity.GetChord(),
-				Tun:      identity.GetTun(),
-				Hostname: hostname,
+			bundle := &protocol.TunnelRoute{
+				ClientDestination: verifiedClient,
+				ChordDestination:  dst.GetChord(),
+				TunnelDestination: dst.GetTunnel(),
+				Hostname:          hostname,
 			}
 			val, err := bundle.MarshalVT()
 			if err != nil {
@@ -300,7 +300,7 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 				s.logger.Error("Error publishing route", zap.String("key", key), zap.Error(err))
 				return nil, nil
 			}
-			return identity.GetTun(), nil
+			return dst.GetTunnel(), nil
 		}
 	}
 

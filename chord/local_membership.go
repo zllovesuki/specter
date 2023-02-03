@@ -18,7 +18,6 @@ func (n *LocalNode) Create() error {
 	if _, ok := n.state.Transition(chord.Inactive, chord.Joining); !ok {
 		return fmt.Errorf("node is not Inactive")
 	}
-	fmt.Printf("%s\n", n.state.Get())
 
 	n.logger.Info("Creating new Chord ring")
 

@@ -75,13 +75,13 @@ func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRoute
 }
 
 func (s *Server) MustRegister(ctx context.Context) {
-	s.logger.Info("publishing identities to chord")
+	s.logger.Info("Publishing destinations to chord")
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	if err := s.publishIdentities(publishCtx); err != nil {
-		s.logger.Panic("publishing identities pair", zap.Error(err))
+	if err := s.publishDestinations(publishCtx); err != nil {
+		s.logger.Panic("Error publishing destinations", zap.Error(err))
 	}
 
 	s.logger.Info("specter server started")
@@ -100,64 +100,64 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		tun.Pipe(delegation, clientConn)
 	}()
 
-	bundle := &protocol.Tunnel{}
-	err = rpc.Receive(delegation, bundle)
+	route := &protocol.TunnelRoute{}
+	err = rpc.Receive(delegation, route)
 	if err != nil {
-		s.logger.Error("receiving remote tunnel negotiation", zap.Error(err))
+		s.logger.Error("Error receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
 
 	l := s.logger.With(
-		zap.String("hostname", bundle.GetHostname()),
-		zap.Uint64("client", bundle.GetClient().GetId()),
+		zap.String("hostname", route.GetHostname()),
+		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
-	l.Debug("received proxy stream from remote node",
+	l.Debug("Received proxy stream from remote node",
 		zap.Object("remote_chord", delegation.Identity),
-		zap.Object("chord", bundle.GetChord()),
-		zap.Object("tun", bundle.GetTun()))
+		zap.Object("chord", route.GetChordDestination()),
+		zap.Object("tunnel", route.GetTunnelDestination()))
 
-	if bundle.GetTun().GetId() != s.tunnelTransport.Identity().GetId() {
-		l.Warn("received remote connection for the wrong server",
+	if route.GetTunnelDestination().GetId() != s.tunnelTransport.Identity().GetId() {
+		l.Warn("Received remote connection for the wrong server",
 			zap.Uint64("expected", s.tunnelTransport.Identity().GetId()),
-			zap.Uint64("got", bundle.GetTun().GetId()),
+			zap.Uint64("got", route.GetTunnelDestination().GetId()),
 		)
 		err = tun.ErrDestinationNotFound
 		return
 	}
 
-	clientConn, err = s.tunnelTransport.DialStream(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
+	clientConn, err = s.tunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
 	if err != nil && !tun.IsNoDirect(err) {
-		l.Error("dialing connection to connected client", zap.Error(err))
+		l.Error("Error dialing connection to connected client", zap.Error(err))
 	}
 }
 
-func (s *Server) getConn(ctx context.Context, bundle *protocol.Tunnel) (net.Conn, error) {
+func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.Conn, error) {
 	l := s.logger.With(
-		zap.String("hostname", bundle.GetHostname()),
-		zap.Uint64("client", bundle.GetClient().GetId()),
+		zap.String("hostname", route.GetHostname()),
+		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
 
-	if bundle.GetTun().GetId() == s.tunnelTransport.Identity().GetId() {
+	if route.GetTunnelDestination().GetId() == s.tunnelTransport.Identity().GetId() {
 		l.Debug("client is connected to us, opening direct stream")
 
-		return s.tunnelTransport.DialStream(ctx, bundle.GetClient(), protocol.Stream_DIRECT)
+		return s.tunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
-			zap.Object("chord", bundle.GetChord()),
-			zap.Object("tun", bundle.GetTun()))
+			zap.Object("chord", route.GetChordDestination()),
+			zap.Object("tunnel", route.GetTunnelDestination()))
 
-		conn, err := s.chordTransport.DialStream(ctx, bundle.GetChord(), protocol.Stream_PROXY)
+		conn, err := s.chordTransport.DialStream(ctx, route.GetChordDestination(), protocol.Stream_PROXY)
 		if err != nil {
 			return nil, err
 		}
-		if err := rpc.Send(conn, bundle); err != nil {
+		if err := rpc.Send(conn, route); err != nil {
 			l.Error("sending remote tunnel negotiation", zap.Error(err))
 			return nil, err
 		}
 		status := &protocol.TunnelStatus{}
 		conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 		if err := rpc.Receive(conn, status); err != nil {
-			l.Error("receiving remote tunnel status", zap.Error(err))
+			l.Error("Error receiving remote tunnel status", zap.Error(err))
 			return nil, err
 		}
 		conn.SetReadDeadline(time.Time{})
@@ -192,11 +192,11 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 		if val == nil {
 			continue
 		}
-		bundle := &protocol.Tunnel{}
-		if err := bundle.UnmarshalVT(val); err != nil {
+		route := &protocol.TunnelRoute{}
+		if err := route.UnmarshalVT(val); err != nil {
 			continue
 		}
-		clientConn, err := s.getConn(ctx, bundle)
+		clientConn, err := s.getConn(ctx, route)
 		if err != nil {
 			if tun.IsNoDirect(err) {
 				isNoDirect = true
@@ -227,5 +227,5 @@ func (s *Server) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	s.unpublishIdentities(ctx)
+	s.unpublishDestinations(ctx)
 }
