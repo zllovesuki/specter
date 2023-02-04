@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -40,7 +41,8 @@ func makeNodes(num int) []*protocol.Node {
 	nodes := make([]*protocol.Node, 0)
 	for i := 0; i < num; i++ {
 		nodes = append(nodes, &protocol.Node{
-			Id: chord.Random(),
+			Address: strings.Join(generator.MustGenerate(5), "-"),
+			Id:      chord.Random(),
 		})
 	}
 	return nodes
@@ -51,7 +53,8 @@ func makeNodeList(num int) ([]*protocol.Node, []chord.VNode) {
 	list := make([]chord.VNode, num)
 	for i := range nodes {
 		nodes[i] = &protocol.Node{
-			Id: chord.Random(),
+			Address: strings.Join(generator.MustGenerate(5), "-"),
+			Id:      chord.Random(),
 		}
 	}
 	for i := range nodes {

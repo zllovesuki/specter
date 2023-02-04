@@ -2,7 +2,6 @@ package rtt
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -35,7 +34,7 @@ func MakeMeasurementKey(node *protocol.Node) string {
 	if node.GetUnknown() {
 		qMapKey = qMapKey + "-1"
 	} else {
-		qMapKey = qMapKey + strconv.FormatUint(node.GetId(), 10)
+		qMapKey = qMapKey + "PHY"
 	}
 	return qMapKey
 }

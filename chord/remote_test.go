@@ -169,16 +169,16 @@ func TestRemoteRPCContext(t *testing.T) {
 	streamRouter := transport.NewStreamRouter(logger, tp, nil)
 	go streamRouter.Accept(ctx)
 
-	streamRouter.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
-		acceptor.Handle(delegate)
-	})
-
 	// yes, setting up RPC is THAT complicated
 
 	peer := &protocol.Node{
 		Id:      1234,
 		Address: "127.0.0.1:1234",
 	}
+
+	streamRouter.HandleChord(protocol.Stream_RPC, peer, func(delegate *transport.StreamDelegate) {
+		acceptor.Handle(delegate)
+	})
 
 	rpcCaller := rpc.DynamicChordClient(ctx, tp)
 	r, err := NewRemoteNode(ctx, logger, rpcCaller, peer)

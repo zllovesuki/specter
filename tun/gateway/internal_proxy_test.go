@@ -96,7 +96,6 @@ func TestInternalProxy(t *testing.T) {
 
 	fakeNode := &protocol.Node{
 		Address: "127.0.0.1:4444",
-		Id:      1337,
 	}
 
 	respString := "proxied"
@@ -121,7 +120,6 @@ func TestInternalProxy(t *testing.T) {
 
 	req.SetBasicAuth(testUser, testPass)
 	req.Header.Set(internalProxyNodeAddress, fakeNode.GetAddress())
-	req.Header.Set(internalProxyNodeId, fmt.Sprintf("%d", fakeNode.GetId()))
 
 	c := getH2Client("", tcpPort)
 

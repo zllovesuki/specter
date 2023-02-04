@@ -9,7 +9,6 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 
 	"github.com/quic-go/quic-go"
-	"go.uber.org/zap"
 )
 
 const (
@@ -32,22 +31,17 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 	negotiation.Reset()
 
 	s.SetReadDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.BoundedReceive(s, negotiation, 1024)
+	err = rpc.BoundedReceive(s, negotiation, 256)
 	if err != nil {
 		return nil, false, fmt.Errorf("error receiving identity: %w", err)
 	}
 	s.SetReadDeadline(time.Time{})
 
-	qKey := makeCachedKey(negotiation.GetIdentity())
+	qKey := t.makeCachedKey(negotiation.GetIdentity())
 	fresh := &nodeConnection{
 		peer:      negotiation.GetIdentity(),
 		quic:      q,
 		direction: dir,
-	}
-
-	if t.Endpoint.GetId() == negotiation.GetIdentity().GetId() {
-		t.Logger.Debug("connecting to self, skipping connection reuse", zap.String("direction", dir.String()))
-		return fresh, false, nil
 	}
 
 	negotiation.Reset()

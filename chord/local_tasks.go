@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/util"
 
-	"github.com/orisano/wyhash"
+	"github.com/zeebo/xxh3"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,7 @@ func v2d(n []chord.VNode) []uint64 {
 // we have the possbility of cyclical ring that will have ourself
 // in the successor list
 func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
-	hasher := wyhash.New(chord.MaxIdentitifer)
+	hasher := xxh3.New()
 	buf := make([]byte, 8)
 	for _, node := range nodes {
 		if node == nil {
@@ -168,7 +169,7 @@ func (n *LocalNode) periodicStablize() {
 			if err := n.stabilize(); err != nil {
 				n.logger.Error("Stablize task", zap.Error(err))
 			}
-			time.Sleep(n.StablizeInterval)
+			time.Sleep(util.RandomTimeRange(n.StablizeInterval))
 		}
 	}
 }
@@ -183,7 +184,7 @@ func (n *LocalNode) periodicPredecessorCheck() {
 			return
 		default:
 			n.checkPredecessor()
-			time.Sleep(n.PredecessorCheckInterval)
+			time.Sleep(util.RandomTimeRange(n.PredecessorCheckInterval))
 		}
 	}
 }
@@ -199,7 +200,7 @@ func (n *LocalNode) periodicFixFingers() {
 			return
 		default:
 			n.fixFinger()
-			time.Sleep(n.FixFingerInterval)
+			time.Sleep(util.RandomTimeRange(n.FixFingerInterval))
 		}
 	}
 }

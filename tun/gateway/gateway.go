@@ -143,7 +143,7 @@ func New(conf GatewayConfig) *Gateway {
 }
 
 func (g *Gateway) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
-	router.HandleChord(protocol.Stream_INTERNAL, func(delegate *transport.StreamDelegate) {
+	router.HandleChord(protocol.Stream_INTERNAL, nil, func(delegate *transport.StreamDelegate) {
 		g.tcpApexAcceptor.Handle(delegate)
 	})
 }

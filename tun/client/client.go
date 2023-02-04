@@ -28,7 +28,7 @@ import (
 	"kon.nect.sh/specter/util/pipe"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/orisano/wyhash"
+	"github.com/zeebo/xxh3"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -62,7 +62,7 @@ type Client struct {
 	parentCtx    context.Context
 	rootDomain   *atomic.String
 	proxies      *skipmap.StringMap[*httpProxy]
-	connections  *skipmap.Uint64Map[*protocol.Node]
+	connections  *skipmap.StringMap[*protocol.Node]
 	closeCh      chan struct{}
 	closed       atomic.Bool
 	ClientConfig
@@ -75,7 +75,7 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		parentCtx:    ctx,
 		rootDomain:   atomic.NewString(""),
 		proxies:      skipmap.NewString[*httpProxy](),
-		connections:  skipmap.NewUint64[*protocol.Node](),
+		connections:  skipmap.NewString[*protocol.Node](),
 		tunnelClient: rpc.DynamicTunnelClient(ctx, cfg.ServerTransport),
 		closeCh:      make(chan struct{}),
 	}
@@ -102,7 +102,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 }
 
 func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
-	if _, ok := c.connections.Load(node.GetId()); ok {
+	if _, ok := c.connections.Load(node.GetAddress()); ok {
 		return nil
 	}
 
@@ -116,7 +116,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 
 	identity := resp.GetNode()
 	c.Logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
-	c.connections.Store(identity.GetId(), identity)
+	c.connections.Store(identity.GetAddress(), identity)
 	return nil
 }
 
@@ -126,7 +126,7 @@ func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node
 			candidate *protocol.Node
 			rpcError  error
 		)
-		c.connections.Range(func(id uint64, node *protocol.Node) bool {
+		c.connections.Range(func(_ string, node *protocol.Node) bool {
 			candidate = node
 			return false
 		})
@@ -147,7 +147,7 @@ func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node
 
 func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
 	nodes := make([]*protocol.Node, 0)
-	c.connections.Range(func(id uint64, node *protocol.Node) bool {
+	c.connections.Range(func(_ string, node *protocol.Node) bool {
 		if len(nodes) < tun.NumRedundantLinks {
 			nodes = append(nodes, node)
 		}
@@ -158,14 +158,14 @@ func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
 
 func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dead int) {
 	alive = make([]*protocol.Node, 0)
-	c.connections.Range(func(id uint64, node *protocol.Node) bool {
+	c.connections.Range(func(addr string, node *protocol.Node) bool {
 		func() {
 			callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 			defer cancel()
 
 			_, err := c.Ping(callCtx, node)
 			if err != nil {
-				c.connections.Delete(id)
+				c.connections.Delete(addr)
 				dead++
 			} else {
 				alive = append(alive, node)
@@ -188,7 +188,7 @@ func (c *Client) getToken() *protocol.ClientToken {
 func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
 	var buf [8]byte
 
-	hasher := wyhash.New(seed)
+	hasher := xxh3.New()
 
 	for _, node := range nodes {
 		binary.BigEndian.PutUint64(buf[:], node.GetId())

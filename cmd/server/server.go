@@ -53,69 +53,74 @@ func Generate() *cli.Command {
 	Warning: do not use certificates issued by public CA for inter-node certificates, otherwise anyone can join your specter network`,
 		ArgsUsage: " ",
 		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:  "virtual",
+				Usage: "Number of virtual nodes to be started as part of the chord ring",
+				Value: 5,
+			},
 			&cli.StringFlag{
 				Name:     "apex",
-				Usage:    "canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
+				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
 				Required: true,
 			},
 			&cli.PathFlag{
 				Name:     "data-dir",
 				Aliases:  []string{"data"},
-				Usage:    "path to directory that will be used for persisting non-volatile KV data",
+				Usage:    "Path to directory that will be used for persisting non-volatile KV data",
 				Required: true,
 			},
 			&cli.PathFlag{
 				Name:    "cert-dir",
 				Aliases: []string{"cert"},
-				Usage:   `path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes`,
+				Usage:   `Path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes`,
 			},
 			&cli.BoolFlag{
 				Name: "cert-env",
-				Usage: `load ca.crt (CERT_CA), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
+				Usage: `Load ca.crt (CERT_CA), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
 			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
 			},
 			&cli.StringFlag{
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
 				Value:   fmt.Sprintf("%s:443", ip.String()),
-				Usage: `address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overriden).
+				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overriden).
 			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
 			},
 			&cli.StringFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
-				Usage:       "override the listen address and port for TCP",
+				Usage:       "Override the listen address and port for TCP",
 			},
 			&cli.StringFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
-				Usage:       "override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
 			},
 			&cli.StringFlag{
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
 				DefaultText: "same as listen-addr",
 				Value:       fmt.Sprintf("%s:443", ip.String()),
-				Usage: `address and port to advertise to specter servers and clients to connect to.
+				Usage: `Address and port to advertise to specter servers and clients to connect to.
 			Note that specter will use advertised address to derive its Identity hash.`,
 			},
 			&cli.StringFlag{
 				Name: "join",
-				Usage: `a known specter server's advertise address.
+				Usage: `A known specter server's advertise address.
 			Absent of this flag will boostrap a new cluster with current node as the seed node`,
 			},
 			&cli.StringFlag{
 				Name:        "challenger",
 				DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
 				EnvVars:     []string{"ACME_URI"},
-				Usage: `to enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challenges
+				Usage: `To enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challenges
 			Absent of this flag will serve self-signed certificate.
 			Alternatively, you can set the URI and API token via the environment variable ACME_URI and CF_API_TOKEN, respectively`,
 			},
 			&cli.StringFlag{
 				Name:        "sentry",
 				DefaultText: "https://public@sentry.example.com/1",
-				Usage:       "sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
+				Usage:       "Sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
 				EnvVars:     []string{"SENTRY_DSN"},
 			},
 
@@ -162,6 +167,9 @@ func Generate() *cli.Command {
 		Before: func(ctx *cli.Context) error {
 			if !ctx.IsSet("cert-dir") && !ctx.IsSet("cert-env") {
 				return fmt.Errorf("no certificate loader is specified")
+			}
+			if ctx.Int("virtual") < 1 {
+				return fmt.Errorf("minimum of 1 virtual node is required")
 			}
 			if ctx.IsSet("challenger") {
 				parse, err := url.Parse(ctx.String("challenger"))
@@ -443,32 +451,20 @@ func cmdServer(ctx *cli.Context) error {
 		defer httpListener.Close()
 	}
 
-	// TODO: make these less dependent on changeable parameters
-	chordName := fmt.Sprintf("chord://%s", advertise)
-	tunnelName := fmt.Sprintf("tunnel://%s", advertise)
-
-	logger.Info("Using advertise addresses as identities", zap.String("chord", chordName), zap.String("tunnel", tunnelName))
-
-	chordIdentity := &protocol.Node{
-		Id:      chord.Hash([]byte(chordName)),
-		Address: advertise,
-	}
-	tunnelIdentity := &protocol.Node{
-		Id:      chord.Hash([]byte(tunnelName)),
-		Address: advertise,
-	}
-
-	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
-		tun.ALPN(protocol.Link_SPECTER_CHORD),
-	})
-
 	alpnMux, err := overlay.NewMux(udpListener)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}
 	defer alpnMux.Close()
 
-	go alpnMux.Accept(ctx.Context)
+	chordName := fmt.Sprintf("chord://%s", advertise)
+	tunnelName := fmt.Sprintf("tunnel://%s", advertise)
+
+	logger.Info("Using advertise addresses as destinations", zap.String("chord", chordName), zap.String("tunnel", tunnelName))
+
+	chordTLS := cipher.GetPeerTLSConfig(bundle.ca, bundle.node, []string{
+		tun.ALPN(protocol.Link_SPECTER_CHORD),
+	})
 
 	// handles specter-chord/1
 	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
@@ -476,54 +472,72 @@ func cmdServer(ctx *cli.Context) error {
 
 	chordRTT := rtt.NewInstrumentation(20)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:      logger.With(zap.String("component", "chordTransport"), zap.Uint64("node", chordIdentity.GetId())),
-		Endpoint:    chordIdentity,
-		ClientTLS:   chordTLS,
-		RTTRecorder: chordRTT,
+		Logger: logger.With(zap.String("component", "chordTransport")),
+		Endpoint: &protocol.Node{
+			Address: advertise,
+		},
+		ClientTLS:        chordTLS,
+		RTTRecorder:      chordRTT,
+		VirtualTransport: true,
 	})
 	defer chordTransport.Stop()
 
 	// TODO: measure rtt to client to build routing table with cost
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger:   logger.With(zap.String("component", "tunnelTransport"), zap.Uint64("node", tunnelIdentity.GetId())),
-		Endpoint: tunnelIdentity,
+		Logger: logger.With(zap.String("component", "tunnelTransport")),
+		Endpoint: &protocol.Node{
+			Address: advertise,
+		},
 	})
 	defer tunnelTransport.Stop()
 
-	kvProvider, err := aof.New(aof.Config{
-		Logger:        logger.With(zap.String("component", "kv")),
-		HasnFn:        chord.Hash,
-		DataDir:       ctx.String("data-dir"),
-		FlushInterval: time.Second * 3,
-	})
-	if err != nil {
-		return fmt.Errorf("initializing kv storage: %w", err)
-	}
-	defer kvProvider.Stop()
-
-	go kvProvider.Start()
+	go alpnMux.Accept(ctx.Context)
 
 	streamRouter := transport.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	go streamRouter.Accept(ctx.Context)
-
-	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
-	chordNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
-		BaseLogger:               logger,
-		ChordClient:              chordClient,
-		Identity:                 chordIdentity,
-		KVProvider:               kvProvider,
-		FixFingerInterval:        time.Second * 3,
-		StablizeInterval:         time.Second * 5,
-		PredecessorCheckInterval: time.Second * 7,
-		NodesRTT:                 chordRTT,
-	})
-	defer chordNode.Leave()
-
-	chordNode.AttachRouter(ctx.Context, streamRouter)
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 
+	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
+	virtualNodes := make([]*chordImpl.LocalNode, 0)
+
+	k := ctx.Int("virtual")
+	for i := 0; i < k; i++ {
+		nodeIdentity := &protocol.Node{
+			Id:      chord.Hash([]byte(fmt.Sprintf("%s/%d", chordName, i))),
+			Address: advertise,
+		}
+		kvProvider, err := aof.New(aof.Config{
+			Logger:        logger.With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
+			HasnFn:        chord.Hash,
+			DataDir:       filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
+			FlushInterval: time.Second * 3,
+		})
+		if err != nil {
+			return fmt.Errorf("initializing kv storage: %w", err)
+		}
+		defer kvProvider.Stop()
+		go kvProvider.Start()
+
+		virtualNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
+			Identity:                 nodeIdentity,
+			BaseLogger:               logger,
+			ChordClient:              chordClient,
+			KVProvider:               kvProvider,
+			FixFingerInterval:        time.Second * 3,
+			StablizeInterval:         time.Second * 5,
+			PredecessorCheckInterval: time.Second * 7,
+			NodesRTT:                 chordRTT,
+		})
+
+		virtualNode.AttachRouter(ctx.Context, streamRouter)
+		virtualNodes = append(virtualNodes, virtualNode)
+	}
+
+	rootNode := virtualNodes[0]
+	rootNode.AttachRoot(ctx.Context, streamRouter)
+
 	if !ctx.IsSet("join") {
-		if err := chordNode.Create(); err != nil {
+		if err := rootNode.Create(); err != nil {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
@@ -534,17 +548,25 @@ func cmdServer(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("error connecting existing chord node: %w", err)
 		}
-		if err := chordNode.Join(p); err != nil {
-			return fmt.Errorf("error joining to existing chord ring: %w", err)
+		if err := rootNode.Join(p); err != nil {
+			return fmt.Errorf("error joining root node to existing chord ring: %w", err)
 		}
 	}
+	defer rootNode.Leave()
 
-	certProvider, err := configCertProvider(ctx, logger, chordNode)
+	for i := 1; i < k; i++ {
+		if err := virtualNodes[i].Join(rootNode); err != nil {
+			return fmt.Errorf("error joining virtual node to existing chord ring: %w", err)
+		}
+		defer virtualNodes[i].Leave()
+	}
+
+	certProvider, err := configCertProvider(ctx, logger, rootNode)
 	if err != nil {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}
 
-	if err := certProvider.Initialize(chordNode); err != nil {
+	if err := certProvider.Initialize(rootNode); err != nil {
 		return fmt.Errorf("failed to initialize cert provider: %w", err)
 	}
 
@@ -567,9 +589,13 @@ func cmdServer(ctx *cli.Context) error {
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
+	tunnelIdentity := &protocol.Node{
+		Id:      chord.Hash([]byte(tunnelName)),
+		Address: advertise,
+	}
 	tunServer := server.New(
 		logger.With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
-		chordNode,
+		rootNode,
 		tunnelTransport,
 		chordTransport,
 		rootDomain,
@@ -587,7 +613,7 @@ func cmdServer(ctx *cli.Context) error {
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
-		StatsHandler: chordNode.StatsHandler,
+		StatsHandler: chordImpl.StatsHandler(virtualNodes),
 		RootDomain:   rootDomain,
 		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),

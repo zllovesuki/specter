@@ -50,7 +50,7 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 				return nil, fmt.Errorf("node not found in context")
 			}
 			SerializeContextHeader(ctx, r.Header)
-			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://chord as key
+			r.URL.Host = fmt.Sprintf("%d.%s", peer.GetId(), peer.GetAddress()) // needed to override dialer instead of using http://chord as key
 			outboundRate.Increment()
 			return ctx, nil
 		},

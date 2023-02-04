@@ -16,6 +16,7 @@ message Stream {
     }
 
     Type type = 1;
+    Node target = 2;
 }
 
 message Datagram {

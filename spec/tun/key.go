@@ -7,11 +7,11 @@ import (
 )
 
 func DestinationByChordKey(chord *protocol.Node) string {
-	return fmt.Sprintf("/destination/chord/%s/%d", chord.GetAddress(), chord.GetId())
+	return fmt.Sprintf("/destination/chord/%s", chord.GetAddress())
 }
 
 func DestinationByTunnelKey(tunnel *protocol.Node) string {
-	return fmt.Sprintf("/destination/tunnel/%s/%d", tunnel.GetAddress(), tunnel.GetId())
+	return fmt.Sprintf("/destination/tunnel/%s", tunnel.GetAddress())
 }
 
 func RoutingKey(hostname string, num int) string {

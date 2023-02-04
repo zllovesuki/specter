@@ -53,7 +53,7 @@ func (s *Server) Identity() *protocol.Node {
 }
 
 func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
-	router.HandleChord(protocol.Stream_PROXY, func(delegate *transport.StreamDelegate) {
+	router.HandleChord(protocol.Stream_PROXY, nil, func(delegate *transport.StreamDelegate) {
 		l := s.logger.With(
 			zap.Object("peer", delegate.Identity),
 			zap.String("remote", delegate.RemoteAddr().String()),
@@ -116,10 +116,10 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		zap.Object("chord", route.GetChordDestination()),
 		zap.Object("tunnel", route.GetTunnelDestination()))
 
-	if route.GetTunnelDestination().GetId() != s.tunnelTransport.Identity().GetId() {
+	if route.GetTunnelDestination().GetAddress() != s.tunnelTransport.Identity().GetAddress() {
 		l.Warn("Received remote connection for the wrong server",
-			zap.Uint64("expected", s.tunnelTransport.Identity().GetId()),
-			zap.Uint64("got", route.GetTunnelDestination().GetId()),
+			zap.String("expected", s.tunnelTransport.Identity().GetAddress()),
+			zap.String("got", route.GetTunnelDestination().GetAddress()),
 		)
 		err = tun.ErrDestinationNotFound
 		return
@@ -137,7 +137,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.
 		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
 
-	if route.GetTunnelDestination().GetId() == s.tunnelTransport.Identity().GetId() {
+	if route.GetTunnelDestination().String() == s.tunnelTransport.Identity().String() {
 		l.Debug("client is connected to us, opening direct stream")
 
 		return s.tunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
@@ -173,7 +173,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.
 }
 
 func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Conn, error) {
-	if node.GetAddress() == "" || node.GetId() == 0 || node.GetUnknown() {
+	if node.GetAddress() == "" || node.GetUnknown() {
 		return nil, transport.ErrNoDirect
 	}
 	return s.chordTransport.DialStream(ctx, node, protocol.Stream_INTERNAL)

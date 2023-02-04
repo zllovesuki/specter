@@ -16,13 +16,13 @@ require (
 	github.com/mholt/acmez v1.0.4
 	github.com/montanaflynn/stats v0.7.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/orisano/wyhash v1.1.0
 	github.com/quic-go/quic-go v0.32.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/wal v1.1.7
 	github.com/twitchtv/twirp v8.1.3+incompatible
 	github.com/urfave/cli/v2 v2.24.2
+	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
 	go.uber.org/atomic v1.10.0
@@ -32,7 +32,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/challenger v1.0.1
-	kon.nect.sh/httprate v0.7.2
+	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 )
 
