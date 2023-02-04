@@ -1,32 +1,19 @@
 package chord
 
 import (
-	"hash"
 	"math/rand"
-	"sync"
 
-	"github.com/orisano/wyhash"
+	"github.com/zeebo/xxh3"
 )
 
 const (
-	MaxFingerEntries         int    = 42 // Also known as m in the original paper
+	MaxFingerEntries         int    = 48 // Also known as m in the original paper
 	ExtendedSuccessorEntries int    = 4  // Also known as L in the second paper
 	MaxIdentitifer           uint64 = 1 << MaxFingerEntries
 )
 
-var hasherPool = sync.Pool{
-	New: func() any {
-		return wyhash.New(MaxIdentitifer)
-	},
-}
-
 func Hash(b []byte) uint64 {
-	h := hasherPool.Get().(hash.Hash64)
-	h.Reset()
-	h.Write(b)
-	d := h.Sum64()
-	hasherPool.Put(h)
-	return d % MaxIdentitifer
+	return xxh3.Hash(b) % MaxIdentitifer
 }
 
 func ModuloSum(x, y uint64) uint64 {

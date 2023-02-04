@@ -26,7 +26,7 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
-		l := n.BaseLogger.With(
+		l := n.logger.With(
 			zap.String("component", "rpc_server"),
 			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
@@ -100,7 +100,13 @@ func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRo
 		n.rpcAcceptor.Close()
 	}()
 
-	router.HandleChord(protocol.Stream_RPC, func(delegate *transport.StreamDelegate) {
+	router.HandleChord(protocol.Stream_RPC, n.Identity(), func(delegate *transport.StreamDelegate) {
+		n.rpcAcceptor.Handle(delegate)
+	})
+}
+
+func (n *LocalNode) AttachRoot(ctx context.Context, router *transport.StreamRouter) {
+	router.HandleChord(protocol.Stream_RPC, nil, func(delegate *transport.StreamDelegate) {
 		n.rpcAcceptor.Handle(delegate)
 	})
 }

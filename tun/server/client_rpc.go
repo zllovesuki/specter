@@ -379,12 +379,12 @@ func extractAuthenticated(ctx context.Context) (*protocol.ClientToken, *protocol
 
 func uniqueNodes(nodes []*protocol.Node) []*protocol.Node {
 	list := make([]*protocol.Node, 0)
-	seen := make(map[uint64]bool)
+	seen := make(map[string]bool)
 	for _, node := range nodes {
-		if node == nil || seen[node.GetId()] {
+		if node == nil || seen[node.GetAddress()] {
 			continue
 		}
-		seen[node.GetId()] = true
+		seen[node.GetAddress()] = true
 		list = append(list, node)
 	}
 	return list

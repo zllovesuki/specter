@@ -56,125 +56,176 @@ func (n *LocalNode) fingerTrace() map[string]string {
 	return f
 }
 
-func (n *LocalNode) printSummary(w http.ResponseWriter) {
-	pre, err := n.GetPredecessor()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "error getting predecessor: %v", err)
-		return
-	}
-	succList, err := n.GetSuccessors()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "error getting successor list: %v", err)
-		return
-	}
+func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
+	rootNode := virtualNodes[0]
 
-	fmt.Fprintf(w, "Current state: %s\n", n.state.Get().String())
-	fmt.Fprintf(w, "State history: %v\n", n.state.History())
-	fmt.Fprintf(w, "---\n")
-	fmt.Fprintf(w, "Chord RPC qps: %.2f\n", n.chordRate.RatePerInterval())
-	fmt.Fprintf(w, "   KV RPC qps: %.2f\n", n.kvRate.RatePerInterval())
-	fmt.Fprintf(w, " Outbound qps: %.2f\n", n.ChordClient.RatePer(time.Second))
+	fmt.Fprintf(w, "Physical node overview:\n")
+	fmt.Fprintf(w, "             Address: %s\n", rootNode.Identity().GetAddress())
+	fmt.Fprintf(w, "    Outbound RPC qps: %.2f\n", rootNode.ChordClient.RatePer(time.Second))
 	fmt.Fprintf(w, "---\n")
 
+	fmt.Fprintf(w, "Virtual nodes overview:\n")
 	nodesTable := tablewriter.NewWriter(w)
-	nodesTable.SetHeader([]string{"Where", "ID", "Address", "RTT (-10s)"})
-	nodesTable.Append([]string{
-		"Predecessor",
-		fmt.Sprintf("%v", pre.ID()),
-		pre.Identity().GetAddress(),
-		n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(pre.Identity()), time.Second*10).String(),
-	})
-	nodesTable.Append([]string{
-		"Local",
-		fmt.Sprintf("%v", n.ID()),
-		n.Identity().GetAddress(),
-		n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(n.Identity()), time.Second*10).String(),
-	})
-
-	for _, succ := range succList {
+	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "KV RPC QPS"})
+	for i, node := range virtualNodes {
+		kind := "Root"
+		if i != 0 {
+			kind = "Virtual"
+		}
 		nodesTable.Append([]string{
-			fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries),
-			fmt.Sprintf("%v", succ.ID()),
-			succ.Identity().GetAddress(),
-			n.NodesRTT.Snapshot(rtt.MakeMeasurementKey(succ.Identity()), time.Second*10).String(),
+			kind,
+			fmt.Sprintf("%d", node.ID()),
+			node.state.Get().String(),
+			fmt.Sprintf("%v", node.state.History()),
+			node.lastStabilized.Load().Round(time.Second).String(),
+			fmt.Sprintf("%.2f", node.chordRate.RatePerInterval()),
+			fmt.Sprintf("%.2f", node.kvRate.RatePerInterval()),
 		})
 	}
-	nodesTable.SetCaption(true, fmt.Sprintf("(Last stablized: %s)", n.lastStabilized.Load().Round(time.Second).String()))
 	nodesTable.SetAutoMergeCells(true)
 	nodesTable.SetRowLine(true)
 	nodesTable.Render()
 
-	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "---\n\n")
 
-	finger := n.fingerTrace()
-	fingerTable := tablewriter.NewWriter(w)
-	fingerTable.SetHeader([]string{"Range", "ID"})
-	rows := make([][]string, 0)
-	for r, id := range finger {
-		rows = append(rows, []string{r, id})
-	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		a, b := rows[i][0], rows[j][0]
-		aParts, bParts := strings.Split(a, "/"), strings.Split(b, "/")
-		aMin, _ := strconv.ParseInt(aParts[0], 10, 64)
-		bMin, _ := strconv.ParseInt(bParts[0], 10, 64)
-		return aMin < bMin
-	})
-	fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", chord.MaxIdentitifer))
-	fingerTable.SetAutoMergeCells(true)
-	fingerTable.SetRowLine(true)
-	fingerTable.AppendBulk(rows)
-	fingerTable.Render()
-
-	fmt.Fprintf(w, "---\n")
-
-	keysTable := tablewriter.NewWriter(w)
-	keysTable.SetHeader([]string{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
-
-	keys := n.kv.RangeKeys(0, 0)
-	exp := n.kv.Export(keys)
-	for i, key := range keys {
-		plain := exp[i].GetSimpleValue()
-		children := exp[i].GetPrefixChildren()
-		lease := exp[i].GetLeaseToken()
-
-		id := chord.Hash(key)
-		ownership := ""
-		if !chord.Between(pre.ID(), id, n.ID(), true) {
-			ownership = "X"
+	for _, node := range virtualNodes {
+		fmt.Fprintf(w, "Infomation for virtual node %d\n", node.ID())
+		pre, err := node.GetPredecessor()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error getting predecessor: %v", err)
+			return
 		}
-		raw := []any{ownership, id, string(key), len(plain), len(children), lease}
-		row := make([]string, len(raw))
-		for i, r := range raw {
-			row[i] = fmt.Sprintf("%v", r)
+		succList, err := node.GetSuccessors()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error getting successor list: %v", err)
+			return
 		}
-		keysTable.Append(row)
+
+		sbs := tablewriter.NewWriter(w)
+
+		nodesString := &strings.Builder{}
+		nodesTable := tablewriter.NewWriter(nodesString)
+		nodesTable.SetHeader([]string{"Position", "ID", "Address", "RTT (-10s)"})
+		nodesTable.Append([]string{
+			"Predecessor",
+			fmt.Sprintf("%v", pre.ID()),
+			pre.Identity().GetAddress(),
+			node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(pre.Identity()), time.Second*10).String(),
+		})
+		nodesTable.Append([]string{
+			"Local",
+			fmt.Sprintf("%v", node.ID()),
+			node.Identity().GetAddress(),
+			node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(node.Identity()), time.Second*10).String(),
+		})
+
+		for _, succ := range succList {
+			nodesTable.Append([]string{
+				fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries),
+				fmt.Sprintf("%v", succ.ID()),
+				succ.Identity().GetAddress(),
+				node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(succ.Identity()), time.Second*10).String(),
+			})
+		}
+		nodesTable.SetAutoMergeCells(true)
+		nodesTable.SetRowLine(true)
+		nodesTable.Render()
+
+		fingerString := &strings.Builder{}
+		finger := node.fingerTrace()
+		fingerTable := tablewriter.NewWriter(fingerString)
+		fingerTable.SetHeader([]string{"Range", "ID"})
+		rows := make([][]string, 0)
+		for r, id := range finger {
+			rows = append(rows, []string{r, id})
+		}
+		sort.SliceStable(rows, func(i, j int) bool {
+			a, b := rows[i][0], rows[j][0]
+			aParts, bParts := strings.Split(a, "/"), strings.Split(b, "/")
+			aMin, _ := strconv.ParseInt(aParts[0], 10, 64)
+			bMin, _ := strconv.ParseInt(bParts[0], 10, 64)
+			return aMin < bMin
+		})
+		fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", chord.MaxIdentitifer))
+		fingerTable.SetAutoMergeCells(true)
+		fingerTable.SetRowLine(true)
+		fingerTable.AppendBulk(rows)
+		fingerTable.Render()
+
+		sbs.SetHeader([]string{"Finger", "Ring"})
+		sbs.SetAutoWrapText(false)
+		sbs.SetAutoFormatHeaders(true)
+		sbs.SetCenterSeparator("")
+		sbs.SetColumnSeparator("")
+		sbs.SetAlignment(tablewriter.ALIGN_CENTER)
+		sbs.SetRowSeparator("")
+		sbs.SetHeaderLine(false)
+		sbs.SetBorder(false)
+		sbs.SetTablePadding("\t") // pad with tabs
+		sbs.SetNoWhiteSpace(true)
+		sbs.Append([]string{fingerString.String(), nodesString.String()})
+		sbs.Render()
+
+		keysTable := tablewriter.NewWriter(w)
+		keysTable.SetHeader([]string{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
+
+		keys := node.kv.RangeKeys(0, 0)
+		exp := node.kv.Export(keys)
+		for i, key := range keys {
+			plain := exp[i].GetSimpleValue()
+			children := exp[i].GetPrefixChildren()
+			lease := exp[i].GetLeaseToken()
+
+			id := chord.Hash(key)
+			ownership := ""
+			if !chord.Between(pre.ID(), id, node.ID(), true) {
+				ownership = "X"
+			}
+			raw := []any{ownership, id, string(key), len(plain), len(children), lease}
+			row := make([]string, len(raw))
+			for i, r := range raw {
+				row[i] = fmt.Sprintf("%v", r)
+			}
+			keysTable.Append(row)
+		}
+		keysTable.SetCaption(true, fmt.Sprintf("(With %d keys; X in owner column indicates incorrect owner)", len(keys)))
+		keysTable.SetAutoMergeCells(true)
+		keysTable.SetRowLine(true)
+		keysTable.Render()
+
+		fmt.Fprintf(w, "---\n\n")
 	}
-	keysTable.SetCaption(true, fmt.Sprintf("(With %d keys; X in owner column indicates incorrect owner)", len(keys)))
-	keysTable.SetAutoMergeCells(true)
-	keysTable.SetRowLine(true)
-	keysTable.Render()
 }
 
-func (n *LocalNode) printKey(w http.ResponseWriter, r *http.Request, key string) {
-	val, err := n.kv.Get(r.Context(), []byte(key))
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "error getting kv: %v", err)
-		return
+func printKey(virtualNodes []*LocalNode, w http.ResponseWriter, r *http.Request, key string) {
+	for _, n := range virtualNodes {
+		val, err := n.kv.Get(r.Context(), []byte(key))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error getting kv: %v", err)
+			return
+		}
+		if len(val) != 0 {
+			w.Write(val)
+			return
+		}
 	}
-	w.Write(val)
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprint(w, "key not found on this node")
 }
 
-func (n *LocalNode) StatsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "text/plain; charset=utf-8")
+func StatsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/plain; charset=utf-8")
 
-	query := r.URL.Query()
-	if query.Has("key") {
-		n.printKey(w, r, query.Get("key"))
-		return
+		query := r.URL.Query()
+		if query.Has("key") {
+			printKey(virtualNodes, w, r, query.Get("key"))
+			return
+		}
+
+		printSummary(w, virtualNodes)
 	}
-	n.printSummary(w)
 }

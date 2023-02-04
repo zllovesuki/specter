@@ -234,7 +234,7 @@ func TestStatsSummaryHandler(t *testing.T) {
 	node.kv.Put(context.Background(), []byte(testKey), []byte("bye"))
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(node.StatsHandler)
+	handler := http.HandlerFunc(StatsHandler([]*LocalNode{node}))
 
 	req, err := http.NewRequest("GET", "/", nil)
 	as.NoError(err)
@@ -263,7 +263,7 @@ func TestStatsKeyHandler(t *testing.T) {
 	node.kv.Put(context.Background(), []byte(testKey), []byte("hello"))
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(node.StatsHandler)
+	handler := http.HandlerFunc(StatsHandler([]*LocalNode{node}))
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("/?key=%s", testKey), nil)
 	as.NoError(err)

@@ -89,7 +89,7 @@ func setupRPC(ctx context.Context,
 	})
 }
 
-func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, node *protocol.Node) []*protocol.Node {
+func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService) []*protocol.Node {
 	fakeNodes := []*protocol.Node{
 		{
 			Id:      1,
@@ -129,13 +129,13 @@ func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, node *protoco
 		}), mock.Anything).Return(&protocol.ClientPingResponse{
 			Node: fakeNodes[i],
 			Apex: testApex,
-		}, nil)
+		}, nil).Maybe()
 	}
 
 	s.On("Ping", mock.Anything, mock.Anything).Return(&protocol.ClientPingResponse{
-		Node: node,
+		Node: fakeNodes[0],
 		Apex: testApex,
-	}, nil)
+	}, nil).Maybe()
 	s.On("GetNodes", mock.Anything, mock.Anything).Return(&protocol.GetNodesResponse{
 		Nodes: fakeNodes,
 	}, nil)
@@ -158,17 +158,12 @@ func setupClient(t *testing.T, as *require.Assertions, ctx context.Context, logg
 	router := transport.NewStreamRouter(logger, nil, t2)
 	acc := acceptor.NewH2Acceptor(nil)
 
-	node := &protocol.Node{
-		Id:      chord.Random(),
-		Address: "127.0.0.2:4567",
-	}
-
-	fakeNodes := setupFakeNodes(rr, s, node)
+	fakeNodes := setupFakeNodes(rr, s)
 
 	if preference {
 		s.On("PublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.PublishTunnelRequest) bool {
 			// ensure that the node with the lowest latency is the first preference
-			return len(req.GetServers()) > 0 && req.GetServers()[0].GetId() == fakeNodes[1].GetId()
+			return len(req.GetServers()) > 0 && req.GetServers()[0].GetAddress() == fakeNodes[1].GetAddress()
 		})).Return(&protocol.PublishTunnelResponse{
 			Published: fakeNodes,
 		}, nil).Times(times)

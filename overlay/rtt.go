@@ -16,15 +16,10 @@ import (
 )
 
 func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol.Node) {
-	if peer.GetId() == t.Endpoint.GetId() {
-		t.Logger.Debug("skipping rtt measurement with ourselves")
-		return
-	}
-
 	l := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 
 	var (
-		qKey                      = makeCachedKey(peer)
+		qKey                      = t.makeCachedKey(peer)
 		mapper                    = skipmap.NewUint64[int64]()
 		counter uint64            = 1
 		rttBuf  protocol.Datagram = protocol.Datagram{
@@ -80,7 +75,7 @@ func (t *QUIC) handleRTTAck(ctx context.Context) {
 			return
 		case d = <-t.rttChan:
 			l = t.Logger.With(zap.Object("peer", d.Identity))
-			qKey = makeCachedKey(d.Identity)
+			qKey = t.makeCachedKey(d.Identity)
 			mapper, ok = t.rttMap.Load(qKey)
 			if !ok {
 				l.Warn("No mapping found for processing rtt ack")

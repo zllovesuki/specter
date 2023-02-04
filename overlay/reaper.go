@@ -14,7 +14,7 @@ import (
 )
 
 func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
-	qKey := makeCachedKey(peer)
+	qKey := t.makeCachedKey(peer)
 	unlock := t.cachedMutex.Lock(qKey)
 	defer unlock()
 

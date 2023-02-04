@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strconv"
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -18,7 +17,6 @@ import (
 
 const (
 	internalProxyNodeAddress = "x-internal-proxy-node-address"
-	internalProxyNodeId      = "x-internal-proxy-node-id"
 	internalProxyForwarded   = "x-internal-proxy-forwarded"
 )
 
@@ -43,7 +41,6 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 		director(r)
 		r.Header.Set(internalProxyForwarded, "true")
 		r.Header.Del(internalProxyNodeAddress)
-		r.Header.Del(internalProxyNodeId)
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.WriteHeader(http.StatusBadGateway)
@@ -54,23 +51,14 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 			var (
 				forwarded     = r.Header.Get(internalProxyForwarded) != ""
 				targetAddress = r.Header.Get(internalProxyNodeAddress)
-				targetIdStr   = r.Header.Get(internalProxyNodeId)
 			)
-			if forwarded || targetAddress == "" || targetIdStr == "" {
+			if forwarded || targetAddress == "" {
 				h.ServeHTTP(w, r)
-				return
-			}
-
-			targerId, err := strconv.ParseUint(targetIdStr, 10, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, "error parsing %s: %v", internalProxyNodeId, err)
 				return
 			}
 
 			target := &protocol.Node{
 				Address: targetAddress,
-				Id:      targerId,
 			}
 			r = r.WithContext(rpc.WithNode(r.Context(), target))
 

@@ -41,21 +41,29 @@ func NewQUIC(conf TransportConfig) *QUIC {
 	}
 }
 
-func makeCachedKey(peer *protocol.Node) string {
+func (t *QUIC) makeCachedKey(peer *protocol.Node) string {
 	qMapKey := peer.GetAddress() + "/"
 	if peer.GetUnknown() {
 		qMapKey = qMapKey + "-1"
 	} else {
-		qMapKey = qMapKey + strconv.FormatUint(peer.GetId(), 10)
+		if t.VirtualTransport {
+			qMapKey = qMapKey + "PHY"
+		} else {
+			qMapKey = qMapKey + strconv.FormatUint(peer.GetId(), 10)
+		}
 	}
 	return qMapKey
 }
 
 func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
 	var (
-		qKey = makeCachedKey(peer)
+		qKey = t.makeCachedKey(peer)
 		q    quic.EarlyConnection
 	)
+
+	if t.Endpoint.GetAddress() == peer.GetAddress() {
+		return nil, fmt.Errorf("creating a new QUIC connection to the ourselves is not allowed")
+	}
 
 	if err := retry.Do(func() error {
 		rUnlock := t.cachedMutex.RLock(qKey)
@@ -116,6 +124,19 @@ func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protoco
 		return nil, transport.ErrClosed
 	}
 
+	if peer.GetAddress() == t.Endpoint.GetAddress() && t.VirtualTransport {
+		c1, c2 := net.Pipe()
+		t.streamChan <- &transport.StreamDelegate{
+			Identity: &protocol.Node{
+				Address: t.Endpoint.GetAddress(),
+				Id:      peer.GetId(),
+			},
+			Conn: c2,
+			Kind: kind,
+		}
+		return c1, nil
+	}
+
 	q, err := t.getCachedConnection(ctx, peer)
 	if err != nil {
 		return nil, fmt.Errorf("creating quic connection: %w", err)
@@ -126,11 +147,21 @@ func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protoco
 		return nil, err
 	}
 
-	rr := &protocol.Stream{
-		Type: kind,
+	var rr protocol.Stream
+	if t.VirtualTransport {
+		rr = protocol.Stream{
+			Type: kind,
+			Target: &protocol.Node{
+				Id: peer.GetId(),
+			},
+		}
+	} else {
+		rr = protocol.Stream{
+			Type: kind,
+		}
 	}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.Send(stream, rr)
+	err = rpc.Send(stream, &rr)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +188,7 @@ func (t *QUIC) ReceiveDatagram() <-chan *transport.DatagramDelegate {
 }
 
 func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
-	qKey := makeCachedKey(peer)
+	qKey := t.makeCachedKey(peer)
 	if r, ok := t.cachedConnections.Load(qKey); ok {
 		data := &protocol.Datagram{
 			Type: protocol.Datagram_DATA,
@@ -209,7 +240,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 		return nil, err
 	}
 
-	if !reused && c.peer.GetId() != t.Endpoint.GetId() {
+	if !reused {
 		t.handlePeer(ctx, c.quic, c.peer, directionOutgoing)
 	}
 
@@ -221,7 +252,7 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 		zap.String("remote", q.RemoteAddr().String()),
 		zap.Object("peer", peer),
 		zap.String("direction", dir.String()),
-		zap.String("key", makeCachedKey(peer)),
+		zap.String("key", t.makeCachedKey(peer)),
 	)
 	l.Debug("Starting goroutines to handle streams and datagrams")
 	go t.handleConnection(ctx, q, peer)
@@ -346,9 +377,9 @@ func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protoc
 		}
 	}()
 
-	rr := &protocol.Stream{}
+	rr := protocol.Stream{}
 	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.BoundedReceive(stream, rr, 8)
+	err = rpc.BoundedReceive(stream, &rr, 16)
 	if err != nil {
 		l.Error("Failed to receive stream handshake", zap.Error(err))
 		return
@@ -361,10 +392,20 @@ func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protoc
 		return
 	}
 
+	var identity *protocol.Node
+	if t.VirtualTransport {
+		identity = &protocol.Node{
+			Id:      rr.GetTarget().GetId(),
+			Address: peer.GetAddress(),
+		}
+	} else {
+		identity = peer
+	}
+
 	select {
 	case t.streamChan <- &transport.StreamDelegate{
+		Identity: identity,
 		Conn:     WrapQuicConnection(stream, q),
-		Identity: peer,
 		Kind:     rr.GetType(),
 	}:
 	default:

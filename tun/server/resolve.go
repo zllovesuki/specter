@@ -52,7 +52,8 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 
 	s.logger.Info("Destinations published on chord",
 		zap.String("chord", keys[0]),
-		zap.String("tunnel", keys[1]))
+		zap.String("tunnel", keys[1]),
+	)
 
 	return nil
 }

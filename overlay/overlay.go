@@ -21,11 +21,12 @@ type nodeConnection struct {
 }
 
 type TransportConfig struct {
-	Logger      *zap.Logger
-	Endpoint    *protocol.Node
-	ServerTLS   *tls.Config
-	ClientTLS   *tls.Config
-	RTTRecorder rtt.Recorder
+	Logger           *zap.Logger
+	Endpoint         *protocol.Node
+	ServerTLS        *tls.Config
+	ClientTLS        *tls.Config
+	RTTRecorder      rtt.Recorder
+	VirtualTransport bool
 }
 
 type QUIC struct {
