@@ -58,14 +58,10 @@ func (n *LocalNode) fingerTrace() map[string]string {
 
 func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 	rootNode := virtualNodes[0]
+	numKeys := 0
 
-	fmt.Fprintf(w, "Physical node overview:\n")
-	fmt.Fprintf(w, "             Address: %s\n", rootNode.Identity().GetAddress())
-	fmt.Fprintf(w, "    Outbound RPC qps: %.2f\n", rootNode.ChordClient.RatePer(time.Second))
-	fmt.Fprintf(w, "---\n")
-
-	fmt.Fprintf(w, "Virtual nodes overview:\n")
-	nodesTable := tablewriter.NewWriter(w)
+	vir := &strings.Builder{}
+	nodesTable := tablewriter.NewWriter(vir)
 	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "KV RPC QPS"})
 	for i, node := range virtualNodes {
 		kind := "Root"
@@ -86,10 +82,11 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 	nodesTable.SetRowLine(true)
 	nodesTable.Render()
 
-	fmt.Fprintf(w, "---\n\n")
+	fmt.Fprintf(vir, "---\n\n")
 
+	lis := &strings.Builder{}
 	for _, node := range virtualNodes {
-		fmt.Fprintf(w, "Infomation for virtual node %d\n", node.ID())
+		fmt.Fprintf(lis, "== Infomation for virtual node %d ==\n", node.ID())
 		pre, err := node.GetPredecessor()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -103,7 +100,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			return
 		}
 
-		sbs := tablewriter.NewWriter(w)
+		sbs := tablewriter.NewWriter(lis)
 
 		nodesString := &strings.Builder{}
 		nodesTable := tablewriter.NewWriter(nodesString)
@@ -168,7 +165,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 		sbs.Append([]string{fingerString.String(), nodesString.String()})
 		sbs.Render()
 
-		keysTable := tablewriter.NewWriter(w)
+		keysTable := tablewriter.NewWriter(lis)
 		keysTable.SetHeader([]string{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
 
 		keys := node.kv.RangeKeys(0, 0)
@@ -190,13 +187,27 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			}
 			keysTable.Append(row)
 		}
+		numKeys += len(keys)
 		keysTable.SetCaption(true, fmt.Sprintf("(With %d keys; X in owner column indicates incorrect owner)", len(keys)))
 		keysTable.SetAutoMergeCells(true)
 		keysTable.SetRowLine(true)
 		keysTable.Render()
 
-		fmt.Fprintf(w, "---\n\n")
+		fmt.Fprintf(lis, "---\n\n")
 	}
+
+	phy := &strings.Builder{}
+	fmt.Fprintf(phy, "== Physical node overview ==\n")
+	fmt.Fprintf(phy, "             Address: %s\n", rootNode.Identity().GetAddress())
+	fmt.Fprintf(phy, "    Outbound RPC qps: %.2f\n", rootNode.ChordClient.RatePer(time.Second))
+	fmt.Fprintf(phy, "   Number of KV keys: %d\n", numKeys)
+	fmt.Fprintf(phy, "---\n\n")
+
+	fmt.Fprintf(phy, "== Virtual nodes overview ==\n")
+
+	w.Write([]byte(phy.String()))
+	w.Write([]byte(vir.String()))
+	w.Write([]byte(lis.String()))
 }
 
 func printKey(virtualNodes []*LocalNode, w http.ResponseWriter, r *http.Request, key string) {

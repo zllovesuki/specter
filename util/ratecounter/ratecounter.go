@@ -73,6 +73,9 @@ func (r *Rate) RatePer(interval time.Duration) float64 {
 }
 
 func (r *Rate) rate() float64 {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+
 	var c uint64
 	var d time.Duration
 	var num = min(len(r.samples), r.sampleCount.Load())

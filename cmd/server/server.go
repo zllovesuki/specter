@@ -555,8 +555,12 @@ func cmdServer(ctx *cli.Context) error {
 	defer rootNode.Leave()
 
 	for i := 1; i < k; i++ {
-		if err := virtualNodes[i].Join(rootNode); err != nil {
-			return fmt.Errorf("error joining virtual node to existing chord ring: %w", err)
+		p, err := chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, rootNode.Identity())
+		if err != nil {
+			return fmt.Errorf("error connecting to root node: %w", err)
+		}
+		if err := virtualNodes[i].Join(p); err != nil {
+			return fmt.Errorf("error joining virtual node to root node: %w", err)
 		}
 		defer virtualNodes[i].Leave()
 	}
