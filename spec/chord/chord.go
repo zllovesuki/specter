@@ -35,7 +35,7 @@ func Between(low, target, high uint64, inclusive bool) bool {
 }
 
 // make successor list that will not have duplicate VNodes
-func MakeSuccList(immediate VNode, successors []VNode, maxLen int) []VNode {
+func MakeSuccListByID(immediate VNode, successors []VNode, maxLen int) []VNode {
 	succList := []VNode{immediate}
 	seen := make(map[uint64]bool)
 	seen[immediate.ID()] = true
@@ -48,6 +48,25 @@ func MakeSuccList(immediate VNode, successors []VNode, maxLen int) []VNode {
 			continue
 		}
 		seen[succ.ID()] = true
+		succList = append(succList, succ)
+	}
+	return succList
+}
+
+// make successor list that will not have duplicate VNodes
+func MakeSuccListByAddress(immediate VNode, successors []VNode, maxLen int) []VNode {
+	succList := []VNode{immediate}
+	seen := make(map[string]bool)
+	seen[immediate.Identity().GetAddress()] = true
+
+	for _, succ := range successors {
+		if len(succList) >= maxLen {
+			break
+		}
+		if succ == nil || seen[succ.Identity().GetAddress()] {
+			continue
+		}
+		seen[succ.Identity().GetAddress()] = true
 		succList = append(succList, succ)
 	}
 	return succList

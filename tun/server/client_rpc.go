@@ -179,7 +179,7 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 		return nil, twirp.Internal.Error(err.Error())
 	}
 
-	vnodes := chord.MakeSuccList(s.chord, successors, tun.NumRedundantLinks)
+	vnodes := chord.MakeSuccListByAddress(s.chord, successors, tun.NumRedundantLinks)
 	lookupJobs := make([]func(context.Context) (*protocol.Node, error), 0)
 	for _, chord := range vnodes {
 		if chord == nil {

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"kon.nect.sh/specter/spec/protocol"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,26 +76,47 @@ func TestBetweenExclusive(t *testing.T) {
 
 type fakeNode struct {
 	VNode
-	id uint64
+	identity *protocol.Node
 }
 
 func (f *fakeNode) ID() uint64 {
-	return f.id
+	return f.identity.GetId()
 }
 
-func TestSuccListNoDuplicate(t *testing.T) {
+func (f *fakeNode) Identity() *protocol.Node {
+	return f.identity
+}
+
+func TestSuccListNoDuplicateByID(t *testing.T) {
 	as := require.New(t)
 
 	nodes := []VNode{
-		&fakeNode{nil, 2},
-		&fakeNode{nil, 2},
-		&fakeNode{nil, 2},
-		&fakeNode{nil, 3},
-		&fakeNode{nil, 4},
+		&fakeNode{nil, &protocol.Node{Id: 2}},
+		&fakeNode{nil, &protocol.Node{Id: 2}},
+		&fakeNode{nil, &protocol.Node{Id: 2}},
+		&fakeNode{nil, &protocol.Node{Id: 3}},
+		&fakeNode{nil, &protocol.Node{Id: 4}},
 	}
-	immediate := &fakeNode{nil, 1}
+	immediate := &fakeNode{nil, &protocol.Node{Id: 1}}
 
-	list := MakeSuccList(immediate, nodes, 3)
+	list := MakeSuccListByID(immediate, nodes, 3)
 	as.Len(list, 3)
 	as.Equal(uint64(1), list[0].ID())
+}
+
+func TestSuccListNoDuplicateByAddress(t *testing.T) {
+	as := require.New(t)
+
+	nodes := []VNode{
+		&fakeNode{nil, &protocol.Node{Address: "127.0.0.2"}},
+		&fakeNode{nil, &protocol.Node{Address: "127.0.0.2"}},
+		&fakeNode{nil, &protocol.Node{Address: "127.0.0.2"}},
+		&fakeNode{nil, &protocol.Node{Address: "127.0.0.3"}},
+		&fakeNode{nil, &protocol.Node{Address: "127.0.0.4"}},
+	}
+	immediate := &fakeNode{nil, &protocol.Node{Address: "127.0.0.1"}}
+
+	list := MakeSuccListByAddress(immediate, nodes, 3)
+	as.Len(list, 3)
+	as.Equal("127.0.0.1", list[0].Identity().GetAddress())
 }

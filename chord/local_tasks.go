@@ -52,13 +52,13 @@ func (n *LocalNode) stabilize() error {
 		newSucc, spErr := head.GetPredecessor()
 		newSuccList, nsErr := head.GetSuccessors()
 		if spErr == nil && nsErr == nil {
-			succList = chord.MakeSuccList(head, newSuccList, chord.ExtendedSuccessorEntries)
+			succList = chord.MakeSuccListByID(head, newSuccList, chord.ExtendedSuccessorEntries)
 			modified = true
 
 			if newSucc != nil && chord.Between(n.ID(), newSucc.ID(), head.ID(), false) {
 				newSuccList, nsErr = newSucc.GetSuccessors()
 				if nsErr == nil {
-					succList = chord.MakeSuccList(newSucc, newSuccList, chord.ExtendedSuccessorEntries)
+					succList = chord.MakeSuccListByID(newSucc, newSuccList, chord.ExtendedSuccessorEntries)
 					modified = true
 				}
 			}

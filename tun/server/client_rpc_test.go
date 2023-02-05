@@ -290,7 +290,6 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	pairBuf, err := pair.MarshalVT()
 	as.Nil(err)
 
-	node.On("ID").Return(cht.GetId())
 	node.On("Identity").Return(cht)
 	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
 	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
@@ -341,7 +340,6 @@ func TestRPCGetNodes(t *testing.T) {
 		}),
 	).Return(clientBuf, nil)
 
-	node.On("ID").Return(cht.GetId())
 	node.On("Identity").Return(cht)
 
 	nodes, vlist := makeNodeList(chord.ExtendedSuccessorEntries)
