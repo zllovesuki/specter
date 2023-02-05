@@ -47,8 +47,8 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 		ChordClient:              new(mocks.ChordClient),
 		Identity:                 iden,
 		KVProvider:               memory.WithHashFn(chord.Hash),
-		FixFingerInterval:        defaultInterval * 3,
-		StablizeInterval:         defaultInterval * 5,
+		StablizeInterval:         defaultInterval * 3,
+		FixFingerInterval:        defaultInterval * 5,
 		PredecessorCheckInterval: defaultInterval * 7,
 		NodesRTT:                 m,
 	}

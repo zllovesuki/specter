@@ -519,8 +519,8 @@ func cmdServer(ctx *cli.Context) error {
 			BaseLogger:               logger,
 			ChordClient:              chordClient,
 			KVProvider:               kvProvider,
-			FixFingerInterval:        time.Second * 3,
-			StablizeInterval:         time.Second * 5,
+			StablizeInterval:         time.Second * 3,
+			FixFingerInterval:        time.Second * 5,
 			PredecessorCheckInterval: time.Second * 7,
 			NodesRTT:                 chordRTT,
 		})
