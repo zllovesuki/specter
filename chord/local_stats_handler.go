@@ -11,6 +11,7 @@ import (
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/rtt"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -229,12 +230,21 @@ func printKey(virtualNodes []*LocalNode, w http.ResponseWriter, r *http.Request,
 
 func StatsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("content-type", "text/plain; charset=utf-8")
-
 		query := r.URL.Query()
 		if query.Has("key") {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
 			printKey(virtualNodes, w, r, query.Get("key"))
 			return
+		}
+
+		urlFormat, _ := r.Context().Value(middleware.URLFormatCtxKey).(string)
+		switch urlFormat {
+		case "html":
+			w.Header().Set("content-type", "text/html; charset=utf-8")
+			defer fmt.Fprint(w, `</pre></body></html>`)
+			fmt.Fprint(w, `<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body><pre>`)
+		default:
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
 		}
 
 		printSummary(w, virtualNodes)

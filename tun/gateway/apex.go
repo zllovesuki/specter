@@ -56,6 +56,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			a.authUser: a.authPass,
 		}))
 		r.Use(a.internalProxy)
+		r.Use(middleware.URLFormat)
 		r.Get("/stats", a.statsHandler)
 		r.Mount("/debug", middleware.Profiler())
 	})
