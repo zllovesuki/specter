@@ -80,10 +80,10 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			return rpc.WithDelegation(ctx, c.(*transport.StreamDelegate))
 		},
-		MaxHeaderBytes: 1 << 10, // 1KB
-		ReadTimeout:    time.Second * 3,
-		Handler:        rpcHandler,
-		ErrorLog:       util.GetStdLogger(s.logger, "rpc_server"),
+		MaxHeaderBytes:    1 << 10, // 1KB
+		ReadHeaderTimeout: time.Second * 3,
+		Handler:           rpcHandler,
+		ErrorLog:          util.GetStdLogger(s.logger, "rpc_server"),
 	}
 
 	go srv.Serve(s.rpcAcceptor)

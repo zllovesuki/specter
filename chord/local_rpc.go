@@ -87,9 +87,9 @@ func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRo
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			return rpc.WithDelegation(ctx, c.(*transport.StreamDelegate))
 		},
-		ReadTimeout: rpcTimeout,
-		Handler:     rpcHandler,
-		ErrorLog:    util.GetStdLogger(n.logger, "rpc_server"),
+		ReadHeaderTimeout: rpcTimeout,
+		Handler:           rpcHandler,
+		ErrorLog:          util.GetStdLogger(n.logger, "rpc_server"),
 	}
 
 	go srv.Serve(n.rpcAcceptor)
