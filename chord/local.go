@@ -9,6 +9,7 @@ import (
 	"kon.nect.sh/specter/util/acceptor"
 	"kon.nect.sh/specter/util/ratecounter"
 
+	"github.com/TheZeroSlave/zapsentry"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -67,7 +68,7 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 	}
 	n := &LocalNode{
 		NodeConfig:     conf,
-		logger:         conf.BaseLogger.With(zap.String("component", "localNode"), zap.Uint64("node", conf.Identity.GetId())),
+		logger:         conf.BaseLogger.With(zapsentry.NewScope()).With(zap.String("component", "localNode"), zap.Uint64("node", conf.Identity.GetId())),
 		state:          newNodeState(chord.Inactive),
 		succListHash:   atomic.NewUint64(conf.Identity.GetId()),
 		kv:             conf.KVProvider,

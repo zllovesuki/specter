@@ -357,7 +357,7 @@ func modifyToSentryLogger(logger *zap.Logger, client *sentry.Client) *zap.Logger
 
 	logger = zapsentry.AttachCoreToLogger(core, logger)
 
-	return logger.With(zapsentry.NewScope())
+	return logger
 }
 
 func cmdServer(ctx *cli.Context) error {
@@ -472,7 +472,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	chordRTT := rtt.NewInstrumentation(20)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger: logger.With(zap.String("component", "chordTransport")),
+		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "chordTransport")),
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
@@ -484,18 +484,14 @@ func cmdServer(ctx *cli.Context) error {
 
 	// TODO: measure rtt to client to build routing table with cost
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger: logger.With(zap.String("component", "tunnelTransport")),
+		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelTransport")),
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
 	})
 	defer tunnelTransport.Stop()
 
-	go alpnMux.Accept(ctx.Context)
-
-	streamRouter := transport.NewStreamRouter(logger.With(zap.String("component", "router")), chordTransport, tunnelTransport)
-	go streamRouter.Accept(ctx.Context)
-	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
+	streamRouter := transport.NewStreamRouter(logger.With(zapsentry.NewScope()).With(zap.String("component", "router")), chordTransport, tunnelTransport)
 
 	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
 	virtualNodes := make([]*chordImpl.LocalNode, 0)
@@ -507,7 +503,7 @@ func cmdServer(ctx *cli.Context) error {
 			Address: advertise,
 		}
 		kvProvider, err := aof.New(aof.Config{
-			Logger:        logger.With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
+			Logger:        logger.With(zapsentry.NewScope()).With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
 			HasnFn:        chord.Hash,
 			DataDir:       filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
 			FlushInterval: time.Second * 3,
@@ -535,6 +531,10 @@ func cmdServer(ctx *cli.Context) error {
 
 	rootNode := virtualNodes[0]
 	rootNode.AttachRoot(ctx.Context, streamRouter)
+
+	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
+	go streamRouter.Accept(ctx.Context)
+	go alpnMux.Accept(ctx.Context)
 
 	if !ctx.IsSet("join") {
 		if err := rootNode.Create(); err != nil {
@@ -565,7 +565,7 @@ func cmdServer(ctx *cli.Context) error {
 		defer virtualNodes[i].Leave()
 	}
 
-	certProvider, err := configCertProvider(ctx, logger, rootNode)
+	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), rootNode)
 	if err != nil {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}
@@ -598,7 +598,7 @@ func cmdServer(ctx *cli.Context) error {
 		Address: advertise,
 	}
 	tunServer := server.New(
-		logger.With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
+		logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
 		rootNode,
 		tunnelTransport,
 		chordTransport,
@@ -612,7 +612,7 @@ func cmdServer(ctx *cli.Context) error {
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
 	gw := gateway.New(gateway.GatewayConfig{
-		Logger:       logger.With(zap.String("component", "gateway")),
+		Logger:       logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
 		TunnelServer: tunServer,
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,

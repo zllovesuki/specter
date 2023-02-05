@@ -27,7 +27,7 @@ func GetPeerTLSConfig(ca *x509.CertPool, node tls.Certificate, protos []string) 
 			tls.TLS_CHACHA20_POLY1305_SHA256,
 		},
 		CurvePreferences: []tls.CurveID{
-			tls.CurveP256,
+			tls.X25519, tls.CurveP256,
 		},
 	}
 }

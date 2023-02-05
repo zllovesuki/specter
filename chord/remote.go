@@ -8,6 +8,7 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 
+	"github.com/TheZeroSlave/zapsentry"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -44,7 +45,7 @@ func NewRemoteNode(ctx context.Context, baseLogger *zap.Logger, chordClient rpc.
 			return nil, err
 		}
 	}
-	n.logger = baseLogger.With(zap.String("component", "remoteNode"), zap.Object("node", n.identity))
+	n.logger = baseLogger.With(zapsentry.NewScope()).With(zap.String("component", "remoteNode"), zap.Object("node", n.identity))
 
 	return n, nil
 }
