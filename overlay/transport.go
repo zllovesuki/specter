@@ -13,6 +13,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/util/atomic"
+	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/quic-go/quic-go"
@@ -83,7 +84,21 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 		defer dialCancel()
 
-		newQ, err := quic.DialAddrEarlyContext(dialCtx, peer.GetAddress(), t.ClientTLS, quicConfig)
+		listenCfg := &net.ListenConfig{
+			Control: reuse.Control,
+		}
+
+		pconn, err := listenCfg.ListenPacket(dialCtx, "udp", ":0")
+		if err != nil {
+			return err
+		}
+
+		addr, err := net.ResolveUDPAddr("udp", peer.GetAddress())
+		if err != nil {
+			return err
+		}
+
+		newQ, err := quic.DialEarlyContext(dialCtx, pconn, addr, peer.GetAddress(), t.ClientTLS, quicConfig)
 		if err != nil {
 			return err
 		}
@@ -106,7 +121,9 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 			return strings.Contains(err.Error(), reuseErrorState)
 		}),
 	); err != nil {
-		t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))
+		if err != transport.ErrNoDirect {
+			t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))
+		}
 		return nil, err
 	}
 

@@ -29,6 +29,7 @@ import (
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 	"kon.nect.sh/specter/util"
+	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"github.com/caddyserver/certmagic"
@@ -427,7 +428,9 @@ func cmdServer(ctx *cli.Context) error {
 		}
 	}
 
-	listenCfg := &net.ListenConfig{}
+	listenCfg := &net.ListenConfig{
+		Control: reuse.Control,
+	}
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
 	tcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listenTcp)
