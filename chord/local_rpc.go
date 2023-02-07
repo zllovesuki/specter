@@ -40,6 +40,7 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 			l = l.With(zap.String("kv-key", key))
 		}
 		l.Error("Error handling RPC request", zap.Error(err))
+		n.rpcErrorCount.Inc()
 	}
 	return ctx
 }

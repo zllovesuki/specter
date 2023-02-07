@@ -54,6 +54,7 @@ func kvMiddleware[V any](
 	state := n.state.Get()
 	if state != chord.Active {
 		l.Debug("KV Handler node is not in active state", zap.String("state", state.String()))
+		n.kvStaleCount.Inc()
 		return zeroV, chord.ErrKVStaleOwnership
 	}
 
@@ -70,11 +71,13 @@ func kvMiddleware[V any](
 
 	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
 		l.Debug("KV Ownership moved")
+		n.kvStaleCount.Inc()
 		return zeroV, chord.ErrKVStaleOwnership
 	}
 
 	if n.predecessor != nil && !chord.Between(n.predecessor.ID(), id, n.ID(), true) {
 		l.Debug("Key not in range")
+		n.kvStaleCount.Inc()
 		return zeroV, chord.ErrKVStaleOwnership
 	}
 

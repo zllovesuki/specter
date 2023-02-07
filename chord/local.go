@@ -18,23 +18,19 @@ type LocalNode struct {
 	logger         *zap.Logger
 	predecessorMu  sync.RWMutex                            // simple mutex surrounding operations on predecessor
 	predecessor    chord.VNode                             // nord's immediate predecessor
-	_              [0]any                                  //
 	surrogateMu    sync.RWMutex                            // advanced mutex surrounding KV requests during Join/Leave
 	surrogate      *protocol.Node                          // node's previous predecessor, used to guard against outdated KV requests
-	_              [0]any                                  //
 	successorsMu   sync.RWMutex                            // advanced mutex surrounding successors during Join/Leave
 	successors     []chord.VNode                           // node's extended list of successors
 	succListHash   *atomic.Uint64                          // simple hash on the successors to determine if they have changed
-	_              [0]any                                  //
 	kv             chord.KVProvider                        // KV backing implementation
-	_              [0]any                                  //
-	chordRate      *ratecounter.Rate                       // track how chatty chord rpc is
-	kvRate         *ratecounter.Rate                       // track how chatty kv rpc is
+	chordRate      *ratecounter.Rate                       // track how chatty incoming chord rpc is
+	kvRate         *ratecounter.Rate                       // track how chatty incoming kv rpc is
+	kvStaleCount   *atomic.Uint64                          // track the number of kv stale ownership
+	rpcErrorCount  *atomic.Uint64                          // track the number of non-retryable rpc request errors
 	lastStabilized *atomic.Time                            // last stablized time
-	_              [0]any                                  //
 	stopWg         sync.WaitGroup                          // used to wait for task goroutines to be stopped
 	stopCh         chan struct{}                           // used to signal task goroutines to stop
-	_              [0]any                                  //
 	state          *nodeState                              // a replacement of LockQueue from the paper
 	fingers        [chord.MaxFingerEntries + 1]fingerEntry // finger table to provide log(N) optimization
 	rpcAcceptor    *acceptor.HTTP2Acceptor                 // listener for handling incoming rpc request
@@ -77,6 +73,8 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		rpcAcceptor:    acceptor.NewH2Acceptor(nil),
 		chordRate:      ratecounter.New(time.Second, time.Second*10),
 		kvRate:         ratecounter.New(time.Second, time.Second*10),
+		kvStaleCount:   atomic.NewUint64(0),
+		rpcErrorCount:  atomic.NewUint64(0),
 	}
 	n.stopWg.Add(3)
 

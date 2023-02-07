@@ -66,7 +66,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 	fmt.Fprintf(vir, "== Virtual nodes overview ==\n")
 
 	nodesTable := tablewriter.NewWriter(vir)
-	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "KV RPC QPS"})
+	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "RPC Error", "KV RPC QPS", "Stale KV"})
 	for i, node := range virtualNodes {
 		kind := "Root"
 		if i != 0 {
@@ -79,7 +79,9 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			fmt.Sprintf("%v", node.state.History()),
 			node.lastStabilized.Load().Round(time.Second).Format(time.RFC3339),
 			fmt.Sprintf("%.2f", node.chordRate.RatePerInterval()),
+			fmt.Sprintf("%d", node.rpcErrorCount.Load()),
 			fmt.Sprintf("%.2f", node.kvRate.RatePerInterval()),
+			fmt.Sprintf("%d", node.kvStaleCount.Load()),
 		})
 	}
 	nodesTable.SetAutoMergeCells(true)
