@@ -3,6 +3,7 @@ package chord
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,6 +63,8 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 	numKeys := 0
 
 	vir := &strings.Builder{}
+	fmt.Fprintf(vir, "== Virtual nodes overview ==\n")
+
 	nodesTable := tablewriter.NewWriter(vir)
 	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "KV RPC QPS"})
 	for i, node := range virtualNodes {
@@ -74,7 +77,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			fmt.Sprintf("%d", node.ID()),
 			node.state.Get().String(),
 			fmt.Sprintf("%v", node.state.History()),
-			node.lastStabilized.Load().Round(time.Second).String(),
+			node.lastStabilized.Load().Round(time.Second).Format(time.RFC3339),
 			fmt.Sprintf("%.2f", node.chordRate.RatePerInterval()),
 			fmt.Sprintf("%.2f", node.kvRate.RatePerInterval()),
 		})
@@ -199,12 +202,38 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 
 	phy := &strings.Builder{}
 	fmt.Fprintf(phy, "== Physical node overview ==\n")
-	fmt.Fprintf(phy, "             Address: %s\n", rootNode.Identity().GetAddress())
-	fmt.Fprintf(phy, "    Outbound RPC qps: %.2f\n", rootNode.ChordClient.RatePer(time.Second))
-	fmt.Fprintf(phy, "   Number of KV keys: %d\n", numKeys)
+	phyTable := tablewriter.NewWriter(phy)
+	phyTable.Append([]string{
+		"Advertise Address",
+		rootNode.Identity().GetAddress(),
+	})
+	phyTable.Append([]string{
+		"Outbound RPC qps",
+		fmt.Sprintf("%.2f", rootNode.ChordClient.RatePer(time.Second)),
+	})
+	phyTable.Append([]string{
+		"Number of KV Keys",
+		fmt.Sprintf("%d", numKeys),
+	})
+	// read mem stats
+	var rtm runtime.MemStats
+	runtime.ReadMemStats(&rtm)
+	phyTable.AppendBulk([][]string{
+		{"Mallocs", fmt.Sprintf("%d", rtm.Alloc)},
+		{"Frees", fmt.Sprintf("%d", rtm.Frees)},
+		{"LiveObjects", fmt.Sprintf("%d", rtm.Mallocs-rtm.Frees)},
+		{"HeapObjects", fmt.Sprintf("%d", rtm.HeapObjects)},
+		{"HeapAlloc", fmt.Sprintf("%d", rtm.HeapAlloc)},
+		{"NumGC", fmt.Sprintf("%d", rtm.NumGC)},
+		{"PauseTotalNs", fmt.Sprintf("%d", rtm.PauseTotalNs)},
+		{"LastGC", time.UnixMilli(int64(rtm.LastGC / 1_000_000)).Format(time.RFC3339)},
+	})
+	phyTable.SetAlignment(tablewriter.ALIGN_RIGHT)
+	phyTable.SetAutoWrapText(false)
+	phyTable.SetHeaderLine(false)
+	phyTable.SetRowLine(true)
+	phyTable.Render()
 	fmt.Fprintf(phy, "---\n\n")
-
-	fmt.Fprintf(phy, "== Virtual nodes overview ==\n")
 
 	w.Write([]byte(phy.String()))
 	w.Write([]byte(vir.String()))
