@@ -13,7 +13,8 @@ import (
 	"kon.nect.sh/specter/spec/rtt"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/olekukonko/tablewriter"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
 func minmax(nums []int) (min, max int) {
@@ -62,17 +63,30 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 	rootNode := virtualNodes[0]
 	numKeys := 0
 
+	phy := &strings.Builder{}
 	vir := &strings.Builder{}
-	fmt.Fprintf(vir, "== Virtual nodes overview ==\n")
+	lis := &strings.Builder{}
 
-	nodesTable := tablewriter.NewWriter(vir)
-	nodesTable.SetHeader([]string{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "RPC Error", "KV RPC QPS", "Stale KV"})
+	nodesTable := table.NewWriter()
+	nodesTable.SetOutputMirror(vir)
+	nodesTable.AppendHeader(table.Row{"Kind", "ID", "State", "History", "Stablized", "Chord RPC QPS", "RPC Error", "KV RPC QPS", "Stale KV"})
+	nodesTable.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, AutoMerge: true, AlignHeader: text.AlignCenter},
+		{Number: 2, AlignHeader: text.AlignCenter},
+		{Number: 3, AutoMerge: true, AlignHeader: text.AlignCenter},
+		{Number: 4, AlignHeader: text.AlignCenter, WidthMax: 40, WidthMaxEnforcer: text.WrapSoft},
+		{Number: 5, AutoMerge: true, AlignHeader: text.AlignCenter},
+		{Number: 6, AutoMerge: true, AlignHeader: text.AlignCenter, Align: text.AlignRight},
+		{Number: 7, AutoMerge: true, AlignHeader: text.AlignCenter, Align: text.AlignRight},
+		{Number: 8, AutoMerge: true, AlignHeader: text.AlignCenter, Align: text.AlignRight},
+		{Number: 9, AutoMerge: true, AlignHeader: text.AlignCenter, Align: text.AlignRight},
+	})
 	for i, node := range virtualNodes {
 		kind := "Root"
 		if i != 0 {
 			kind = "Virtual"
 		}
-		nodesTable.Append([]string{
+		nodesTable.AppendRow(table.Row{
 			kind,
 			fmt.Sprintf("%d", node.ID()),
 			node.state.Get().String(),
@@ -84,13 +98,10 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			fmt.Sprintf("%d", node.kvStaleCount.Load()),
 		})
 	}
-	nodesTable.SetAutoMergeCells(true)
-	nodesTable.SetRowLine(true)
+	nodesTable.SetStyle(table.StyleLight)
+	nodesTable.Style().Options.SeparateRows = true
 	nodesTable.Render()
 
-	fmt.Fprintf(vir, "---\n\n")
-
-	lis := &strings.Builder{}
 	for _, node := range virtualNodes {
 		fmt.Fprintf(lis, "== Infomation for virtual node %d ==\n", node.ID())
 		pre, err := node.GetPredecessor()
@@ -106,73 +117,96 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			return
 		}
 
-		sbs := tablewriter.NewWriter(lis)
+		sbs := table.NewWriter()
+		sbs.SetOutputMirror(lis)
 
 		nodesString := &strings.Builder{}
-		nodesTable := tablewriter.NewWriter(nodesString)
-		nodesTable.SetHeader([]string{"Position", "ID", "Address", "RTT (-10s)"})
-		nodesTable.Append([]string{
-			"Predecessor",
-			fmt.Sprintf("%v", pre.ID()),
-			pre.Identity().GetAddress(),
-			node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(pre.Identity()), time.Second*10).String(),
+		nodesTable := table.NewWriter()
+		nodesTable.SetOutputMirror(nodesString)
+		nodesTable.AppendHeader(table.Row{"Position", "ID", "Address", "RTT (-10s)"})
+		nodesTable.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, AutoMerge: true, AlignHeader: text.AlignCenter},
+			{Number: 2, AlignHeader: text.AlignCenter},
+			{Number: 3, AutoMerge: true, AlignHeader: text.AlignCenter},
+			{Number: 4, AutoMerge: true, AlignHeader: text.AlignCenter},
 		})
-		nodesTable.Append([]string{
-			"Local",
-			fmt.Sprintf("%v", node.ID()),
-			node.Identity().GetAddress(),
-			node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(node.Identity()), time.Second*10).String(),
+		nodesTable.AppendRows([]table.Row{
+			{
+				"Predecessor",
+				fmt.Sprintf("%v", pre.ID()),
+				pre.Identity().GetAddress(),
+				node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(pre.Identity()), time.Second*10).String(),
+			},
+			{
+				"Local",
+				fmt.Sprintf("%v", node.ID()),
+				node.Identity().GetAddress(),
+				node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(node.Identity()), time.Second*10).String(),
+			},
 		})
 
 		for _, succ := range succList {
-			nodesTable.Append([]string{
+			nodesTable.AppendRow(table.Row{
 				fmt.Sprintf("Successor (L = %d)", chord.ExtendedSuccessorEntries),
 				fmt.Sprintf("%v", succ.ID()),
 				succ.Identity().GetAddress(),
 				node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(succ.Identity()), time.Second*10).String(),
 			})
 		}
-		nodesTable.SetAutoMergeCells(true)
-		nodesTable.SetRowLine(true)
+		nodesTable.SetStyle(table.StyleLight)
+		nodesTable.Style().Options.SeparateRows = true
 		nodesTable.Render()
 
 		fingerString := &strings.Builder{}
 		finger := node.fingerTrace()
-		fingerTable := tablewriter.NewWriter(fingerString)
-		fingerTable.SetHeader([]string{"Range", "ID"})
-		rows := make([][]string, 0)
+		fingerTable := table.NewWriter()
+		fingerTable.SetOutputMirror(fingerString)
+		fingerTable.AppendHeader(table.Row{"Range", "ID"})
+		rows := make([]table.Row, 0)
 		for r, id := range finger {
-			rows = append(rows, []string{r, id})
+			rows = append(rows, table.Row{r, id})
 		}
 		sort.SliceStable(rows, func(i, j int) bool {
 			a, b := rows[i][0], rows[j][0]
-			aParts, bParts := strings.Split(a, "/"), strings.Split(b, "/")
+			aParts, bParts := strings.Split(a.(string), "/"), strings.Split(b.(string), "/")
 			aMin, _ := strconv.ParseInt(aParts[0], 10, 64)
 			bMin, _ := strconv.ParseInt(bParts[0], 10, 64)
 			return aMin < bMin
 		})
-		fingerTable.SetCaption(true, fmt.Sprintf("(range: %v)", chord.MaxIdentitifer))
-		fingerTable.SetAutoMergeCells(true)
-		fingerTable.SetRowLine(true)
-		fingerTable.AppendBulk(rows)
+		fingerTable.AppendRows(rows, table.RowConfig{AutoMerge: true})
+		fingerTable.SetCaption("(range: %v)", chord.MaxIdentitifer)
+		fingerTable.SetStyle(table.StyleLight)
+		fingerTable.Style().Options.SeparateRows = true
+		fingerTable.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, AlignHeader: text.AlignCenter},
+			{Number: 2, AlignHeader: text.AlignCenter},
+		})
 		fingerTable.Render()
 
-		sbs.SetHeader([]string{"Finger", "Ring"})
-		sbs.SetAutoWrapText(false)
-		sbs.SetAutoFormatHeaders(true)
-		sbs.SetCenterSeparator("")
-		sbs.SetColumnSeparator("")
-		sbs.SetAlignment(tablewriter.ALIGN_CENTER)
-		sbs.SetRowSeparator("")
-		sbs.SetHeaderLine(false)
-		sbs.SetBorder(false)
-		sbs.SetTablePadding("\t") // pad with tabs
-		sbs.SetNoWhiteSpace(true)
-		sbs.Append([]string{fingerString.String(), nodesString.String()})
+		sbs.AppendHeader(table.Row{"Finger", "Ring"})
+		sbs.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, AlignHeader: text.AlignCenter},
+			{Number: 2, AlignHeader: text.AlignCenter},
+		})
+		sbs.AppendRow(table.Row{fingerString.String(), nodesString.String()})
+		sbs.SetStyle(table.StyleLight)
+		sbs.Style().Options.DrawBorder = false
+		sbs.Style().Options.SeparateHeader = false
+		sbs.Style().Options.SeparateColumns = false
+		sbs.Style().Options.SeparateRows = false
 		sbs.Render()
 
-		keysTable := tablewriter.NewWriter(lis)
-		keysTable.SetHeader([]string{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
+		keysTable := table.NewWriter()
+		keysTable.SetOutputMirror(lis)
+		keysTable.AppendHeader(table.Row{"owner", "hash(key)", "key", "simple", "prefix", "lease"})
+		keysTable.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, AutoMerge: true, AlignHeader: text.AlignCenter},
+			{Number: 2, AlignHeader: text.AlignCenter},
+			{Number: 3, AlignHeader: text.AlignCenter, WidthMin: 20},
+			{Number: 4, AutoMerge: true, AlignHeader: text.AlignCenter},
+			{Number: 5, AutoMerge: true, AlignHeader: text.AlignCenter},
+			{Number: 6, AutoMerge: true, AlignHeader: text.AlignCenter},
+		})
 
 		keys := node.kv.RangeKeys(0, 0)
 		exp := node.kv.Export(keys)
@@ -186,41 +220,38 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			if !chord.Between(pre.ID(), id, node.ID(), true) {
 				ownership = "X"
 			}
-			raw := []any{ownership, id, string(key), len(plain), len(children), lease}
-			row := make([]string, len(raw))
-			for i, r := range raw {
-				row[i] = fmt.Sprintf("%v", r)
-			}
-			keysTable.Append(row)
+			keysTable.AppendRow(table.Row{
+				ownership, id, string(key), len(plain), len(children), lease,
+			})
 		}
 		numKeys += len(keys)
-		keysTable.SetCaption(true, fmt.Sprintf("(With %d keys; X in owner column indicates incorrect owner)", len(keys)))
-		keysTable.SetAutoMergeCells(true)
-		keysTable.SetRowLine(true)
+		keysTable.SetCaption("(With %d keys; X in owner column indicates incorrect owner)", len(keys))
+		keysTable.SetStyle(table.StyleLight)
+		keysTable.Style().Options.SeparateRows = true
+		keysTable.SuppressEmptyColumns()
 		keysTable.Render()
 
 		fmt.Fprintf(lis, "---\n\n")
 	}
 
-	phy := &strings.Builder{}
-	fmt.Fprintf(phy, "== Physical node overview ==\n")
-	phyTable := tablewriter.NewWriter(phy)
-	phyTable.Append([]string{
-		"Advertise Address",
-		rootNode.Identity().GetAddress(),
-	})
-	phyTable.Append([]string{
-		"Outbound RPC qps",
-		fmt.Sprintf("%.2f", rootNode.ChordClient.RatePer(time.Second)),
-	})
-	phyTable.Append([]string{
-		"Number of KV Keys",
-		fmt.Sprintf("%d", numKeys),
-	})
 	// read mem stats
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
-	phyTable.AppendBulk([][]string{
+	phyTable := table.NewWriter()
+	phyTable.SetOutputMirror(phy)
+	phyTable.AppendRows([]table.Row{
+		{
+			"Advertise Address",
+			rootNode.Identity().GetAddress(),
+		},
+		{
+			"Outbound RPC qps",
+			fmt.Sprintf("%.2f", rootNode.ChordClient.RatePer(time.Second)),
+		},
+		{
+			"Number of KV Keys",
+			fmt.Sprintf("%d", numKeys),
+		},
 		{"Mallocs", fmt.Sprintf("%d", rtm.Alloc)},
 		{"Frees", fmt.Sprintf("%d", rtm.Frees)},
 		{"LiveObjects", fmt.Sprintf("%d", rtm.Mallocs-rtm.Frees)},
@@ -230,15 +261,32 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 		{"PauseTotalNs", fmt.Sprintf("%d", rtm.PauseTotalNs)},
 		{"LastGC", time.UnixMilli(int64(rtm.LastGC / 1_000_000)).Format(time.RFC3339)},
 	})
-	phyTable.SetAlignment(tablewriter.ALIGN_RIGHT)
-	phyTable.SetAutoWrapText(false)
-	phyTable.SetHeaderLine(false)
-	phyTable.SetRowLine(true)
+	phyTable.SetStyle(table.StyleLight)
+	phyTable.Style().Options.SeparateRows = true
+	phyTable.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 2, Align: text.AlignRight},
+	})
 	phyTable.Render()
-	fmt.Fprintf(phy, "---\n\n")
 
-	w.Write([]byte(phy.String()))
-	w.Write([]byte(vir.String()))
+	nodeString := &strings.Builder{}
+	nodeTable := table.NewWriter()
+	nodeTable.SetOutputMirror(nodeString)
+	nodeTable.AppendHeader(table.Row{"Physical", "Virtual"})
+	nodeTable.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, AlignHeader: text.AlignCenter},
+		{Number: 2, AlignHeader: text.AlignCenter},
+	})
+	nodeTable.AppendRow(table.Row{
+		phy.String(), vir.String(),
+	})
+	nodeTable.SetStyle(table.StyleLight)
+	nodeTable.Style().Options.DrawBorder = false
+	nodeTable.Style().Options.SeparateHeader = false
+	nodeTable.Style().Options.SeparateColumns = false
+	nodeTable.Style().Options.SeparateRows = false
+	nodeTable.Render()
+
+	w.Write([]byte(nodeString.String()))
 	w.Write([]byte(lis.String()))
 }
 
