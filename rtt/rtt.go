@@ -19,6 +19,8 @@ type point struct {
 type container struct {
 	mu   sync.RWMutex
 	data []point
+	sent uint64
+	lost uint64
 }
 
 type Instrumentation struct {
@@ -35,15 +37,22 @@ func NewInstrumentation(max int) *Instrumentation {
 	}
 }
 
-func (i *Instrumentation) Record(key string, value float64) {
-	if value < 0 {
-		return
-	}
+func (i Instrumentation) getContainer(key string) *container {
 	c, _ := i.measurement.LoadOrStoreLazy(key, func() *container {
 		return &container{
 			data: make([]point, 0),
 		}
 	})
+	return c
+}
+
+func (i *Instrumentation) RecordLatency(key string, value float64) {
+	if value < 0 {
+		return
+	}
+
+	c := i.getContainer(key)
+
 	c.mu.Lock()
 	if len(c.data) > i.length {
 		c.data = c.data[1:]
@@ -52,6 +61,20 @@ func (i *Instrumentation) Record(key string, value float64) {
 		time:  time.Now(),
 		value: value,
 	})
+	c.mu.Unlock()
+}
+
+func (i *Instrumentation) RecordSent(key string) {
+	c := i.getContainer(key)
+	c.mu.Lock()
+	c.sent++
+	c.mu.Unlock()
+}
+
+func (i *Instrumentation) RecordLost(key string) {
+	c := i.getContainer(key)
+	c.mu.Lock()
+	c.lost++
 	c.mu.Unlock()
 }
 
@@ -64,6 +87,8 @@ func (i *Instrumentation) Snapshot(key string, last time.Duration) *rtt.Statisti
 		values = make([]float64, 0)
 		since  time.Time
 		until  time.Time
+		sent   uint64
+		lost   uint64
 	)
 	c.mu.RLock()
 	for _, p := range c.data {
@@ -75,6 +100,8 @@ func (i *Instrumentation) Snapshot(key string, last time.Duration) *rtt.Statisti
 			values = append(values, p.value)
 		}
 	}
+	sent = c.sent
+	lost = c.lost
 	c.mu.RUnlock()
 	if len(values) < 1 {
 		return nil
@@ -86,6 +113,8 @@ func (i *Instrumentation) Snapshot(key string, last time.Duration) *rtt.Statisti
 		Average:           time.Duration(util.Must(stats.Mean(values))),
 		Max:               time.Duration(util.Must(stats.Max(values))),
 		StandardDeviation: time.Duration(util.Must(stats.StandardDeviation(values))),
+		Sent:              sent,
+		Lost:              lost,
 	}
 }
 

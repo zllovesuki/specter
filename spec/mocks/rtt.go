@@ -24,8 +24,16 @@ func (m *Measurement) Snapshot(key string, past time.Duration) *rtt.Statistics {
 	return s.(*rtt.Statistics)
 }
 
-func (m *Measurement) Record(key string, latency float64) {
+func (m *Measurement) RecordLatency(key string, latency float64) {
 	m.Called(key, latency)
+}
+
+func (m *Measurement) RecordSent(key string) {
+	m.Called(key)
+}
+
+func (m *Measurement) RecordLost(key string) {
+	m.Called(key)
 }
 
 func (m *Measurement) Drop(key string) {

@@ -32,6 +32,8 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 
 	t.rttMap.Store(qKey, mapper)
 
+	go t.handleRTTLost(ctx, q, peer)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -50,6 +52,9 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 				l.Error("failed to send rtt syn", zap.Error(err))
 				mapper.Delete(counter)
 				continue
+			}
+			if t.RTTRecorder != nil {
+				t.RTTRecorder.RecordSent(rtt.MakeMeasurementKey(peer))
 			}
 			counter++
 			time.Sleep(util.RandomTimeRange(transport.RTTMeasureInterval))
@@ -93,8 +98,46 @@ func (t *QUIC) handleRTTAck(ctx context.Context) {
 				continue
 			}
 			if t.RTTRecorder != nil {
-				t.RTTRecorder.Record(rtt.MakeMeasurementKey(d.Identity), float64(received-sent))
+				t.RTTRecorder.RecordLatency(rtt.MakeMeasurementKey(d.Identity), float64(received-sent))
 			}
+		}
+	}
+}
+
+func (t *QUIC) handleRTTLost(ctx context.Context, q quic.Connection, peer *protocol.Node) {
+	if t.RTTRecorder == nil {
+		return
+	}
+
+	var (
+		qKey   = t.makeCachedKey(peer)
+		mapper *skipmap.Uint64Map[int64]
+		ok     bool
+	)
+
+	mapper, ok = t.rttMap.Load(qKey)
+	if !ok {
+		t.Logger.Error("No mapper found for peer", zap.Object("peer", peer))
+		return
+	}
+
+	ticker := time.NewTicker(transport.RTTMeasureInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-q.Context().Done():
+			return
+		case <-ticker.C:
+			mapper.Range(func(counter uint64, sent int64) bool {
+				if time.Since(time.Unix(0, sent)) > 2*transport.RTTMeasureInterval {
+					t.RTTRecorder.RecordLost(rtt.MakeMeasurementKey(peer))
+					mapper.Delete(counter)
+				}
+				return true
+			})
 		}
 	}
 }
