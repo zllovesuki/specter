@@ -98,12 +98,11 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			fmt.Sprintf("%d", node.kvStaleCount.Load()),
 		})
 	}
-	nodesTable.SetStyle(table.StyleLight)
+	nodesTable.SetStyle(table.StyleDefault)
 	nodesTable.Style().Options.SeparateRows = true
 	nodesTable.Render()
 
 	for _, node := range virtualNodes {
-		fmt.Fprintf(lis, "== Infomation for virtual node %d ==\n", node.ID())
 		pre, err := node.GetPredecessor()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -153,7 +152,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 				node.NodesRTT.Snapshot(rtt.MakeMeasurementKey(succ.Identity()), time.Second*10).String(),
 			})
 		}
-		nodesTable.SetStyle(table.StyleLight)
+		nodesTable.SetStyle(table.StyleDefault)
 		nodesTable.Style().Options.SeparateRows = true
 		nodesTable.Render()
 
@@ -175,7 +174,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 		})
 		fingerTable.AppendRows(rows, table.RowConfig{AutoMerge: true})
 		fingerTable.SetCaption("(range: %v)", chord.MaxIdentitifer)
-		fingerTable.SetStyle(table.StyleLight)
+		fingerTable.SetStyle(table.StyleDefault)
 		fingerTable.Style().Options.SeparateRows = true
 		fingerTable.SetColumnConfigs([]table.ColumnConfig{
 			{Number: 1, AlignHeader: text.AlignCenter},
@@ -189,7 +188,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			{Number: 2, AlignHeader: text.AlignCenter},
 		})
 		sbs.AppendRow(table.Row{fingerString.String(), nodesString.String()})
-		sbs.SetStyle(table.StyleLight)
+		sbs.SetStyle(table.StyleDefault)
 		sbs.Style().Options.DrawBorder = false
 		sbs.Style().Options.SeparateHeader = false
 		sbs.Style().Options.SeparateColumns = false
@@ -226,7 +225,7 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 		}
 		numKeys += len(keys)
 		keysTable.SetCaption("(With %d keys; X in owner column indicates incorrect owner)", len(keys))
-		keysTable.SetStyle(table.StyleLight)
+		keysTable.SetStyle(table.StyleDefault)
 		keysTable.Style().Options.SeparateRows = true
 		keysTable.SuppressEmptyColumns()
 		keysTable.Render()
@@ -261,32 +260,17 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 		{"PauseTotalNs", fmt.Sprintf("%d", rtm.PauseTotalNs)},
 		{"LastGC", time.UnixMilli(int64(rtm.LastGC / 1_000_000)).Format(time.RFC3339)},
 	})
-	phyTable.SetStyle(table.StyleLight)
+	phyTable.SetStyle(table.StyleDefault)
 	phyTable.Style().Options.SeparateRows = true
 	phyTable.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 2, Align: text.AlignRight},
 	})
 	phyTable.Render()
 
-	nodeString := &strings.Builder{}
-	nodeTable := table.NewWriter()
-	nodeTable.SetOutputMirror(nodeString)
-	nodeTable.AppendHeader(table.Row{"Physical", "Virtual"})
-	nodeTable.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 1, AlignHeader: text.AlignCenter},
-		{Number: 2, AlignHeader: text.AlignCenter},
-	})
-	nodeTable.AppendRow(table.Row{
-		phy.String(), vir.String(),
-	})
-	nodeTable.SetStyle(table.StyleLight)
-	nodeTable.Style().Options.DrawBorder = false
-	nodeTable.Style().Options.SeparateHeader = false
-	nodeTable.Style().Options.SeparateColumns = false
-	nodeTable.Style().Options.SeparateRows = false
-	nodeTable.Render()
-
-	w.Write([]byte(nodeString.String()))
+	w.Write([]byte(phy.String()))
+	fmt.Fprintf(w, "---\n\n")
+	w.Write([]byte(vir.String()))
+	fmt.Fprintf(w, "---\n\n")
 	w.Write([]byte(lis.String()))
 }
 
