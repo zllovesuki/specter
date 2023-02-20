@@ -43,6 +43,13 @@ func NewConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
+func (c *Config) clone() *Config {
+	cfg := *c
+	cfg.validate()
+	cfg.router = skipmap.NewString[*url.URL]()
+	return &cfg
+}
+
 func (c *Config) buildRouter() {
 	for _, tunnel := range c.Tunnels {
 		c.router.Store(tunnel.Hostname, tunnel.parsed)

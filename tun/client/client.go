@@ -392,13 +392,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		c.Logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, apex)), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
 	}
 
-	c.configMu.Lock()
-	c.Configuration.Tunnels = tunnels
-	if err := c.Configuration.writeFile(); err != nil {
-		c.Logger.Error("Error saving token to config file", zap.Error(err))
-	}
-	c.Configuration.buildRouter()
-	c.configMu.Unlock()
+	c.RebuildTunnels(tunnels)
 }
 
 func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
@@ -437,6 +431,62 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 			c.SyncConfigTunnels(ctx)
 		}
 	}
+}
+
+func (c *Client) GetCurrentConfig() *Config {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	return c.Configuration.clone()
+}
+
+func (c *Client) diffTunnels(old, new []Tunnel) []Tunnel {
+	diff := make([]Tunnel, 0)
+	oldMap := map[string]Tunnel{}
+	newMap := map[string]Tunnel{}
+	for _, o := range old {
+		if o.Hostname == "" {
+			continue
+		}
+		oldMap[o.Hostname] = o
+	}
+	for _, n := range new {
+		if n.Hostname == "" {
+			continue
+		}
+		newMap[n.Hostname] = n
+	}
+	for hostname, tunnel := range newMap {
+		oldTunnel, ok := oldMap[hostname]
+		if ok && oldTunnel.Target != tunnel.Target {
+			diff = append(diff, oldTunnel)
+		}
+	}
+	return diff
+}
+
+func (c *Client) RebuildTunnels(tunnels []Tunnel) {
+	c.configMu.Lock()
+	defer c.configMu.Unlock()
+
+	diff := c.diffTunnels(c.Configuration.Tunnels, tunnels)
+	c.closeOutdatedProxies(diff)
+
+	c.Configuration.Tunnels = tunnels
+	if err := c.Configuration.writeFile(); err != nil {
+		c.Logger.Error("Error saving to config file", zap.Error(err))
+	}
+
+	c.Configuration.validate()
+	c.Configuration.buildRouter()
+}
+
+func (c *Client) UpdateApex(apex string) {
+	c.configMu.Lock()
+	c.Configuration.Apex = apex
+	if err := c.Configuration.writeFile(); err != nil {
+		c.Logger.Error("Error saving to config file", zap.Error(err))
+	}
+	c.configMu.Unlock()
 }
 
 func (c *Client) Start(ctx context.Context) {
@@ -481,6 +531,22 @@ func (c *Client) Start(ctx context.Context) {
 	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
+}
+
+func (c *Client) closeOutdatedProxies(tunnels []Tunnel) {
+	for _, t := range tunnels {
+		proxy, loaded := c.proxies.LoadAndDelete(t.Hostname)
+		if loaded {
+			c.Logger.Info("Shutting down proxy", zap.String("hostname", t.Hostname))
+			proxy.acceptor.Close()
+			go func(forwarder *http.Server) {
+				ctx, cancel := context.WithTimeout(c.parentCtx, connectTimeout)
+				defer cancel()
+
+				forwarder.Shutdown(ctx)
+			}(proxy.forwarder)
+		}
+	}
 }
 
 func (c *Client) Close() {
