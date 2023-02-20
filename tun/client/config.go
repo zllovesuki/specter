@@ -16,17 +16,17 @@ import (
 
 type Tunnel struct {
 	parsed   *url.URL
-	Target   string `yaml:"target"`
-	Hostname string `yaml:"hostname,omitempty"`
+	Target   string `yaml:"target" json:"target"`
+	Hostname string `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 }
 
 type Config struct {
 	router   *skipmap.StringMap[*url.URL]
 	path     string
-	Apex     string   `yaml:"apex"`
-	ClientID uint64   `yaml:"clientId,omitempty"`
-	Token    string   `yaml:"token,omitempty"`
-	Tunnels  []Tunnel `yaml:"tunnels,omitempty"`
+	Apex     string   `yaml:"apex" json:"apex"`
+	ClientID uint64   `yaml:"clientId,omitempty" json:"clientId,omitempty"`
+	Token    string   `yaml:"token,omitempty" json:"token,omitempty"`
+	Tunnels  []Tunnel `yaml:"tunnels,omitempty" json:"tunnels,omitempty"`
 }
 
 func NewConfig(path string) (*Config, error) {
