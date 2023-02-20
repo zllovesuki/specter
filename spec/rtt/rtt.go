@@ -16,14 +16,14 @@ type Recorder interface {
 }
 
 type Statistics struct {
-	Since             time.Time
-	Until             time.Time
-	Min               time.Duration
-	Average           time.Duration
-	Max               time.Duration
-	StandardDeviation time.Duration
-	Sent              uint64
-	Lost              uint64
+	Since             time.Time     `json:"since"`
+	Until             time.Time     `json:"until"`
+	Min               time.Duration `json:"min"`
+	Average           time.Duration `json:"average"`
+	Max               time.Duration `json:"max"`
+	StandardDeviation time.Duration `json:"mdev"`
+	Sent              uint64        `json:"sent"`
+	Lost              uint64        `json:"lost"`
 }
 
 func (s *Statistics) String() string {

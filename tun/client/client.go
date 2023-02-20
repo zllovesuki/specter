@@ -433,6 +433,10 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 	}
 }
 
+func (c *Client) GetConnectedNodes() []*protocol.Node {
+	return c.getConnectedNodes(c.parentCtx)
+}
+
 func (c *Client) GetCurrentConfig() *Config {
 	c.configMu.RLock()
 	defer c.configMu.RUnlock()
