@@ -39,7 +39,9 @@ specter also has some interesting features:
 
 ## Client Configuration
 
-A sample barebone YAML config is needed:
+### CLI
+
+A sample barebone YAML config is needed for `specter client tunnel`:
 
 ```yaml
 apex: specter.im:443
@@ -65,6 +67,12 @@ tunnels:
     hostname: dreamless-spirits-episode-gloomy-path
   # ...
 ```
+
+### GUI
+
+Alternatively, [phantom](https://github.com/zllovesuki/phantom) is the official GUI desktop app to be used with specter:
+
+![phantom](./phantom.png)
 
 ## Status
 
