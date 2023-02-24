@@ -50,7 +50,7 @@ func cmdListen(ctx *cli.Context) error {
 	}
 	defer listener.Close()
 
-	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()))
+	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()), zap.String("via", test.RemoteAddr().String()))
 
 	go handleConnections(logger, listener, dial)
 
