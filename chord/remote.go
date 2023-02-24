@@ -343,12 +343,12 @@ func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNo
 	return pp, nodes, nil
 }
 
-func (n *RemoteNode) FinishJoin(stablize bool, release bool) error {
+func (n *RemoteNode) FinishJoin(stabilize bool, release bool) error {
 	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.FinishJoin(reqCtx, &protocol.MembershipConclusionRequest{
-		Stablize: stablize,
+		Stabilize: stabilize,
 		Release:  release,
 	})
 
@@ -366,12 +366,12 @@ func (n *RemoteNode) RequestToLeave(leaver chord.VNode) error {
 	return chord.ErrorMapper(err)
 }
 
-func (n *RemoteNode) FinishLeave(stablize bool, release bool) error {
+func (n *RemoteNode) FinishLeave(stabilize bool, release bool) error {
 	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
 
 	_, err := n.chordClient.FinishLeave(reqCtx, &protocol.MembershipConclusionRequest{
-		Stablize: stablize,
+		Stabilize: stabilize,
 		Release:  release,
 	})
 

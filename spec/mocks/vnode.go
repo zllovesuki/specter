@@ -158,7 +158,7 @@ func (n *VNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, e
 	return p.(chord.VNode), s.([]chord.VNode), e
 }
 
-func (n *VNode) FinishJoin(stablize bool, release bool) error {
+func (n *VNode) FinishJoin(stabilize bool, release bool) error {
 	args := n.Called()
 	e := args.Error(0)
 	return e
@@ -170,7 +170,7 @@ func (n *VNode) RequestToLeave(leaver chord.VNode) error {
 	return e
 }
 
-func (n *VNode) FinishLeave(stablize bool, release bool) error {
+func (n *VNode) FinishLeave(stabilize bool, release bool) error {
 	args := n.Called()
 	e := args.Error(0)
 	return e

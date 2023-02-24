@@ -24,7 +24,7 @@ func SendStatusProto(dest io.Writer, err error) {
 		if IsNoDirect(err) {
 			status.Status = protocol.TunnelStatusCode_NO_DIRECT
 		} else {
-			status.Status = protocol.TunnelStatusCode_UKNOWN_ERROR
+			status.Status = protocol.TunnelStatusCode_UNKNOWN_ERROR
 		}
 		status.Error = err.Error()
 	}

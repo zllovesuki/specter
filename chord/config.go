@@ -18,7 +18,7 @@ type NodeConfig struct {
 	BaseLogger               *zap.Logger
 	Identity                 *protocol.Node
 	NodesRTT                 rtt.Recorder
-	StablizeInterval         time.Duration
+	StabilizeInterval        time.Duration
 	FixFingerInterval        time.Duration
 	PredecessorCheckInterval time.Duration
 }
@@ -39,8 +39,8 @@ func (c *NodeConfig) Validate() error {
 	if c.ChordClient == nil {
 		return errors.New("nil ChordClient")
 	}
-	if c.StablizeInterval <= 0 {
-		return errors.New("invalid StablizeInterval, must be positive")
+	if c.StabilizeInterval <= 0 {
+		return errors.New("invalid StabilizeInterval, must be positive")
 	}
 	if c.FixFingerInterval <= 0 {
 		return errors.New("invalid FixFingerInterval, must be positive")

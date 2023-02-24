@@ -166,18 +166,18 @@ func TestKeyTransferOut(t *testing.T) {
 	succVals := successor.(*LocalNode).kv.Export(leavingKeys)
 	as.Len(succVals, len(leavingKeys))
 
-	indicies := make([]int, 0)
+	indices := make([]int, 0)
 	for _, k := range leavingKeys {
 		for i := range keys {
 			if string(keys[i]) == string(k) {
-				indicies = append(indicies, i)
+				indices = append(indices, i)
 			}
 		}
 	}
-	as.Len(indicies, len(leavingKeys))
+	as.Len(indices, len(leavingKeys))
 
 	for i, v := range succVals {
-		as.EqualValues(values[indicies[i]], v.GetSimpleValue())
+		as.EqualValues(values[indices[i]], v.GetSimpleValue())
 	}
 
 	preVals := predecessor.(*LocalNode).kv.Export(leavingKeys)
@@ -406,8 +406,8 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes[0].logger.Debug("Starting test validation")
 
 	found := 0
-	missingIndicies := make([]int, 0)
-	mismatchedIndicies := make([]int, 0)
+	missingIndices := make([]int, 0)
+	mismatchedIndices := make([]int, 0)
 	for i := range keys {
 		val, err := nodes[0].Get(context.Background(), keys[i])
 		as.NoError(err)
@@ -415,18 +415,18 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		if bytes.Equal(values[i], val) {
 			found++
 		} else if len(val) == 0 {
-			missingIndicies = append(missingIndicies, i)
+			missingIndices = append(missingIndices, i)
 		} else {
-			mismatchedIndicies = append(mismatchedIndicies, i)
+			mismatchedIndices = append(mismatchedIndices, i)
 		}
 	}
 
 	t.Logf("stale ownership counts: %d", stale)
-	t.Logf("missing indicies: %+v\n", missingIndicies)
-	t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
+	t.Logf("missing indices: %+v\n", missingIndices)
+	t.Logf("mismatched indices: %+v\n", mismatchedIndices)
 
-	if len(missingIndicies) > 0 {
-		for _, i := range missingIndicies {
+	if len(missingIndices) > 0 {
+		for _, i := range missingIndices {
 			k := keys[i]
 			got, err := nodes[0].FindSuccessor(chord.Hash(k))
 			as.NoError(err)
@@ -440,13 +440,13 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndices), len(mismatchedIndices))
 
 	for i := numNodes - 1; i >= 0; i-- {
 		nodes[i].Leave()
 	}
 
-	lostIndicies := make([]int, 0)
+	lostIndices := make([]int, 0)
 	k := nodes[0].kv.RangeKeys(0, 0)
 	if len(k) != numKeys {
 		for i := range keys {
@@ -454,12 +454,12 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 			as.NoError(err)
 
 			if !bytes.Equal(values[i], val) {
-				lostIndicies = append(lostIndicies, i)
+				lostIndices = append(lostIndices, i)
 			}
 		}
 	}
-	t.Logf("lost indicies: %+v\n", lostIndicies)
-	as.Equal(0, len(lostIndicies), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndicies))
+	t.Logf("lost indices: %+v\n", lostIndices)
+	as.Equal(0, len(lostIndices), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndices))
 }
 
 func TestConcurrentLeaveKV(t *testing.T) {
@@ -519,8 +519,8 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	nodes[0].logger.Debug("Starting test validation")
 
 	found := 0
-	missingIndicies := make([]int, 0)
-	mismatchedIndicies := make([]int, 0)
+	missingIndices := make([]int, 0)
+	mismatchedIndices := make([]int, 0)
 	for i := range keys {
 		// all keys should be in the first node
 		val, err := nodes[0].kv.Get(context.Background(), keys[i])
@@ -528,18 +528,18 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		if bytes.Equal(values[i], val) {
 			found++
 		} else if len(val) == 0 {
-			missingIndicies = append(missingIndicies, i)
+			missingIndices = append(missingIndices, i)
 		} else {
-			mismatchedIndicies = append(mismatchedIndicies, i)
+			mismatchedIndices = append(mismatchedIndices, i)
 		}
 	}
 
 	t.Logf("stale ownership counts: %d", stale)
-	t.Logf("missing indicies: %+v\n", missingIndicies)
-	t.Logf("mismatched indicies: %+v\n", mismatchedIndicies)
+	t.Logf("missing indices: %+v\n", missingIndices)
+	t.Logf("mismatched indices: %+v\n", mismatchedIndices)
 
-	if len(missingIndicies) > 0 {
-		for _, i := range missingIndicies {
+	if len(missingIndices) > 0 {
+		for _, i := range missingIndices {
 			k := keys[i]
 			got, err := nodes[0].FindSuccessor(chord.Hash(k))
 			as.NoError(err)
@@ -553,8 +553,8 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	if len(mismatchedIndicies) > 0 {
-		for _, i := range mismatchedIndicies {
+	if len(mismatchedIndices) > 0 {
+		for _, i := range mismatchedIndices {
 			k := keys[i]
 			for j := 1; j < numNodes; j++ {
 				v, _ := nodes[j].kv.Get(context.Background(), k)
@@ -565,9 +565,9 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 		}
 	}
 
-	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndicies), len(mismatchedIndicies))
+	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndices), len(mismatchedIndices))
 
-	lostIndicies := make([]int, 0)
+	lostIndices := make([]int, 0)
 	k := nodes[0].kv.RangeKeys(0, 0)
 	if len(k) != numKeys {
 		for i := range keys {
@@ -575,10 +575,10 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 			as.NoError(err)
 
 			if !bytes.Equal(values[i], val) {
-				lostIndicies = append(lostIndicies, i)
+				lostIndices = append(lostIndices, i)
 			}
 		}
 	}
-	t.Logf("lost indicies: %+v\n", lostIndicies)
-	as.Equal(0, len(lostIndicies), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndicies))
+	t.Logf("lost indices: %+v\n", lostIndices)
+	as.Equal(0, len(lostIndices), "expect no keys to be lost when one node remains, but %d keys were lost", len(lostIndices))
 }

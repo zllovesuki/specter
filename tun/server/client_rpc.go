@@ -196,8 +196,8 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 		})
 	}
 
-	lookupCtx, loopupCtx := context.WithTimeout(ctx, lookupTimeout)
-	defer loopupCtx()
+	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
+	defer lookupCancel()
 
 	servers, errors := promise.All(lookupCtx, lookupJobs...)
 	for _, err := range errors {

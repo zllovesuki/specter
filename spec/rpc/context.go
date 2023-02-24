@@ -32,7 +32,7 @@ func DisablePooling(baseCtx context.Context) context.Context {
 	return context.WithValue(baseCtx, contextDisablePoolKey, true)
 }
 
-// Connect to the provided node in this reqeust
+// Connect to the provided node in this request
 func WithNode(ctx context.Context, node *protocol.Node) context.Context {
 	return context.WithValue(ctx, contextNodeKey, node)
 }

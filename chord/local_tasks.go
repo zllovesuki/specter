@@ -91,7 +91,7 @@ func (n *LocalNode) updateSuccessorsList(listHash uint64, succList []chord.VNode
 	n.succListHash.Store(listHash)
 	n.successors = succList
 
-	n.logger.Info("Discovered new successors via Stablize",
+	n.logger.Info("Discovered new successors via Stabilize",
 		zap.Uint64s("successors", v2d(succList)),
 	)
 }
@@ -156,20 +156,20 @@ func (n *LocalNode) checkPredecessor() error {
 	return err
 }
 
-func (n *LocalNode) periodicStablize() {
+func (n *LocalNode) periodicStabilize() {
 	defer n.stopWg.Done()
 
-	time.Sleep(n.StablizeInterval)
+	time.Sleep(n.StabilizeInterval)
 	for {
 		select {
 		case <-n.stopCh:
-			n.logger.Debug("Stopping Stablize task")
+			n.logger.Debug("Stopping Stabilize task")
 			return
 		default:
 			if err := n.stabilize(); err != nil {
-				n.logger.Error("Stablize task", zap.Error(err))
+				n.logger.Error("Stabilize task", zap.Error(err))
 			}
-			time.Sleep(util.RandomTimeRange(n.StablizeInterval))
+			time.Sleep(util.RandomTimeRange(n.StabilizeInterval))
 		}
 	}
 }
@@ -210,7 +210,7 @@ func (n *LocalNode) startTasks() {
 	n.stabilize()
 	n.fixFinger()
 	// then run periodically
-	go n.periodicStablize()
+	go n.periodicStabilize()
 	go n.periodicPredecessorCheck()
 	go n.periodicFixFingers()
 }

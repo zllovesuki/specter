@@ -117,7 +117,7 @@ func TestTunnel(t *testing.T) {
 		connectionAccepted atomic.Int32
 	)
 	defer func() {
-		as.Equal(int32(len(serverPorts)), connectionAccepted.Load(), "tcp target should have accpeted 3 connections")
+		as.Equal(int32(len(serverPorts)), connectionAccepted.Load(), "tcp target should have accepted 3 connections")
 	}()
 	go func() {
 		for {

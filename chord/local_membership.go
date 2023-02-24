@@ -85,7 +85,7 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, succ
 		return joinErr
 	},
 		retry.Attempts(maxAttempts),
-		retry.Delay(n.StablizeInterval),
+		retry.Delay(n.StabilizeInterval),
 		retry.LastErrorOnly(true),
 		retry.RetryIf(chord.ErrorIsRetryable),
 		retry.OnRetry(func(attempt uint, err error) {
@@ -162,8 +162,8 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	return prevPredecessor, chord.MakeSuccListByID(n, n.getSuccessors(), chord.ExtendedSuccessorEntries), nil
 }
 
-func (n *LocalNode) FinishJoin(stablize bool, release bool) error {
-	if stablize {
+func (n *LocalNode) FinishJoin(stabilize bool, release bool) error {
+	if stabilize {
 		n.logger.Info("Join completed, joiner has requested to update pointers")
 		n.stabilize()
 		n.fixFinger()
@@ -188,8 +188,8 @@ func (n *LocalNode) RequestToLeave(leaver chord.VNode) error {
 	return nil
 }
 
-func (n *LocalNode) FinishLeave(stablize bool, release bool) error {
-	if stablize {
+func (n *LocalNode) FinishLeave(stabilize bool, release bool) error {
+	if stabilize {
 		n.logger.Info("Leave completed, leaver has requested to update pointers")
 		n.stabilize()
 		n.fixFinger()
@@ -231,7 +231,7 @@ func (n *LocalNode) Leave() {
 		return leaveErr
 	},
 		retry.Attempts(maxAttempts),
-		retry.Delay(n.StablizeInterval),
+		retry.Delay(n.StabilizeInterval),
 		retry.LastErrorOnly(true),
 		retry.OnRetry(func(attempt uint, err error) {
 			n.logger.Warn("Retrying on leave error", zap.Uint("attempt", attempt), zap.Error(err))

@@ -75,7 +75,7 @@ message RequestToLeaveRequest {
 message RequestToLeaveResponse {}
 
 message MembershipConclusionRequest {
-    bool stablize = 1;
+    bool stabilize = 1;
     bool release = 2;
 }
 

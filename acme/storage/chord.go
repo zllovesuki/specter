@@ -22,11 +22,11 @@ type ChordStorage struct {
 	Logger *zap.Logger
 	KV     chord.KV
 
-	leaseToken     *skipmap.StringMap[*leaseHolder]
-	retryInterval  time.Duration
-	leaseTTL       time.Duration
-	renewalInteval time.Duration
-	pollInterval   time.Duration
+	leaseToken      *skipmap.StringMap[*leaseHolder]
+	retryInterval   time.Duration
+	leaseTTL        time.Duration
+	renewalInterval time.Duration
+	pollInterval    time.Duration
 }
 
 type Config struct {
@@ -37,13 +37,13 @@ type Config struct {
 func New(logger *zap.Logger, kv chord.KV, cfg Config) (*ChordStorage, error) {
 	// TODO: assert sensible interval
 	return &ChordStorage{
-		Logger:         logger,
-		KV:             kv,
-		leaseToken:     skipmap.NewString[*leaseHolder](),
-		retryInterval:  cfg.RetryInterval,
-		leaseTTL:       cfg.LeaseTTL,
-		renewalInteval: cfg.LeaseTTL / 4,
-		pollInterval:   cfg.LeaseTTL / 2,
+		Logger:          logger,
+		KV:              kv,
+		leaseToken:      skipmap.NewString[*leaseHolder](),
+		retryInterval:   cfg.RetryInterval,
+		leaseTTL:        cfg.LeaseTTL,
+		renewalInterval: cfg.LeaseTTL / 4,
+		pollInterval:    cfg.LeaseTTL / 2,
 	}, nil
 }
 
@@ -75,7 +75,7 @@ func (c *ChordStorage) Lock(ctx context.Context, key string) error {
 }
 
 func (c *ChordStorage) renewLease(key string, l *leaseHolder) {
-	ticker := time.NewTicker(c.renewalInteval)
+	ticker := time.NewTicker(c.renewalInterval)
 	defer ticker.Stop()
 	for {
 		select {

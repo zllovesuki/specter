@@ -116,7 +116,7 @@ func (r *Server) RequestToJoin(_ context.Context, req *protocol.RequestToJoinReq
 }
 
 func (r *Server) FinishJoin(_ context.Context, req *protocol.MembershipConclusionRequest) (*protocol.MembershipConclusionResponse, error) {
-	if err := r.LocalNode.FinishJoin(req.GetStablize(), req.GetRelease()); err != nil {
+	if err := r.LocalNode.FinishJoin(req.GetStabilize(), req.GetRelease()); err != nil {
 		return nil, rpc.WrapError(err)
 	}
 	return &protocol.MembershipConclusionResponse{}, nil
@@ -137,7 +137,7 @@ func (r *Server) RequestToLeave(_ context.Context, req *protocol.RequestToLeaveR
 }
 
 func (r *Server) FinishLeave(_ context.Context, req *protocol.MembershipConclusionRequest) (*protocol.MembershipConclusionResponse, error) {
-	if err := r.LocalNode.FinishLeave(req.GetStablize(), req.GetRelease()); err != nil {
+	if err := r.LocalNode.FinishLeave(req.GetStabilize(), req.GetRelease()); err != nil {
 		return nil, rpc.WrapError(err)
 	}
 	return &protocol.MembershipConclusionResponse{}, nil

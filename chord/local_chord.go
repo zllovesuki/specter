@@ -143,7 +143,7 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 		return succ, nil
 	}
 	// find next in ring according to finger table
-	closest := n.closestPreceedingNode(key)
+	closest := n.closestPrecedingNode(key)
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }
@@ -164,7 +164,7 @@ func (n *LocalNode) fingerRangeView(fn func(k int, f chord.VNode) bool) {
 	}
 }
 
-func (n *LocalNode) closestPreceedingNode(key uint64) chord.VNode {
+func (n *LocalNode) closestPrecedingNode(key uint64) chord.VNode {
 	var finger chord.VNode
 	n.fingerRangeView(func(_ int, f chord.VNode) bool {
 		if chord.Between(n.ID(), f.ID(), key, false) {

@@ -93,7 +93,7 @@ message TunnelDestination {
 enum TunnelStatusCode {
     STATUS_OK = 0;
 
-    UKNOWN_ERROR = 1;
+    UNKNOWN_ERROR = 1;
     NO_DIRECT = 2;
 }
 

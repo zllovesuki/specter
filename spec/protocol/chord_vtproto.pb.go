@@ -717,9 +717,9 @@ func (m *MembershipConclusionRequest) MarshalToSizedBufferVT(dAtA []byte) (int, 
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Stablize {
+	if m.Stabilize {
 		i--
-		if m.Stablize {
+		if m.Stabilize {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -982,7 +982,7 @@ func (m *MembershipConclusionRequest) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Stablize {
+	if m.Stabilize {
 		n += 2
 	}
 	if m.Release {
@@ -2239,7 +2239,7 @@ func (m *MembershipConclusionRequest) UnmarshalVT(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Stablize", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Stabilize", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
@@ -2256,7 +2256,7 @@ func (m *MembershipConclusionRequest) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.Stablize = bool(v != 0)
+			m.Stabilize = bool(v != 0)
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Release", wireType)

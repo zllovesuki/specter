@@ -20,8 +20,8 @@ type VNode interface {
 
 type VNodeMembership interface {
 	RequestToJoin(joiner VNode) (predecessor VNode, succList []VNode, err error)
-	FinishJoin(stablize bool, release bool) error
+	FinishJoin(stabilize bool, release bool) error
 
 	RequestToLeave(leaver VNode) error
-	FinishLeave(stablize bool, release bool) error
+	FinishLeave(stabilize bool, release bool) error
 }

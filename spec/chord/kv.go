@@ -67,7 +67,7 @@ type KV interface {
 
 type KVProvider interface {
 	KV
-	// Export is used when a Local node is retriving relevant keys to transfer.
+	// Export is used when a Local node is retrieving relevant keys to transfer.
 	// Only used locally, not used for RPC
 	Export(keys [][]byte) []*protocol.KVTransfer
 	// RangeKeys retrieve actual byte values of the keys, given the [low, high]

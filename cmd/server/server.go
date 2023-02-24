@@ -84,7 +84,7 @@ func Generate() *cli.Command {
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
 				Value:   fmt.Sprintf("%s:443", ip.String()),
-				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overriden).
+				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overridden).
 			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
 			},
 			&cli.StringFlag{
@@ -108,7 +108,7 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name: "join",
 				Usage: `A known specter server's advertise address.
-			Absent of this flag will boostrap a new cluster with current node as the seed node`,
+			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
 			},
 			&cli.StringFlag{
 				Name:        "challenger",
@@ -522,7 +522,7 @@ func cmdServer(ctx *cli.Context) error {
 			BaseLogger:               logger,
 			ChordClient:              chordClient,
 			KVProvider:               kvProvider,
-			StablizeInterval:         time.Second * 3,
+			StabilizeInterval:        time.Second * 3,
 			FixFingerInterval:        time.Second * 5,
 			PredecessorCheckInterval: time.Second * 7,
 			NodesRTT:                 chordRTT,

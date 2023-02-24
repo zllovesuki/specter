@@ -30,7 +30,7 @@ Similar to t, specter also:
 
 1. Uses [quic](https://github.com/lucas-clemente/quic-go) and _only_ quic for inter-nodes/node-client transport. However the transport (see `spec/transport`) is easily extensible;
 2. Supports tunneling _L7_(HTTP/S)/_L4_(TCP) traffic over a single TLS port;
-3. Manages Let's Encrypt certificate via dns01 challange for gateway hostname.
+3. Manages Let's Encrypt certificate via dns01 challenge for gateway hostname.
 
 specter also has some interesting features:
 

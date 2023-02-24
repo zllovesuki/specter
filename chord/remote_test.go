@@ -44,7 +44,7 @@ func TestRPC(t *testing.T) {
 		Identity:                 identity1,
 		KVProvider:               memory.WithHashFn(chord.Hash),
 		FixFingerInterval:        time.Millisecond * 100,
-		StablizeInterval:         time.Millisecond * 300,
+		StabilizeInterval:         time.Millisecond * 300,
 		PredecessorCheckInterval: time.Millisecond * 500,
 		ChordClient:              client1,
 		NodesRTT:                 new(mocks.Measurement),
