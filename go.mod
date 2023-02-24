@@ -16,7 +16,7 @@ require (
 	github.com/libp2p/go-yamux/v3 v3.1.2
 	github.com/mholt/acmez v1.1.0
 	github.com/montanaflynn/stats v0.7.0
-	github.com/quic-go/quic-go v0.32.0
+	github.com/quic-go/quic-go v0.33.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/wal v1.1.7
@@ -53,7 +53,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.8.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/qtls-go1-18 v0.2.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.2.1 // indirect
 	github.com/quic-go/qtls-go1-20 v0.1.1 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
