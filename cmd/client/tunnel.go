@@ -12,12 +12,13 @@ import (
 	"kon.nect.sh/specter/spec/rtt"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/tun/client"
+	"kon.nect.sh/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
 
-func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *ParsedApex, r rtt.Recorder) *overlay.QUIC {
+func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *dialer.ParsedApex, r rtt.Recorder) *overlay.QUIC {
 	clientTLSConf := &tls.Config{
 		ServerName:         apex.Host,
 		InsecureSkipVerify: ctx.Bool("insecure"),
@@ -46,7 +47,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
-	parsed, err := ParseApex(cfg.Apex)
+	parsed, err := dialer.ParseApex(cfg.Apex)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -39,19 +40,19 @@ func cmdConnect(ctx *cli.Context) error {
 
 	var (
 		remote net.Addr
-		dial   TransportDialer
+		dial   dialer.TransportDialer
 		err    error
 	)
 
-	parsed, err := ParseApex(hostname)
+	parsed, err := dialer.ParseApex(hostname)
 	if err != nil {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
 	if ctx.IsSet("tcp") {
-		remote, dial, err = TLSDialer(ctx, logger, parsed, true)
+		remote, dial, err = tlsDialer(ctx, logger, parsed, true)
 	} else {
-		remote, dial, err = QuicDialer(ctx, logger, parsed, true)
+		remote, dial, err = quicDialer(ctx, logger, parsed, true)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
@@ -109,7 +110,7 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 	return status, nil
 }
 
-func getConnection(dial TransportDialer) (net.Conn, error) {
+func getConnection(dial dialer.TransportDialer) (net.Conn, error) {
 	rw, err := dial()
 	if err != nil {
 		return nil, err

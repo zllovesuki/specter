@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -23,19 +24,19 @@ func cmdListen(ctx *cli.Context) error {
 
 	var (
 		remote net.Addr
-		dial   TransportDialer
+		dial   dialer.TransportDialer
 		err    error
 	)
 
-	parsed, err := ParseApex(hostname)
+	parsed, err := dialer.ParseApex(hostname)
 	if err != nil {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
 	if ctx.IsSet("tcp") {
-		remote, dial, err = TLSDialer(ctx, logger, parsed, false)
+		remote, dial, err = tlsDialer(ctx, logger, parsed, false)
 	} else {
-		remote, dial, err = QuicDialer(ctx, logger, parsed, false)
+		remote, dial, err = quicDialer(ctx, logger, parsed, false)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
@@ -64,7 +65,7 @@ func cmdListen(ctx *cli.Context) error {
 	return nil
 }
 
-func HandleConnections(logger *zap.Logger, listener net.Listener, dial TransportDialer) {
+func HandleConnections(logger *zap.Logger, listener net.Listener, dial dialer.TransportDialer) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
