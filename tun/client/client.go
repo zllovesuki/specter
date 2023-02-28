@@ -493,7 +493,7 @@ func (c *Client) diffTunnels(old, new []Tunnel) []Tunnel {
 	}
 	for hostname, tunnel := range newMap {
 		oldTunnel, ok := oldMap[hostname]
-		if ok && oldTunnel.Target != tunnel.Target {
+		if ok && (oldTunnel.Target != tunnel.Target || oldTunnel.Insecure != tunnel.Insecure) {
 			diff = append(diff, oldTunnel)
 		}
 	}
