@@ -1,24 +1,16 @@
 package client
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"kon.nect.sh/specter/overlay"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/spec/tun"
 
-	"github.com/libp2p/go-yamux/v3"
-	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
@@ -27,8 +19,6 @@ const (
 	PipeInKey  string = "pipeIn"
 	PipeOutKey string = "pipeOut"
 )
-
-type transportDialer func() (net.Conn, error)
 
 func cmdConnect(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
@@ -47,18 +37,21 @@ func cmdConnect(ctx *cli.Context) error {
 		return fmt.Errorf("missing hostname in argument")
 	}
 
-	var dial transportDialer
-	var err error
+	var (
+		remote net.Addr
+		dial   TransportDialer
+		err    error
+	)
 
-	parsed, err := parseApex(hostname)
+	parsed, err := ParseApex(hostname)
 	if err != nil {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
 	if ctx.IsSet("tcp") {
-		dial, err = tlsDialer(ctx, logger, parsed)
+		remote, dial, err = TLSDialer(ctx, logger, parsed, true)
 	} else {
-		dial, err = quicDialer(ctx, logger, parsed)
+		remote, dial, err = QuicDialer(ctx, logger, parsed, true)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
@@ -70,7 +63,7 @@ func cmdConnect(ctx *cli.Context) error {
 	}
 	defer rw.Close()
 
-	logger.Info("Tunnel established", zap.String("via", rw.RemoteAddr().String()))
+	logger.Info("Tunnel established", zap.String("via", remote.String()))
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -116,7 +109,7 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 	return status, nil
 }
 
-func getConnection(dial transportDialer) (net.Conn, error) {
+func getConnection(dial TransportDialer) (net.Conn, error) {
 	rw, err := dial()
 	if err != nil {
 		return nil, err
@@ -129,76 +122,4 @@ func getConnection(dial transportDialer) (net.Conn, error) {
 		return nil, fmt.Errorf("error opening tunnel: %s", status.Error)
 	}
 	return rw, nil
-}
-
-func tlsDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transportDialer, error) {
-	clientTLSConf := &tls.Config{
-		ServerName:         parsed.host,
-		InsecureSkipVerify: ctx.Bool("insecure"),
-		NextProtos: []string{
-			tun.ALPN(protocol.Link_TCP),
-		},
-	}
-	// used in integration test
-	if v, ok := ctx.App.Metadata["connectOverride"]; ok {
-		clientTLSConf.ServerName = v.(string)
-	}
-
-	dialer := &tls.Dialer{
-		Config: clientTLSConf,
-	}
-
-	openCtx, cancel := context.WithTimeout(ctx.Context, transport.ConnectTimeout)
-	defer cancel()
-
-	conn, err := dialer.DialContext(openCtx, "tcp", parsed.String())
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := yamux.DefaultConfig()
-	cfg.LogOutput = io.Discard
-	session, err := yamux.Client(conn, cfg, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return func() (net.Conn, error) {
-		r, err := session.OpenStream(ctx.Context)
-		if err != nil {
-			return nil, err
-		}
-		return r, nil
-	}, nil
-}
-
-func quicDialer(ctx *cli.Context, logger *zap.Logger, parsed *parsedApex) (transportDialer, error) {
-	clientTLSConf := &tls.Config{
-		ServerName:         parsed.host,
-		InsecureSkipVerify: ctx.Bool("insecure"),
-		NextProtos: []string{
-			tun.ALPN(protocol.Link_TCP),
-		},
-	}
-	// used in integration test
-	if v, ok := ctx.App.Metadata["connectOverride"]; ok {
-		clientTLSConf.ServerName = v.(string)
-	}
-	q, err := quic.DialAddrContext(ctx.Context, parsed.String(), clientTLSConf, &quic.Config{
-		KeepAlivePeriod:      time.Second * 5,
-		HandshakeIdleTimeout: transport.ConnectTimeout,
-		MaxIdleTimeout:       time.Second * 30,
-		EnableDatagrams:      true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return func() (net.Conn, error) {
-		r, err := q.OpenStream()
-		if err != nil {
-			return nil, err
-		}
-		return overlay.WrapQuicConnection(r, q), nil
-	}, nil
 }

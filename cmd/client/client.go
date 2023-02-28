@@ -3,12 +3,15 @@ package client
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"kon.nect.sh/specter/util"
 
 	"github.com/urfave/cli/v2"
+)
+
+var (
+	// used in dev-client docker image
+	devApexOverride = ""
 )
 
 func Generate() *cli.Command {
@@ -92,35 +95,4 @@ func Generate() *cli.Command {
 			return nil
 		},
 	}
-}
-
-var (
-	// used in dev-client docker image
-	devApexOverride = ""
-)
-
-type parsedApex struct {
-	host string
-	port int
-}
-
-func (p *parsedApex) String() string {
-	return fmt.Sprintf("%s:%d", p.host, p.port)
-}
-
-func parseApex(apex string) (*parsedApex, error) {
-	port := 443
-	i := strings.Index(apex, ":")
-	if i != -1 {
-		nP, err := strconv.ParseInt(apex[i+1:], 0, 32)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing port number: %w", err)
-		}
-		apex = apex[:i]
-		port = int(nP)
-	}
-	return &parsedApex{
-		host: apex,
-		port: port,
-	}, nil
 }

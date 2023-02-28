@@ -17,9 +17,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *parsedApex, r rtt.Recorder) *overlay.QUIC {
+func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *ParsedApex, r rtt.Recorder) *overlay.QUIC {
 	clientTLSConf := &tls.Config{
-		ServerName:         apex.host,
+		ServerName:         apex.Host,
 		InsecureSkipVerify: ctx.Bool("insecure"),
 		NextProtos: []string{
 			tun.ALPN(protocol.Link_SPECTER_TUN),
@@ -46,7 +46,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
-	parsed, err := parseApex(cfg.Apex)
+	parsed, err := ParseApex(cfg.Apex)
 	if err != nil {
 		return err
 	}

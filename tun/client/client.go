@@ -222,7 +222,7 @@ func (c *Client) reBootstrap(ctx context.Context) {
 			if len(connected) > 0 {
 				continue
 			}
-			c.Logger.Info("No connected nodes, rebootstrapping using apex")
+			c.Logger.Info("No connected nodes, re-bootstrapping using apex")
 			if err := c.bootstrap(ctx); err != nil {
 				c.Logger.Error("Failed to rebootstrap connection to specter", zap.Error(err))
 			}

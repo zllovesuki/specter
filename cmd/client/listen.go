@@ -21,28 +21,25 @@ func cmdListen(ctx *cli.Context) error {
 		return fmt.Errorf("missing hostname in argument")
 	}
 
-	var dial transportDialer
-	var err error
+	var (
+		remote net.Addr
+		dial   TransportDialer
+		err    error
+	)
 
-	parsed, err := parseApex(hostname)
+	parsed, err := ParseApex(hostname)
 	if err != nil {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
 	if ctx.IsSet("tcp") {
-		dial, err = tlsDialer(ctx, logger, parsed)
+		remote, dial, err = TLSDialer(ctx, logger, parsed, false)
 	} else {
-		dial, err = quicDialer(ctx, logger, parsed)
+		remote, dial, err = QuicDialer(ctx, logger, parsed, false)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
 	}
-
-	test, err := getConnection(dial)
-	if err != nil {
-		return err
-	}
-	test.Close()
 
 	listener, err := net.Listen("tcp", ctx.String("listen"))
 	if err != nil {
@@ -50,9 +47,9 @@ func cmdListen(ctx *cli.Context) error {
 	}
 	defer listener.Close()
 
-	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()), zap.String("via", test.RemoteAddr().String()))
+	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()), zap.String("via", remote.String()))
 
-	go handleConnections(logger, listener, dial)
+	go HandleConnections(logger, listener, dial)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -67,7 +64,7 @@ func cmdListen(ctx *cli.Context) error {
 	return nil
 }
 
-func handleConnections(logger *zap.Logger, listener net.Listener, dial transportDialer) {
+func HandleConnections(logger *zap.Logger, listener net.Listener, dial TransportDialer) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
