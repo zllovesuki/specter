@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"runtime"
 	"syscall"
@@ -221,7 +220,7 @@ func TestPublishPreferenceRTT(t *testing.T) {
 
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),
@@ -260,7 +259,7 @@ func TestReloadOnSignal(t *testing.T) {
 
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),
@@ -317,7 +316,7 @@ func TestRegisterAndProxy(t *testing.T) {
 	// no token
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Tunnels: []Tunnel{
@@ -388,7 +387,7 @@ func TestJustHTTPProxy(t *testing.T) {
 
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),
@@ -474,7 +473,7 @@ func TestPipeHTTP(t *testing.T) {
 
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),
@@ -558,7 +557,7 @@ func TestPipeTCP(t *testing.T) {
 
 	cfg := &Config{
 		path:     file.Name(),
-		router:   skipmap.NewString[*url.URL](),
+		router:   skipmap.NewString[route](),
 		Apex:     testApex,
 		ClientID: cl.GetId(),
 		Token:    string(token.GetToken()),

@@ -46,12 +46,11 @@ const (
 )
 
 type ClientConfig struct {
-	Logger           *zap.Logger
-	Configuration    *Config
-	ServerTransport  transport.Transport
-	Recorder         rtt.Recorder
-	ReloadSignal     <-chan os.Signal
-	DisableTargetTLS bool
+	Logger          *zap.Logger
+	Configuration   *Config
+	ServerTransport transport.Transport
+	Recorder        rtt.Recorder
+	ReloadSignal    <-chan os.Signal
 }
 
 type Client struct {
@@ -600,8 +599,9 @@ func (c *Client) Close() {
 	c.closeWg.Wait()
 }
 
-func (c *Client) forwardStream(ctx context.Context, remote net.Conn, u *url.URL) {
+func (c *Client) forwardStream(ctx context.Context, remote net.Conn, r route) {
 	var (
+		u      *url.URL = r.parsed
 		target string
 		local  net.Conn
 		err    error
@@ -629,20 +629,23 @@ func (c *Client) forwardStream(ctx context.Context, remote net.Conn, u *url.URL)
 	tun.Pipe(remote, local)
 }
 
-func (c *Client) getHTTPProxy(ctx context.Context, hostname string, u *url.URL) *httpProxy {
+func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *httpProxy {
 	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
 		c.Logger.Info("Creating new proxy", zap.String("hostname", hostname))
+
+		var (
+			u      *url.URL = r.parsed
+			isPipe          = false
+		)
 
 		tp := &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName:         u.Host,
-				InsecureSkipVerify: c.DisableTargetTLS,
+				InsecureSkipVerify: r.insecure,
 			},
 			MaxIdleConns:    10,
 			IdleConnTimeout: time.Minute,
 		}
-
-		isPipe := false
 		switch u.Scheme {
 		case "unix", "winio":
 			isPipe = true

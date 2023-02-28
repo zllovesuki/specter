@@ -18,10 +18,11 @@ type Tunnel struct {
 	parsed   *url.URL
 	Target   string `yaml:"target" json:"target"`
 	Hostname string `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	Insecure bool   `yaml:"insecure,omitempty" json:"insecure"`
 }
 
 type Config struct {
-	router   *skipmap.StringMap[*url.URL]
+	router   *skipmap.StringMap[route]
 	path     string
 	Apex     string   `yaml:"apex" json:"apex"`
 	ClientID uint64   `yaml:"clientId,omitempty" json:"clientId,omitempty"`
@@ -29,10 +30,15 @@ type Config struct {
 	Tunnels  []Tunnel `yaml:"tunnels,omitempty" json:"tunnels,omitempty"`
 }
 
+type route struct {
+	parsed   *url.URL
+	insecure bool
+}
+
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{
 		path:   path,
-		router: skipmap.NewString[*url.URL](),
+		router: skipmap.NewString[route](),
 	}
 	if err := cfg.readFile(); err != nil {
 		return nil, err
@@ -46,13 +52,16 @@ func NewConfig(path string) (*Config, error) {
 func (c *Config) clone() *Config {
 	cfg := *c
 	cfg.validate()
-	cfg.router = skipmap.NewString[*url.URL]()
+	cfg.router = skipmap.NewString[route]()
 	return &cfg
 }
 
 func (c *Config) buildRouter() {
 	for _, tunnel := range c.Tunnels {
-		c.router.Store(tunnel.Hostname, tunnel.parsed)
+		c.router.Store(tunnel.Hostname, route{
+			parsed:   tunnel.parsed,
+			insecure: tunnel.Insecure,
+		})
 	}
 }
 

@@ -59,12 +59,11 @@ func cmdTunnel(ctx *cli.Context) error {
 	defer transport.Stop()
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{
-		Logger:           logger,
-		Configuration:    cfg,
-		ServerTransport:  transport,
-		Recorder:         transportRTT,
-		ReloadSignal:     s,
-		DisableTargetTLS: ctx.Bool("disable-tls"),
+		Logger:          logger,
+		Configuration:   cfg,
+		ServerTransport: transport,
+		Recorder:        transportRTT,
+		ReloadSignal:    s,
 	})
 	if err != nil {
 		return err

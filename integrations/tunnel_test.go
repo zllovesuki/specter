@@ -39,6 +39,7 @@ const (
 	yamlTemplate     = `apex: 127.0.0.1:%d
 tunnels:
   - target: %s
+    insecure: true
   - target: %s
 `
 )
@@ -239,7 +240,6 @@ func TestTunnel(t *testing.T) {
 			"client",
 			"--insecure",
 			"tunnel",
-			"--disable-tls",
 			"--config",
 			file.Name(),
 		}

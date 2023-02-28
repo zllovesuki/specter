@@ -98,8 +98,9 @@ func TestPipeOrSocket(t *testing.T) {
 		as.NoError(err)
 		pipeCfg.buildRouter()
 		as.Equal(1, pipeCfg.router.Len())
-		u, ok := pipeCfg.router.Load("pipe")
+		r, ok := pipeCfg.router.Load("pipe")
 		as.True(ok)
+		u := r.parsed
 		as.Equal("winio", u.Scheme)
 		as.Equal("\\\\.\\pipe\\something", u.Path)
 	} else {
@@ -121,8 +122,9 @@ func TestPipeOrSocket(t *testing.T) {
 		as.NoError(err)
 		sockCfg.buildRouter()
 		as.Equal(1, sockCfg.router.Len())
-		u, ok := sockCfg.router.Load("unix")
+		r, ok := sockCfg.router.Load("unix")
 		as.True(ok)
+		u := r.parsed
 		as.Equal("unix", u.Scheme)
 		as.Equal("/tmp/nginx.sock", u.Path)
 	}
