@@ -33,6 +33,11 @@ var rebootstrapRetry = time.Second * 5
 type bootstrapFn func() (net.Addr, error)
 
 func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDialer, error) {
+	var (
+		bootstrap bootstrapFn
+		aSession  atomic.Value
+	)
+
 	clientTLSConf := &tls.Config{
 		ServerName:         dCfg.Parsed.Host,
 		InsecureSkipVerify: dCfg.InsecureSkipVerify,
@@ -41,14 +46,14 @@ func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDiale
 		},
 	}
 
+	override := GetServerNameOverride(ctx)
+	if override != "" {
+		clientTLSConf.ServerName = override
+	}
+
 	dialer := &tls.Dialer{
 		Config: clientTLSConf,
 	}
-
-	var (
-		bootstrap bootstrapFn
-		aSession  atomic.Value
-	)
 
 	bootstrap = func() (net.Addr, error) {
 		dCfg.Logger.Debug("bootstrapping yamux")
@@ -99,6 +104,11 @@ func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDiale
 }
 
 func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDialer, error) {
+	var (
+		bootstrap bootstrapFn
+		aQuic     atomic.Value
+	)
+
 	clientTLSConf := &tls.Config{
 		ServerName:         dCfg.Parsed.Host,
 		InsecureSkipVerify: dCfg.InsecureSkipVerify,
@@ -107,10 +117,10 @@ func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDial
 		},
 	}
 
-	var (
-		bootstrap bootstrapFn
-		aQuic     atomic.Value
-	)
+	override := GetServerNameOverride(ctx)
+	if override != "" {
+		clientTLSConf.ServerName = override
+	}
 
 	bootstrap = func() (net.Addr, error) {
 		dCfg.Logger.Debug("bootstrapping quic")
