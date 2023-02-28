@@ -80,9 +80,7 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		closeCh:      make(chan struct{}),
 	}
 
-	if err := c.openRPC(ctx, &protocol.Node{
-		Address: cfg.Configuration.Apex,
-	}); err != nil {
+	if err := c.bootstrap(ctx); err != nil {
 		return nil, fmt.Errorf("error connecting to apex: %w", err)
 	}
 
@@ -99,6 +97,16 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	c.SyncConfigTunnels(ctx)
 	return nil
+}
+
+func (c *Client) bootstrap(ctx context.Context) error {
+	c.configMu.RLock()
+	apex := c.ClientConfig.Configuration.Apex
+	c.configMu.RUnlock()
+
+	return c.openRPC(ctx, &protocol.Node{
+		Address: apex,
+	})
 }
 
 func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
@@ -195,6 +203,31 @@ func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
 		hasher.Write(buf[:])
 	}
 	return hasher.Sum64()
+}
+
+func (c *Client) reBootstrap(ctx context.Context) {
+	defer c.closeWg.Done()
+
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.closeCh:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			connected := c.getConnectedNodes(ctx)
+			if len(connected) > 0 {
+				continue
+			}
+			c.Logger.Info("No connected nodes, rebootstrapping using apex")
+			if err := c.bootstrap(ctx); err != nil {
+				c.Logger.Error("Failed to rebootstrap connection to specter", zap.Error(err))
+			}
+		}
+	}
 }
 
 func (c *Client) periodicReconnection(ctx context.Context) {
@@ -496,7 +529,7 @@ func (c *Client) UpdateApex(apex string) {
 func (c *Client) Start(ctx context.Context) {
 	c.Logger.Info("Listening for tunnel traffic")
 
-	c.closeWg.Add(2)
+	c.closeWg.Add(3)
 
 	streamRouter := transport.NewStreamRouter(c.Logger, nil, c.ServerTransport)
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
@@ -535,6 +568,7 @@ func (c *Client) Start(ctx context.Context) {
 	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
+	go c.reBootstrap(ctx)
 }
 
 func (c *Client) closeOutdatedProxies(tunnels []Tunnel) {
