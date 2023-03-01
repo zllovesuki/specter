@@ -8,8 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/tun/client/connector"
 	"kon.nect.sh/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
@@ -58,7 +57,7 @@ func cmdConnect(ctx *cli.Context) error {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
 	}
 
-	rw, err := getConnection(dial)
+	rw, err := connector.GetConnection(dial)
 	if err != nil {
 		return err
 	}
@@ -92,35 +91,4 @@ func cmdConnect(ctx *cli.Context) error {
 	}
 
 	return nil
-}
-
-func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
-	// because of quic's early connection, the client need to "poke" the gateway before
-	// the gateway can actually accept a stream, despite .OpenStreamSync
-	status := &protocol.TunnelStatus{}
-	err := rpc.Send(rw, status)
-	if err != nil {
-		return nil, fmt.Errorf("error sending status check: %w", err)
-	}
-	status.Reset()
-	err = rpc.Receive(rw, status)
-	if err != nil {
-		return nil, fmt.Errorf("error receiving checking status: %w", err)
-	}
-	return status, nil
-}
-
-func getConnection(dial dialer.TransportDialer) (net.Conn, error) {
-	rw, err := dial()
-	if err != nil {
-		return nil, err
-	}
-	status, err := statusExchange(rw)
-	if err != nil {
-		return nil, err
-	}
-	if status.GetStatus() != protocol.TunnelStatusCode_STATUS_OK {
-		return nil, fmt.Errorf("error opening tunnel: %s", status.Error)
-	}
-	return rw, nil
 }

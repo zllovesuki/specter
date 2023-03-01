@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/tun/client/connector"
 	"kon.nect.sh/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
@@ -50,7 +50,7 @@ func cmdListen(ctx *cli.Context) error {
 
 	logger.Info("listening for local connections", zap.String("listen", listener.Addr().String()), zap.String("via", remote.String()))
 
-	go HandleConnections(logger, listener, dial)
+	go connector.HandleConnections(logger, listener, dial)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -63,30 +63,4 @@ func cmdListen(ctx *cli.Context) error {
 	}
 
 	return nil
-}
-
-func HandleConnections(logger *zap.Logger, listener net.Listener, dial dialer.TransportDialer) {
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			return
-		}
-		go func(local *net.TCPConn) {
-			r, err := getConnection(dial)
-			if err != nil {
-				logger.Error("Error forwarding local connections via specter gateway", zap.Error(err))
-				local.Close()
-				return
-			}
-
-			logger.Info("Forwarding incoming connection", zap.String("local", conn.RemoteAddr().String()), zap.String("via", r.RemoteAddr().String()))
-
-			go func() {
-				errChan := tun.Pipe(r, local)
-				for err := range errChan {
-					logger.Error("error piping to target", zap.Error(err))
-				}
-			}()
-		}(conn.(*net.TCPConn))
-	}
 }
