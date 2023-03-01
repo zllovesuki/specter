@@ -25,7 +25,10 @@ type DialerConfig struct {
 	NoReconnection     bool
 }
 
-type TransportDialer func() (net.Conn, error)
+type TransportDialer interface {
+	Dial() (net.Conn, error)
+	Remote() net.Addr
+}
 
 // TODO: can we unit test this somehow
 var rebootstrapRetry = time.Second * 5
@@ -93,14 +96,24 @@ func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDiale
 		return nil, nil, err
 	}
 
-	return remote, func() (net.Conn, error) {
-		session := aSession.Load().(*yamux.Session)
-		r, err := session.OpenStream(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return r, nil
-	}, nil
+	return remote, &tlsDialer{aSession, ctx}, nil
+}
+
+type tlsDialer struct {
+	aSession atomic.Value
+	ctx      context.Context
+}
+
+var _ TransportDialer = (*tlsDialer)(nil)
+
+func (t *tlsDialer) Dial() (net.Conn, error) {
+	session := t.aSession.Load().(*yamux.Session)
+	return session.OpenStream(t.ctx)
+}
+
+func (t *tlsDialer) Remote() net.Addr {
+	session := t.aSession.Load().(*yamux.Session)
+	return session.RemoteAddr()
 }
 
 func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDialer, error) {
@@ -147,14 +160,27 @@ func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDial
 		return nil, nil, err
 	}
 
-	return remote, func() (net.Conn, error) {
-		q := aQuic.Load().(quic.Connection)
-		r, err := q.OpenStream()
-		if err != nil {
-			return nil, err
-		}
-		return overlay.WrapQuicConnection(r, q), nil
-	}, nil
+	return remote, &quicDialer{aQuic}, nil
+}
+
+type quicDialer struct {
+	aQuic atomic.Value // quic.Connection
+}
+
+var _ TransportDialer = (*quicDialer)(nil)
+
+func (q *quicDialer) Dial() (net.Conn, error) {
+	qConn := q.aQuic.Load().(quic.Connection)
+	r, err := qConn.OpenStream()
+	if err != nil {
+		return nil, err
+	}
+	return overlay.WrapQuicConnection(r, qConn), nil
+}
+
+func (q *quicDialer) Remote() net.Addr {
+	qConn := q.aQuic.Load().(quic.Connection)
+	return qConn.RemoteAddr()
 }
 
 func rebootstrap(ctx context.Context, logger *zap.Logger, fn bootstrapFn, exit <-chan struct{}) {

@@ -29,8 +29,8 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 	return status, nil
 }
 
-func GetConnection(dial dialer.TransportDialer) (net.Conn, error) {
-	rw, err := dial()
+func GetConnection(d dialer.TransportDialer) (net.Conn, error) {
+	rw, err := d.Dial()
 	if err != nil {
 		return nil, err
 	}
@@ -44,21 +44,21 @@ func GetConnection(dial dialer.TransportDialer) (net.Conn, error) {
 	return rw, nil
 }
 
-func HandleConnections(logger *zap.Logger, listener net.Listener, dial dialer.TransportDialer) {
+func HandleConnections(logger *zap.Logger, listener net.Listener, d dialer.TransportDialer) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			return
 		}
 		go func(local *net.TCPConn) {
-			r, err := GetConnection(dial)
+			r, err := GetConnection(d)
 			if err != nil {
 				logger.Error("Error forwarding local connections via specter gateway", zap.Error(err))
 				local.Close()
 				return
 			}
 
-			logger.Info("Forwarding incoming connection", zap.String("local", conn.RemoteAddr().String()), zap.String("via", r.RemoteAddr().String()))
+			logger.Info("Forwarding incoming connection", zap.String("local", conn.RemoteAddr().String()), zap.String("via", d.Remote().String()))
 
 			go func() {
 				errChan := tun.Pipe(r, local)
