@@ -331,6 +331,33 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 	}, nil
 }
 
+func (s *Server) RegisteredHostnames(ctx context.Context, req *protocol.RegisteredHostnamesRequest) (*protocol.RegisteredHostnamesResponse, error) {
+	token, _, err := extractAuthenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := tun.ClientHostnamesPrefix(token)
+
+	children, err := s.chord.PrefixList(ctx, []byte(prefix))
+	if err != nil {
+		return nil, rpc.WrapErrorKV(prefix, err)
+	}
+
+	hostnames := make([]string, len(children))
+	for i, child := range children {
+		hostnames[i] = string(child)
+	}
+
+	return &protocol.RegisteredHostnamesResponse{
+		Hostnames: hostnames,
+	}, nil
+}
+
+func (s *Server) ReleaseTunnel(ctx context.Context, req *protocol.ReleaseTunnelRequest) (*protocol.ReleaseTunnelResponse, error) {
+	return nil, twirp.Unimplemented.Error("TODO")
+}
+
 func (s *Server) saveClientToken(ctx context.Context, token *protocol.ClientToken, client *protocol.Node) error {
 	val, err := client.MarshalVT()
 	if err != nil {

@@ -13,6 +13,28 @@ service TunnelService {
     rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
     rpc GenerateHostname(GenerateHostnameRequest) returns (GenerateHostnameResponse);
     rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
+    rpc RegisteredHostnames(RegisteredHostnamesRequest) returns (RegisteredHostnamesResponse);
+    rpc ReleaseTunnel(ReleaseTunnelRequest) returns (ReleaseTunnelResponse);
+}
+
+extend google.protobuf.EnumValueOptions {
+  string alpn_name = 54242;
+}
+
+message Link {
+    enum ALPN {
+        UNKNOWN = 0;
+        SPECTER_CHORD = 1 [(alpn_name) = "specter-chord/1"];
+        SPECTER_TUN = 2 [(alpn_name) = "specter-tun/1"];
+
+        HTTP2 = 9 [(alpn_name) = "h2"];
+        HTTP = 10 [(alpn_name) = "http/1.1"];
+        TCP = 11 [(alpn_name) = "specter-tcp/1"];
+    }
+
+    ALPN alpn = 1;
+    string hostname = 2;
+    string remote = 3;
 }
 
 message TunnelRoute {
@@ -65,25 +87,17 @@ message PublishTunnelResponse {
     repeated Node published = 1;
 }
 
-extend google.protobuf.EnumValueOptions {
-  string alpn_name = 54242;
+message RegisteredHostnamesRequest {}
+
+message RegisteredHostnamesResponse {
+    repeated string hostnames = 1;
 }
 
-message Link {
-    enum ALPN {
-        UNKNOWN = 0;
-        SPECTER_CHORD = 1 [(alpn_name) = "specter-chord/1"];
-        SPECTER_TUN = 2 [(alpn_name) = "specter-tun/1"];
-
-        HTTP2 = 9 [(alpn_name) = "h2"];
-        HTTP = 10 [(alpn_name) = "http/1.1"];
-        TCP = 11 [(alpn_name) = "specter-tcp/1"];
-    }
-
-    ALPN alpn = 1;
-    string hostname = 2;
-    string remote = 3;
+message ReleaseTunnelRequest {
+    string hostname = 1;
 }
+
+message ReleaseTunnelResponse {}
 
 message TunnelDestination {
     Node chord = 1;

@@ -116,7 +116,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 	callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	resp, err := c.Ping(callCtx, node)
+	resp, err := c.ping(callCtx, node)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dea
 			callCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 			defer cancel()
 
-			_, err := c.Ping(callCtx, node)
+			_, err := c.ping(callCtx, node)
 			if err != nil {
 				c.connections.Delete(addr)
 				dead++
@@ -271,7 +271,7 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 	callCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 
-	nodes, err := c.RequestCandidates(callCtx)
+	nodes, err := c.requestCandidates(callCtx)
 	if err != nil {
 		return err
 	}
@@ -338,11 +338,11 @@ func (c *Client) Register(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Ping(ctx context.Context, node *protocol.Node) (*protocol.ClientPingResponse, error) {
+func (c *Client) ping(ctx context.Context, node *protocol.Node) (*protocol.ClientPingResponse, error) {
 	return c.tunnelClient.Ping(rpc.WithNode(ctx, node), &protocol.ClientPingRequest{})
 }
 
-func (c *Client) RequestHostname(ctx context.Context) (string, error) {
+func (c *Client) requestHostname(ctx context.Context) (string, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GenerateHostnameResponse, error) {
 		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
@@ -354,7 +354,7 @@ func (c *Client) RequestHostname(ctx context.Context) (string, error) {
 	return resp.GetHostname(), nil
 }
 
-func (c *Client) RequestCandidates(ctx context.Context) ([]*protocol.Node, error) {
+func (c *Client) requestCandidates(ctx context.Context) ([]*protocol.Node, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GetNodesResponse, error) {
 		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
@@ -378,7 +378,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	for i, tunnel := range tunnels {
 		if tunnel.Hostname == "" && tunnel.Target != "" {
-			name, err := c.RequestHostname(ctx)
+			name, err := c.requestHostname(ctx)
 			if err != nil {
 				c.Logger.Error("Failed to request hostname", zap.String("target", tunnel.Target), zap.Error(err))
 				continue
@@ -416,7 +416,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		if tunnel.Hostname == "" {
 			continue
 		}
-		published, err := c.PublishTunnel(ctx, tunnel.Hostname, connected)
+		published, err := c.publishTunnel(ctx, tunnel.Hostname, connected)
 		if err != nil {
 			c.Logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
 			continue
@@ -427,7 +427,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 	c.RebuildTunnels(tunnels)
 }
 
-func (c *Client) PublishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
+func (c *Client) publishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.PublishTunnelResponse, error) {
 		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
@@ -463,6 +463,18 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 			c.SyncConfigTunnels(ctx)
 		}
 	}
+}
+
+func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
+	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisteredHostnamesResponse, error) {
+		ctx = rpc.WithClientToken(ctx, c.getToken())
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.RegisteredHostnames(ctx, &protocol.RegisteredHostnamesRequest{})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetHostnames(), nil
 }
 
 func (c *Client) GetConnectedNodes() []*protocol.Node {
