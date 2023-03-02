@@ -8,44 +8,28 @@ import (
 )
 
 var (
-	ErrNodeGone        = fmt.Errorf("chord: node is not part of the chord ring")
-	ErrNodeNotStarted  = fmt.Errorf("chord: node is not running")
-	ErrNodeNoSuccessor = fmt.Errorf("chord: node has no successor, possibly invalid chord ring")
-	ErrNodeNil         = fmt.Errorf("chord: node cannot be nil")
+	ErrJoinInvalidState     = errorDef("chord/membership: node cannot handle join request at the moment", true)
+	ErrJoinTransferFailure  = errorDef("chord/membership: failed to transfer keys to joiner node", true)
+	ErrJoinInvalidSuccessor = errorDef("chord/membership: join request was routed to the wrong successor node", true)
+	ErrLeaveInvalidState    = errorDef("chord/membership: node cannot handle leave request at the moment", true)
+	ErrLeaveTransferFailure = errorDef("chord/membership: failed to transfer keys to successor node", true)
+	ErrKVStaleOwnership     = errorDef("chord/kv: processing node no longer has ownership over requested key", true)
+	ErrKVPendingTransfer    = errorDef("chord/kv: kv transfer inprogress, state may be outdated", true)
 
-	ErrDuplicateJoinerID    = fmt.Errorf("chord/membership: joining node has duplicate ID as its successor")
-	ErrJoinInvalidState     = fmt.Errorf("chord/membership: node cannot handle join request at the moment")
-	ErrJoinTransferFailure  = fmt.Errorf("chord/membership: failed to transfer keys to joiner node")
-	ErrJoinInvalidSuccessor = fmt.Errorf("chord/membership: join request was routed to the wrong successor node")
-	ErrLeaveInvalidState    = fmt.Errorf("chord/membership: node cannot handle leave request at the moment")
-	ErrLeaveTransferFailure = fmt.Errorf("chord/membership: failed to transfer keys to successor node")
-
-	ErrKVStaleOwnership  = fmt.Errorf("chord/kv: processing node no longer has ownership over requested key")
-	ErrKVPendingTransfer = fmt.Errorf("chord/kv: kv transfer inprogress, state may be outdated")
-
-	ErrKVSimpleConflict = fmt.Errorf("chord/kv: simple key was concurrently modified")
-	ErrKVPrefixConflict = fmt.Errorf("chord/kv: child already exists under prefix")
-	ErrKVLeaseConflict  = fmt.Errorf("chord/kv: lease has not expired or was acquired by a different requester")
-
-	ErrKVLeaseExpired    = fmt.Errorf("chord/kv: lease has expired with the given token")
-	ErrKVLeaseInvalidTTL = fmt.Errorf("chord/kv: lease ttl must be greater than a second")
+	ErrNodeGone          = errorDef("chord: node is not part of the chord ring", false)
+	ErrNodeNotStarted    = errorDef("chord: node is not running", false)
+	ErrNodeNoSuccessor   = errorDef("chord: node has no successor, possibly invalid chord ring", false)
+	ErrNodeNil           = errorDef("chord: node cannot be nil", false)
+	ErrDuplicateJoinerID = errorDef("chord/membership: joining node has duplicate ID as its successor", false)
+	ErrKVSimpleConflict  = errorDef("chord/kv: simple key was concurrently modified", false)
+	ErrKVPrefixConflict  = errorDef("chord/kv: child already exists under prefix", false)
+	ErrKVLeaseConflict   = errorDef("chord/kv: lease has not expired or was acquired by a different requester", false)
+	ErrKVLeaseExpired    = errorDef("chord/kv: lease has expired with the given token", false)
+	ErrKVLeaseInvalidTTL = errorDef("chord/kv: lease ttl must be greater than a second", false)
 )
 
 func ErrorIsRetryable(err error) bool {
-	switch err {
-	case ErrKVStaleOwnership, ErrKVPendingTransfer,
-		ErrJoinInvalidState, ErrJoinTransferFailure,
-		ErrLeaveInvalidState, ErrLeaveTransferFailure,
-		ErrJoinInvalidSuccessor, context.DeadlineExceeded:
-		return true
-
-	case ErrNodeGone, ErrNodeNotStarted, ErrDuplicateJoinerID, ErrNodeNoSuccessor,
-		ErrKVSimpleConflict, ErrKVPrefixConflict, ErrKVLeaseConflict,
-		ErrKVLeaseExpired, ErrKVLeaseInvalidTTL, ErrNodeNil:
-		fallthrough
-	default:
-		return false
-	}
+	return retryableMap[err]
 }
 
 // this is needed because RPC call squash type information, so in call site with signature
@@ -54,55 +38,32 @@ func ErrorMapper(err error) error {
 	if err == nil {
 		return err
 	}
-	var parsedErr error
 
-	srcErr := err.Error()
+	var (
+		srcErr    = err.Error()
+		parsedErr = err
+	)
+
 	if twirpErr, ok := err.(twirp.Error); ok {
 		srcErr = twirpErr.Msg()
 	}
 
-	switch srcErr {
-	case ErrNodeNotStarted.Error():
-		parsedErr = ErrNodeNotStarted
-	case ErrNodeGone.Error():
-		parsedErr = ErrNodeGone
-	case ErrNodeNoSuccessor.Error():
-		parsedErr = ErrNodeNoSuccessor
-	case ErrNodeNil.Error():
-		parsedErr = ErrNodeNil
-
-	case ErrDuplicateJoinerID.Error():
-		parsedErr = ErrDuplicateJoinerID
-	case ErrJoinInvalidState.Error():
-		parsedErr = ErrJoinInvalidState
-	case ErrJoinTransferFailure.Error():
-		parsedErr = ErrJoinTransferFailure
-	case ErrJoinInvalidSuccessor.Error():
-		parsedErr = ErrJoinInvalidSuccessor
-	case ErrLeaveInvalidState.Error():
-		parsedErr = ErrLeaveInvalidState
-	case ErrLeaveTransferFailure.Error():
-		parsedErr = ErrLeaveTransferFailure
-
-	case ErrKVStaleOwnership.Error():
-		parsedErr = ErrKVStaleOwnership
-	case ErrKVPendingTransfer.Error():
-		parsedErr = ErrKVPendingTransfer
-
-	case ErrKVPrefixConflict.Error():
-		parsedErr = ErrKVPrefixConflict
-	case ErrKVLeaseConflict.Error():
-		parsedErr = ErrKVLeaseConflict
-	case ErrKVSimpleConflict.Error():
-		parsedErr = ErrKVSimpleConflict
-
-	case ErrKVLeaseExpired.Error():
-		parsedErr = ErrKVLeaseExpired
-	case ErrKVLeaseInvalidTTL.Error():
-		parsedErr = ErrKVLeaseInvalidTTL
-	default:
-		// passthrough
-		parsedErr = err
+	if mapped, ok := errorStrMap[srcErr]; ok {
+		parsedErr = mapped
 	}
+
 	return parsedErr
+}
+
+var retryableMap map[error]bool = map[error]bool{
+	context.DeadlineExceeded: true,
+}
+
+var errorStrMap map[string]error = map[string]error{}
+
+func errorDef(str string, retryable bool) error {
+	err := fmt.Errorf(str)
+	retryableMap[err] = retryable
+	errorStrMap[str] = err
+	return err
 }
