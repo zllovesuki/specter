@@ -34,9 +34,11 @@ type TunnelService interface {
 
 	GenerateHostname(context.Context, *GenerateHostnameRequest) (*GenerateHostnameResponse, error)
 
+	RegisteredHostnames(context.Context, *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error)
+
 	PublishTunnel(context.Context, *PublishTunnelRequest) (*PublishTunnelResponse, error)
 
-	RegisteredHostnames(context.Context, *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error)
+	UnpublishTunnel(context.Context, *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error)
 
 	ReleaseTunnel(context.Context, *ReleaseTunnelRequest) (*ReleaseTunnelResponse, error)
 }
@@ -47,7 +49,7 @@ type TunnelService interface {
 
 type tunnelServiceProtobufClient struct {
 	client      HTTPClient
-	urls        [7]string
+	urls        [8]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -75,13 +77,14 @@ func NewTunnelServiceProtobufClient(baseURL string, client HTTPClient, opts ...t
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "TunnelService")
-	urls := [7]string{
+	urls := [8]string{
 		serviceURL + "Ping",
 		serviceURL + "RegisterIdentity",
 		serviceURL + "GetNodes",
 		serviceURL + "GenerateHostname",
-		serviceURL + "PublishTunnel",
 		serviceURL + "RegisteredHostnames",
+		serviceURL + "PublishTunnel",
+		serviceURL + "UnpublishTunnel",
 		serviceURL + "ReleaseTunnel",
 	}
 
@@ -277,52 +280,6 @@ func (c *tunnelServiceProtobufClient) callGenerateHostname(ctx context.Context, 
 	return out, nil
 }
 
-func (c *tunnelServiceProtobufClient) PublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-	ctx = ctxsetters.WithPackageName(ctx, "protocol")
-	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
-	ctx = ctxsetters.WithMethodName(ctx, "PublishTunnel")
-	caller := c.callPublishTunnel
-	if c.interceptor != nil {
-		caller = func(ctx context.Context, req *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-			resp, err := c.interceptor(
-				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*PublishTunnelRequest)
-					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*PublishTunnelRequest) when calling interceptor")
-					}
-					return c.callPublishTunnel(ctx, typedReq)
-				},
-			)(ctx, req)
-			if resp != nil {
-				typedResp, ok := resp.(*PublishTunnelResponse)
-				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*PublishTunnelResponse) when calling interceptor")
-				}
-				return typedResp, err
-			}
-			return nil, err
-		}
-	}
-	return caller(ctx, in)
-}
-
-func (c *tunnelServiceProtobufClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-	out := new(PublishTunnelResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
-	if err != nil {
-		twerr, ok := err.(twirp.Error)
-		if !ok {
-			twerr = twirp.InternalErrorWith(err)
-		}
-		callClientError(ctx, c.opts.Hooks, twerr)
-		return nil, err
-	}
-
-	callClientResponseReceived(ctx, c.opts.Hooks)
-
-	return out, nil
-}
-
 func (c *tunnelServiceProtobufClient) RegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	ctx = ctxsetters.WithPackageName(ctx, "protocol")
 	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
@@ -354,7 +311,99 @@ func (c *tunnelServiceProtobufClient) RegisteredHostnames(ctx context.Context, i
 
 func (c *tunnelServiceProtobufClient) callRegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	out := new(RegisteredHostnamesResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) PublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "PublishTunnel")
+	caller := c.callPublishTunnel
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*PublishTunnelRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*PublishTunnelRequest) when calling interceptor")
+					}
+					return c.callPublishTunnel(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*PublishTunnelResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*PublishTunnelResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+	out := new(PublishTunnelResponse)
 	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) UnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "UnpublishTunnel")
+	caller := c.callUnpublishTunnel
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*UnpublishTunnelRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*UnpublishTunnelRequest) when calling interceptor")
+					}
+					return c.callUnpublishTunnel(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*UnpublishTunnelResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*UnpublishTunnelResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callUnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+	out := new(UnpublishTunnelResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -400,7 +449,7 @@ func (c *tunnelServiceProtobufClient) ReleaseTunnel(ctx context.Context, in *Rel
 
 func (c *tunnelServiceProtobufClient) callReleaseTunnel(ctx context.Context, in *ReleaseTunnelRequest) (*ReleaseTunnelResponse, error) {
 	out := new(ReleaseTunnelResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -421,7 +470,7 @@ func (c *tunnelServiceProtobufClient) callReleaseTunnel(ctx context.Context, in 
 
 type tunnelServiceJSONClient struct {
 	client      HTTPClient
-	urls        [7]string
+	urls        [8]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -449,13 +498,14 @@ func NewTunnelServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "TunnelService")
-	urls := [7]string{
+	urls := [8]string{
 		serviceURL + "Ping",
 		serviceURL + "RegisterIdentity",
 		serviceURL + "GetNodes",
 		serviceURL + "GenerateHostname",
-		serviceURL + "PublishTunnel",
 		serviceURL + "RegisteredHostnames",
+		serviceURL + "PublishTunnel",
+		serviceURL + "UnpublishTunnel",
 		serviceURL + "ReleaseTunnel",
 	}
 
@@ -651,52 +701,6 @@ func (c *tunnelServiceJSONClient) callGenerateHostname(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *tunnelServiceJSONClient) PublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-	ctx = ctxsetters.WithPackageName(ctx, "protocol")
-	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
-	ctx = ctxsetters.WithMethodName(ctx, "PublishTunnel")
-	caller := c.callPublishTunnel
-	if c.interceptor != nil {
-		caller = func(ctx context.Context, req *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-			resp, err := c.interceptor(
-				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*PublishTunnelRequest)
-					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*PublishTunnelRequest) when calling interceptor")
-					}
-					return c.callPublishTunnel(ctx, typedReq)
-				},
-			)(ctx, req)
-			if resp != nil {
-				typedResp, ok := resp.(*PublishTunnelResponse)
-				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*PublishTunnelResponse) when calling interceptor")
-				}
-				return typedResp, err
-			}
-			return nil, err
-		}
-	}
-	return caller(ctx, in)
-}
-
-func (c *tunnelServiceJSONClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
-	out := new(PublishTunnelResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
-	if err != nil {
-		twerr, ok := err.(twirp.Error)
-		if !ok {
-			twerr = twirp.InternalErrorWith(err)
-		}
-		callClientError(ctx, c.opts.Hooks, twerr)
-		return nil, err
-	}
-
-	callClientResponseReceived(ctx, c.opts.Hooks)
-
-	return out, nil
-}
-
 func (c *tunnelServiceJSONClient) RegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	ctx = ctxsetters.WithPackageName(ctx, "protocol")
 	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
@@ -728,7 +732,99 @@ func (c *tunnelServiceJSONClient) RegisteredHostnames(ctx context.Context, in *R
 
 func (c *tunnelServiceJSONClient) callRegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	out := new(RegisteredHostnamesResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) PublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "PublishTunnel")
+	caller := c.callPublishTunnel
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*PublishTunnelRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*PublishTunnelRequest) when calling interceptor")
+					}
+					return c.callPublishTunnel(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*PublishTunnelResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*PublishTunnelResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
+	out := new(PublishTunnelResponse)
 	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) UnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "UnpublishTunnel")
+	caller := c.callUnpublishTunnel
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*UnpublishTunnelRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*UnpublishTunnelRequest) when calling interceptor")
+					}
+					return c.callUnpublishTunnel(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*UnpublishTunnelResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*UnpublishTunnelResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callUnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
+	out := new(UnpublishTunnelResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -774,7 +870,7 @@ func (c *tunnelServiceJSONClient) ReleaseTunnel(ctx context.Context, in *Release
 
 func (c *tunnelServiceJSONClient) callReleaseTunnel(ctx context.Context, in *ReleaseTunnelRequest) (*ReleaseTunnelResponse, error) {
 	out := new(ReleaseTunnelResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -898,11 +994,14 @@ func (s *tunnelServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Requ
 	case "GenerateHostname":
 		s.serveGenerateHostname(ctx, resp, req)
 		return
+	case "RegisteredHostnames":
+		s.serveRegisteredHostnames(ctx, resp, req)
+		return
 	case "PublishTunnel":
 		s.servePublishTunnel(ctx, resp, req)
 		return
-	case "RegisteredHostnames":
-		s.serveRegisteredHostnames(ctx, resp, req)
+	case "UnpublishTunnel":
+		s.serveUnpublishTunnel(ctx, resp, req)
 		return
 	case "ReleaseTunnel":
 		s.serveReleaseTunnel(ctx, resp, req)
@@ -1634,6 +1733,186 @@ func (s *tunnelServiceServer) serveGenerateHostnameProtobuf(ctx context.Context,
 	callResponseSent(ctx, s.hooks)
 }
 
+func (s *tunnelServiceServer) serveRegisteredHostnames(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveRegisteredHostnamesJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveRegisteredHostnamesProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RegisteredHostnames")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(RegisteredHostnamesRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.RegisteredHostnames
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RegisteredHostnamesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RegisteredHostnamesRequest) when calling interceptor")
+					}
+					return s.TunnelService.RegisteredHostnames(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RegisteredHostnamesResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RegisteredHostnamesResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *RegisteredHostnamesResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *RegisteredHostnamesResponse and nil error while calling RegisteredHostnames. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveRegisteredHostnamesProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RegisteredHostnames")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(RegisteredHostnamesRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.RegisteredHostnames
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RegisteredHostnamesRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RegisteredHostnamesRequest) when calling interceptor")
+					}
+					return s.TunnelService.RegisteredHostnames(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RegisteredHostnamesResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RegisteredHostnamesResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *RegisteredHostnamesResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *RegisteredHostnamesResponse and nil error while calling RegisteredHostnames. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
 func (s *tunnelServiceServer) servePublishTunnel(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	header := req.Header.Get("Content-Type")
 	i := strings.Index(header, ";")
@@ -1814,7 +2093,7 @@ func (s *tunnelServiceServer) servePublishTunnelProtobuf(ctx context.Context, re
 	callResponseSent(ctx, s.hooks)
 }
 
-func (s *tunnelServiceServer) serveRegisteredHostnames(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *tunnelServiceServer) serveUnpublishTunnel(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	header := req.Header.Get("Content-Type")
 	i := strings.Index(header, ";")
 	if i == -1 {
@@ -1822,9 +2101,9 @@ func (s *tunnelServiceServer) serveRegisteredHostnames(ctx context.Context, resp
 	}
 	switch strings.TrimSpace(strings.ToLower(header[:i])) {
 	case "application/json":
-		s.serveRegisteredHostnamesJSON(ctx, resp, req)
+		s.serveUnpublishTunnelJSON(ctx, resp, req)
 	case "application/protobuf":
-		s.serveRegisteredHostnamesProtobuf(ctx, resp, req)
+		s.serveUnpublishTunnelProtobuf(ctx, resp, req)
 	default:
 		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
 		twerr := badRouteError(msg, req.Method, req.URL.Path)
@@ -1832,9 +2111,9 @@ func (s *tunnelServiceServer) serveRegisteredHostnames(ctx context.Context, resp
 	}
 }
 
-func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *tunnelServiceServer) serveUnpublishTunnelJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	var err error
-	ctx = ctxsetters.WithMethodName(ctx, "RegisteredHostnames")
+	ctx = ctxsetters.WithMethodName(ctx, "UnpublishTunnel")
 	ctx, err = callRequestRouted(ctx, s.hooks)
 	if err != nil {
 		s.writeError(ctx, resp, err)
@@ -1847,29 +2126,29 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, 
 		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
 		return
 	}
-	reqContent := new(RegisteredHostnamesRequest)
+	reqContent := new(UnpublishTunnelRequest)
 	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
 	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
 		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
 		return
 	}
 
-	handler := s.TunnelService.RegisteredHostnames
+	handler := s.TunnelService.UnpublishTunnel
 	if s.interceptor != nil {
-		handler = func(ctx context.Context, req *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
+		handler = func(ctx context.Context, req *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
 			resp, err := s.interceptor(
 				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*RegisteredHostnamesRequest)
+					typedReq, ok := req.(*UnpublishTunnelRequest)
 					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*RegisteredHostnamesRequest) when calling interceptor")
+						return nil, twirp.InternalError("failed type assertion req.(*UnpublishTunnelRequest) when calling interceptor")
 					}
-					return s.TunnelService.RegisteredHostnames(ctx, typedReq)
+					return s.TunnelService.UnpublishTunnel(ctx, typedReq)
 				},
 			)(ctx, req)
 			if resp != nil {
-				typedResp, ok := resp.(*RegisteredHostnamesResponse)
+				typedResp, ok := resp.(*UnpublishTunnelResponse)
 				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*RegisteredHostnamesResponse) when calling interceptor")
+					return nil, twirp.InternalError("failed type assertion resp.(*UnpublishTunnelResponse) when calling interceptor")
 				}
 				return typedResp, err
 			}
@@ -1878,7 +2157,7 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, 
 	}
 
 	// Call service method
-	var respContent *RegisteredHostnamesResponse
+	var respContent *UnpublishTunnelResponse
 	func() {
 		defer ensurePanicResponses(ctx, resp, s.hooks)
 		respContent, err = handler(ctx, reqContent)
@@ -1889,7 +2168,7 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, 
 		return
 	}
 	if respContent == nil {
-		s.writeError(ctx, resp, twirp.InternalError("received a nil *RegisteredHostnamesResponse and nil error while calling RegisteredHostnames. nil responses are not supported"))
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *UnpublishTunnelResponse and nil error while calling UnpublishTunnel. nil responses are not supported"))
 		return
 	}
 
@@ -1915,9 +2194,9 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesJSON(ctx context.Context, 
 	callResponseSent(ctx, s.hooks)
 }
 
-func (s *tunnelServiceServer) serveRegisteredHostnamesProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+func (s *tunnelServiceServer) serveUnpublishTunnelProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
 	var err error
-	ctx = ctxsetters.WithMethodName(ctx, "RegisteredHostnames")
+	ctx = ctxsetters.WithMethodName(ctx, "UnpublishTunnel")
 	ctx, err = callRequestRouted(ctx, s.hooks)
 	if err != nil {
 		s.writeError(ctx, resp, err)
@@ -1929,28 +2208,28 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesProtobuf(ctx context.Conte
 		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
 		return
 	}
-	reqContent := new(RegisteredHostnamesRequest)
+	reqContent := new(UnpublishTunnelRequest)
 	if err = reqContent.UnmarshalVT(buf); err != nil {
 		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
 		return
 	}
 
-	handler := s.TunnelService.RegisteredHostnames
+	handler := s.TunnelService.UnpublishTunnel
 	if s.interceptor != nil {
-		handler = func(ctx context.Context, req *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
+		handler = func(ctx context.Context, req *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
 			resp, err := s.interceptor(
 				func(ctx context.Context, req interface{}) (interface{}, error) {
-					typedReq, ok := req.(*RegisteredHostnamesRequest)
+					typedReq, ok := req.(*UnpublishTunnelRequest)
 					if !ok {
-						return nil, twirp.InternalError("failed type assertion req.(*RegisteredHostnamesRequest) when calling interceptor")
+						return nil, twirp.InternalError("failed type assertion req.(*UnpublishTunnelRequest) when calling interceptor")
 					}
-					return s.TunnelService.RegisteredHostnames(ctx, typedReq)
+					return s.TunnelService.UnpublishTunnel(ctx, typedReq)
 				},
 			)(ctx, req)
 			if resp != nil {
-				typedResp, ok := resp.(*RegisteredHostnamesResponse)
+				typedResp, ok := resp.(*UnpublishTunnelResponse)
 				if !ok {
-					return nil, twirp.InternalError("failed type assertion resp.(*RegisteredHostnamesResponse) when calling interceptor")
+					return nil, twirp.InternalError("failed type assertion resp.(*UnpublishTunnelResponse) when calling interceptor")
 				}
 				return typedResp, err
 			}
@@ -1959,7 +2238,7 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesProtobuf(ctx context.Conte
 	}
 
 	// Call service method
-	var respContent *RegisteredHostnamesResponse
+	var respContent *UnpublishTunnelResponse
 	func() {
 		defer ensurePanicResponses(ctx, resp, s.hooks)
 		respContent, err = handler(ctx, reqContent)
@@ -1970,7 +2249,7 @@ func (s *tunnelServiceServer) serveRegisteredHostnamesProtobuf(ctx context.Conte
 		return
 	}
 	if respContent == nil {
-		s.writeError(ctx, resp, twirp.InternalError("received a nil *RegisteredHostnamesResponse and nil error while calling RegisteredHostnames. nil responses are not supported"))
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *UnpublishTunnelResponse and nil error while calling UnpublishTunnel. nil responses are not supported"))
 		return
 	}
 
@@ -2190,64 +2469,66 @@ func (s *tunnelServiceServer) PathPrefix() string {
 }
 
 var twirpFileDescriptor2 = []byte{
-	// 929 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x56, 0x6d, 0x6e, 0xdb, 0x36,
-	0x18, 0xae, 0x1c, 0x27, 0xb5, 0x5f, 0xc7, 0xa9, 0xcc, 0x24, 0x8d, 0xcb, 0x06, 0x5b, 0xca, 0xa5,
-	0x5d, 0xb0, 0x0f, 0x1b, 0xf6, 0x80, 0x61, 0xe8, 0xf6, 0x63, 0x9e, 0x63, 0x34, 0x45, 0x03, 0xdb,
-	0x50, 0x94, 0x7d, 0x03, 0x86, 0x62, 0xbf, 0x8b, 0x85, 0x38, 0xa2, 0x26, 0xd2, 0xc5, 0x76, 0x87,
-	0xfd, 0xca, 0x21, 0xb6, 0x5b, 0xe4, 0x12, 0x3b, 0xc1, 0x76, 0x92, 0x41, 0x22, 0x55, 0x29, 0xb2,
-	0xd4, 0xf5, 0x97, 0x49, 0x3e, 0xcf, 0xfb, 0xcd, 0x47, 0x26, 0xec, 0x09, 0x1f, 0xa7, 0x6d, 0x3f,
-	0xe0, 0x92, 0xb7, 0xe5, 0xd2, 0xf3, 0x70, 0xd1, 0x8a, 0x36, 0xa4, 0x12, 0xfd, 0x4c, 0xf9, 0x82,
-	0xee, 0xa6, 0x28, 0x1e, 0x9f, 0xa1, 0x22, 0xd0, 0x83, 0x4b, 0xce, 0x2f, 0x17, 0xa8, 0x80, 0x8b,
-	0xe5, 0x2f, 0xed, 0x19, 0x8a, 0x69, 0xe0, 0xfa, 0x92, 0x07, 0x8a, 0xc1, 0xfe, 0x28, 0x41, 0xf9,
-	0xd4, 0xf5, 0xae, 0xc8, 0x87, 0x50, 0x76, 0x16, 0xbe, 0xd7, 0x34, 0x0e, 0x8c, 0xa3, 0xad, 0xee,
-	0x76, 0x2b, 0x76, 0xdd, 0x0a, 0xd1, 0x56, 0xef, 0x74, 0x3c, 0xb4, 0x22, 0x02, 0xa1, 0x50, 0x99,
-	0x73, 0x21, 0x3d, 0xe7, 0x1a, 0x9b, 0xa5, 0x03, 0xe3, 0xa8, 0x6a, 0xbd, 0xd9, 0x93, 0x87, 0xb0,
-	0x11, 0xe0, 0x35, 0x97, 0xd8, 0x5c, 0x8b, 0x10, 0xbd, 0x63, 0x7f, 0x1a, 0x50, 0x0e, 0x5d, 0x90,
-	0x1a, 0xdc, 0x3f, 0x1f, 0xbe, 0x1a, 0x8e, 0xbe, 0x1b, 0x9a, 0xf7, 0xc8, 0x33, 0xa8, 0x9f, 0x8d,
-	0x07, 0x7d, 0x7b, 0x60, 0x4d, 0xfa, 0x27, 0x23, 0xeb, 0xd8, 0x34, 0xe8, 0xf6, 0xcd, 0x2d, 0x7d,
-	0x10, 0xd6, 0x22, 0x31, 0xf8, 0x74, 0x3a, 0xe7, 0xc1, 0xac, 0xdd, 0x21, 0x0c, 0x6a, 0x31, 0xcf,
-	0x3e, 0x1f, 0x9a, 0x25, 0xda, 0xb8, 0xb9, 0xa5, 0xf5, 0x98, 0x25, 0x97, 0x5e, 0xbb, 0x43, 0x1a,
-	0xb0, 0x7e, 0x62, 0xdb, 0xe3, 0xae, 0x59, 0xa5, 0x1b, 0x37, 0xb7, 0xb4, 0x34, 0xef, 0x92, 0x87,
-	0x50, 0x0e, 0x8f, 0x4c, 0xa0, 0x9b, 0x37, 0xb7, 0xb4, 0x32, 0x97, 0xd2, 0x6f, 0x77, 0x5a, 0x1d,
-	0x42, 0x61, 0xcd, 0xee, 0x8f, 0xcd, 0x5a, 0xc6, 0xcd, 0xd4, 0x6f, 0x77, 0xd8, 0x3f, 0x06, 0xd4,
-	0xec, 0xa8, 0xc5, 0x16, 0x5f, 0x4a, 0x24, 0x5f, 0x41, 0x63, 0xba, 0x70, 0xd1, 0x93, 0xc7, 0x28,
-	0xa4, 0xeb, 0x39, 0xd2, 0xe5, 0xaa, 0x45, 0xb5, 0xee, 0x56, 0xd2, 0xa2, 0x21, 0x9f, 0xa1, 0xb5,
-	0x4a, 0x24, 0xcf, 0xc1, 0x8c, 0x6a, 0x48, 0x1b, 0x97, 0x72, 0x8d, 0x57, 0x78, 0x61, 0x64, 0x35,
-	0xeb, 0xb4, 0xf1, 0x5a, 0x7e, 0xe4, 0x15, 0xe2, 0x9d, 0x21, 0xc1, 0xdd, 0x21, 0xb1, 0x0f, 0xa0,
-	0xd6, 0x8f, 0x52, 0xb5, 0xf9, 0x15, 0x7a, 0x64, 0x07, 0xd6, 0x65, 0xb8, 0x88, 0xca, 0xda, 0xb4,
-	0xd4, 0x86, 0x6d, 0x43, 0x43, 0x91, 0xc6, 0xae, 0x77, 0x69, 0xe1, 0xaf, 0x4b, 0x14, 0x92, 0x9d,
-	0x02, 0x49, 0x1f, 0x0a, 0x9f, 0x7b, 0x02, 0x09, 0x83, 0x72, 0x78, 0xe5, 0x0a, 0xda, 0x12, 0x61,
-	0x84, 0x40, 0xd9, 0xf1, 0xf1, 0x37, 0x7d, 0x61, 0xa2, 0x35, 0xeb, 0xc1, 0x9e, 0x85, 0x97, 0xae,
-	0x90, 0x18, 0xbc, 0x9c, 0xa1, 0x27, 0x5d, 0xf9, 0xbb, 0x0e, 0x44, 0x9e, 0xc1, 0x86, 0xea, 0x66,
-	0x81, 0x53, 0x8d, 0xb2, 0x9f, 0xa0, 0xb9, 0xea, 0x42, 0xa7, 0xf5, 0x71, 0xba, 0xae, 0x5a, 0x77,
-	0x37, 0x71, 0x91, 0xaa, 0x5e, 0x97, 0x9b, 0x9b, 0x5f, 0x03, 0x1e, 0xbc, 0x40, 0x19, 0xc6, 0x13,
-	0x71, 0x03, 0xbe, 0x00, 0x33, 0x39, 0xd2, 0x71, 0x0e, 0x61, 0x3d, 0x2c, 0x51, 0x34, 0x8d, 0x83,
-	0xb5, 0x9c, 0x54, 0x15, 0xc8, 0x1e, 0xc1, 0xde, 0x0b, 0xf4, 0x30, 0x70, 0x24, 0x9e, 0xe8, 0x41,
-	0xc4, 0x4e, 0x3f, 0x87, 0xe6, 0x2a, 0xa4, 0x9d, 0xa7, 0xe7, 0x68, 0x64, 0xe6, 0xf8, 0x33, 0xec,
-	0x8c, 0x97, 0x17, 0x0b, 0x57, 0xcc, 0xf5, 0x8d, 0xd5, 0xcd, 0x7b, 0x8b, 0x0d, 0x39, 0x82, 0xfb,
-	0x02, 0x83, 0xd7, 0x18, 0x88, 0x66, 0x29, 0x37, 0xdd, 0x18, 0x66, 0x03, 0xd8, 0xcd, 0x78, 0xd7,
-	0x29, 0x7d, 0x02, 0x55, 0x5f, 0x01, 0x38, 0x2b, 0xa8, 0x39, 0x21, 0xb0, 0x7d, 0xa0, 0xf1, 0x84,
-	0x70, 0x16, 0x97, 0xf7, 0xa6, 0x9f, 0x5f, 0xc2, 0xe3, 0x5c, 0x54, 0x87, 0xda, 0x87, 0x6a, 0x9c,
-	0xb9, 0x6a, 0x6f, 0xd5, 0x4a, 0x0e, 0x58, 0x17, 0x76, 0x2c, 0x5c, 0xa0, 0x23, 0xf0, 0x9d, 0xeb,
-	0x67, 0x7b, 0xb0, 0x9b, 0xb1, 0x51, 0xa1, 0x98, 0x03, 0x0d, 0x7b, 0x45, 0x45, 0x87, 0xb0, 0x1e,
-	0xe9, 0xb2, 0xe0, 0x16, 0x2a, 0x30, 0xbc, 0xac, 0x4a, 0x80, 0x05, 0xda, 0xd6, 0x28, 0xfb, 0x1e,
-	0x36, 0x55, 0x88, 0x33, 0xe9, 0xc8, 0xa5, 0x20, 0x5d, 0xd8, 0x10, 0xd1, 0x2a, 0xb2, 0xdb, 0xea,
-	0xd2, 0xc4, 0x2e, 0xcd, 0xeb, 0x47, 0x3e, 0x14, 0x33, 0x14, 0x2b, 0x06, 0x01, 0x0f, 0xf4, 0xf7,
-	0x55, 0x6d, 0x3e, 0xea, 0x83, 0x99, 0xb5, 0x20, 0x75, 0xa8, 0x9e, 0xd9, 0x3d, 0xfb, 0xfc, 0x6c,
-	0x32, 0x7a, 0x65, 0xde, 0x23, 0x0d, 0xa8, 0xeb, 0x0f, 0xef, 0x64, 0x60, 0x59, 0x23, 0xcb, 0x34,
-	0x42, 0xc6, 0x70, 0x34, 0x39, 0x7e, 0x69, 0x0d, 0xfa, 0xb6, 0x59, 0xea, 0xfe, 0x5d, 0x86, 0xba,
-	0xf6, 0x82, 0xc1, 0x6b, 0x77, 0x8a, 0xa4, 0x07, 0xe5, 0x50, 0xe8, 0xe4, 0x71, 0x56, 0x3a, 0xa9,
-	0x6f, 0x02, 0xdd, 0xcf, 0x07, 0xf5, 0x04, 0x7f, 0x00, 0x33, 0x2b, 0x50, 0xf2, 0x24, 0xb1, 0x28,
-	0xd0, 0x3f, 0x65, 0x6f, 0xa3, 0x68, 0xd7, 0x3d, 0xa8, 0xc4, 0x5a, 0x24, 0x8f, 0x12, 0x7e, 0x46,
-	0xb2, 0x94, 0xe6, 0x41, 0x49, 0x76, 0x59, 0xe5, 0xa5, 0xb3, 0x2b, 0x10, 0x6c, 0x3a, 0xbb, 0x42,
-	0xe1, 0x8e, 0xa1, 0x7e, 0x47, 0x3e, 0xe4, 0xbd, 0xc4, 0x28, 0x4f, 0xb5, 0xf4, 0xfd, 0x42, 0x5c,
-	0x7b, 0xbc, 0x80, 0xed, 0x1c, 0xad, 0x90, 0xc3, 0xd5, 0x56, 0xad, 0x0a, 0x8d, 0x3e, 0xfd, 0x1f,
-	0x56, 0x92, 0xf5, 0x1d, 0x79, 0xa4, 0xb3, 0xce, 0xd3, 0x5a, 0x3a, 0xeb, 0x5c, 0x5d, 0x3d, 0xff,
-	0x1a, 0xaa, 0xe1, 0xab, 0x61, 0xa2, 0x7b, 0xab, 0xde, 0x23, 0xad, 0xf8, 0x3d, 0xd2, 0x1a, 0x78,
-	0xcb, 0xeb, 0x6f, 0x9d, 0xc5, 0x12, 0x47, 0x7e, 0xa8, 0x38, 0xd1, 0xfc, 0xf7, 0x2f, 0x75, 0xb3,
-	0x2b, 0xa1, 0xd5, 0xd0, 0xb9, 0xc6, 0x6f, 0x9e, 0x9e, 0x18, 0x3f, 0x3e, 0xb9, 0xe2, 0x5e, 0xcb,
-	0xc3, 0xa9, 0x6c, 0x89, 0x79, 0x5b, 0xff, 0x63, 0xb7, 0x93, 0x27, 0xcf, 0x94, 0x2f, 0x2e, 0x36,
-	0xa2, 0xd5, 0x67, 0xff, 0x05, 0x00, 0x00, 0xff, 0xff, 0x96, 0xfb, 0x76, 0xec, 0x2d, 0x09, 0x00,
+	// 961 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x56, 0xdd, 0x6e, 0xe2, 0x46,
+	0x14, 0x5e, 0x13, 0x60, 0xe1, 0x10, 0x12, 0x33, 0xf9, 0x63, 0x67, 0xa3, 0x96, 0xb8, 0xd9, 0x6d,
+	0xd4, 0x1f, 0x10, 0xb4, 0xaa, 0xaa, 0x6d, 0x2f, 0x4a, 0x09, 0xda, 0xac, 0x36, 0x02, 0xe4, 0x38,
+	0xdb, 0x5f, 0x09, 0x39, 0x70, 0x1a, 0xac, 0x10, 0x8f, 0xeb, 0x19, 0x56, 0xed, 0x3b, 0xf4, 0x2a,
+	0x0f, 0xd1, 0x5e, 0xf4, 0x1d, 0xf2, 0x2e, 0xed, 0x93, 0x54, 0xf6, 0x8c, 0x63, 0xc7, 0x98, 0xb4,
+	0xbd, 0xb2, 0x67, 0xce, 0x77, 0xbe, 0x39, 0x3f, 0xf3, 0x1d, 0x0d, 0xec, 0x71, 0x0f, 0x27, 0x2d,
+	0xcf, 0x67, 0x82, 0xb5, 0xc4, 0xc2, 0x75, 0x71, 0xde, 0x0c, 0x17, 0xa4, 0x14, 0x7e, 0x26, 0x6c,
+	0x4e, 0x77, 0x12, 0x10, 0x97, 0x4d, 0x51, 0x02, 0x68, 0xe3, 0x92, 0xb1, 0xcb, 0x39, 0x4a, 0xc3,
+	0xc5, 0xe2, 0xa7, 0xd6, 0x14, 0xf9, 0xc4, 0x77, 0x3c, 0xc1, 0x7c, 0x89, 0x30, 0x7e, 0xcb, 0x41,
+	0xfe, 0xd4, 0x71, 0xaf, 0xc8, 0xfb, 0x90, 0xb7, 0xe7, 0x9e, 0x5b, 0xd7, 0x1a, 0xda, 0xd1, 0x46,
+	0x67, 0xab, 0x19, 0x51, 0x37, 0x03, 0x6b, 0xb3, 0x7b, 0x3a, 0x1a, 0x98, 0x21, 0x80, 0x50, 0x28,
+	0xcd, 0x18, 0x17, 0xae, 0x7d, 0x8d, 0xf5, 0x5c, 0x43, 0x3b, 0x2a, 0x9b, 0x77, 0x6b, 0xb2, 0x0b,
+	0x45, 0x1f, 0xaf, 0x99, 0xc0, 0xfa, 0x5a, 0x68, 0x51, 0x2b, 0xe3, 0x77, 0x0d, 0xf2, 0x01, 0x05,
+	0xa9, 0xc0, 0xe3, 0xf3, 0xc1, 0xeb, 0xc1, 0xf0, 0x9b, 0x81, 0xfe, 0x88, 0x3c, 0x87, 0xea, 0xd9,
+	0xa8, 0xdf, 0xb3, 0xfa, 0xe6, 0xb8, 0x77, 0x32, 0x34, 0x8f, 0x75, 0x8d, 0x6e, 0xdd, 0xdc, 0xd2,
+	0xcd, 0x20, 0x17, 0x81, 0xfe, 0xc7, 0x93, 0x19, 0xf3, 0xa7, 0xad, 0x36, 0x31, 0xa0, 0x12, 0xe1,
+	0xac, 0xf3, 0x81, 0x9e, 0xa3, 0xb5, 0x9b, 0x5b, 0x5a, 0x8d, 0x50, 0x62, 0xe1, 0xb6, 0xda, 0xa4,
+	0x06, 0x85, 0x13, 0xcb, 0x1a, 0x75, 0xf4, 0x32, 0x2d, 0xde, 0xdc, 0xd2, 0xdc, 0xac, 0x43, 0x76,
+	0x21, 0x1f, 0x6c, 0xe9, 0x40, 0xd7, 0x6f, 0x6e, 0x69, 0x69, 0x26, 0x84, 0xd7, 0x6a, 0x37, 0xdb,
+	0x84, 0xc2, 0x9a, 0xd5, 0x1b, 0xe9, 0x95, 0x14, 0xcd, 0xc4, 0x6b, 0xb5, 0x8d, 0xbf, 0x34, 0xa8,
+	0x58, 0x61, 0x89, 0x4d, 0xb6, 0x10, 0x48, 0xbe, 0x84, 0xda, 0x64, 0xee, 0xa0, 0x2b, 0x8e, 0x91,
+	0x0b, 0xc7, 0xb5, 0x85, 0xc3, 0x64, 0x89, 0x2a, 0x9d, 0x8d, 0xb8, 0x44, 0x03, 0x36, 0x45, 0x73,
+	0x19, 0x48, 0x5e, 0x80, 0x1e, 0xe6, 0x90, 0x74, 0xce, 0x65, 0x3a, 0x2f, 0xe1, 0x82, 0x93, 0x65,
+	0xaf, 0x93, 0xce, 0x6b, 0xd9, 0x27, 0x2f, 0x01, 0xef, 0x35, 0x09, 0xee, 0x37, 0xc9, 0x78, 0x0f,
+	0x2a, 0xbd, 0x30, 0x54, 0x8b, 0x5d, 0xa1, 0x4b, 0xb6, 0xa1, 0x20, 0x82, 0x9f, 0x30, 0xad, 0x75,
+	0x53, 0x2e, 0x8c, 0x2d, 0xa8, 0x49, 0xd0, 0xc8, 0x71, 0x2f, 0x4d, 0xfc, 0x79, 0x81, 0x5c, 0x18,
+	0xa7, 0x40, 0x92, 0x9b, 0xdc, 0x63, 0x2e, 0x47, 0x62, 0x40, 0x3e, 0xb8, 0x72, 0x2b, 0xca, 0x12,
+	0xda, 0x08, 0x81, 0xbc, 0xed, 0xe1, 0x2f, 0xea, 0xc2, 0x84, 0xff, 0x46, 0x17, 0xf6, 0x4c, 0xbc,
+	0x74, 0xb8, 0x40, 0xff, 0xd5, 0x14, 0x5d, 0xe1, 0x88, 0x5f, 0xd5, 0x41, 0xe4, 0x39, 0x14, 0x65,
+	0x35, 0x57, 0x90, 0x2a, 0xab, 0xf1, 0x03, 0xd4, 0x97, 0x29, 0x54, 0x58, 0x1f, 0x26, 0xf3, 0xaa,
+	0x74, 0x76, 0x62, 0x8a, 0x44, 0xf6, 0x2a, 0xdd, 0xcc, 0xf8, 0x6a, 0xb0, 0xf9, 0x12, 0x45, 0x70,
+	0x1e, 0x8f, 0x0a, 0xf0, 0x39, 0xe8, 0xf1, 0x96, 0x3a, 0xe7, 0x10, 0x0a, 0x41, 0x8a, 0xbc, 0xae,
+	0x35, 0xd6, 0x32, 0x42, 0x95, 0x46, 0xe3, 0x09, 0xec, 0xbd, 0x44, 0x17, 0x7d, 0x5b, 0xe0, 0x89,
+	0x6a, 0x44, 0x44, 0xfa, 0x19, 0xd4, 0x97, 0x4d, 0x8a, 0x3c, 0xd9, 0x47, 0x2d, 0xd5, 0xc7, 0x7d,
+	0xa0, 0x51, 0xf2, 0x38, 0x8d, 0x3c, 0xef, 0x42, 0xfd, 0x02, 0x9e, 0x66, 0x5a, 0x15, 0xf1, 0x3e,
+	0x94, 0x23, 0x22, 0x19, 0x79, 0xd9, 0x8c, 0x37, 0x8c, 0x1f, 0x61, 0x7b, 0xb4, 0xb8, 0x98, 0x3b,
+	0x7c, 0xa6, 0xc4, 0xa0, 0xfa, 0xf2, 0x40, 0x38, 0xe4, 0x08, 0x1e, 0x73, 0xf4, 0xdf, 0xa2, 0xcf,
+	0xeb, 0xb9, 0xcc, 0x4a, 0x44, 0x66, 0xa3, 0x0f, 0x3b, 0x29, 0x76, 0x15, 0xd4, 0x47, 0x50, 0xf6,
+	0xa4, 0x01, 0xa7, 0x2b, 0xca, 0x19, 0x03, 0x8c, 0x4f, 0x61, 0xf7, 0xdc, 0xf5, 0xfe, 0x67, 0x98,
+	0x41, 0x23, 0x96, 0xbc, 0xe4, 0xf1, 0x46, 0x07, 0xb6, 0x4d, 0x9c, 0xa3, 0xcd, 0xf1, 0xbf, 0xd3,
+	0xed, 0xc1, 0x4e, 0xca, 0x47, 0x91, 0xd9, 0x50, 0xb3, 0x96, 0x64, 0x79, 0x08, 0x85, 0x50, 0xe8,
+	0x2b, 0xae, 0xb5, 0x34, 0x06, 0xb7, 0x5f, 0x2a, 0x7a, 0xc5, 0xb0, 0x50, 0x56, 0xe3, 0x5b, 0x58,
+	0x97, 0x47, 0x9c, 0x09, 0x5b, 0x2c, 0x38, 0xe9, 0x40, 0x91, 0x87, 0x7f, 0xa1, 0xdf, 0x46, 0x87,
+	0xc6, 0x7e, 0x49, 0x5c, 0x2f, 0xe4, 0x90, 0xc8, 0x40, 0xfd, 0xe8, 0xfb, 0xcc, 0x57, 0x03, 0x5b,
+	0x2e, 0x3e, 0xe8, 0x81, 0x9e, 0xf6, 0x20, 0x55, 0x28, 0x9f, 0x59, 0x5d, 0xeb, 0xfc, 0x6c, 0x3c,
+	0x7c, 0xad, 0x3f, 0x22, 0x35, 0xa8, 0xaa, 0x49, 0x3e, 0xee, 0x9b, 0xe6, 0xd0, 0xd4, 0xb5, 0x00,
+	0x31, 0x18, 0x8e, 0x8f, 0x5f, 0x99, 0xfd, 0x9e, 0xa5, 0xe7, 0x3a, 0x7f, 0x16, 0xa0, 0xaa, 0x58,
+	0xd0, 0x7f, 0xeb, 0x4c, 0x90, 0x74, 0x21, 0x1f, 0x4c, 0x0e, 0xf2, 0x34, 0xad, 0xc5, 0xc4, 0x90,
+	0xa1, 0xfb, 0xd9, 0x46, 0x75, 0x45, 0xbe, 0x03, 0x3d, 0xad, 0x78, 0x72, 0x10, 0x7b, 0xac, 0x18,
+	0x28, 0xd4, 0x78, 0x08, 0xa2, 0xa8, 0xbb, 0x50, 0x8a, 0xc4, 0x4d, 0x9e, 0xc4, 0xf8, 0xd4, 0x0c,
+	0xa0, 0x34, 0xcb, 0x14, 0x47, 0x97, 0x96, 0x72, 0x32, 0xba, 0x15, 0x13, 0x20, 0x19, 0xdd, 0xca,
+	0x49, 0x70, 0x01, 0x5b, 0x19, 0x7a, 0x26, 0x87, 0xcb, 0x89, 0x2d, 0x0f, 0x03, 0xfa, 0xec, 0x5f,
+	0x50, 0xea, 0x8c, 0x11, 0x54, 0xef, 0x09, 0x93, 0xbc, 0x13, 0xfb, 0x65, 0xcd, 0x03, 0xfa, 0xee,
+	0x4a, 0xbb, 0x62, 0x7c, 0x03, 0x9b, 0x29, 0xb5, 0x91, 0x46, 0xec, 0x93, 0x2d, 0x5f, 0x7a, 0xf0,
+	0x00, 0x22, 0x8e, 0xf4, 0x9e, 0xec, 0x92, 0x91, 0x66, 0x69, 0x38, 0x19, 0x69, 0xa6, 0x5e, 0x5f,
+	0x7c, 0x05, 0xe5, 0xe0, 0x79, 0x33, 0x56, 0x3d, 0x93, 0x0f, 0xa7, 0x66, 0xf4, 0x70, 0x6a, 0xf6,
+	0xdd, 0xc5, 0xf5, 0x1b, 0x7b, 0xbe, 0xc0, 0xa1, 0x17, 0x28, 0x99, 0xd7, 0xff, 0xfe, 0x43, 0x2a,
+	0xa6, 0x14, 0x78, 0x0d, 0xec, 0x6b, 0xfc, 0xfa, 0xd9, 0x89, 0xf6, 0xfd, 0xc1, 0x15, 0x73, 0x9b,
+	0x2e, 0x4e, 0x44, 0x93, 0xcf, 0x5a, 0xea, 0x69, 0xd1, 0x8a, 0xdf, 0x66, 0x13, 0x36, 0xbf, 0x28,
+	0x86, 0x7f, 0x9f, 0xfc, 0x13, 0x00, 0x00, 0xff, 0xff, 0xb4, 0x31, 0x11, 0xbe, 0xd6, 0x09, 0x00,
 	0x00,
 }

@@ -12,8 +12,9 @@ service TunnelService {
     rpc RegisterIdentity(RegisterIdentityRequest) returns (RegisterIdentityResponse);
     rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
     rpc GenerateHostname(GenerateHostnameRequest) returns (GenerateHostnameResponse);
-    rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
     rpc RegisteredHostnames(RegisteredHostnamesRequest) returns (RegisteredHostnamesResponse);
+    rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
+    rpc UnpublishTunnel(UnpublishTunnelRequest) returns (UnpublishTunnelResponse);
     rpc ReleaseTunnel(ReleaseTunnelRequest) returns (ReleaseTunnelResponse);
 }
 
@@ -77,6 +78,12 @@ message GenerateHostnameResponse {
     string hostname = 1;
 }
 
+message RegisteredHostnamesRequest {}
+
+message RegisteredHostnamesResponse {
+    repeated string hostnames = 1;
+}
+
 message PublishTunnelRequest {
     string hostname = 1;
     // servers are tun identities
@@ -87,11 +94,11 @@ message PublishTunnelResponse {
     repeated Node published = 1;
 }
 
-message RegisteredHostnamesRequest {}
-
-message RegisteredHostnamesResponse {
-    repeated string hostnames = 1;
+message UnpublishTunnelRequest {
+    string hostname = 1;
 }
+
+message UnpublishTunnelResponse {}
 
 message ReleaseTunnelRequest {
     string hostname = 1;

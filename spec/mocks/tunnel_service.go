@@ -57,6 +57,16 @@ func (t *TunnelService) GenerateHostname(ctx context.Context, req *protocol.Gene
 	return r.(*protocol.GenerateHostnameResponse), nil
 }
 
+func (t *TunnelService) RegisteredHostnames(ctx context.Context, req *protocol.RegisteredHostnamesRequest) (*protocol.RegisteredHostnamesResponse, error) {
+	args := t.Called(ctx, req)
+	r := args.Get(0)
+	e := args.Error(1)
+	if e != nil {
+		return nil, e
+	}
+	return r.(*protocol.RegisteredHostnamesResponse), nil
+}
+
 func (t *TunnelService) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelRequest) (*protocol.PublishTunnelResponse, error) {
 	args := t.Called(ctx, req)
 	r := args.Get(0)
@@ -67,14 +77,14 @@ func (t *TunnelService) PublishTunnel(ctx context.Context, req *protocol.Publish
 	return r.(*protocol.PublishTunnelResponse), nil
 }
 
-func (t *TunnelService) RegisteredHostnames(ctx context.Context, req *protocol.RegisteredHostnamesRequest) (*protocol.RegisteredHostnamesResponse, error) {
+func (t *TunnelService) UnpublishTunnel(ctx context.Context, req *protocol.UnpublishTunnelRequest) (*protocol.UnpublishTunnelResponse, error) {
 	args := t.Called(ctx, req)
 	r := args.Get(0)
 	e := args.Error(1)
 	if e != nil {
 		return nil, e
 	}
-	return r.(*protocol.RegisteredHostnamesResponse), nil
+	return r.(*protocol.UnpublishTunnelResponse), nil
 }
 
 func (t *TunnelService) ReleaseTunnel(ctx context.Context, req *protocol.ReleaseTunnelRequest) (*protocol.ReleaseTunnelResponse, error) {

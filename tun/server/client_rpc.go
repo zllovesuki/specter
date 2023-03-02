@@ -228,6 +228,29 @@ func (s *Server) GenerateHostname(ctx context.Context, req *protocol.GenerateHos
 	}, nil
 }
 
+func (s *Server) RegisteredHostnames(ctx context.Context, req *protocol.RegisteredHostnamesRequest) (*protocol.RegisteredHostnamesResponse, error) {
+	token, _, err := extractAuthenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := tun.ClientHostnamesPrefix(token)
+
+	children, err := s.chord.PrefixList(ctx, []byte(prefix))
+	if err != nil {
+		return nil, rpc.WrapErrorKV(prefix, err)
+	}
+
+	hostnames := make([]string, len(children))
+	for i, child := range children {
+		hostnames[i] = string(child)
+	}
+
+	return &protocol.RegisteredHostnamesResponse{
+		Hostnames: hostnames,
+	}, nil
+}
+
 func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelRequest) (*protocol.PublishTunnelResponse, error) {
 	token, verifiedClient, err := extractAuthenticated(ctx)
 	if err != nil {
@@ -244,7 +267,7 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 
 	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
-		return nil, twirp.Internal.Errorf("error acquiring lease for publishing: %w", err)
+		return nil, twirp.Internal.Errorf("error acquiring lease for publishing tunnel: %w", err)
 	}
 	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
@@ -331,31 +354,81 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 	}, nil
 }
 
-func (s *Server) RegisteredHostnames(ctx context.Context, req *protocol.RegisteredHostnamesRequest) (*protocol.RegisteredHostnamesResponse, error) {
+func (s *Server) UnpublishTunnel(ctx context.Context, req *protocol.UnpublishTunnelRequest) (*protocol.UnpublishTunnelResponse, error) {
 	token, _, err := extractAuthenticated(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	prefix := tun.ClientHostnamesPrefix(token)
-
-	children, err := s.chord.PrefixList(ctx, []byte(prefix))
+	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
-		return nil, rpc.WrapErrorKV(prefix, err)
+		return nil, twirp.Internal.Errorf("error acquiring lease for unpublishing tunnel: %w", err)
+	}
+	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+
+	hostname := req.GetHostname()
+	if err := s.unadvertiseTunnel(ctx, token, hostname); err != nil {
+		return nil, err
 	}
 
-	hostnames := make([]string, len(children))
-	for i, child := range children {
-		hostnames[i] = string(child)
-	}
-
-	return &protocol.RegisteredHostnamesResponse{
-		Hostnames: hostnames,
-	}, nil
+	return &protocol.UnpublishTunnelResponse{}, nil
 }
 
 func (s *Server) ReleaseTunnel(ctx context.Context, req *protocol.ReleaseTunnelRequest) (*protocol.ReleaseTunnelResponse, error) {
-	return nil, twirp.Unimplemented.Error("TODO")
+	token, _, err := extractAuthenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
+	if err != nil {
+		return nil, twirp.Internal.Errorf("error acquiring lease for releasing tunnel: %w", err)
+	}
+	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+
+	hostname := req.GetHostname()
+	if err := s.unadvertiseTunnel(ctx, token, hostname); err != nil {
+		return nil, err
+	}
+	prefix := tun.ClientHostnamesPrefix(token)
+	if err := s.chord.PrefixRemove(ctx, []byte(prefix), []byte(hostname)); err != nil {
+		return nil, rpc.WrapErrorKV(prefix, err)
+	}
+
+	return &protocol.ReleaseTunnelResponse{}, nil
+}
+
+func (s *Server) unadvertiseTunnel(ctx context.Context, token *protocol.ClientToken, hostname string) error {
+	prefix := tun.ClientHostnamesPrefix(token)
+	b, err := s.chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
+	if err != nil {
+		return rpc.WrapErrorKV(prefix, err)
+	}
+	if !b {
+		return twirp.PermissionDenied.Errorf("hostname %s is not registered", hostname)
+	}
+
+	unpublishJobs := make([]func(context.Context) (int, error), tun.NumRedundantLinks)
+	for i := 0; i < tun.NumRedundantLinks; i++ {
+		i := i
+		unpublishJobs[i] = func(fnCtx context.Context) (int, error) {
+			key := tun.RoutingKey(hostname, i+1)
+			err := s.chord.Delete(fnCtx, []byte(key))
+			return 0, err
+		}
+	}
+
+	unpublishCtx, unpublishCancel := context.WithTimeout(ctx, publishTimeout)
+	defer unpublishCancel()
+
+	_, errors := promise.All(unpublishCtx, unpublishJobs...)
+	for _, err := range errors {
+		if err != nil {
+			return twirp.InternalError(err.Error())
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) saveClientToken(ctx context.Context, token *protocol.ClientToken, client *protocol.Node) error {

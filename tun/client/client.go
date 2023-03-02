@@ -528,6 +528,65 @@ func (c *Client) RebuildTunnels(tunnels []Tunnel) {
 	c.Configuration.buildRouter()
 }
 
+func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
+	if err := fn(); err != nil {
+		return err
+	}
+
+	c.configMu.Lock()
+	defer c.configMu.Unlock()
+
+	var index int = -1
+	for i, t := range c.Configuration.Tunnels {
+		if t.Hostname == tunnel.Hostname {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		return nil
+	}
+
+	c.closeOutdatedProxies([]Tunnel{tunnel})
+
+	c.Configuration.Tunnels = append(c.Configuration.Tunnels[:index], c.Configuration.Tunnels[index+1:]...)
+	if err := c.Configuration.writeFile(); err != nil {
+		c.Logger.Error("Error saving to config file", zap.Error(err))
+	}
+
+	c.Configuration.validate()
+	c.Configuration.buildRouter()
+
+	return nil
+}
+
+func (c *Client) UnpublishTunnel(ctx context.Context, tunnel Tunnel) error {
+	err := c.tunnelRemovalWrapper(tunnel, func() error {
+		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.UnpublishTunnelResponse, error) {
+			ctx = rpc.WithClientToken(ctx, c.getToken())
+			ctx = rpc.WithNode(ctx, node)
+			return c.tunnelClient.UnpublishTunnel(ctx, &protocol.UnpublishTunnelRequest{
+				Hostname: tunnel.Hostname,
+			})
+		})
+		return err
+	})
+	return err
+}
+
+func (c *Client) ReleaseTunnel(ctx context.Context, tunnel Tunnel) error {
+	return c.tunnelRemovalWrapper(tunnel, func() error {
+		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ReleaseTunnelResponse, error) {
+			ctx = rpc.WithClientToken(ctx, c.getToken())
+			ctx = rpc.WithNode(ctx, node)
+			return c.tunnelClient.ReleaseTunnel(ctx, &protocol.ReleaseTunnelRequest{
+				Hostname: tunnel.Hostname,
+			})
+		})
+		return err
+	})
+}
+
 func (c *Client) UpdateApex(apex string) {
 	c.configMu.Lock()
 	c.Configuration.Apex = apex

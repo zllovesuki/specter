@@ -433,6 +433,63 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 	chordT.AssertExpectations(t)
 }
 
+func TestRPCRegisteredHostnames(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(t, as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	hostnames := []string{"hostname-A", "hostname-B"}
+	hostnameBytes := make([][]byte, len(hostnames))
+	for i, h := range hostnames {
+		hostnameBytes[i] = []byte(h)
+	}
+
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+	node.On("PrefixList",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+	).Return(hostnameBytes, nil)
+
+	tp := mocks.SelfTransport()
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
+
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.RegisteredHostnames(rpc.WithNode(callCtx, cli), &protocol.RegisteredHostnamesRequest{})
+	as.NoError(err)
+
+	as.Len(resp.GetHostnames(), len(hostnames))
+	as.EqualValues(hostnames, resp.GetHostnames())
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
+}
+
 func TestRPCOtherFailed(t *testing.T) {
 	as := require.New(t)
 
@@ -671,5 +728,170 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	}
 
 	node.AssertExpectations(t)
+}
 
+func TestUnpublishTunnel(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, _, _, serv := getFixture(t, as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	hostname := "test-1234"
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	fakeLease := uint64(1234)
+	acquireCall := node.On("Acquire",
+		mock.Anything,
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		mock.Anything,
+	).Return(fakeLease, nil)
+
+	node.On("Release",
+		mock.Anything,
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		fakeLease,
+	).Return(nil).NotBefore(acquireCall)
+
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil).Once()
+
+	node.On("PrefixContains",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.MatchedBy(func(child []byte) bool {
+			return bytes.Equal(child, []byte(hostname))
+		}),
+	).Return(true, nil)
+
+	for i := 0; i < tun.NumRedundantLinks; i++ {
+		key := tun.RoutingKey(hostname, i+1)
+		node.On("Delete", mock.Anything, []byte(key)).Return(nil)
+	}
+
+	tp := mocks.SelfTransport()
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
+
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.UnpublishTunnel(rpc.WithNode(callCtx, cli), &protocol.UnpublishTunnelRequest{
+		Hostname: hostname,
+	})
+
+	as.NoError(err)
+	as.NotNil(resp)
+
+	node.AssertExpectations(t)
+}
+
+func TestReleaseTunnel(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, _, _, serv := getFixture(t, as)
+	cli, _, _ := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	hostname := "test-1234"
+	b, err := generateToken()
+	as.NoError(err)
+	token := &protocol.ClientToken{
+		Token: b,
+	}
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	fakeLease := uint64(1234)
+	acquireCall := node.On("Acquire",
+		mock.Anything,
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		mock.Anything,
+	).Return(fakeLease, nil)
+
+	node.On("Release",
+		mock.Anything,
+		mock.MatchedBy(func(k []byte) bool {
+			return bytes.Equal(k, []byte(tun.ClientLeaseKey(token)))
+		}),
+		fakeLease,
+	).Return(nil).NotBefore(acquireCall)
+
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil).Once()
+
+	node.On("PrefixContains",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.MatchedBy(func(child []byte) bool {
+			return bytes.Equal(child, []byte(hostname))
+		}),
+	).Return(true, nil)
+
+	deleteCalls := make([]*mock.Call, 0)
+	for i := 0; i < tun.NumRedundantLinks; i++ {
+		key := tun.RoutingKey(hostname, i+1)
+		deleteCall := node.On("Delete", mock.Anything, []byte(key)).Return(nil)
+		deleteCalls = append(deleteCalls, deleteCall)
+	}
+
+	node.On("PrefixRemove",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.MatchedBy(func(child []byte) bool {
+			return bytes.Equal(child, []byte(hostname))
+		}),
+	).Return(nil).NotBefore(deleteCalls...)
+
+	tp := mocks.SelfTransport()
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
+
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+
+	callCtx := rpc.WithClientToken(ctx, token)
+	resp, err := cRPC.ReleaseTunnel(rpc.WithNode(callCtx, cli), &protocol.ReleaseTunnelRequest{
+		Hostname: hostname,
+	})
+
+	as.NoError(err)
+	as.NotNil(resp)
+
+	node.AssertExpectations(t)
 }

@@ -88,7 +88,7 @@ func setupRPC(ctx context.Context,
 	})
 }
 
-func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService) []*protocol.Node {
+func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, expectGenerate bool) []*protocol.Node {
 	fakeNodes := []*protocol.Node{
 		{
 			Id:      1,
@@ -138,14 +138,28 @@ func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService) []*protocol.N
 	s.On("GetNodes", mock.Anything, mock.Anything).Return(&protocol.GetNodesResponse{
 		Nodes: fakeNodes,
 	}, nil)
-	s.On("GenerateHostname", mock.Anything, mock.Anything).Return(&protocol.GenerateHostnameResponse{
-		Hostname: testHostname,
-	}, nil)
+	if expectGenerate {
+		s.On("GenerateHostname", mock.Anything, mock.Anything).Return(&protocol.GenerateHostnameResponse{
+			Hostname: testHostname,
+		}, nil)
+	}
 
 	return fakeNodes
 }
 
-func setupClient(t *testing.T, as *require.Assertions, ctx context.Context, logger *zap.Logger, cl *protocol.Node, token *protocol.ClientToken, cfg *Config, reload <-chan os.Signal, m func(s *mocks.TunnelService, t1 *mocks.MemoryTransport), preference bool, times int) (
+func setupClient(
+	t *testing.T,
+	as *require.Assertions,
+	ctx context.Context,
+	logger *zap.Logger,
+	cl *protocol.Node,
+	token *protocol.ClientToken,
+	cfg *Config,
+	reload <-chan os.Signal,
+	m func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call),
+	preference bool,
+	times int,
+) (
 	*Client,
 	*mocks.MemoryTransport,
 	func(),
@@ -157,23 +171,32 @@ func setupClient(t *testing.T, as *require.Assertions, ctx context.Context, logg
 	router := transport.NewStreamRouter(logger, nil, t2)
 	acc := acceptor.NewH2Acceptor(nil)
 
-	fakeNodes := setupFakeNodes(rr, s)
+	expectGenerate := true
+	if cfg.Tunnels[0].Hostname != "" {
+		expectGenerate = false
+	}
+	fakeNodes := setupFakeNodes(rr, s, expectGenerate)
 
+	var publishCall *mock.Call
 	if preference {
-		s.On("PublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.PublishTunnelRequest) bool {
+		publishCall = s.On("PublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.PublishTunnelRequest) bool {
 			// ensure that the node with the lowest latency is the first preference
-			return len(req.GetServers()) > 0 && req.GetServers()[0].GetAddress() == fakeNodes[1].GetAddress()
+			preferenceMatched := len(req.GetServers()) > 0 && req.GetServers()[0].GetAddress() == fakeNodes[1].GetAddress()
+			hostnameMatched := req.GetHostname() == testHostname
+			return preferenceMatched && hostnameMatched
 		})).Return(&protocol.PublishTunnelResponse{
 			Published: fakeNodes,
 		}, nil).Times(times)
 	} else {
-		s.On("PublishTunnel", mock.Anything, mock.Anything).Return(&protocol.PublishTunnelResponse{
+		publishCall = s.On("PublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.PublishTunnelRequest) bool {
+			return req.GetHostname() == testHostname
+		})).Return(&protocol.PublishTunnelResponse{
 			Published: fakeNodes,
 		}, nil).Times(times)
 	}
 
 	if m != nil {
-		m(s, t1)
+		m(s, t1, publishCall)
 	}
 
 	go router.Accept(ctx)
@@ -327,7 +350,7 @@ func TestRegisterAndProxy(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
-	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport) {
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
 		s.On("RegisterIdentity", mock.Anything, mock.MatchedBy(func(req *protocol.RegisterIdentityRequest) bool {
 			return req.GetClient().GetId() == cl.GetId()
 		})).Return(&protocol.RegisterIdentityResponse{
@@ -360,6 +383,120 @@ func TestRegisterAndProxy(t *testing.T) {
 	as.NoError(err)
 	as.Equal(2, n)
 	as.Equal("hi", string(buf))
+}
+
+func TestUnpublishTunnel(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	file, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(file.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "ok")
+	}))
+	defer ts.Close()
+
+	token := &protocol.ClientToken{
+		Token: []byte("test"),
+	}
+	cl := &protocol.Node{
+		Id: chord.Random(),
+	}
+
+	cfg := &Config{
+		path:     file.Name(),
+		router:   skipmap.NewString[route](),
+		Apex:     testApex,
+		ClientID: cl.GetId(),
+		Token:    string(token.GetToken()),
+		Tunnels: []Tunnel{
+			{
+				Hostname: testHostname,
+				Target:   ts.URL,
+			},
+		},
+	}
+	as.NoError(cfg.validate())
+
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		s.On("UnpublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.UnpublishTunnelRequest) bool {
+			return req.GetHostname() == testHostname
+		})).Return(&protocol.UnpublishTunnelResponse{}, nil).NotBefore(publishCall)
+	}
+
+	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, m, false, 1)
+	defer assertion()
+	defer client.Close()
+
+	client.Start(ctx)
+
+	err = client.UnpublishTunnel(ctx, Tunnel{Hostname: testHostname})
+	as.NoError(err)
+
+	curr := client.GetCurrentConfig()
+	as.Len(curr.Tunnels, 0)
+}
+
+func TestReleaseTunnel(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	file, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(file.Name())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "ok")
+	}))
+	defer ts.Close()
+
+	token := &protocol.ClientToken{
+		Token: []byte("test"),
+	}
+	cl := &protocol.Node{
+		Id: chord.Random(),
+	}
+
+	cfg := &Config{
+		path:     file.Name(),
+		router:   skipmap.NewString[route](),
+		Apex:     testApex,
+		ClientID: cl.GetId(),
+		Token:    string(token.GetToken()),
+		Tunnels: []Tunnel{
+			{
+				Hostname: testHostname,
+				Target:   ts.URL,
+			},
+		},
+	}
+	as.NoError(cfg.validate())
+
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		s.On("ReleaseTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.ReleaseTunnelRequest) bool {
+			return req.GetHostname() == testHostname
+		})).Return(&protocol.ReleaseTunnelResponse{}, nil).NotBefore(publishCall)
+	}
+
+	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, m, false, 1)
+	defer assertion()
+	defer client.Close()
+
+	client.Start(ctx)
+
+	err = client.ReleaseTunnel(ctx, Tunnel{Hostname: testHostname})
+	as.NoError(err)
+
+	curr := client.GetCurrentConfig()
+	as.Len(curr.Tunnels, 0)
 }
 
 func TestJustHTTPProxy(t *testing.T) {
