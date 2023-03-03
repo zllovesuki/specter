@@ -31,7 +31,7 @@ func Generate() *cli.Command {
 			{
 				Name:      "tunnel",
 				ArgsUsage: " ",
-				Usage:     "create reverse highly available tunnels to this machine",
+				Usage:     "create highly available reverse tunnels to this machine",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "config",
@@ -41,6 +41,20 @@ func Generate() *cli.Command {
 					},
 				},
 				Action: cmdTunnel,
+			},
+			{
+				Name:      "ls",
+				ArgsUsage: " ",
+				Usage:     "query registered hostnames associated with this client",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "config",
+						Aliases:  []string{"c"},
+						Usage:    "path to config yaml file.",
+						Required: true,
+					},
+				},
+				Action: cmdLs,
 			},
 			{
 				Name:      "connect",
