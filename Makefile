@@ -1,6 +1,9 @@
 PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe android/arm64 linux/arm64 darwin/arm64 linux/arm freebsd/amd64
 
 BUILD=$(shell git rev-parse --short HEAD)
+
+PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+PROTOC_VERSION=22.0
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_TWIRP=`which protoc-gen-twirp`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
@@ -84,8 +87,8 @@ upx: release
 docker:
 	docker buildx build -t specter:$(BUILD) -f Dockerfile .
 
-proto:
-	protoc \
+proto: dep
+	dep/bin/protoc \
 		--plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
 		--plugin protoc-gen-twirp="$(PROTOC_TWIRP)" \
 		--plugin protoc-gen-go="$(PROTOC_GO)" \
@@ -105,8 +108,8 @@ proto:
 		done;
 	git apply spec/vt.patch
 
-proto_aof_kv:
-	protoc \
+proto_aof_kv: dep
+	dep/bin/protoc \
 		--go_opt=module=kon.nect.sh/specter \
 		--go-vtproto_opt=module=kon.nect.sh/specter \
 		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
@@ -120,11 +123,13 @@ benchmark_kv:
 	go test -benchmem -bench=. -benchtime=10s -cpu 1,2,4 ./kv
 
 dep:
+	-mkdir dep/
+	(cd dep/ && curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip)
+	(cd dep/ && unzip protoc-$(PROTOC_VERSION)-linux-x86_64.zip)
 	go install golang.org/x/tools/cmd/stringer@latest
 	go install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
 	go install github.com/twitchtv/twirp/protoc-gen-twirp@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install honnef.co/go/tools/cmd/staticcheck@2022.1.3
 
 vet:
 	go vet ./...

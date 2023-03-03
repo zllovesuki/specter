@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -367,14 +366,17 @@ func TestCorruptedLog(t *testing.T) {
 
 	kv.Stop()
 
-	files, err := ioutil.ReadDir(logPath(dir1))
+	files, err := os.ReadDir(logPath(dir1))
 	as.NoError(err)
 
 	logFile := files[0]
-	f, err := os.OpenFile(filepath.Join(logPath(dir1), logFile.Name()), os.O_RDWR, logFile.Mode())
+	f, err := os.OpenFile(filepath.Join(logPath(dir1), logFile.Name()), os.O_RDWR, logFile.Type())
 	as.NoError(err)
 
-	buf := make([]byte, logFile.Size())
+	info, err := logFile.Info()
+	as.NoError(err)
+
+	buf := make([]byte, info.Size())
 	f.Read(buf)
 	t.Log(buf)
 	buf[10] = 0

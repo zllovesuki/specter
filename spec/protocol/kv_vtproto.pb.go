@@ -6,9 +6,9 @@ package protocol
 
 import (
 	fmt "fmt"
-	duration "github.com/golang/protobuf/ptypes/duration"
 	proto "google.golang.org/protobuf/proto"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	io "io"
 )
 
@@ -1180,7 +1180,7 @@ func (m *LeaseRequest) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Ttl == nil {
-				m.Ttl = &duration.Duration{}
+				m.Ttl = &durationpb.Duration{}
 			}
 			if unmarshal, ok := interface{}(m.Ttl).(interface {
 				UnmarshalVT([]byte) error
