@@ -78,7 +78,7 @@ func (c *Config) validate() error {
 				u.Scheme = "winio"
 				break
 			}
-			return fmt.Errorf("unsupported scheme. valid schemes: http, https, tcp; got %s", u.Scheme)
+			return fmt.Errorf("unsupported scheme. valid schemes: http, https, tcp, or unix; got %s", u.Scheme)
 		}
 		switch u.Scheme {
 		case "winio":
