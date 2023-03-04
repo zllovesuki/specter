@@ -56,7 +56,10 @@ func (c *Config) clone() *Config {
 	return &cfg
 }
 
-func (c *Config) buildRouter() {
+func (c *Config) buildRouter(drop ...Tunnel) {
+	for _, tunnel := range drop {
+		c.router.Delete(tunnel.Hostname)
+	}
 	for _, tunnel := range c.Tunnels {
 		c.router.Store(tunnel.Hostname, route{
 			parsed:   tunnel.parsed,

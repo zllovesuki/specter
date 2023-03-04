@@ -517,7 +517,7 @@ func (c *Client) RebuildTunnels(tunnels []Tunnel) {
 	defer c.configMu.Unlock()
 
 	diff := c.diffTunnels(c.Configuration.Tunnels, tunnels)
-	c.closeOutdatedProxies(diff)
+	c.closeOutdatedProxies(diff...)
 
 	c.Configuration.Tunnels = tunnels
 	if err := c.Configuration.writeFile(); err != nil {
@@ -525,7 +525,7 @@ func (c *Client) RebuildTunnels(tunnels []Tunnel) {
 	}
 
 	c.Configuration.validate()
-	c.Configuration.buildRouter()
+	c.Configuration.buildRouter(diff...)
 }
 
 func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
@@ -547,7 +547,7 @@ func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
 		return nil
 	}
 
-	c.closeOutdatedProxies([]Tunnel{tunnel})
+	c.closeOutdatedProxies(tunnel)
 
 	c.Configuration.Tunnels = append(c.Configuration.Tunnels[:index], c.Configuration.Tunnels[index+1:]...)
 	if err := c.Configuration.writeFile(); err != nil {
@@ -555,7 +555,7 @@ func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
 	}
 
 	c.Configuration.validate()
-	c.Configuration.buildRouter()
+	c.Configuration.buildRouter(tunnel)
 
 	return nil
 }
@@ -641,7 +641,7 @@ func (c *Client) Start(ctx context.Context) {
 	go c.reBootstrap(ctx)
 }
 
-func (c *Client) closeOutdatedProxies(tunnels []Tunnel) {
+func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {
 	for _, t := range tunnels {
 		proxy, loaded := c.proxies.LoadAndDelete(t.Hostname)
 		if loaded {

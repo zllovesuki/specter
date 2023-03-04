@@ -129,3 +129,48 @@ func TestPipeOrSocket(t *testing.T) {
 		as.Equal("/tmp/nginx.sock", u.Path)
 	}
 }
+
+func TestRebuild(t *testing.T) {
+	as := require.New(t)
+
+	regFile, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(regFile.Name())
+
+	_, err = regFile.WriteString(registered)
+	as.NoError(err)
+	as.NoError(regFile.Close())
+
+	regCfg, err := NewConfig(regFile.Name())
+	as.NoError(err)
+	as.NoError(regCfg.validate())
+	regCfg.buildRouter()
+	as.Equal(2, regCfg.router.Len())
+
+	drop := 1
+	dropTunnel := regCfg.Tunnels[drop]
+
+	// drop
+	_, ok := regCfg.router.Load(dropTunnel.Hostname)
+	as.True(ok)
+	regCfg.Tunnels = append(regCfg.Tunnels[:drop], regCfg.Tunnels[drop+1:]...)
+	as.NoError(regCfg.validate())
+	regCfg.buildRouter(dropTunnel)
+	as.Equal(1, regCfg.router.Len())
+	_, ok = regCfg.router.Load(dropTunnel.Hostname)
+	as.False(ok)
+
+	// update
+	prev := regCfg.Tunnels[0]
+	r, ok := regCfg.router.Load(prev.Hostname)
+	as.True(ok)
+	as.Equal(prev.Target, r.parsed.String())
+	newTarget := "http://127.0.0.1:8080"
+	regCfg.Tunnels[0].Target = newTarget
+	as.NoError(regCfg.validate())
+	regCfg.buildRouter(prev)
+	as.Equal(1, regCfg.router.Len())
+	r, ok = regCfg.router.Load(prev.Hostname)
+	as.True(ok)
+	as.Equal(newTarget, r.parsed.String())
+}
