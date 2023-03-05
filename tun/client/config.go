@@ -51,8 +51,13 @@ func NewConfig(path string) (*Config, error) {
 
 func (c *Config) clone() *Config {
 	cfg := *c
-	cfg.validate()
 	cfg.router = skipmap.NewString[route]()
+	cfg.Tunnels = make([]Tunnel, len(c.Tunnels))
+	for i := range c.Tunnels {
+		cfg.Tunnels[i] = c.Tunnels[i]
+		cfg.Tunnels[i].parsed = nil
+	}
+	cfg.validate()
 	return &cfg
 }
 
