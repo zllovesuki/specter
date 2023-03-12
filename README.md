@@ -3,6 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/urfave/cli?status.svg)](https://pkg.go.dev/kon.nect.sh/specter)
 ![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/zllovesuki/specter/pipeline.yaml?branch=main)
 ![badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/zllovesuki/49efb3a7978bf0df7d91bfad39da7092/raw/specter.json?style=flat)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fzllovesuki%2Fspecter.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fzllovesuki%2Fspecter?ref=badge_shield)
 
 ## What is it?
 
@@ -126,3 +127,7 @@ Key Consistency:
 KV Persistence:
 
 - Inspired by Redis' AOF format, by appending log when mutation occurs, and replay mutation logs on start-up to restore state: [Redis persistence](https://redis.io/docs/manual/persistence/)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fzllovesuki%2Fspecter.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fzllovesuki%2Fspecter?ref=badge_large)
