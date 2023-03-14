@@ -3,7 +3,7 @@ PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/a
 BUILD=$(shell git rev-parse --short HEAD)
 
 PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-PROTOC_VERSION=22.0
+PROTOC_VERSION=22.2
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_TWIRP=`which protoc-gen-twirp`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
