@@ -1,8 +1,11 @@
 package gateway
 
 import (
+	"fmt"
 	"net"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // taken from certmagic/certmagic.go
@@ -23,10 +26,22 @@ func (g *Gateway) httpRedirect(w http.ResponseWriter, r *http.Request) {
 	requestHost := hostOnly(r.Host)
 
 	toURL += requestHost
+	if g.GatewayPort != 443 {
+		toURL = fmt.Sprintf("%s:%d", toURL, g.GatewayPort)
+	}
 	toURL += r.URL.RequestURI()
 
 	// get rid of this disgusting unencrypted HTTP connection 🤢
 	w.Header().Set("Connection", "close")
 
 	http.Redirect(w, r, toURL, http.StatusMovedPermanently)
+}
+
+func (g *Gateway) httpRouter() http.Handler {
+	r := chi.NewRouter()
+
+	r.Connect("/", g.httpConnect)
+	r.Handle("/*", http.HandlerFunc(g.httpRedirect))
+
+	return r
 }

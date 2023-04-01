@@ -134,8 +134,8 @@ func New(conf GatewayConfig) *Gateway {
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       5 * time.Second,
-		Handler:           http.HandlerFunc(g.httpRedirect),
-		ErrorLog:          util.GetStdLogger(filteredLogger, "httpRedirect"),
+		Handler:           g.httpRouter(),
+		ErrorLog:          util.GetStdLogger(filteredLogger, "httpServer"),
 	}
 	g.altHeaders = generateAltHeaders(conf.GatewayPort)
 
@@ -168,7 +168,7 @@ func (g *Gateway) MustStart(ctx context.Context) {
 	go g.localApexServer.ListenAndServe()
 
 	if g.HTTPListener != nil {
-		g.Logger.Info("Enabling HTTP (80) redirect to HTTPS (443)")
+		g.Logger.Info("Enabling HTTP Handler for HTTP Connect and HTTPS Redirect", zap.String("listen", g.HTTPListener.Addr().String()))
 		go g.httpServer.Serve(g.HTTPListener)
 	}
 
@@ -323,6 +323,7 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	conn.SetReadDeadline(time.Time{})
 
 	parts := strings.SplitN(host, ".", 2)
+	g.Logger.Debug("Dialing to client via overlay (TCP)", zap.String("hostname", host))
 	c, err = g.TunnelServer.DialClient(ctx, &protocol.Link{
 		Alpn:     protocol.Link_TCP,
 		Hostname: parts[0],

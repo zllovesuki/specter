@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	cRand "crypto/rand"
@@ -11,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -45,7 +47,8 @@ tunnels:
 )
 
 var (
-	serverPorts = []int{21948, 21949, 21950}
+	serverPorts     = []int{21948, 21949, 21950}
+	serverHttpPorts = []int{21848, 21849, 21850}
 )
 
 type TestWsMsg struct {
@@ -118,7 +121,7 @@ func TestTunnel(t *testing.T) {
 		connectionAccepted atomic.Int32
 	)
 	defer func() {
-		as.Equal(int32(len(serverPorts)), connectionAccepted.Load(), "tcp target should have accepted 3 connections")
+		as.Equal(int32(len(serverPorts)+len(serverHttpPorts)), connectionAccepted.Load(), "tcp target should have accepted all connections")
 	}()
 	go func() {
 		for {
@@ -166,6 +169,8 @@ func TestTunnel(t *testing.T) {
 			dir,
 			"--listen",
 			fmt.Sprintf("127.0.0.1:%d", port),
+			"--listen-http",
+			fmt.Sprintf("%d", serverHttpPorts[i]),
 			"--apex",
 			serverApex,
 		}
@@ -183,15 +188,15 @@ func TestTunnel(t *testing.T) {
 			logs := serverLogs[i]
 			for _, entry := range logs.All() {
 				t.Logf("%d: %s\n", port, entry.Message)
-				for _, x := range entry.Context {
-					if x.Interface != nil {
-						t.Logf("     %s: %v\n", x.Key, x.Interface)
-					} else if x.String != "" {
-						t.Logf("     %s: %v\n", x.Key, x.String)
-					} else {
-						t.Logf("     %s: %v\n", x.Key, x.Integer)
-					}
-				}
+				// for _, x := range entry.Context {
+				// 	if x.Interface != nil {
+				// 		t.Logf("     %s: %v\n", x.Key, x.Interface)
+				// 	} else if x.String != "" {
+				// 		t.Logf("     %s: %v\n", x.Key, x.String)
+				// 	} else {
+				// 		t.Logf("     %s: %v\n", x.Key, x.Integer)
+				// 	}
+				// }
 			}
 		}
 	}()
@@ -295,7 +300,7 @@ func TestTunnel(t *testing.T) {
 
 	t.Logf("Start integration test\n")
 
-	for _, serverPort := range serverPorts {
+	for serverIndex, serverPort := range serverPorts {
 		t.Run(fmt.Sprintf("with %d as endpoint", serverPort), func(t *testing.T) {
 			as := require.New(t)
 
@@ -390,7 +395,7 @@ func TestTunnel(t *testing.T) {
 				as.Equal(testRespBody, testMsg.Message)
 			})
 
-			t.Run("TCP Tunnel", func(t *testing.T) {
+			t.Run("TCP Tunnel using specter client", func(t *testing.T) {
 				as := require.New(t)
 
 				connectArgs := []string{
@@ -445,6 +450,47 @@ func TestTunnel(t *testing.T) {
 				as.NoError(rightConn.SetReadDeadline(time.Now().Add(time.Second)))
 				read := make([]byte, testBinaryLength)
 				n, err := rightConn.Read(read)
+				as.NoError(err)
+				as.Equal(testBinaryLength, n)
+				as.EqualValues(write, read)
+			})
+
+			t.Run("TCP Tunnel over http connect", func(t *testing.T) {
+				as := require.New(t)
+
+				// HTTP Connect start
+				dialer := &net.Dialer{
+					Timeout: time.Second,
+				}
+				tcpConn, err := dialer.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", serverHttpPorts[serverIndex]))
+				as.NoError(err)
+				defer tcpConn.Close()
+
+				proxyAddr := fmt.Sprintf("%s:%d", hostMap["tcp"], 1234)
+				req := &http.Request{
+					Method: http.MethodConnect,
+					URL: &url.URL{
+						Opaque: proxyAddr,
+					},
+					Host:   proxyAddr,
+					Header: make(http.Header),
+				}
+				as.NoError(req.Write(tcpConn))
+				resp, err := http.ReadResponse(bufio.NewReader(tcpConn), req)
+				as.NoError(err)
+				as.Equal(http.StatusOK, resp.StatusCode)
+				// HTTP Connect end
+
+				write := make([]byte, testBinaryLength)
+				_, err = io.ReadFull(cRand.Reader, write)
+				as.NoError(err)
+
+				_, err = tcpConn.Write(write)
+				as.NoError(err)
+
+				as.NoError(tcpConn.SetReadDeadline(time.Now().Add(time.Second)))
+				read := make([]byte, testBinaryLength)
+				n, err := tcpConn.Read(read)
 				as.NoError(err)
 				as.Equal(testBinaryLength, n)
 				as.EqualValues(write, read)

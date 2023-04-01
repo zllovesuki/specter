@@ -85,7 +85,7 @@ func Generate() *cli.Command {
 				Aliases: []string{"listen"},
 				Value:   fmt.Sprintf("%s:443", ip.String()),
 				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overridden).
-			Note that if specter is listening on port 443, it will also listen on port 80 to redirect http to https`,
+			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
 			},
 			&cli.StringFlag{
 				Name:        "listen-tcp",
@@ -104,6 +104,12 @@ func Generate() *cli.Command {
 				Value:       fmt.Sprintf("%s:443", ip.String()),
 				Usage: `Address and port to advertise to specter servers and clients to connect to.
 			Note that specter will use advertised address to derive its Identity hash.`,
+			},
+			&cli.IntFlag{
+				Name:  "listen-http",
+				Value: 80,
+				Usage: `Override the listening port of the http handler, which handles http connect proxy, and redirects other http requests to https.
+			Note by default the http handler will not be started unless the node is advertising on port 443. Using this option will force the http handler to start.`,
 			},
 			&cli.StringFlag{
 				Name: "join",
@@ -390,7 +396,7 @@ func cmdServer(ctx *cli.Context) error {
 	if ctx.IsSet("listen-tcp") {
 		listenTcp = ctx.String("listen-tcp")
 	}
-	tcpHost, tcpPort, err := net.SplitHostPort(listenTcp)
+	tcpHost, _, err := net.SplitHostPort(listenTcp)
 	if err != nil {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
 	}
@@ -446,10 +452,10 @@ func cmdServer(ctx *cli.Context) error {
 	defer udpListener.Close()
 
 	var httpListener net.Listener
-	if tcpPort == "443" {
-		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:80", tcpHost))
+	if advertisePort == 443 || ctx.IsSet("listen-http") {
+		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:%d", tcpHost, ctx.Int("listen-http")))
 		if err != nil {
-			return fmt.Errorf("error setting up http (80) listener: %w", err)
+			return fmt.Errorf("error setting up http listener: %w", err)
 		}
 		defer httpListener.Close()
 	}

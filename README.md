@@ -74,6 +74,40 @@ Alternatively, [phantom](https://github.com/zllovesuki/phantom) is the official 
 
 ![phantom](./phantom.png)
 
+## Connecting to Tunnel (CLI)
+
+### HTTP/HTTPS
+
+For HTTP/HTTPS target, you can access the tunnel securely and directly using the assigned hostname.
+
+### TCP/Unix/Named Pipe
+ 
+For example, if your tunnel was assigned a hostname `overnight-graph-caboose-list-boney.specter.im`:
+
+#### Using specter client (Recommended, Encrypted)
+
+This command:
+```
+specter client connect overnight-graph-caboose-list-boney.specter.im
+```
+Will establish the tunnel via stdin/stdout. This can be used in combination with `ssh -o ProxyCommand` if the target is an SSH server:
+```
+ssh -o ProxyCommand="specter client connect overnight-graph-caboose-list-boney.specter.im" user@host
+```
+
+#### Using HTTP Connect (Unencrypted)
+
+If the client environment does not allow you to run arbitary binary (therefore specter client is not available), HTTP Connect Proxy can be used as a fallback. For example:
+```
+nc -X connect -x specter.im:80 %h %p
+```
+Where `specter.im` is the apex of the specter server, and `80` is the http handler port (default to `80`). This can be used in combination with `ssh -o ProxyCommand` if the target is an SSH server:
+```
+ssh -o ProxyCommand="nc -X connect -x specter.im:80 %h %p" user@overnight-graph-caboose-list-boney.specter.im
+```
+
+**!! Note !!** The tunnel established using HTTP Connect is _unencrypted_. Therefore, the underlying protocol must support encryption (e.g. TLS, SSH, etc).
+
 ## Status
 
 | **Component**  | Status | Description                                                                |
