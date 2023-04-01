@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
 	"go.uber.org/zap"
@@ -30,23 +31,83 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
-func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, error) {
-	host, _, err := net.SplitHostPort(addr)
+func (g *Gateway) httpConnect(w http.ResponseWriter, r *http.Request) {
+	remote, err := g.connectDialer(r.Context(), r)
 	if err != nil {
-		return nil, err
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
-	var hostname string
+	status := protocol.TunnelStatus{}
+	err = rpc.Receive(remote, &status)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		remote.Close()
+		return
+	}
+	if status.Status != protocol.TunnelStatusCode_STATUS_OK {
+		http.Error(w, status.GetError(), http.StatusServiceUnavailable)
+		remote.Close()
+		return
+	}
+
+	rc := http.NewResponseController(w)
+	local, rw, err := rc.Hijack()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		remote.Close()
+		return
+	}
+
+	connectResp := http.Response{
+		StatusCode: http.StatusOK,
+		Proto:      r.Proto,
+		ProtoMajor: r.ProtoMajor,
+		ProtoMinor: r.ProtoMinor,
+	}
+	connectResp.Write(rw)
+	rw.Flush()
+
+	tun.Pipe(local, remote)
+}
+
+func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
+	host, _, err = net.SplitHostPort(addr)
+	if err != nil {
+		return
+	}
 	parts := strings.SplitN(host, ".", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid host")
+		err = fmt.Errorf("gateway: invalid host for forwarding")
+		return
 	}
 	if parts[1] == g.RootDomain {
 		hostname = parts[0]
 	} else {
-		// TODO: custom hostname support
-		return nil, fmt.Errorf("not implemented")
+		err = fmt.Errorf("gateway: custom hostname is not supported")
+		return
 	}
-	g.Logger.Debug("Dialing to client via overlay", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
+	return
+}
+
+func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn, error) {
+	host, hostname, err := g.extractHost(r.Host)
+	if err != nil {
+		return nil, err
+	}
+	g.Logger.Debug("Dialing to client via overlay (HTTP Connect)", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
+	return g.TunnelServer.DialClient(ctx, &protocol.Link{
+		Alpn:     protocol.Link_TCP,
+		Hostname: hostname,
+		Remote:   r.RemoteAddr,
+	})
+}
+
+func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, error) {
+	host, hostname, err := g.extractHost(addr)
+	if err != nil {
+		return nil, err
+	}
+	g.Logger.Debug("Dialing to client via overlay (HTTP)", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
 	return g.TunnelServer.DialClient(ctx, &protocol.Link{
 		Alpn:     protocol.Link_HTTP,
 		Hostname: hostname,

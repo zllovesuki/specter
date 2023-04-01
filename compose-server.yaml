@@ -34,6 +34,7 @@ services:
     ports:
       - "1113:1113/udp"
       - "1113:1113/tcp"
+      - "11113:1112/tcp"
     volumes:
       - ./certs:/certs:ro
       - seed_kv:/app/data
@@ -42,7 +43,7 @@ services:
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
+    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
 
   srva:
     image: specter
@@ -53,6 +54,7 @@ services:
     ports:
       - "2113:1113/udp"
       - "2113:1113/tcp"
+      - "12113:1112/tcp"
     volumes:
       - ./certs:/certs:ro
       - srva_kv:/app/data
@@ -61,7 +63,7 @@ services:
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter
@@ -72,6 +74,7 @@ services:
     ports:
       - "3113:1113/udp"
       - "3113:1113/tcp"
+      - "13113:1112/tcp"
     volumes:
       - ./certs:/certs:ro
       - srvb_kv:/app/data
@@ -80,7 +83,7 @@ services:
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvc:
     image: specter
@@ -91,6 +94,7 @@ services:
     ports:
       - "4113:1113/udp"
       - "4113:1113/tcp"
+      - "14113:1112/tcp"
     volumes:
       - ./certs:/certs:ro
       - srvc_kv:/app/data
@@ -99,7 +103,7 @@ services:
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
   srvd:
     image: specter
@@ -110,6 +114,7 @@ services:
     ports:
       - "5113:1113/udp"
       - "5113:1113/tcp"
+      - "15113:1112/tcp"
     volumes:
       - ./certs:/certs:ro
       - srvd_kv:/app/data
@@ -118,7 +123,7 @@ services:
       - INTERNAL_PASS=test
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
 
 volumes:
   seed_kv:
