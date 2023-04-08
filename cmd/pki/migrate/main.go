@@ -67,6 +67,7 @@ func main() {
 	certPem := pki.MarshalCertificate(certBytes)
 
 	newCfg := client.Config{
+		Version:     2,
 		Apex:        oldCfg.Apex,
 		Certificate: string(certPem),
 		PrivKey:     keyPem,

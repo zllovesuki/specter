@@ -44,6 +44,7 @@ specter also has some interesting features:
 A sample barebone YAML config is needed for `specter client tunnel`:
 
 ```yaml
+version: 2
 apex: specter.im:443
 tunnels:
   # following are shown as examples of what is valid
@@ -57,6 +58,7 @@ tunnels:
 On initial connection with specter gateway server, your configuration file will be updated:
 
 ```yaml
+version: 2
 apex: specter.im:443
 certificate: |
   -----BEGIN CERTIFICATE-----

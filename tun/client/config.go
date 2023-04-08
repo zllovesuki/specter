@@ -24,6 +24,7 @@ type Tunnel struct {
 type Config struct {
 	router      *skipmap.StringMap[route]
 	path        string
+	Version     int      `yaml:"version" json:"version"`
 	Apex        string   `yaml:"apex" json:"apex"`
 	Certificate string   `yaml:"certificate,omitempty" json:"certificate,omitempty"`
 	PrivKey     string   `yaml:"privKey,omitempty" json:"privKey,omitempty"`
@@ -41,6 +42,9 @@ func NewConfig(path string) (*Config, error) {
 		router: skipmap.NewString[route](),
 	}
 	if err := cfg.readFile(); err != nil {
+		return nil, err
+	}
+	if err := cfg.checkVersion(); err != nil {
 		return nil, err
 	}
 	if err := cfg.validate(); err != nil {
@@ -71,6 +75,13 @@ func (c *Config) buildRouter(drop ...Tunnel) {
 			insecure: tunnel.Insecure,
 		})
 	}
+}
+
+func (c *Config) checkVersion() error {
+	if c.Version != 2 {
+		return fmt.Errorf("expecting config version 2, got %v; migration is needed", c.Version)
+	}
+	return nil
 }
 
 func (c *Config) validate() error {
