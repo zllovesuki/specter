@@ -57,8 +57,9 @@ func getExpected(link *protocol.Link) [][]byte {
 
 func getIdentities() (*protocol.Node, *protocol.Node, *protocol.Node) {
 	cl := &protocol.Node{
-		Address: "client:123",
-		Id:      chord.Random(),
+		Address:    "client:123",
+		Id:         chord.Random(),
+		Rendezvous: true,
 	}
 	ch := &protocol.Node{
 		Address: "chord:123",

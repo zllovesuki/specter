@@ -1,5 +1,3 @@
-// protoc.exe --go_opt=paths=source_relative --go_out=. .\spec\protocol\rpc.proto
-
 syntax = "proto3";
 package protocol;
 
@@ -10,5 +8,6 @@ message Node {
     uint64 id = 1;
     string address = 2;
 
-    bool unknown = 3;
+    bool unknown = 3;       // indicate negotiation for ID is needed
+    bool rendezvous = 4;    // indicate a client connection
 }

@@ -21,12 +21,13 @@ type nodeConnection struct {
 }
 
 type TransportConfig struct {
-	Logger           *zap.Logger
-	Endpoint         *protocol.Node
-	ServerTLS        *tls.Config
-	ClientTLS        *tls.Config
-	RTTRecorder      rtt.Recorder
-	VirtualTransport bool
+	Logger                 *zap.Logger
+	Endpoint               *protocol.Node
+	ServerTLS              *tls.Config
+	ClientTLS              *tls.Config
+	RTTRecorder            rtt.Recorder
+	VirtualTransport       bool
+	UseCertificateIdentity bool
 }
 
 type QUIC struct {
@@ -41,6 +42,8 @@ type QUIC struct {
 
 	rttChan chan *transport.DatagramDelegate
 	rttMap  *skipmap.StringMap[*skipmap.Uint64Map[int64]]
+
+	clientCert uberAtomic.Value // tls.Certificate
 
 	TransportConfig
 }

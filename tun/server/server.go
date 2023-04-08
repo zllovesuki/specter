@@ -36,6 +36,7 @@ type Server struct {
 }
 
 var _ tun.Server = (*Server)(nil)
+var _ protocol.TunnelService = (*Server)(nil)
 
 func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport, chordTrans transport.Transport, rootDomain string) *Server {
 	return &Server{

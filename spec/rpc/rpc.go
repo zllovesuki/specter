@@ -93,10 +93,6 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 			if peer == nil {
 				return nil, fmt.Errorf("peer not found in context")
 			}
-			token := GetClientToken(ctx)
-			if token != nil {
-				r.Header.Set("authorization", string(token.GetToken()))
-			}
 			r.URL.Host = peer.GetAddress() // needed to override dialer instead of using http://tunnel as key
 			return ctx, nil
 		},
@@ -119,18 +115,6 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 	}
 
 	return protocol.NewTunnelServiceProtobufClient("https://tunnel", c, twirp.WithClientHooks(injector))
-}
-
-// Middleware to attach the authorization header to the current request. The value can be retrieve with GetAuthorization()
-func ExtractAuthorizationHeader(base http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("authorization")
-		if token != "" {
-			ctx := WithAuthorization(r.Context(), token)
-			r = r.WithContext(ctx)
-		}
-		base.ServeHTTP(w, r)
-	})
 }
 
 func receive(stream io.Reader, rr VTMarshaler, checker func(size uint32) bool) error {

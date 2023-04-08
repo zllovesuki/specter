@@ -12,7 +12,7 @@ COUNT=3
 GOARM=7
 GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
-LDFLAGS=-ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=$(BUILD)" -pgo=./pprof/cpu-merged.out
+LDFLAGS=-ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=$(BUILD)"
 TIMEOUT=180s
 
 plat_temp = $(subst /, ,$@)
@@ -178,6 +178,8 @@ certs:
 	openssl req -text -in certs/node.csr -noout -verify
 	# Sign and generate node certificate
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev/openssl.txt
+	# Create Client CA
+	go run ./cmd/pki/ca
 
 fly_deploy:
 	flyctl deploy --build-arg GIT_HASH=$$(git rev-parse --short HEAD)
@@ -192,7 +194,13 @@ fly_certs:
 	openssl req -new -key fly/node.key -out fly/node.csr -subj "/C=US/ST=California/L=San Francisco/O=Dev/OU=Dev/CN=node.ca.dev"
 	openssl req -text -in fly/node.csr -noout -verify
 	openssl x509 -req -CA fly/ca.crt -CAkey fly/ca.key -in fly/node.csr -out fly/node.crt -days 3650 -CAcreateserial -extfile fly.txt
-	flyctl secrets set CERT_CA=$$(cat fly/ca.crt | openssl enc -A -base64) CERT_NODE=$$(cat fly/node.crt | openssl enc -A -base64) CERT_NODE_KEY=$$(cat fly/node.key | openssl enc -A -base64)
+	go run ./cmd/pki/ca -certs fly
+	flyctl secrets set \
+		CERT_CA=$$(cat fly/ca.crt | openssl enc -A -base64) \
+		CERT_CLIENT_CA=$$(cat fly/client-ca.crt | openssl enc -A -base64) \
+		CERT_CLIENT_CA_KEY=$$(cat fly/client-ca.key | openssl enc -A -base64) \
+		CERT_NODE=$$(cat fly/node.crt | openssl enc -A -base64) \
+		CERT_NODE_KEY=$$(cat fly/node.key | openssl enc -A -base64)
 
 licenses:
 	go-licenses save kon.nect.sh/specter --save_path=./licenses

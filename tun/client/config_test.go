@@ -14,9 +14,12 @@ tunnels:
     hostname: tcp.dev.specter.dev
 `
 
+const testPrivateKey = `MC4CAQAwBQYDK2VwBCIEIFXA98L8HvJQxzyqYosZxyaX/G1vfJ4TeSP0E+N0FIfj`
 const registered = `apex: dev.specter.dev:1234
-clientId: 42
-token: abcdef
+privKey: |
+  -----BEGIN PRIVATE KEY-----
+  ` + testPrivateKey + `
+  -----END PRIVATE KEY-----
 tunnels:
   - target: tcp://127.0.0.1:1234
     hostname: tcp.dev.specter.dev
@@ -50,6 +53,7 @@ func TestConfig(t *testing.T) {
 	bareCfg, err := NewConfig(bareFile.Name())
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", bareCfg.Apex)
+	as.NotEmpty(bareCfg.PrivKey)
 	bareCfg.buildRouter()
 	as.Equal(1, bareCfg.router.Len())
 
@@ -64,8 +68,7 @@ func TestConfig(t *testing.T) {
 	regCfg, err := NewConfig(regFile.Name())
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", regCfg.Apex)
-	as.Equal("abcdef", regCfg.Token)
-	as.Equal(uint64(42), regCfg.ClientID)
+	as.Contains(regCfg.PrivKey, testPrivateKey)
 	regCfg.buildRouter()
 	as.Equal(2, regCfg.router.Len())
 

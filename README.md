@@ -58,8 +58,12 @@ On initial connection with specter gateway server, your configuration file will 
 
 ```yaml
 apex: specter.im:443
-clientId: 3607296620713
-token: x1FuGot1dTlwpfKLRush4VJJ8yl1clcJNzUIiYq9K9s=
+certificate: |
+  -----BEGIN CERTIFICATE-----
+  ...
+privKey: |
+  -----BEGIN PRIVATE KEY-----
+  ...
 tunnels:
   - target: tcp://127.0.0.1:22
     hostname: overnight-graph-caboose-list-boney

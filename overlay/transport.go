@@ -2,6 +2,8 @@ package overlay
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -9,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -22,9 +25,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ transport.Transport = (*QUIC)(nil)
+var (
+	_ transport.Transport       = (*QUIC)(nil)
+	_ transport.ClientTransport = (*QUIC)(nil)
+)
 
 func NewQUIC(conf TransportConfig) *QUIC {
+	if conf.VirtualTransport && conf.UseCertificateIdentity {
+		panic("cannot enable UseCertificateIdentity and VirtualTransport in the same transport")
+	}
 	return &QUIC{
 		TransportConfig: conf,
 
@@ -75,7 +84,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		}
 		rUnlock()
 
-		if peer.GetAddress() == "" {
+		if peer.GetRendezvous() || peer.GetAddress() == "" {
 			return transport.ErrNoDirect
 		}
 
@@ -98,7 +107,12 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 			return err
 		}
 
-		newQ, err := quic.DialEarlyContext(dialCtx, pconn, addr, peer.GetAddress(), t.ClientTLS, quicConfig)
+		cfg := t.ClientTLS.Clone()
+		if cert, ok := t.clientCert.Load().(tls.Certificate); ok {
+			cfg.Certificates = []tls.Certificate{cert}
+		}
+
+		newQ, err := quic.DialEarlyContext(dialCtx, pconn, addr, peer.GetAddress(), cfg, quicConfig)
 		if err != nil {
 			return err
 		}
@@ -130,6 +144,29 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 	t.background(ctx)
 
 	return q, nil
+}
+
+func (t *QUIC) WithClientCertificate(cert tls.Certificate) error {
+	if len(cert.Certificate) == 0 {
+		return transport.ErrNoCertificate
+	}
+	if cert.PrivateKey == nil {
+		return transport.ErrNoCertificate
+	}
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return err
+	}
+	identity, err := pki.ExtractCertificateIdentity(parsed)
+	if err != nil {
+		return err
+	}
+
+	t.Logger.Debug("Using client certificate", zap.Object("identity", identity))
+	t.Endpoint.Id = identity.ID
+	t.clientCert.Store(cert)
+
+	return nil
 }
 
 func (t *QUIC) Identity() *protocol.Node {
@@ -385,27 +422,29 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 
 func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protocol.Node) {
 	l := t.Logger.With(zap.Object("peer", peer))
+	conn := WrapQuicConnection(stream, q)
 
 	var err error
 	defer func() {
 		if err != nil {
 			l.Error("error handshaking on new stream", zap.Error(err))
-			stream.Close()
+			conn.Close()
 		}
 	}()
 
 	rr := protocol.Stream{}
-	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.BoundedReceive(stream, &rr, 16)
+	conn.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
+	err = rpc.BoundedReceive(conn, &rr, 16)
 	if err != nil {
 		l.Error("Failed to receive stream handshake", zap.Error(err))
+		conn.Close()
 		return
 	}
-	stream.SetDeadline(time.Time{})
+	conn.SetDeadline(time.Time{})
 
 	if rr.GetType() == protocol.Stream_UNKNOWN_TYPE {
 		l.Warn("Received stream with unknown type")
-		stream.Close()
+		conn.Close()
 		return
 	}
 
@@ -419,17 +458,24 @@ func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protoc
 		identity = peer
 	}
 
-	select {
-	case t.streamChan <- &transport.StreamDelegate{
+	delegation := &transport.StreamDelegate{
 		Identity: identity,
-		Conn:     WrapQuicConnection(stream, q),
+		Conn:     conn,
 		Kind:     rr.GetType(),
-	}:
+	}
+
+	if t.UseCertificateIdentity {
+		chain := q.ConnectionState().TLS.VerifiedChains
+		delegation.Certificate = chain[0][0]
+	}
+
+	select {
+	case t.streamChan <- delegation:
 	default:
 		l.Warn("Stream channel full, dropping incoming stream",
 			zap.String("kind", rr.GetType().String()),
 		)
-		stream.Close()
+		conn.Close()
 	}
 }
 

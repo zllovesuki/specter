@@ -19,6 +19,7 @@ import (
 	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
+	"kon.nect.sh/specter/pki"
 	"kon.nect.sh/specter/rtt"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
@@ -77,7 +78,7 @@ func Generate() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name: "cert-env",
-				Usage: `Load ca.crt (CERT_CA), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
+				Usage: `Load ca.crt (CERT_CA), client-ca.crt (CERT_CLIENT_CA), client-ca.key (CERT_CLIENT_CA_KEY), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
 			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
 			},
 			&cli.StringFlag{
@@ -170,6 +171,16 @@ func Generate() *cli.Command {
 				Hidden:  true,
 				EnvVars: []string{"CERT_NODE_KEY"},
 			},
+			&cli.StringFlag{
+				Name:    "env_client_ca",
+				Hidden:  true,
+				EnvVars: []string{"CERT_CLIENT_CA"},
+			},
+			&cli.StringFlag{
+				Name:    "env_client_ca_key",
+				Hidden:  true,
+				EnvVars: []string{"CERT_CLIENT_CA_KEY"},
+			},
 		},
 		Before: func(ctx *cli.Context) error {
 			if !ctx.IsSet("cert-dir") && !ctx.IsSet("cert-env") {
@@ -222,30 +233,50 @@ func Generate() *cli.Command {
 }
 
 type certBundle struct {
-	ca   *x509.CertPool
-	node tls.Certificate
+	ca           *x509.CertPool
+	clientCa     *x509.CertPool
+	clientCaCert tls.Certificate
+	node         tls.Certificate
 }
 
 func certLoaderFilesystem(dir string) (*certBundle, error) {
-	files := []string{"ca.crt", "node.crt", "node.key"}
+	files := []string{"ca.crt", "client-ca.crt", "client-ca.key", "node.crt", "node.key"}
 	for i, name := range files {
 		files[i] = filepath.Join(dir, name)
 	}
 	caCert, err := os.ReadFile(files[0])
 	if err != nil {
-		return nil, fmt.Errorf("reading ca bundle from file: %w", err)
+		return nil, fmt.Errorf("reading ca cert from file: %w", err)
+	}
+	clientCaCert, err := os.ReadFile(files[1])
+	if err != nil {
+		return nil, fmt.Errorf("reading client ca cert from file: %w", err)
+	}
+	clientCaKey, err := os.ReadFile(files[2])
+	if err != nil {
+		return nil, fmt.Errorf("reading client ca key from file: %w", err)
 	}
 	caCertPool := x509.NewCertPool()
 	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
 		return nil, fmt.Errorf("unable to use provided ca bundle")
 	}
-	nodeCert, err := tls.LoadX509KeyPair(files[1], files[2])
+	clientCaCertPool := x509.NewCertPool()
+	if ok := clientCaCertPool.AppendCertsFromPEM(clientCaCert); !ok {
+		return nil, fmt.Errorf("unable to use provided client ca bundle")
+	}
+	node, err := tls.LoadX509KeyPair(files[3], files[4])
 	if err != nil {
-		return nil, fmt.Errorf("reading cert/key from files: %w", err)
+		return nil, fmt.Errorf("creating node cert/key from files: %w", err)
+	}
+	clientCa, err := tls.X509KeyPair(clientCaCert, clientCaKey)
+	if err != nil {
+		return nil, fmt.Errorf("creating client ca cert/key from files: %w", err)
 	}
 	return &certBundle{
-		ca:   caCertPool,
-		node: nodeCert,
+		ca:           caCertPool,
+		clientCa:     clientCaCertPool,
+		clientCaCert: clientCa,
+		node:         node,
 	}, nil
 }
 
@@ -262,17 +293,35 @@ func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_NODE_KEY: %w", err)
 	}
+	clientCaCert, err := base64.StdEncoding.DecodeString(ctx.String("env_client_ca"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode CERT_NODE: %w", err)
+	}
+	clientCaKey, err := base64.StdEncoding.DecodeString(ctx.String("env_client_ca_key"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode CERT_NODE_KEY: %w", err)
+	}
 	caCertPool := x509.NewCertPool()
 	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
 		return nil, fmt.Errorf("unable to use provided ca bundle")
 	}
-	pair, err := tls.X509KeyPair(nodeCert, nodeKey)
+	clientCaCertPool := x509.NewCertPool()
+	if ok := clientCaCertPool.AppendCertsFromPEM(clientCaCert); !ok {
+		return nil, fmt.Errorf("unable to use provided client ca bundle")
+	}
+	node, err := tls.X509KeyPair(nodeCert, nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("creating cert/key from env: %w", err)
+		return nil, fmt.Errorf("creating node cert/key from env: %w", err)
+	}
+	clientCa, err := tls.X509KeyPair(clientCaCert, clientCaKey)
+	if err != nil {
+		return nil, fmt.Errorf("creating client ca cert/key from env: %w", err)
 	}
 	return &certBundle{
-		ca:   caCertPool,
-		node: pair,
+		ca:           caCertPool,
+		clientCa:     clientCaCertPool,
+		clientCaCert: clientCa,
+		node:         node,
 	}, nil
 }
 
@@ -493,7 +542,8 @@ func cmdServer(ctx *cli.Context) error {
 
 	// TODO: measure rtt to client to build routing table with cost
 	tunnelTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelTransport")),
+		UseCertificateIdentity: true,
+		Logger:                 logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelTransport")),
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
@@ -597,8 +647,9 @@ func cmdServer(ctx *cli.Context) error {
 	gwH3Listener := alpnMux.With(gwTLSConf, append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
 	defer gwH3Listener.Close()
 
-	// handles specter-tun/1
-	clientListener := alpnMux.With(gwTLSConf, tun.ALPN(protocol.Link_SPECTER_TUN))
+	// handles specter-client/1
+	clientTLSConf := cipher.GetClientTLSConfig(bundle.clientCa, certProvider.GetCertificate, []string{tun.ALPN(protocol.Link_SPECTER_CLIENT)})
+	clientListener := alpnMux.With(clientTLSConf, tun.ALPN(protocol.Link_SPECTER_CLIENT))
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
@@ -621,7 +672,11 @@ func cmdServer(ctx *cli.Context) error {
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
 	gw := gateway.New(gateway.GatewayConfig{
-		Logger:       logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
+		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
+		PKIServer: &pki.Server{
+			Logger:   logger.With(zapsentry.NewScope()).With(zap.String("component", "pki")),
+			ClientCA: bundle.clientCaCert,
+		},
 		TunnelServer: tunServer,
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
