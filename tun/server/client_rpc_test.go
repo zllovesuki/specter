@@ -3,11 +3,21 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -74,7 +84,55 @@ func assertNodes(got, exp []*protocol.Node) bool {
 	return false
 }
 
-func TestRPCRegisterClientOK(t *testing.T) {
+func mustGenerateToken() []byte {
+	b := make([]byte, 32)
+	n, err := io.ReadFull(rand.Reader, b)
+	if n != len(b) || err != nil {
+		panic(fmt.Errorf("error generating token: %w", err))
+	}
+	return []byte(base64.StdEncoding.EncodeToString(b))
+}
+
+func toCertificate(as *require.Assertions, client *protocol.Node, token *protocol.ClientToken) *x509.Certificate {
+	// generate a CA
+	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
+	as.NoError(err)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"dev"},
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 180),
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, caPubKey, caPrivKey)
+	as.NoError(err)
+
+	certPubKey, _, err := ed25519.GenerateKey(rand.Reader)
+	as.NoError(err)
+
+	der, err := pki.GenerateCertificate(tls.Certificate{
+		Certificate: [][]byte{derBytes},
+		PrivateKey:  caPrivKey,
+	}, pki.IdentityRequest{
+		Subject:   pki.MakeSubjectV1(client.GetId(), string(token.GetToken())),
+		PublicKey: certPubKey,
+	})
+	as.NoError(err)
+
+	cert, err := x509.ParseCertificate(der)
+	as.NoError(err)
+
+	return cert
+}
+
+func TestRPCRegisterClientNewCertificateOK(t *testing.T) {
 	as := require.New(t)
 
 	logger, node, clientT, chordT, serv := getFixture(t, as)
@@ -83,7 +141,15 @@ func TestRPCRegisterClientOK(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	testToken := &protocol.ClientToken{
+		Token: mustGenerateToken(),
+	}
+
+	node.On("Put", mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(testToken)))
+		}),
+		mock.Anything).Return(nil).Once()
 	clientT.On("SendDatagram",
 		mock.MatchedBy(func(node *protocol.Node) bool {
 			return node.GetId() == cli.GetId()
@@ -100,12 +166,11 @@ func TestRPCRegisterClientOK(t *testing.T) {
 	serv.AttachRouter(ctx, streamRouter)
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
-	resp, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{
-		Client: cli,
-	})
+	tp.WithCertificate(toCertificate(as, cli, testToken))
+	resp, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{})
 
 	as.NoError(err)
-	as.NotNil(resp.GetToken())
+	as.NotNil(resp.GetApex())
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -121,7 +186,15 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
+	testToken := &protocol.ClientToken{
+		Token: mustGenerateToken(),
+	}
+
+	node.On("Put", mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(testToken)))
+		}),
+		mock.Anything).Return(fmt.Errorf("failed")).Once()
 	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(fmt.Errorf("failed")).Once()
 	clientT.On("SendDatagram", mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -131,34 +204,26 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+	cRPC := rpc.DynamicTunnelClient(rpc.DisablePooling(ctx), tp)
 
-	requests := []*protocol.RegisterIdentityRequest{
-		// missing Client
-		{
-			Client: nil,
-		},
+	requests := []struct {
+		Client *protocol.Node
+	}{
 
-		// has Client but does not match the connected client
-		{
-			Client: &protocol.Node{
-				Id: chord.Random(),
-			},
-		},
-
-		// has Client but not connected
+		// verified Client but not connected
 		{
 			Client: cli,
 		},
 
-		// has Client and connected but KV failed
+		// verified Client and connected but KV failed
 		{
 			Client: cli,
 		},
 	}
 
 	for _, req := range requests {
-		_, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), req)
+		tp.WithCertificate(toCertificate(as, req.Client, testToken))
+		_, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{})
 		as.Error(err)
 	}
 
@@ -186,72 +251,12 @@ func TestRPCPingOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
+	tp.WithCertificate(toCertificate(as, cli, &protocol.ClientToken{}))
 	resp, err := cRPC.Ping(rpc.WithNode(ctx, cli), &protocol.ClientPingRequest{})
 
 	as.NoError(err)
 	as.Equal(testRootDomain, resp.GetApex())
 	as.Equal(tn.GetId(), resp.GetNode().GetId())
-
-	node.AssertExpectations(t)
-	clientT.AssertExpectations(t)
-	chordT.AssertExpectations(t)
-}
-
-func TestRPCPingConditional(t *testing.T) {
-	as := require.New(t)
-
-	logger, node, clientT, chordT, serv := getFixture(t, as)
-	cli, _, tn := getIdentities()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	clientBuf, err := cli.MarshalVT()
-	as.NoError(err)
-
-	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(clientBuf, nil).Once()
-	node.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
-	clientT.On("Identity").Return(tn)
-
-	tp := mocks.SelfTransport()
-	streamRouter := transport.NewStreamRouter(logger, nil, tp)
-	go streamRouter.Accept(ctx)
-
-	serv.AttachRouter(ctx, streamRouter)
-
-	cRPC := rpc.DynamicTunnelClient(ctx, tp)
-
-	tests := []struct {
-		token       *protocol.ClientToken
-		expectError bool
-	}{
-		{
-			expectError: false,
-		},
-		{
-			token: &protocol.ClientToken{
-				Token: []byte("correct"),
-			},
-			expectError: false,
-		},
-		{
-			token: &protocol.ClientToken{
-				Token: []byte("incorrect"),
-			},
-			expectError: true,
-		},
-	}
-
-	for _, req := range tests {
-		callCtx := rpc.WithClientToken(ctx, req.token)
-		resp, err := cRPC.Ping(rpc.WithNode(callCtx, cli), &protocol.ClientPingRequest{})
-		if req.expectError {
-			as.Error(err)
-		} else {
-			as.NoError(err)
-			as.Equal(testRootDomain, resp.GetApex())
-		}
-	}
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -267,10 +272,8 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -302,8 +305,8 @@ func TestRPCGetNodesUnique(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.GetNodes(rpc.WithNode(callCtx, cli), &protocol.GetNodesRequest{})
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
 	as.NoError(err)
 
 	// should only have ourself
@@ -324,10 +327,8 @@ func TestRPCGetNodes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -369,8 +370,8 @@ func TestRPCGetNodes(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.GetNodes(rpc.WithNode(callCtx, cli), &protocol.GetNodesRequest{})
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
 
 	as.NoError(err)
 	as.Len(resp.GetNodes(), tun.NumRedundantLinks)
@@ -391,10 +392,8 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -422,8 +421,8 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.GenerateHostname(rpc.WithNode(callCtx, cli), &protocol.GenerateHostnameRequest{})
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.GenerateHostname(rpc.WithNode(ctx, cli), &protocol.GenerateHostnameRequest{})
 	as.NoError(err)
 
 	as.NotEmpty(resp.GetHostname())
@@ -442,10 +441,8 @@ func TestRPCRegisteredHostnames(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -478,8 +475,8 @@ func TestRPCRegisteredHostnames(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.RegisteredHostnames(rpc.WithNode(callCtx, cli), &protocol.RegisteredHostnamesRequest{})
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.RegisteredHostnames(rpc.WithNode(ctx, cli), &protocol.RegisteredHostnamesRequest{})
 	as.NoError(err)
 
 	as.Len(resp.GetHostnames(), len(hostnames))
@@ -507,7 +504,7 @@ func TestRPCOtherFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+	cRPC := rpc.DynamicTunnelClient(rpc.DisablePooling(ctx), tp)
 
 	requests := []*protocol.ClientToken{
 		// non-existent token
@@ -517,8 +514,8 @@ func TestRPCOtherFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		callCtx := rpc.WithClientToken(ctx, req)
-		resp, err := cRPC.GenerateHostname(rpc.WithNode(callCtx, cli), &protocol.GenerateHostnameRequest{})
+		tp.WithCertificate(toCertificate(as, cli, req))
+		resp, err := cRPC.GenerateHostname(rpc.WithNode(ctx, cli), &protocol.GenerateHostnameRequest{})
 		as.Error(err)
 		as.Nil(resp)
 	}
@@ -548,10 +545,8 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	as.Nil(err)
 
 	hostname := "test-1234"
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -620,8 +615,8 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.PublishTunnel(rpc.WithNode(callCtx, cli), &protocol.PublishTunnelRequest{
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.PublishTunnel(rpc.WithNode(ctx, cli), &protocol.PublishTunnelRequest{
 		Hostname: hostname,
 		Servers:  nodes,
 	})
@@ -642,10 +637,8 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -683,46 +676,32 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+	cRPC := rpc.DynamicTunnelClient(rpc.DisablePooling(ctx), tp)
 
-	requests := []struct {
-		req   *protocol.PublishTunnelRequest
-		token *protocol.ClientToken
-	}{
-		// missing Token
-		{},
+	requests := []*protocol.PublishTunnelRequest{
 		// has token but hostname not requested
 		{
-			token: token,
-			req: &protocol.PublishTunnelRequest{
-				Hostname: "nil",
-				Servers: []*protocol.Node{
-					{
-						Id: chord.Random(),
-					},
+			Hostname: "nil",
+			Servers: []*protocol.Node{
+				{
+					Id: chord.Random(),
 				},
 			},
 		},
 		// has token but not enough servers
 		{
-			token: token,
-			req: &protocol.PublishTunnelRequest{
-				Servers: nil,
-			},
+			Servers: nil,
 		},
 
 		// has token but too many servers
 		{
-			token: token,
-			req: &protocol.PublishTunnelRequest{
-				Servers: makeNodes(tun.NumRedundantLinks * 2),
-			},
+			Servers: makeNodes(tun.NumRedundantLinks * 2),
 		},
 	}
 
 	for _, req := range requests {
-		callCtx := rpc.WithClientToken(ctx, token)
-		resp, err := cRPC.PublishTunnel(rpc.WithNode(callCtx, cli), req.req)
+		tp.WithCertificate(toCertificate(as, cli, token))
+		resp, err := cRPC.PublishTunnel(rpc.WithNode(ctx, cli), req)
 		as.Error(err)
 		as.Nil(resp)
 	}
@@ -740,10 +719,8 @@ func TestUnpublishTunnel(t *testing.T) {
 	defer cancel()
 
 	hostname := "test-1234"
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -796,8 +773,8 @@ func TestUnpublishTunnel(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.UnpublishTunnel(rpc.WithNode(callCtx, cli), &protocol.UnpublishTunnelRequest{
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.UnpublishTunnel(rpc.WithNode(ctx, cli), &protocol.UnpublishTunnelRequest{
 		Hostname: hostname,
 	})
 
@@ -817,10 +794,8 @@ func TestReleaseTunnel(t *testing.T) {
 	defer cancel()
 
 	hostname := "test-1234"
-	b, err := generateToken()
-	as.NoError(err)
 	token := &protocol.ClientToken{
-		Token: b,
+		Token: mustGenerateToken(),
 	}
 
 	clientBuf, err := cli.MarshalVT()
@@ -885,8 +860,8 @@ func TestReleaseTunnel(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	callCtx := rpc.WithClientToken(ctx, token)
-	resp, err := cRPC.ReleaseTunnel(rpc.WithNode(callCtx, cli), &protocol.ReleaseTunnelRequest{
+	tp.WithCertificate(toCertificate(as, cli, token))
+	resp, err := cRPC.ReleaseTunnel(rpc.WithNode(ctx, cli), &protocol.ReleaseTunnelRequest{
 		Hostname: hostname,
 	})
 
@@ -894,4 +869,75 @@ func TestReleaseTunnel(t *testing.T) {
 	as.NotNil(resp)
 
 	node.AssertExpectations(t)
+}
+
+func TestTokenUpgrade(t *testing.T) {
+	as := require.New(t)
+
+	logger, node, clientT, chordT, serv := getFixture(t, as)
+	cli, cht, tn := getIdentities()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	token := &protocol.ClientToken{
+		Token: mustGenerateToken(),
+	}
+
+	old := &protocol.Node{
+		Id: cli.GetId(),
+	}
+	clientBuf, err := old.MarshalVT()
+	as.NoError(err)
+
+	cert := toCertificate(as, cli, token)
+
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+	node.On("Put",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+		mock.MatchedBy(func(val []byte) bool {
+			c := &protocol.Node{}
+			err := c.UnmarshalVT(val)
+			as.NoError(err)
+
+			t.Log(c)
+
+			return strings.Contains(cert.Subject.CommonName, c.GetAddress()) && c.GetRendezvous()
+		}),
+	).Return(nil).Once()
+
+	pair := &protocol.TunnelDestination{
+		Chord:  cht,
+		Tunnel: tn,
+	}
+	pairBuf, err := pair.MarshalVT()
+	as.Nil(err)
+
+	node.On("Identity").Return(cht)
+	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
+	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
+
+	tp := mocks.SelfTransport()
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
+
+	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+
+	tp.WithCertificate(cert)
+	_, err = cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
+	as.NoError(err)
+
+	node.AssertExpectations(t)
+	clientT.AssertExpectations(t)
+	chordT.AssertExpectations(t)
 }

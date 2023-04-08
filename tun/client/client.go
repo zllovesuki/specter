@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -17,7 +18,9 @@ import (
 	"sync"
 	"time"
 
+	pkiImpl "kon.nect.sh/specter/pki"
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/rtt"
@@ -48,12 +51,14 @@ const (
 type ClientConfig struct {
 	Logger          *zap.Logger
 	Configuration   *Config
+	PKIClient       protocol.PKIService
 	ServerTransport transport.Transport
 	Recorder        rtt.Recorder
 	ReloadSignal    <-chan os.Signal
 }
 
 type Client struct {
+	ClientConfig
 	configMu     sync.RWMutex
 	closeWg      sync.WaitGroup
 	syncMu       sync.Mutex
@@ -64,11 +69,9 @@ type Client struct {
 	connections  *skipmap.StringMap[*protocol.Node]
 	closeCh      chan struct{}
 	closed       atomic.Bool
-	ClientConfig
 }
 
 func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
-	cfg.Logger = cfg.Logger.With(zap.Uint64("id", cfg.ServerTransport.Identity().GetId()))
 	c := &Client{
 		ClientConfig: cfg,
 		parentCtx:    ctx,
@@ -79,8 +82,16 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		closeCh:      make(chan struct{}),
 	}
 
-	if err := c.bootstrap(ctx); err != nil {
-		return nil, fmt.Errorf("error connecting to apex: %w", err)
+	if c.Configuration.Certificate != "" {
+		c.configMu.RLock()
+		apex := c.ClientConfig.Configuration.Apex
+		c.configMu.RUnlock()
+		if err := c.updateTransportCert(); err != nil {
+			return nil, err
+		}
+		if err := c.bootstrap(ctx, apex); err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -98,11 +109,23 @@ func (c *Client) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) bootstrap(ctx context.Context) error {
-	c.configMu.RLock()
-	apex := c.ClientConfig.Configuration.Apex
-	c.configMu.RUnlock()
+func (c *Client) updateTransportCert() error {
+	cert, err := tls.X509KeyPair([]byte(c.Configuration.Certificate), []byte(c.Configuration.PrivKey))
+	if err != nil {
+		return fmt.Errorf("error parsing certificate: %w", err)
+	}
+	if tp, ok := c.ServerTransport.(transport.ClientTransport); ok {
+		if err := tp.WithClientCertificate(cert); err != nil {
+			return err
+		}
+		c.Logger = c.Logger.With(zap.Uint64("id", c.ServerTransport.Identity().GetId()))
+	} else {
+		return fmt.Errorf("transport does not support client certificate override")
+	}
+	return nil
+}
 
+func (c *Client) bootstrap(ctx context.Context, apex string) error {
 	return c.openRPC(ctx, &protocol.Node{
 		Address: apex,
 	})
@@ -183,15 +206,6 @@ func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dea
 	return
 }
 
-func (c *Client) getToken() *protocol.ClientToken {
-	c.configMu.RLock()
-	token := c.Configuration.Token
-	c.configMu.RUnlock()
-	return &protocol.ClientToken{
-		Token: []byte(token),
-	}
-}
-
 func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
 	var buf [8]byte
 
@@ -222,7 +236,10 @@ func (c *Client) reBootstrap(ctx context.Context) {
 				continue
 			}
 			c.Logger.Info("No connected nodes, re-bootstrapping using apex")
-			if err := c.bootstrap(ctx); err != nil {
+			c.configMu.RLock()
+			apex := c.ClientConfig.Configuration.Apex
+			c.configMu.RUnlock()
+			if err := c.bootstrap(ctx, apex); err != nil {
 				c.Logger.Error("Failed to rebootstrap connection to specter", zap.Error(err))
 			}
 		}
@@ -251,10 +268,7 @@ func (c *Client) periodicReconnection(ctx context.Context) {
 			}
 			now, _ := c.getAliveNodes(ctx)
 
-			c.configMu.RLock()
-			seed := c.Configuration.ClientID
-			c.configMu.RUnlock()
-
+			var seed uint64 = 0
 			pH := c.hash(seed, prev)
 			nH := c.hash(seed, now)
 			c.Logger.Debug("Alive nodes delta", zap.Int("prevNum", len(prev)), zap.Uint64("prevHash", pH), zap.Int("currNum", len(now)), zap.Uint64("currHash", nH))
@@ -296,11 +310,17 @@ func (c *Client) Register(ctx context.Context) error {
 	c.configMu.Lock()
 	defer c.configMu.Unlock()
 
-	if c.Configuration.Token != "" {
+	if c.Configuration.Certificate != "" {
+		clientCert, err := tls.X509KeyPair([]byte(c.Configuration.Certificate), []byte(c.Configuration.PrivKey))
+		if err != nil {
+			return fmt.Errorf("error parsing certificate: %w", err)
+		}
+		cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+		if err != nil {
+			return fmt.Errorf("error parsing certificate: %w", err)
+		}
+
 		resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ClientPingResponse, error) {
-			ctx = rpc.WithClientToken(ctx, &protocol.ClientToken{
-				Token: []byte(c.Configuration.Token),
-			})
 			ctx = rpc.WithNode(ctx, node)
 			return c.tunnelClient.Ping(ctx, &protocol.ClientPingRequest{})
 		})
@@ -310,31 +330,72 @@ func (c *Client) Register(ctx context.Context) error {
 		root := resp.GetApex()
 		c.rootDomain.Store(root)
 
-		c.Logger.Info("Reusing existing client token")
+		identity, err := pki.ExtractCertificateIdentity(cert)
+		if err != nil {
+			return fmt.Errorf("failed to extract certificate identity: %w", err)
+		}
+		c.Logger.Info("Reusing existing client certificate", zap.Object("identity", identity))
 
 		return nil
 	}
 
+	if c.PKIClient == nil {
+		return errors.New("PKIClient is not configured")
+	}
+
+	c.Logger.Info("Obtaining a new client certificate from apex")
+
+	privKey, err := pki.UnmarshalPrivateKey([]byte(c.Configuration.PrivKey))
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	pkiReq, err := pkiImpl.CreateRequest(privKey)
+	if err != nil {
+		return fmt.Errorf("failed to create certificate request: %w", err)
+	}
+
+	pkiResp, err := c.PKIClient.RequestCertificate(c.parentCtx, pkiReq)
+	if err != nil {
+		return fmt.Errorf("failed to obtain a client certificate: %w", err)
+	}
+
+	cert, err := x509.ParseCertificate(pkiResp.GetCertDer())
+	if err != nil {
+		return fmt.Errorf("invalid certificate from PKIService: %w", err)
+	}
+
+	c.Configuration.Certificate = string(pkiResp.GetCertPem())
+
+	identity, err := pki.ExtractCertificateIdentity(cert)
+	if err != nil {
+		return fmt.Errorf("failed to extract certificate identity: %w", err)
+	}
+	c.Logger.Info("Client certificate obtained", zap.Object("identity", identity))
+
+	if err := c.updateTransportCert(); err != nil {
+		return fmt.Errorf("failed to update transport certificate: %w", err)
+	}
+
+	if err := c.bootstrap(c.parentCtx, c.Configuration.Apex); err != nil {
+		return fmt.Errorf("failed to bootstrap with certificate: %w", err)
+	}
+
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisterIdentityResponse, error) {
 		ctx = rpc.WithNode(ctx, node)
-		return c.tunnelClient.RegisterIdentity(ctx, &protocol.RegisterIdentityRequest{
-			Client: c.ServerTransport.Identity(),
-		})
+		return c.tunnelClient.RegisterIdentity(ctx, &protocol.RegisterIdentityRequest{})
 	})
 	if err != nil {
 		return err
 	}
 
-	token := resp.GetToken().GetToken()
 	root := resp.GetApex()
 	c.rootDomain.Store(root)
-	c.Configuration.Token = string(token)
-
-	c.Logger.Info("Client token obtained via apex")
 
 	if err := c.Configuration.writeFile(); err != nil {
 		c.Logger.Error("Error saving token to config file", zap.Error(err))
 	}
+
 	return nil
 }
 
@@ -344,7 +405,6 @@ func (c *Client) ping(ctx context.Context, node *protocol.Node) (*protocol.Clien
 
 func (c *Client) requestHostname(ctx context.Context) (string, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GenerateHostnameResponse, error) {
-		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.GenerateHostname(ctx, &protocol.GenerateHostnameRequest{})
 	})
@@ -356,7 +416,6 @@ func (c *Client) requestHostname(ctx context.Context) (string, error) {
 
 func (c *Client) requestCandidates(ctx context.Context) ([]*protocol.Node, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GetNodesResponse, error) {
-		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.GetNodes(ctx, &protocol.GetNodesRequest{})
 	})
@@ -429,7 +488,6 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 func (c *Client) publishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.PublishTunnelResponse, error) {
-		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.PublishTunnel(ctx, &protocol.PublishTunnelRequest{
 			Hostname: hostname,
@@ -467,7 +525,6 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 
 func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisteredHostnamesResponse, error) {
-		ctx = rpc.WithClientToken(ctx, c.getToken())
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.RegisteredHostnames(ctx, &protocol.RegisteredHostnamesRequest{})
 	})
@@ -563,7 +620,6 @@ func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
 func (c *Client) UnpublishTunnel(ctx context.Context, tunnel Tunnel) error {
 	err := c.tunnelRemovalWrapper(tunnel, func() error {
 		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.UnpublishTunnelResponse, error) {
-			ctx = rpc.WithClientToken(ctx, c.getToken())
 			ctx = rpc.WithNode(ctx, node)
 			return c.tunnelClient.UnpublishTunnel(ctx, &protocol.UnpublishTunnelRequest{
 				Hostname: tunnel.Hostname,
@@ -577,7 +633,6 @@ func (c *Client) UnpublishTunnel(ctx context.Context, tunnel Tunnel) error {
 func (c *Client) ReleaseTunnel(ctx context.Context, tunnel Tunnel) error {
 	return c.tunnelRemovalWrapper(tunnel, func() error {
 		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ReleaseTunnelResponse, error) {
-			ctx = rpc.WithClientToken(ctx, c.getToken())
 			ctx = rpc.WithNode(ctx, node)
 			return c.tunnelClient.ReleaseTunnel(ctx, &protocol.ReleaseTunnelRequest{
 				Hostname: tunnel.Hostname,

@@ -1,9 +1,17 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +23,7 @@ import (
 
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/mocks"
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/rtt"
@@ -48,13 +57,13 @@ func setupRPC(ctx context.Context,
 	s protocol.TunnelService,
 	router *transport.StreamRouter,
 	acc *acceptor.HTTP2Acceptor,
-	token *protocol.ClientToken,
-	verifiedClient *protocol.Node,
 ) {
 	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
 		RequestRouted: func(ctx context.Context) (context.Context, error) {
-			ctx = rpc.WithClientToken(ctx, token)
-			ctx = rpc.WithCientIdentity(ctx, verifiedClient)
+			delegation := rpc.GetDelegation(ctx)
+			if delegation.Certificate == nil {
+				return ctx, fmt.Errorf("missing client certificate")
+			}
 			return ctx, nil
 		},
 		Error: func(ctx context.Context, err twirp.Error) context.Context {
@@ -66,7 +75,7 @@ func setupRPC(ctx context.Context,
 	rpcHandler := chi.NewRouter()
 	rpcHandler.Use(middleware.Recoverer)
 	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
-	rpcHandler.Mount(tunTwirp.PathPrefix(), rpc.ExtractAuthorizationHeader(tunTwirp))
+	rpcHandler.Mount(tunTwirp.PathPrefix(), tunTwirp)
 
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
@@ -152,8 +161,7 @@ func setupClient(
 	as *require.Assertions,
 	ctx context.Context,
 	logger *zap.Logger,
-	cl *protocol.Node,
-	token *protocol.ClientToken,
+	pkiClient *mocks.PKIClient,
 	cfg *Config,
 	reload <-chan os.Signal,
 	m func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call),
@@ -201,11 +209,12 @@ func setupClient(
 
 	go router.Accept(ctx)
 
-	setupRPC(ctx, logger, s, router, acc, token, cl)
+	setupRPC(ctx, logger, s, router, acc)
 
 	client, err := NewClient(rpc.DisablePooling(ctx), ClientConfig{
 		Logger:          logger,
 		Configuration:   cfg,
+		PKIClient:       pkiClient,
 		ServerTransport: t1,
 		Recorder:        rr,
 		ReloadSignal:    reload,
@@ -220,7 +229,82 @@ func setupClient(
 		acc.Close()
 		rr.AssertExpectations(t)
 		s.AssertExpectations(t)
+		if pkiClient != nil {
+			pkiClient.AssertExpectations(t)
+		}
 	}
+}
+
+func makeCertificate(as *require.Assertions, client *protocol.Node, token *protocol.ClientToken, privKey ed25519.PrivateKey) (certDer []byte, certPem, keyPem string) {
+	// generate a CA
+	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
+	as.NoError(err)
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"dev"},
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 180),
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, caPubKey, caPrivKey)
+	as.NoError(err)
+
+	var (
+		certPubKey  ed25519.PublicKey
+		certPrivKey ed25519.PrivateKey
+	)
+
+	if privKey != nil {
+		certPubKey = privKey.Public().(ed25519.PublicKey)
+		certPrivKey = privKey
+	} else {
+		certPubKey, certPrivKey, err = ed25519.GenerateKey(rand.Reader)
+		as.NoError(err)
+	}
+
+	der, err := pki.GenerateCertificate(tls.Certificate{
+		Certificate: [][]byte{derBytes},
+		PrivateKey:  caPrivKey,
+	}, pki.IdentityRequest{
+		Subject:   pki.MakeSubjectV2(client.GetId(), token.GetToken()),
+		PublicKey: certPubKey,
+	})
+	as.NoError(err)
+
+	x509PrivKey, err := x509.MarshalPKCS8PrivateKey(certPrivKey)
+	if err != nil {
+		panic(err)
+	}
+	certPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: x509PrivKey,
+	})
+
+	certDer = der
+	certPem = string(pki.MarshalCertificate(der))
+	keyPem = certPrivKeyPEM.String()
+	return
+}
+
+func transportHelper(t *mocks.MemoryTransport, der []byte) {
+	t.On("WithClientCertificate", mock.MatchedBy(func(cert tls.Certificate) bool {
+		return bytes.Equal(der, cert.Certificate[0])
+	})).Run(func(args mock.Arguments) {
+		cert := args.Get(0).(tls.Certificate)
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			panic(err)
+		}
+		t.WithCertificate(parsed)
+	}).Return(nil).Once()
 }
 
 func TestPublishPreferenceRTT(t *testing.T) {
@@ -241,12 +325,13 @@ func TestPublishPreferenceRTT(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Target: "tcp://127.0.0.1:2345",
@@ -255,7 +340,11 @@ func TestPublishPreferenceRTT(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
-	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, nil, true, 1)
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		transportHelper(t1, der)
+	}
+
+	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, true, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -280,12 +369,13 @@ func TestReloadOnSignal(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Target: "tcp://127.0.0.1:1234",
@@ -296,7 +386,11 @@ func TestReloadOnSignal(t *testing.T) {
 
 	reload := make(chan os.Signal, 1)
 
-	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, reload, nil, false, 2)
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		transportHelper(t1, der)
+	}
+
+	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, reload, m, false, 2)
 	defer assertion()
 	defer client.Close()
 
@@ -338,10 +432,9 @@ func TestRegisterAndProxy(t *testing.T) {
 
 	// no token
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
+		path:   file.Name(),
+		router: skipmap.NewString[route](),
+		Apex:   testApex,
 		Tunnels: []Tunnel{
 			{
 				Target: fmt.Sprintf("tcp://%s", tcpListener.Addr()),
@@ -350,18 +443,26 @@ func TestRegisterAndProxy(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
+	key, err := pki.UnmarshalPrivateKey([]byte(cfg.PrivKey))
+	as.NoError(err)
+	der, cert, _ := makeCertificate(as, cl, token, key)
+	pkiClient := new(mocks.PKIClient)
+	pkiClient.On("RequestCertificate", mock.Anything, mock.Anything).Return(&protocol.CertificateResponse{
+		CertDer: der,
+		CertPem: []byte(cert),
+	}, nil).Once()
+
 	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
-		s.On("RegisterIdentity", mock.Anything, mock.MatchedBy(func(req *protocol.RegisterIdentityRequest) bool {
-			return req.GetClient().GetId() == cl.GetId()
-		})).Return(&protocol.RegisterIdentityResponse{
-			Token: token,
-			Apex:  testApex,
+		s.On("RegisterIdentity", mock.Anything, mock.Anything).Return(&protocol.RegisterIdentityResponse{
+			Apex: testApex,
 		}, nil)
+
+		transportHelper(t1, der)
 
 		t1.Identify = cl
 	}
 
-	client, t2, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, m, false, 1)
+	client, t2, assertion := setupClient(t, as, ctx, logger, pkiClient, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -408,12 +509,13 @@ func TestUnpublishTunnel(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Hostname: testHostname,
@@ -427,9 +529,11 @@ func TestUnpublishTunnel(t *testing.T) {
 		s.On("UnpublishTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.UnpublishTunnelRequest) bool {
 			return req.GetHostname() == testHostname
 		})).Return(&protocol.UnpublishTunnelResponse{}, nil).NotBefore(publishCall)
+
+		transportHelper(t1, der)
 	}
 
-	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, m, false, 1)
+	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -465,12 +569,13 @@ func TestReleaseTunnel(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Hostname: testHostname,
@@ -484,9 +589,11 @@ func TestReleaseTunnel(t *testing.T) {
 		s.On("ReleaseTunnel", mock.Anything, mock.MatchedBy(func(req *protocol.ReleaseTunnelRequest) bool {
 			return req.GetHostname() == testHostname
 		})).Return(&protocol.ReleaseTunnelResponse{}, nil).NotBefore(publishCall)
+
+		transportHelper(t1, der)
 	}
 
-	client, _, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, m, false, 1)
+	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -522,12 +629,13 @@ func TestJustHTTPProxy(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Target: ts.URL,
@@ -536,7 +644,11 @@ func TestJustHTTPProxy(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
-	client, t2, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, nil, false, 1)
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		transportHelper(t1, der)
+	}
+
+	client, t2, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -608,12 +720,13 @@ func TestPipeHTTP(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Target: target,
@@ -622,7 +735,11 @@ func TestPipeHTTP(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
-	client, t2, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, nil, false, 1)
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		transportHelper(t1, der)
+	}
+
+	client, t2, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 
@@ -692,12 +809,13 @@ func TestPipeTCP(t *testing.T) {
 		Id: chord.Random(),
 	}
 
+	der, cert, key := makeCertificate(as, cl, token, nil)
 	cfg := &Config{
-		path:     file.Name(),
-		router:   skipmap.NewString[route](),
-		Apex:     testApex,
-		ClientID: cl.GetId(),
-		Token:    string(token.GetToken()),
+		path:        file.Name(),
+		router:      skipmap.NewString[route](),
+		Apex:        testApex,
+		Certificate: cert,
+		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
 				Target: target,
@@ -706,7 +824,11 @@ func TestPipeTCP(t *testing.T) {
 	}
 	as.NoError(cfg.validate())
 
-	client, t2, assertion := setupClient(t, as, ctx, logger, cl, token, cfg, nil, nil, false, 1)
+	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
+		transportHelper(t1, der)
+	}
+
+	client, t2, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
 

@@ -38,7 +38,8 @@ const (
 	testBody         = "yay"
 	testRespBody     = "cool"
 	serverApex       = "dev.con.nect.sh"
-	yamlTemplate     = `apex: 127.0.0.1:%d
+	yamlTemplate     = `version: 2
+apex: 127.0.0.1:%d
 tunnels:
   - target: %s
     insecure: true

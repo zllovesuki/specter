@@ -22,7 +22,10 @@ var (
 func main() {
 	flag.Parse()
 
-	logger, err := zap.NewDevelopment()
+	cfg := zap.NewDevelopmentConfig()
+	cfg.OutputPaths = []string{"stderr"}
+
+	logger, err := cfg.Build()
 	if err != nil {
 		panic(err)
 	}

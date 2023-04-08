@@ -31,7 +31,7 @@ func cmdLs(ctx *cli.Context) error {
 	signal.Notify(s, syscall.SIGHUP)
 
 	transportRTT := rttImpl.NewInstrumentation(20)
-	transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
+	_, transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
 	defer transport.Stop()
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{

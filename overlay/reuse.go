@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
+	"kon.nect.sh/specter/spec/transport"
 
 	"github.com/quic-go/quic-go"
+	"go.uber.org/zap"
 )
 
 const (
@@ -36,6 +39,20 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 		return nil, false, fmt.Errorf("error receiving identity: %w", err)
 	}
 	s.SetReadDeadline(time.Time{})
+
+	if t.UseCertificateIdentity {
+		chain := q.ConnectionState().TLS.VerifiedChains
+		if len(chain) == 0 || len(chain[0]) == 0 {
+			return nil, false, transport.ErrNoCertificate
+		}
+		cert := chain[0][0]
+		identity, err := pki.ExtractCertificateIdentity(cert)
+		if err != nil {
+			return nil, false, fmt.Errorf("extracting certificate identity: %w", err)
+		}
+		t.Logger.Debug("Using identify from certificate", zap.String("remote", q.RemoteAddr().String()), zap.Object("identity", identity))
+		negotiation.Identity = identity.NodeIdentity()
+	}
 
 	qKey := t.makeCachedKey(negotiation.GetIdentity())
 	fresh := &nodeConnection{

@@ -8,15 +8,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const bare = `apex: dev.specter.dev:1234
+const v1Cfg = `apex: dev.specter.dev:1234
 tunnels:
   - target: tcp://127.0.0.1:1234
     hostname: tcp.dev.specter.dev
 `
 
-const registered = `apex: dev.specter.dev:1234
-clientId: 42
-token: abcdef
+const bare = `version: 2
+apex: dev.specter.dev:1234
+tunnels:
+  - target: tcp://127.0.0.1:1234
+    hostname: tcp.dev.specter.dev
+`
+
+const testPrivateKey = `MC4CAQAwBQYDK2VwBCIEIFXA98L8HvJQxzyqYosZxyaX/G1vfJ4TeSP0E+N0FIfj`
+const registered = `version: 2
+apex: dev.specter.dev:1234
+privKey: |
+  -----BEGIN PRIVATE KEY-----
+  ` + testPrivateKey + `
+  -----END PRIVATE KEY-----
 tunnels:
   - target: tcp://127.0.0.1:1234
     hostname: tcp.dev.specter.dev
@@ -24,13 +35,15 @@ tunnels:
     hostname: http.dev.specter.dev
 `
 
-const namedPipe = `apex: dev.specter.dev:1234
+const namedPipe = `version: 2
+apex: dev.specter.dev:1234
 tunnels:
   - target: \\.\pipe\something
     hostname: pipe
 `
 
-const unixSocket = `apex: dev.specter.dev:1234
+const unixSocket = `version: 2
+apex: dev.specter.dev:1234
 tunnels:
   - target: unix:///tmp/nginx.sock
     hostname: unix
@@ -50,6 +63,7 @@ func TestConfig(t *testing.T) {
 	bareCfg, err := NewConfig(bareFile.Name())
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", bareCfg.Apex)
+	as.NotEmpty(bareCfg.PrivKey)
 	bareCfg.buildRouter()
 	as.Equal(1, bareCfg.router.Len())
 
@@ -64,8 +78,7 @@ func TestConfig(t *testing.T) {
 	regCfg, err := NewConfig(regFile.Name())
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", regCfg.Apex)
-	as.Equal("abcdef", regCfg.Token)
-	as.Equal(uint64(42), regCfg.ClientID)
+	as.Contains(regCfg.PrivKey, testPrivateKey)
 	regCfg.buildRouter()
 	as.Equal(2, regCfg.router.Len())
 
@@ -173,4 +186,19 @@ func TestRebuild(t *testing.T) {
 	r, ok = regCfg.router.Load(prev.Hostname)
 	as.True(ok)
 	as.Equal(newTarget, r.parsed.String())
+}
+
+func TestV1Config(t *testing.T) {
+	as := require.New(t)
+
+	v1File, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(v1File.Name())
+
+	_, err = v1File.WriteString(v1Cfg)
+	as.NoError(err)
+	as.NoError(v1File.Close())
+
+	_, err = NewConfig(v1File.Name())
+	as.Error(err)
 }

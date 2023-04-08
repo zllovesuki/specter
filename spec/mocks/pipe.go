@@ -5,18 +5,27 @@ package mocks
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/transport"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type MemoryTransport struct {
-	Identify *protocol.Node
-	Other    chan *transport.StreamDelegate
-	Self     chan *transport.StreamDelegate
+	Identify    *protocol.Node
+	Other       chan *transport.StreamDelegate
+	Self        chan *transport.StreamDelegate
+	Certificate *x509.Certificate
+	mock.Mock
 }
+
+var _ transport.Transport = (*MemoryTransport)(nil)
+var _ transport.ClientTransport = (*MemoryTransport)(nil)
 
 // SelfTransport returns a transport.Transport that when .DialStream() is invoked, .AcceptStream()
 // on the same Transport will receive the net.Conn
@@ -45,6 +54,15 @@ func PipeTransport() (*MemoryTransport, *MemoryTransport) {
 	return t1, t2
 }
 
+func (t *MemoryTransport) WithCertificate(cert *x509.Certificate) {
+	t.Certificate = cert
+}
+
+func (t *MemoryTransport) WithClientCertificate(cert tls.Certificate) error {
+	args := t.Called(cert)
+	return args.Error(0)
+}
+
 func (t *MemoryTransport) Identity() *protocol.Node {
 	return t.Identify
 }
@@ -53,9 +71,10 @@ func (t *MemoryTransport) DialStream(ctx context.Context, peer *protocol.Node, k
 	c1, c2 := net.Pipe()
 	select {
 	case t.Other <- &transport.StreamDelegate{
-		Conn:     c1,
-		Identity: peer,
-		Kind:     kind,
+		Conn:        c1,
+		Identity:    peer,
+		Kind:        kind,
+		Certificate: t.Certificate,
 	}:
 	default:
 		panic(fmt.Sprintf("blocked on dialing %s", peer.String()))

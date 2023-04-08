@@ -32,6 +32,14 @@ func GetPeerTLSConfig(ca *x509.CertPool, node tls.Certificate, protos []string) 
 	}
 }
 
+func GetClientTLSConfig(caClient *x509.CertPool, provider CertProviderFunc, protos []string) *tls.Config {
+	cfg := GetGatewayTLSConfig(provider, protos)
+	cfg.ClientCAs = caClient
+	cfg.ClientAuth = tls.RequireAndVerifyClientCert
+	cfg.MinVersion = tls.VersionTLS13
+	return cfg
+}
+
 // our acme cert generation uses ECDSA (P-256), thus we will skip
 // ciphers that do not do elliptic curve DH
 func GetGatewayTLSConfig(provider CertProviderFunc, protos []string) *tls.Config {

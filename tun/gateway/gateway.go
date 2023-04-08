@@ -31,16 +31,18 @@ type DeadlineReadWriteCloser interface {
 }
 
 type GatewayConfig struct {
-	TunnelServer tun.Server
-	HTTPListener net.Listener
-	H2Listener   net.Listener
-	H3Listener   quic.EarlyListener
-	Logger       *zap.Logger
-	StatsHandler http.HandlerFunc
-	RootDomain   string
-	AdminUser    string
-	AdminPass    string
-	GatewayPort  int
+	PKIServer        protocol.PKIService
+	TunnelServer     tun.Server
+	HTTPListener     net.Listener
+	H2Listener       net.Listener
+	H3Listener       quic.EarlyListener
+	Logger           *zap.Logger
+	StatsHandler     http.HandlerFunc
+	MigrationHandler http.HandlerFunc
+	RootDomain       string
+	AdminUser        string
+	AdminPass        string
+	GatewayPort      int
 }
 
 type Gateway struct {
@@ -62,6 +64,9 @@ type Gateway struct {
 func New(conf GatewayConfig) *Gateway {
 	if conf.AdminUser == "" || conf.AdminPass == "" {
 		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
+	}
+	if conf.PKIServer != nil {
+		conf.Logger.Info("Enabling client certificate issuance")
 	}
 
 	g := &Gateway{
@@ -95,12 +100,14 @@ func New(conf GatewayConfig) *Gateway {
 		})
 	})
 	g.apexServer = &apexServer{
-		statsHandler:  conf.StatsHandler,
-		limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
-		internalProxy: g.getInternalProxyHandler(),
-		rootDomain:    conf.RootDomain,
-		authUser:      conf.AdminUser,
-		authPass:      conf.AdminPass,
+		statsHandler:     conf.StatsHandler,
+		migrationHandler: conf.MigrationHandler,
+		limiter:          httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
+		internalProxy:    g.getInternalProxyHandler(),
+		pkiServer:        conf.PKIServer,
+		rootDomain:       conf.RootDomain,
+		authUser:         conf.AdminUser,
+		authPass:         conf.AdminPass,
 	}
 	g.apexServer.Mount(apex)
 	g.tcpApexServer = &http.Server{

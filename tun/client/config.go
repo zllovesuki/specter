@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/pki"
 
 	"github.com/zhangyunhao116/skipmap"
 	"gopkg.in/yaml.v3"
@@ -22,12 +22,13 @@ type Tunnel struct {
 }
 
 type Config struct {
-	router   *skipmap.StringMap[route]
-	path     string
-	Apex     string   `yaml:"apex" json:"apex"`
-	ClientID uint64   `yaml:"clientId,omitempty" json:"clientId,omitempty"`
-	Token    string   `yaml:"token,omitempty" json:"token,omitempty"`
-	Tunnels  []Tunnel `yaml:"tunnels,omitempty" json:"tunnels,omitempty"`
+	router      *skipmap.StringMap[route]
+	path        string
+	Version     int      `yaml:"version" json:"version"`
+	Apex        string   `yaml:"apex" json:"apex"`
+	Certificate string   `yaml:"certificate,omitempty" json:"certificate,omitempty"`
+	PrivKey     string   `yaml:"privKey,omitempty" json:"privKey,omitempty"`
+	Tunnels     []Tunnel `yaml:"tunnels,omitempty" json:"tunnels,omitempty"`
 }
 
 type route struct {
@@ -41,6 +42,9 @@ func NewConfig(path string) (*Config, error) {
 		router: skipmap.NewString[route](),
 	}
 	if err := cfg.readFile(); err != nil {
+		return nil, err
+	}
+	if err := cfg.checkVersion(); err != nil {
 		return nil, err
 	}
 	if err := cfg.validate(); err != nil {
@@ -73,6 +77,13 @@ func (c *Config) buildRouter(drop ...Tunnel) {
 	}
 }
 
+func (c *Config) checkVersion() error {
+	if c.Version != 2 {
+		return fmt.Errorf("expecting config version 2, got %v; migration is needed", c.Version)
+	}
+	return nil
+}
+
 func (c *Config) validate() error {
 	for i, tunnel := range c.Tunnels {
 		u, err := url.Parse(tunnel.Target)
@@ -100,8 +111,8 @@ func (c *Config) validate() error {
 		}
 		c.Tunnels[i].parsed = u
 	}
-	if c.ClientID == 0 {
-		c.ClientID = chord.Random()
+	if c.PrivKey == "" {
+		_, c.PrivKey = pki.GeneratePrivKey()
 	}
 	return nil
 }

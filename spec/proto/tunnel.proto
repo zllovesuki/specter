@@ -26,7 +26,7 @@ message Link {
     enum ALPN {
         UNKNOWN = 0;
         SPECTER_CHORD = 1 [(alpn_name) = "specter-chord/1"];
-        SPECTER_TUN = 2 [(alpn_name) = "specter-tun/1"];
+        SPECTER_CLIENT = 2 [(alpn_name) = "specter-client/1"];
 
         HTTP2 = 9 [(alpn_name) = "h2"];
         HTTP = 10 [(alpn_name) = "http/1.1"];
@@ -39,9 +39,9 @@ message Link {
 }
 
 message TunnelRoute {
-    Node clientDestination = 1;
-    Node chordDestination = 2;
-    Node tunnelDestination  = 3;
+    Node client_destination = 1;
+    Node chord_destination = 2;
+    Node tunnel_destination  = 3;
 
     string hostname = 10;
 }
@@ -58,11 +58,9 @@ message ClientPingResponse {
 }
 
 message RegisterIdentityRequest {
-    Node client = 1;
 }
 
 message RegisterIdentityResponse {
-    ClientToken token = 1;
     string apex = 2;
 }
 

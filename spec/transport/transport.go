@@ -2,6 +2,8 @@ package transport
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"time"
 
@@ -14,9 +16,10 @@ const (
 )
 
 type StreamDelegate struct {
-	net.Conn
-	Identity *protocol.Node
-	Kind     protocol.Stream_Type
+	net.Conn                         // The backing bytes stream of the delegation
+	Certificate *x509.Certificate    // The verified peer certificate, if any
+	Identity    *protocol.Node       // The identity that the peer claims to be. Implementation may use mTLS to verify
+	Kind        protocol.Stream_Type // Type of the bytes stream of the delegation
 }
 
 type DatagramDelegate struct {
@@ -33,4 +36,9 @@ type Transport interface {
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate
 	SendDatagram(*protocol.Node, []byte) error
+}
+
+type ClientTransport interface {
+	Transport
+	WithClientCertificate(cert tls.Certificate) error
 }

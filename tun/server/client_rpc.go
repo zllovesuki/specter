@@ -2,16 +2,14 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -63,7 +61,7 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 
 func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) {
 	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
-		RequestRouted: s.injectClientIdentity,
+		RequestRouted: s.verifyClientIdentity,
 		Error:         s.logError,
 	}))
 
@@ -71,7 +69,7 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 	rpcHandler.Use(middleware.Recoverer)
 	rpcHandler.Use(httprate.LimitByIP(10, time.Second))
 	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
-	rpcHandler.Mount(tunTwirp.PathPrefix(), rpc.ExtractAuthorizationHeader(tunTwirp))
+	rpcHandler.Mount(tunTwirp.PathPrefix(), tunTwirp)
 
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
@@ -93,34 +91,29 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 	})
 }
 
-func (s *Server) injectClientIdentity(ctx context.Context) (context.Context, error) {
+func (s *Server) verifyClientIdentity(ctx context.Context) (context.Context, error) {
 	method, _ := twirp.MethodName(ctx)
-	auth := rpc.GetAuthorization(ctx)
+	delegation := rpc.GetDelegation(ctx)
+	if delegation == nil {
+		return nil, twirp.Internal.Error("delegation missing in context")
+	}
 
 	switch method {
-	case "RegisterIdentity":
+	case "Ping", "RegisterIdentity":
 		return ctx, nil
-	case "Ping":
-		// skip token check if not given
-		// check if the client does provide one
-		if len(auth) == 0 {
-			return ctx, nil
-		}
-		fallthrough
 	default:
-		if len(auth) == 0 {
-			return ctx, twirp.Unauthenticated.Error("encoded client token missing in authorization header")
+		token, verifiedClient, err := extractAuthenticated(ctx)
+		if err != nil {
+			return ctx, err
 		}
-		token := &protocol.ClientToken{
-			Token: []byte(auth),
-		}
-		verifiedClient, err := s.getClientByToken(ctx, token)
+		cli, err := s.getClientByToken(ctx, token)
 		if err != nil {
 			return ctx, twirp.Unauthenticated.Errorf("failed to verify client token: %w", err)
 		}
-
-		ctx = rpc.WithClientToken(ctx, token)
-		ctx = rpc.WithCientIdentity(ctx, verifiedClient)
+		// old format: before PKI
+		if cli.GetAddress() == "" || !cli.GetRendezvous() {
+			s.saveClientToken(ctx, token, verifiedClient)
+		}
 		return ctx, nil
 	}
 }
@@ -133,38 +126,22 @@ func (s *Server) Ping(_ context.Context, _ *protocol.ClientPingRequest) (*protoc
 }
 
 func (s *Server) RegisterIdentity(ctx context.Context, req *protocol.RegisterIdentityRequest) (*protocol.RegisterIdentityResponse, error) {
-	client := req.GetClient()
-	if client == nil {
-		return nil, twirp.InvalidArgument.Error("missing client identity in request")
-	}
-	delegation := rpc.GetDelegation(ctx)
-	if delegation == nil {
-		return nil, twirp.Internal.Error("delegation missing in context")
-	}
-	if delegation.Identity.GetId() != client.GetId() {
-		return nil, twirp.PermissionDenied.Error("requesting client is not the same as connected client")
-	}
-
-	err := s.tunnelTransport.SendDatagram(client, []byte(testDatagramData))
+	token, verifiedClient, err := extractAuthenticated(ctx)
 	if err != nil {
-		return nil, twirp.Aborted.Error("Client is not connected")
+		return nil, err
 	}
 
-	b, err := generateToken()
+	err = s.tunnelTransport.SendDatagram(verifiedClient, []byte(testDatagramData))
 	if err != nil {
-		return nil, twirp.Internal.Error(err.Error())
-	}
-	token := &protocol.ClientToken{
-		Token: b,
+		return nil, twirp.Aborted.Error("client is not connected")
 	}
 
-	if err := s.saveClientToken(ctx, token, client); err != nil {
+	if err := s.saveClientToken(ctx, token, verifiedClient); err != nil {
 		return nil, rpc.WrapErrorKV(tun.ClientTokenKey(token), err)
 	}
 
 	return &protocol.RegisterIdentityResponse{
-		Token: token,
-		Apex:  s.rootDomain,
+		Apex: s.rootDomain,
 	}, nil
 }
 
@@ -448,7 +425,7 @@ func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientTok
 	if err != nil {
 		return nil, err
 	}
-	if val == nil {
+	if len(val) == 0 {
 		return nil, fmt.Errorf("no existing client found with given token")
 	}
 	client := &protocol.Node{}
@@ -459,22 +436,20 @@ func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientTok
 }
 
 func extractAuthenticated(ctx context.Context) (*protocol.ClientToken, *protocol.Node, error) {
-	token := rpc.GetClientToken(ctx)
-	if token == nil {
-		return nil, nil, twirp.Unauthenticated.Error("client is unauthenticated")
-	}
-	verifiedClient := rpc.GetClientIdentity(ctx)
-	if verifiedClient == nil {
-		return nil, nil, twirp.Unauthenticated.Error("client is unauthenticated")
-	}
 	delegation := rpc.GetDelegation(ctx)
 	if delegation == nil {
 		return nil, nil, twirp.Internal.Error("delegation missing in context")
 	}
-	if delegation.Identity.GetId() != verifiedClient.GetId() {
-		return nil, nil, twirp.PermissionDenied.Error("requesting client is not the same as connected client")
+	if delegation.Certificate == nil {
+		return nil, nil, twirp.Unauthenticated.Error("missing client certificate")
 	}
-	return token, verifiedClient, nil
+	identity, err := pki.ExtractCertificateIdentity(delegation.Certificate)
+	if err != nil {
+		return nil, nil, twirp.Unauthenticated.Error(err.Error())
+	}
+	return &protocol.ClientToken{
+		Token: identity.Token,
+	}, identity.NodeIdentity(), nil
 }
 
 func uniqueNodes(nodes []*protocol.Node) []*protocol.Node {
@@ -488,13 +463,4 @@ func uniqueNodes(nodes []*protocol.Node) []*protocol.Node {
 		list = append(list, node)
 	}
 	return list
-}
-
-func generateToken() ([]byte, error) {
-	b := make([]byte, 32)
-	n, err := io.ReadFull(rand.Reader, b)
-	if n != len(b) || err != nil {
-		return nil, fmt.Errorf("error generating token")
-	}
-	return []byte(base64.StdEncoding.EncodeToString(b)), nil
 }

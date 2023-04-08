@@ -58,45 +58,6 @@ func GetContext(ctx context.Context) *protocol.Context {
 	return &protocol.Context{}
 }
 
-// Make request with the provided authorization header
-func WithAuthorization(ctx context.Context, authHeader string) context.Context {
-	return context.WithValue(ctx, contextAuthorizationKey, authHeader)
-}
-
-// Retrieve the authorization header of this request
-func GetAuthorization(ctx context.Context) string {
-	if auth, ok := ctx.Value(contextAuthorizationKey).(string); ok {
-		return auth
-	}
-	return ""
-}
-
-// Attach client token for this request
-func WithClientToken(ctx context.Context, token *protocol.ClientToken) context.Context {
-	return context.WithValue(ctx, contextClientTokenKey, token)
-}
-
-// Retrieve client token of this request
-func GetClientToken(ctx context.Context) *protocol.ClientToken {
-	if token, ok := ctx.Value(contextClientTokenKey).(*protocol.ClientToken); ok {
-		return token
-	}
-	return nil
-}
-
-// Attach client identity for this request
-func WithCientIdentity(ctx context.Context, id *protocol.Node) context.Context {
-	return context.WithValue(ctx, contextClientIdentityKey, id)
-}
-
-// Retrieve client identity of this request
-func GetClientIdentity(ctx context.Context) *protocol.Node {
-	if id, ok := ctx.Value(contextClientIdentityKey).(*protocol.Node); ok {
-		return id
-	}
-	return nil
-}
-
 // Attach the delegation triggering the request
 func WithDelegation(ctx context.Context, delegate *transport.StreamDelegate) context.Context {
 	return context.WithValue(ctx, contextDelegationKey, delegate)
