@@ -683,7 +683,7 @@ func cmdServer(ctx *cli.Context) error {
 		H2Listener:       gwH2Listener,
 		H3Listener:       gwH3Listener,
 		StatsHandler:     chordImpl.StatsHandler(virtualNodes),
-		MigrationHandler: migrator.ConfigMigrator(bundle.clientCaCert),
+		MigrationHandler: migrator.ConfigMigrator(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
 		RootDomain:       rootDomain,
 		GatewayPort:      int(advertisePort),
 		AdminUser:        ctx.String("auth_user"),

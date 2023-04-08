@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -23,7 +25,7 @@ type IdentityRequest struct {
 	Subject   pkix.Name
 }
 
-func GenerateCertificate(ca tls.Certificate, req IdentityRequest) (derBytes []byte, err error) {
+func GenerateCertificate(logger *zap.Logger, ca tls.Certificate, req IdentityRequest) (derBytes []byte, err error) {
 	if len(req.PublicKey) != ed25519.PublicKeySize {
 		err = fmt.Errorf("pki: public key is not ed25519")
 		return
@@ -57,6 +59,8 @@ func GenerateCertificate(ca tls.Certificate, req IdentityRequest) (derBytes []by
 		err = fmt.Errorf("pki: failed to generate client certificate: %w", err)
 		return
 	}
+
+	logger.Info("New client certificate issued", zap.String("commonName", req.Subject.CommonName))
 
 	return certBytes, nil
 }

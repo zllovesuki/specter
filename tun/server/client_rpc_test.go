@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
@@ -93,7 +94,7 @@ func mustGenerateToken() []byte {
 	return []byte(base64.StdEncoding.EncodeToString(b))
 }
 
-func toCertificate(as *require.Assertions, client *protocol.Node, token *protocol.ClientToken) *x509.Certificate {
+func toCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken) *x509.Certificate {
 	// generate a CA
 	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
@@ -117,7 +118,7 @@ func toCertificate(as *require.Assertions, client *protocol.Node, token *protoco
 	certPubKey, _, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
 
-	der, err := pki.GenerateCertificate(tls.Certificate{
+	der, err := pki.GenerateCertificate(logger, tls.Certificate{
 		Certificate: [][]byte{derBytes},
 		PrivateKey:  caPrivKey,
 	}, pki.IdentityRequest{
@@ -166,7 +167,7 @@ func TestRPCRegisterClientNewCertificateOK(t *testing.T) {
 	serv.AttachRouter(ctx, streamRouter)
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
-	tp.WithCertificate(toCertificate(as, cli, testToken))
+	tp.WithCertificate(toCertificate(as, logger, cli, testToken))
 	resp, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{})
 
 	as.NoError(err)
@@ -222,7 +223,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		tp.WithCertificate(toCertificate(as, req.Client, testToken))
+		tp.WithCertificate(toCertificate(as, logger, req.Client, testToken))
 		_, err := cRPC.RegisterIdentity(rpc.WithNode(ctx, cli), &protocol.RegisterIdentityRequest{})
 		as.Error(err)
 	}
@@ -251,7 +252,7 @@ func TestRPCPingOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, &protocol.ClientToken{}))
+	tp.WithCertificate(toCertificate(as, logger, cli, &protocol.ClientToken{}))
 	resp, err := cRPC.Ping(rpc.WithNode(ctx, cli), &protocol.ClientPingRequest{})
 
 	as.NoError(err)
@@ -305,7 +306,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
 	as.NoError(err)
 
@@ -370,7 +371,7 @@ func TestRPCGetNodes(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
 
 	as.NoError(err)
@@ -421,7 +422,7 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.GenerateHostname(rpc.WithNode(ctx, cli), &protocol.GenerateHostnameRequest{})
 	as.NoError(err)
 
@@ -475,7 +476,7 @@ func TestRPCRegisteredHostnames(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.RegisteredHostnames(rpc.WithNode(ctx, cli), &protocol.RegisteredHostnamesRequest{})
 	as.NoError(err)
 
@@ -514,7 +515,7 @@ func TestRPCOtherFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		tp.WithCertificate(toCertificate(as, cli, req))
+		tp.WithCertificate(toCertificate(as, logger, cli, req))
 		resp, err := cRPC.GenerateHostname(rpc.WithNode(ctx, cli), &protocol.GenerateHostnameRequest{})
 		as.Error(err)
 		as.Nil(resp)
@@ -615,7 +616,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.PublishTunnel(rpc.WithNode(ctx, cli), &protocol.PublishTunnelRequest{
 		Hostname: hostname,
 		Servers:  nodes,
@@ -700,7 +701,7 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	}
 
 	for _, req := range requests {
-		tp.WithCertificate(toCertificate(as, cli, token))
+		tp.WithCertificate(toCertificate(as, logger, cli, token))
 		resp, err := cRPC.PublishTunnel(rpc.WithNode(ctx, cli), req)
 		as.Error(err)
 		as.Nil(resp)
@@ -773,7 +774,7 @@ func TestUnpublishTunnel(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.UnpublishTunnel(rpc.WithNode(ctx, cli), &protocol.UnpublishTunnelRequest{
 		Hostname: hostname,
 	})
@@ -860,7 +861,7 @@ func TestReleaseTunnel(t *testing.T) {
 
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
-	tp.WithCertificate(toCertificate(as, cli, token))
+	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.ReleaseTunnel(rpc.WithNode(ctx, cli), &protocol.ReleaseTunnelRequest{
 		Hostname: hostname,
 	})
@@ -890,7 +891,7 @@ func TestTokenUpgrade(t *testing.T) {
 	clientBuf, err := old.MarshalVT()
 	as.NoError(err)
 
-	cert := toCertificate(as, cli, token)
+	cert := toCertificate(as, logger, cli, token)
 
 	node.On("Get",
 		mock.Anything,

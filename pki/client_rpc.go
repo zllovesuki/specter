@@ -73,7 +73,7 @@ func (p *Server) RequestCertificate(ctx context.Context, req *protocol.Certifica
 	id := chord.Random()
 	certSubject := pki.MakeSubjectV2(id, subject)
 
-	certBytes, err := pki.GenerateCertificate(p.ClientCA, pki.IdentityRequest{
+	certBytes, err := pki.GenerateCertificate(p.Logger, p.ClientCA, pki.IdentityRequest{
 		PublicKey: req.GetPubKey(),
 		Subject:   certSubject,
 	})
@@ -82,8 +82,6 @@ func (p *Server) RequestCertificate(ctx context.Context, req *protocol.Certifica
 	}
 
 	certPem := pki.MarshalCertificate(certBytes)
-
-	p.Logger.Info("New client certificate issued", zap.String("hashcash", req.GetHashcashSolution()), zap.String("commonName", certSubject.CommonName))
 
 	return &protocol.CertificateResponse{
 		CertDer: certBytes,

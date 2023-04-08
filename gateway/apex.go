@@ -70,7 +70,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		r.Use(a.internalProxy)
 		r.Use(middleware.URLFormat)
 		r.Get("/stats", a.statsHandler)
-		r.Post("/migrator", a.migrationHandler)
+		r.Handle("/migrator", a.migrationHandler)
 		r.Mount("/debug", middleware.Profiler())
 	})
 }

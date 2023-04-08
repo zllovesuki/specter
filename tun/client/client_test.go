@@ -235,7 +235,7 @@ func setupClient(
 	}
 }
 
-func makeCertificate(as *require.Assertions, client *protocol.Node, token *protocol.ClientToken, privKey ed25519.PrivateKey) (certDer []byte, certPem, keyPem string) {
+func makeCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken, privKey ed25519.PrivateKey) (certDer []byte, certPem, keyPem string) {
 	// generate a CA
 	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
@@ -269,7 +269,7 @@ func makeCertificate(as *require.Assertions, client *protocol.Node, token *proto
 		as.NoError(err)
 	}
 
-	der, err := pki.GenerateCertificate(tls.Certificate{
+	der, err := pki.GenerateCertificate(logger, tls.Certificate{
 		Certificate: [][]byte{derBytes},
 		PrivateKey:  caPrivKey,
 	}, pki.IdentityRequest{
@@ -325,7 +325,7 @@ func TestPublishPreferenceRTT(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -369,7 +369,7 @@ func TestReloadOnSignal(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -445,7 +445,7 @@ func TestRegisterAndProxy(t *testing.T) {
 
 	key, err := pki.UnmarshalPrivateKey([]byte(cfg.PrivKey))
 	as.NoError(err)
-	der, cert, _ := makeCertificate(as, cl, token, key)
+	der, cert, _ := makeCertificate(as, logger, cl, token, key)
 	pkiClient := new(mocks.PKIClient)
 	pkiClient.On("RequestCertificate", mock.Anything, mock.Anything).Return(&protocol.CertificateResponse{
 		CertDer: der,
@@ -509,7 +509,7 @@ func TestUnpublishTunnel(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -569,7 +569,7 @@ func TestReleaseTunnel(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -629,7 +629,7 @@ func TestJustHTTPProxy(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -720,7 +720,7 @@ func TestPipeHTTP(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),
@@ -809,7 +809,7 @@ func TestPipeTCP(t *testing.T) {
 		Id: chord.Random(),
 	}
 
-	der, cert, key := makeCertificate(as, cl, token, nil)
+	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
 		router:      skipmap.NewString[route](),

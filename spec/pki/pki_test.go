@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 const (
@@ -44,6 +45,7 @@ func generateCA(as *require.Assertions) tls.Certificate {
 }
 
 func TestGenerateCertificate(t *testing.T) {
+	logger := zaptest.NewLogger(t)
 	as := require.New(t)
 	pubKey, _ := GeneratePrivKey()
 
@@ -51,7 +53,7 @@ func TestGenerateCertificate(t *testing.T) {
 	caCert, err := x509.ParseCertificate(ca.Certificate[0])
 	as.NoError(err)
 
-	der, err := GenerateCertificate(ca, IdentityRequest{
+	der, err := GenerateCertificate(logger, ca, IdentityRequest{
 		PublicKey: pubKey,
 		Subject: pkix.Name{
 			CommonName: testCommonName,

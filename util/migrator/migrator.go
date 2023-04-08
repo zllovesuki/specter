@@ -8,6 +8,7 @@ import (
 	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/tun/client"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,7 +19,7 @@ type v1ClientConfig struct {
 	Tunnels  []client.Tunnel `yaml:"tunnels,omitempty"`
 }
 
-func ConfigMigrator(ca tls.Certificate) http.HandlerFunc {
+func ConfigMigrator(logger *zap.Logger, ca tls.Certificate) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		v1Cfg := v1ClientConfig{}
 
@@ -30,7 +31,7 @@ func ConfigMigrator(ca tls.Certificate) http.HandlerFunc {
 
 		certPubKey, keyPem := pki.GeneratePrivKey()
 
-		certBytes, err := pki.GenerateCertificate(ca, pki.IdentityRequest{
+		certBytes, err := pki.GenerateCertificate(logger, ca, pki.IdentityRequest{
 			PublicKey: certPubKey,
 			Subject:   pki.MakeSubjectV1(v1Cfg.ClientID, v1Cfg.Token),
 		})
