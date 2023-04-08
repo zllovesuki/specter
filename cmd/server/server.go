@@ -30,6 +30,7 @@ import (
 	"kon.nect.sh/specter/tun/gateway"
 	"kon.nect.sh/specter/tun/server"
 	"kon.nect.sh/specter/util"
+	"kon.nect.sh/specter/util/migrator"
 	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/TheZeroSlave/zapsentry"
@@ -677,15 +678,16 @@ func cmdServer(ctx *cli.Context) error {
 			Logger:   logger.With(zapsentry.NewScope()).With(zap.String("component", "pki")),
 			ClientCA: bundle.clientCaCert,
 		},
-		TunnelServer: tunServer,
-		HTTPListener: httpListener,
-		H2Listener:   gwH2Listener,
-		H3Listener:   gwH3Listener,
-		StatsHandler: chordImpl.StatsHandler(virtualNodes),
-		RootDomain:   rootDomain,
-		GatewayPort:  int(advertisePort),
-		AdminUser:    ctx.String("auth_user"),
-		AdminPass:    ctx.String("auth_pass"),
+		TunnelServer:     tunServer,
+		HTTPListener:     httpListener,
+		H2Listener:       gwH2Listener,
+		H3Listener:       gwH3Listener,
+		StatsHandler:     chordImpl.StatsHandler(virtualNodes),
+		MigrationHandler: migrator.ConfigMigrator(bundle.clientCaCert),
+		RootDomain:       rootDomain,
+		GatewayPort:      int(advertisePort),
+		AdminUser:        ctx.String("auth_user"),
+		AdminPass:        ctx.String("auth_pass"),
 	})
 	defer gw.Close()
 
