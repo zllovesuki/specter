@@ -4,18 +4,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"kon.nect.sh/specter/kv/aof"
 	chordSpec "kon.nect.sh/specter/spec/chord"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"go.uber.org/zap"
 )
 
 var (
 	dataDir = flag.String("data", "data", "data dir")
-	op      = flag.String("op", "list", "operation to perform")
+	op      = flag.String("op", "", "operation to perform")
 	key     = flag.String("key", "example", "key to fetch")
 )
 
@@ -61,7 +63,7 @@ func main() {
 			panic(err)
 		}
 		for _, val := range vals {
-			fmt.Printf("%s", val)
+			fmt.Printf("%s\n", val)
 		}
 	case "simple-delete-prefix":
 		keys := kvProvider.RangeKeys(0, 0)
@@ -80,9 +82,25 @@ func main() {
 			fmt.Printf("deleting prefix %s with child %s\n", *key, val)
 			kvProvider.PrefixRemove(context.Background(), []byte(*key), val)
 		}
-	case "remove-all":
+	case "delete-all":
 		keys := [][]byte{[]byte(*key)}
 		fmt.Printf("removing everything under key %s\n", *key)
 		kvProvider.RemoveKeys(keys)
+	default:
+		fmt.Printf("available ops:\n")
+		opsTable := table.NewWriter()
+		opsTable.SetOutputMirror(os.Stdout)
+
+		opsTable.AppendHeader(table.Row{"Op", "Description"})
+		opsTable.AppendRow(table.Row{"list", "list all keys from the kv storage"})
+		opsTable.AppendRow(table.Row{"simple-get", "corresponds to KV Get"})
+		opsTable.AppendRow(table.Row{"prefix-list", "corresponds to KV PrefixList"})
+		opsTable.AppendRow(table.Row{"prefix-remove", "remove all children under prefix"})
+		opsTable.AppendRow(table.Row{"simple-delete-prefix", "operates KV Delete on keys matching this prefix"})
+		opsTable.AppendRow(table.Row{"remove-all", "remove everything under this key, including Simple, Prefix, and Lease"})
+
+		opsTable.SetStyle(table.StyleDefault)
+		opsTable.Style().Options.SeparateRows = true
+		opsTable.Render()
 	}
 }
