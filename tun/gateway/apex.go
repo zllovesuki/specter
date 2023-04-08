@@ -7,10 +7,13 @@ import (
 	"text/template"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/util"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+const bodyLimit = 1 << 9 // 512 bytes
 
 //go:embed index.html
 var index string
@@ -55,7 +58,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 	r.Get("/quic.png", a.handleLogo)
 	if a.pkiServer != nil {
 		pkiServer := protocol.NewPKIServiceServer(a.pkiServer)
-		r.Mount(pkiServer.PathPrefix(), pkiServer)
+		r.With(util.LimitBody(bodyLimit)).Mount(pkiServer.PathPrefix(), pkiServer)
 	}
 	if a.authUser == "" || a.authPass == "" {
 		return
