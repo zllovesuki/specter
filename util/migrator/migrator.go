@@ -46,6 +46,11 @@ func migrateConfig(logger *zap.Logger, ca tls.Certificate, w http.ResponseWriter
 		return
 	}
 
+	if v1Cfg.ClientID == 0 || len(v1Cfg.Token) != 44 {
+		http.Error(w, "provided yaml is not a valid v1 config", 400)
+		return
+	}
+
 	certPubKey, keyPem := pki.GeneratePrivKey()
 
 	certBytes, err := pki.GenerateCertificate(logger, ca, pki.IdentityRequest{
