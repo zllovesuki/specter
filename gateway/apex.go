@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-const bodyLimit = 1 << 9 // 512 bytes
+const bodyLimit = 1 << 10 // 1kb
 
 //go:embed index.html
 var index string
