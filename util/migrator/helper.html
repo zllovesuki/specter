@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Config Migrator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"
+        integrity="sha512-CSBhVREyzHAjAFfBlIBakjoRUKp5h7VSweP0InR/pAJyptH7peuhCsqAI/snV+TwZmXZqoUklpXp6R6wMnYf5Q=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.0/jsrsasign-all-min.min.js"
+        integrity="sha512-mXeUv7ZNMSyVwU1Sf6jr+4PnJTJwfvnJnSZ/3ftVdK4Ucrys5g/rsMZXvmnQfm2JpCZbCYEjzSqVeLtaqVM1wg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+<body>
+    <div class="container mx-auto mt-20">
+        <form spellcheck="false">
+            <div class="mb-4 w-full bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600">
+                <div class="py-2 px-4 bg-white rounded-t-lg dark:bg-gray-800">
+                    <label for="config" class="sr-only">Config</label>
+                    <textarea id="config" rows="10"
+                        class="px-0 w-full text-sm text-gray-900 bg-white border-0 dark:bg-gray-800 focus:ring-0 dark:text-white dark:placeholder-gray-400"
+                        placeholder="content of v1 specter.yaml" required></textarea>
+                </div>
+                <div class="flex justify-between items-center py-2 px-3 border-t dark:border-gray-600">
+                    <button type="submit"
+                        class="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900 hover:bg-blue-800">
+                        Migrate
+                    </button>
+                </div>
+            </div>
+        </form>
+        <pre id="result" class="ml-auto mt-5 text-sm"></pre>
+        </p>
+    </div>
+    <script>
+        const element = document.querySelector('form');
+        const config = document.getElementById("config")
+        const result = document.getElementById("result")
+        element.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const resp = await fetch(new Request(window.location.href, {
+                method: 'POST',
+                body: config.value,
+            }))
+            if (resp.status === 200) {
+                const yaml = await resp.text()
+                const parsed = jsyaml.load(yaml)
+                const cert = new X509()
+                cert.readCertPEM(parsed.certificate)
+                result.innerText = `${cert.getSubjectString()}\n\n${yaml}`
+            } else {
+                result.innerText = `Error (${resp.status}):\n${await resp.text()}`
+            }
+        });
+    </script>
+</body>
+
+</html>
