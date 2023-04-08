@@ -75,7 +75,7 @@ func (p *Server) RequestCertificate(ctx context.Context, req *protocol.Certifica
 
 	certBytes, err := pki.GenerateCertificate(p.ClientCA, pki.IdentityRequest{
 		PublicKey: req.GetPubKey(),
-		Subject:   pki.MakeSubjectV2(id, subject),
+		Subject:   certSubject,
 	})
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
