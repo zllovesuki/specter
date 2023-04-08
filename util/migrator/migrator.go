@@ -51,7 +51,9 @@ func ConfigMigrator(ca tls.Certificate) http.HandlerFunc {
 		}
 
 		var out bytes.Buffer
-		err = yaml.NewEncoder(&out).Encode(&newCfg)
+		encoder := yaml.NewEncoder(&out)
+		encoder.SetIndent(2)
+		err = encoder.Encode(&newCfg)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
