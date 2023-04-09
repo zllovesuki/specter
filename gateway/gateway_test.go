@@ -192,8 +192,10 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		GatewayPort:  udpPort,
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
-		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
+		Handlers: InternalHandlers{
+			StatsHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
 		},
 	}
 

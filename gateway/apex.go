@@ -24,14 +24,13 @@ var quicPng []byte
 var view = template.Must(template.New("index").Parse(index))
 
 type apexServer struct {
-	statsHandler     http.HandlerFunc
-	migrationHandler http.HandlerFunc
-	limiter          func(http.Handler) http.Handler
-	internalProxy    func(http.Handler) http.Handler
-	pkiServer        protocol.PKIService
-	rootDomain       string
-	authUser         string
-	authPass         string
+	handlers      InternalHandlers
+	limiter       func(http.Handler) http.Handler
+	internalProxy func(http.Handler) http.Handler
+	pkiServer     protocol.PKIService
+	rootDomain    string
+	authUser      string
+	authPass      string
 }
 
 func (a *apexServer) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -69,8 +68,9 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		}))
 		r.Use(a.internalProxy)
 		r.Use(middleware.URLFormat)
-		r.Get("/stats", a.statsHandler)
-		r.Handle("/migrator", a.migrationHandler)
+		r.Get("/stats", a.handlers.StatsHandler)
+		r.Get("/graph", a.handlers.RingGraphHandler)
+		r.Handle("/migrator", a.handlers.MigrationHandler)
 		r.Mount("/debug", middleware.Profiler())
 	})
 }

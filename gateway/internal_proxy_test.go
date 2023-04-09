@@ -54,8 +54,10 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 		GatewayPort:  udpPort,
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
-		StatsHandler: func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
+		Handlers: InternalHandlers{
+			StatsHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			},
 		},
 	}
 	g := New(conf)

@@ -673,21 +673,24 @@ func cmdServer(ctx *cli.Context) error {
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
 	gw := gateway.New(gateway.GatewayConfig{
-		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
 		PKIServer: &pki.Server{
 			Logger:   logger.With(zapsentry.NewScope()).With(zap.String("component", "pki")),
 			ClientCA: bundle.clientCaCert,
 		},
-		TunnelServer:     tunServer,
-		HTTPListener:     httpListener,
-		H2Listener:       gwH2Listener,
-		H3Listener:       gwH3Listener,
-		StatsHandler:     chordImpl.StatsHandler(virtualNodes),
-		MigrationHandler: migrator.ConfigMigrator(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
-		RootDomain:       rootDomain,
-		GatewayPort:      int(advertisePort),
-		AdminUser:        ctx.String("auth_user"),
-		AdminPass:        ctx.String("auth_pass"),
+		Handlers: gateway.InternalHandlers{
+			StatsHandler:     chordImpl.StatsHandler(virtualNodes),
+			RingGraphHandler: chordImpl.RingGraphHandler(rootNode),
+			MigrationHandler: migrator.ConfigMigrator(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
+		},
+		Logger:       logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
+		TunnelServer: tunServer,
+		HTTPListener: httpListener,
+		H2Listener:   gwH2Listener,
+		H3Listener:   gwH3Listener,
+		RootDomain:   rootDomain,
+		GatewayPort:  int(advertisePort),
+		AdminUser:    ctx.String("auth_user"),
+		AdminPass:    ctx.String("auth_pass"),
 	})
 	defer gw.Close()
 

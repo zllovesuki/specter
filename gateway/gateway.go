@@ -30,19 +30,24 @@ type DeadlineReadWriteCloser interface {
 	SetReadDeadline(time.Time) error
 }
 
-type GatewayConfig struct {
-	PKIServer        protocol.PKIService
-	TunnelServer     tun.Server
-	HTTPListener     net.Listener
-	H2Listener       net.Listener
-	H3Listener       quic.EarlyListener
-	Logger           *zap.Logger
+type InternalHandlers struct {
 	StatsHandler     http.HandlerFunc
+	RingGraphHandler http.HandlerFunc
 	MigrationHandler http.HandlerFunc
-	RootDomain       string
-	AdminUser        string
-	AdminPass        string
-	GatewayPort      int
+}
+
+type GatewayConfig struct {
+	PKIServer    protocol.PKIService
+	TunnelServer tun.Server
+	HTTPListener net.Listener
+	H2Listener   net.Listener
+	H3Listener   quic.EarlyListener
+	Logger       *zap.Logger
+	Handlers     InternalHandlers
+	RootDomain   string
+	AdminUser    string
+	AdminPass    string
+	GatewayPort  int
 }
 
 type Gateway struct {
@@ -100,14 +105,13 @@ func New(conf GatewayConfig) *Gateway {
 		})
 	})
 	g.apexServer = &apexServer{
-		statsHandler:     conf.StatsHandler,
-		migrationHandler: conf.MigrationHandler,
-		limiter:          httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
-		internalProxy:    g.getInternalProxyHandler(),
-		pkiServer:        conf.PKIServer,
-		rootDomain:       conf.RootDomain,
-		authUser:         conf.AdminUser,
-		authPass:         conf.AdminPass,
+		handlers:      conf.Handlers,
+		limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
+		internalProxy: g.getInternalProxyHandler(),
+		pkiServer:     conf.PKIServer,
+		rootDomain:    conf.RootDomain,
+		authUser:      conf.AdminUser,
+		authPass:      conf.AdminPass,
 	}
 	g.apexServer.Mount(apex)
 	g.tcpApexServer = &http.Server{

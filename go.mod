@@ -7,6 +7,7 @@ require (
 	github.com/TheZeroSlave/zapsentry v1.15.0
 	github.com/avast/retry-go/v4 v4.3.3
 	github.com/caddyserver/certmagic v0.17.2
+	github.com/dominikbraun/graph v0.16.2
 	github.com/getsentry/sentry-go v0.20.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gorilla/websocket v1.5.0

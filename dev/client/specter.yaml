@@ -1,3 +1,4 @@
+version: 2
 apex: seed:1113
 tunnels:
   - target: http://nginx:80/
