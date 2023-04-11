@@ -162,7 +162,15 @@ func getH3Client(host string, port int) *http.Client {
 	}
 }
 
-func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listener) (udpPort int, tcpPort int, mockS *mocks.TunnelServer, done func()) {
+type configOption func(*GatewayConfig)
+
+func withExtraRootDomains(domains []string) configOption {
+	return func(gc *GatewayConfig) {
+		gc.RootDomains = append(gc.RootDomains, domains...)
+	}
+}
+
+func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listener, options ...configOption) (udpPort int, tcpPort int, mockS *mocks.TunnelServer, done func()) {
 	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	var q net.PacketConn
@@ -188,7 +196,7 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		HTTPListener: httpListener,
 		H2Listener:   h2,
 		H3Listener:   h3,
-		RootDomain:   testDomain,
+		RootDomains:  []string{testDomain},
 		GatewayPort:  udpPort,
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
@@ -197,6 +205,10 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 				w.WriteHeader(http.StatusOK)
 			},
 		},
+	}
+
+	for _, option := range options {
+		option(&conf)
 	}
 
 	g := New(conf)

@@ -23,7 +23,7 @@ const (
 func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 		Scheme: "http",
-		Host:   g.RootDomain,
+		Host:   g.RootDomains[0],
 	})
 	proxy.Transport = &http.Transport{
 		DisableKeepAlives:   true,

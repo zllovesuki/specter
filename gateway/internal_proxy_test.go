@@ -50,7 +50,7 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 		HTTPListener: nil,
 		H2Listener:   h2,
 		H3Listener:   h3,
-		RootDomain:   testDomain,
+		RootDomains:  []string{testDomain},
 		GatewayPort:  udpPort,
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),

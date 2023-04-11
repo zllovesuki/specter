@@ -16,6 +16,7 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
+	"kon.nect.sh/specter/util"
 
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
@@ -80,7 +81,7 @@ func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
 		err = fmt.Errorf("gateway: invalid host for forwarding")
 		return
 	}
-	if parts[1] == g.RootDomain {
+	if util.Contains(g.RootDomains, parts[1]) {
 		hostname = parts[0]
 	} else {
 		err = fmt.Errorf("gateway: custom hostname is not supported")

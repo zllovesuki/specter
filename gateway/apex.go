@@ -28,17 +28,22 @@ type apexServer struct {
 	limiter       func(http.Handler) http.Handler
 	internalProxy func(http.Handler) http.Handler
 	pkiServer     protocol.PKIService
-	rootDomain    string
 	authUser      string
 	authPass      string
 }
 
 func (a *apexServer) handleRoot(w http.ResponseWriter, r *http.Request) {
+	var root string
+	if r.ProtoAtLeast(2, 0) {
+		root = r.Host
+	} else {
+		root = r.TLS.ServerName
+	}
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	view.Execute(w, struct {
 		RootDomain string
 	}{
-		RootDomain: a.rootDomain,
+		RootDomain: root,
 	})
 }
 

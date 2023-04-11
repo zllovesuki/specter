@@ -66,6 +66,10 @@ func Generate() *cli.Command {
 				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
 				Required: true,
 			},
+			&cli.StringSliceFlag{
+				Name:  "extra_apex",
+				Usage: "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
+			},
 			&cli.PathFlag{
 				Name:     "data-dir",
 				Aliases:  []string{"data"},
@@ -341,6 +345,8 @@ func configSolver(ctx *cli.Context, logger *zap.Logger) acmez.Solver {
 
 func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (cipher.CertProvider, error) {
 	rootDomain := ctx.String("apex")
+	extraRootDomains := ctx.StringSlice("extra_apex")
+
 	if ctx.IsSet("challenger") {
 		kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
 			RetryInterval: time.Second * 3,
@@ -384,7 +390,13 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (ciph
 		return &ACMEProvider{
 			Config: magic,
 			InitializeFn: func(kv chord.KV) error {
-				if err := magic.ManageAsync(ctx.Context, []string{rootDomain, "*." + rootDomain}); err != nil {
+				domains := append([]string{rootDomain}, extraRootDomains...)
+				wildcard := make([]string, len(domains))
+				for i, d := range domains {
+					wildcard[i] = "*." + d
+				}
+				domains = append(wildcard, domains...)
+				if err := magic.ManageAsync(ctx.Context, domains); err != nil {
 					logger.Error("error initializing certmagic", zap.Error(err))
 					return err
 				}
@@ -654,6 +666,8 @@ func cmdServer(ctx *cli.Context) error {
 	defer clientListener.Close()
 
 	rootDomain := ctx.String("apex")
+	extraRootDomains := ctx.StringSlice("extra_apex")
+
 	tunnelIdentity := &protocol.Node{
 		Id:      chord.Hash([]byte(tunnelName)),
 		Address: advertise,
@@ -687,7 +701,7 @@ func cmdServer(ctx *cli.Context) error {
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
-		RootDomain:   rootDomain,
+		RootDomains:  append([]string{rootDomain}, extraRootDomains...),
 		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),
 		AdminPass:    ctx.String("auth_pass"),

@@ -44,7 +44,7 @@ type GatewayConfig struct {
 	H3Listener   quic.EarlyListener
 	Logger       *zap.Logger
 	Handlers     InternalHandlers
-	RootDomain   string
+	RootDomains  []string
 	AdminUser    string
 	AdminPass    string
 	GatewayPort  int
@@ -109,7 +109,6 @@ func New(conf GatewayConfig) *Gateway {
 		limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
 		internalProxy: g.getInternalProxyHandler(),
 		pkiServer:     conf.PKIServer,
-		rootDomain:    conf.RootDomain,
 		authUser:      conf.AdminUser,
 		authPass:      conf.AdminPass,
 	}
@@ -229,21 +228,24 @@ func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection
 		zap.String("tls.ServerName", cs.ServerName),
 	)
 
-	switch cs.ServerName {
-	case "":
+	if len(cs.ServerName) == 0 {
 		q.CloseWithError(0, "")
-	case g.RootDomain:
+		return
+	}
+
+	if util.Contains(g.RootDomains, cs.ServerName) {
 		logger.Debug("forwarding apex connection")
 		g.quicApexAcceptor.Handle(q)
+		return
+	}
+
+	// maybe tunnel it
+	switch cs.NegotiatedProtocol {
+	case tun.ALPN(protocol.Link_TCP):
+		g.handleH3Multiplex(ctx, logger, q, cs.ServerName)
 	default:
-		// maybe tunnel it
-		switch cs.NegotiatedProtocol {
-		case tun.ALPN(protocol.Link_TCP):
-			g.handleH3Multiplex(ctx, logger, q, cs.ServerName)
-		default:
-			logger.Debug("forwarding http connection")
-			g.http3TunnelAcceptor.Handle(q)
-		}
+		logger.Debug("forwarding http connection")
+		g.http3TunnelAcceptor.Handle(q)
 	}
 }
 
@@ -274,27 +276,30 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 		zap.String("proto", cs.NegotiatedProtocol),
 		zap.String("tls.ServerName", cs.ServerName))
 
-	switch cs.ServerName {
-	case "":
+	if len(cs.ServerName) == 0 {
 		conn.Close()
-	case g.RootDomain:
+		return
+	}
+
+	if util.Contains(g.RootDomains, cs.ServerName) {
 		logger.Debug("forwarding apex connection")
 		g.tcpApexAcceptor.Handle(conn)
-	default:
-		// maybe tunnel it
-		switch cs.NegotiatedProtocol {
-		case tun.ALPN(protocol.Link_TCP):
-			cfg := yamux.DefaultConfig()
-			cfg.LogOutput = io.Discard
-			session, err := yamux.Server(conn, cfg, nil)
-			if err != nil {
-				return
-			}
-			g.handleH2Multiplex(ctx, logger, session, cs.ServerName)
-		default:
-			logger.Debug("forwarding http connection")
-			g.httpTunnelAcceptor.Handle(conn)
+		return
+	}
+
+	// maybe tunnel it
+	switch cs.NegotiatedProtocol {
+	case tun.ALPN(protocol.Link_TCP):
+		cfg := yamux.DefaultConfig()
+		cfg.LogOutput = io.Discard
+		session, err := yamux.Server(conn, cfg, nil)
+		if err != nil {
+			return
 		}
+		g.handleH2Multiplex(ctx, logger, session, cs.ServerName)
+	default:
+		logger.Debug("forwarding http connection")
+		g.httpTunnelAcceptor.Handle(conn)
 	}
 }
 
