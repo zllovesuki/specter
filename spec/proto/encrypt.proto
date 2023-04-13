@@ -1,0 +1,19 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "kon.nect.sh/specter/spec/protocol";
+
+enum Cipher {
+    UNKNOWN = 0;
+    AES_128_GCM = 1;
+    CHACHA20_POLY1305 = 2;
+}
+
+message CipherText {
+    Cipher cipher = 1;
+    bytes cipher_text = 2;
+
+    bytes hkdf_salt = 3;
+    bytes aead_nonce = 4;
+}
