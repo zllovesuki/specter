@@ -31,7 +31,7 @@ func Generate() *cli.Command {
 			{
 				Name:      "tunnel",
 				ArgsUsage: " ",
-				Usage:     "create highly available reverse tunnels to this machine",
+				Usage:     "Create highly available reverse tunnels to this machine",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "config",
@@ -43,23 +43,9 @@ func Generate() *cli.Command {
 				Action: cmdTunnel,
 			},
 			{
-				Name:      "ls",
-				ArgsUsage: " ",
-				Usage:     "query registered hostnames associated with this client",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "config",
-						Aliases:  []string{"c"},
-						Usage:    "path to config yaml file.",
-						Required: true,
-					},
-				},
-				Action: cmdLs,
-			},
-			{
 				Name:      "connect",
 				ArgsUsage: "[hostname of the tunnel]",
-				Usage:     "connect to target via stdin/stdout, usually for connecting to TCP endpoint",
+				Usage:     "Connect to target via stdin/stdout, usually for connecting to TCP endpoint",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:  "tcp",
@@ -80,7 +66,7 @@ func Generate() *cli.Command {
 			{
 				Name:      "listen",
 				ArgsUsage: "[hostname of the tunnel]",
-				Usage:     "listen for connections locally and forward them to target",
+				Usage:     "Listen for connections locally and forward them to target",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:  "tcp",
@@ -95,6 +81,48 @@ func Generate() *cli.Command {
 					},
 				},
 				Action: cmdListen,
+			},
+			{
+				Name:      "ls",
+				ArgsUsage: " ",
+				Usage:     "Query registered hostnames associated with this client",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "config",
+						Aliases:  []string{"c"},
+						Usage:    "path to config yaml file.",
+						Required: true,
+					},
+				},
+				Action: cmdLs,
+			},
+			{
+				Name:      "acme",
+				ArgsUsage: "[custom hostname to be used]",
+				Usage:     "Obtain instructions to setup custom hostname to be used with specter",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "config",
+						Aliases:  []string{"c"},
+						Usage:    "path to config yaml file.",
+						Required: true,
+					},
+				},
+				Action: cmdAcme,
+			},
+			{
+				Name:      "validate",
+				ArgsUsage: "[custom hostname to be used]",
+				Usage:     "Validate hostname DNS setup to be used as custom hostname",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "config",
+						Aliases:  []string{"c"},
+						Usage:    "path to config yaml file.",
+						Required: true,
+					},
+				},
+				Action: cmdValidate,
 			},
 		},
 		Before: func(ctx *cli.Context) error {

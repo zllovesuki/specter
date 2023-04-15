@@ -223,7 +223,8 @@ func (g *Gateway) acceptQUIC(ctx context.Context) {
 
 func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection) {
 	cs := q.ConnectionState().TLS
-	logger := g.Logger.With(zap.Bool("via-quic", true),
+	logger := g.Logger.With(
+		zap.Bool("via-quic", true),
 		zap.String("proto", cs.NegotiatedProtocol),
 		zap.String("tls.ServerName", cs.ServerName),
 	)
@@ -242,6 +243,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection
 	// maybe tunnel it
 	switch cs.NegotiatedProtocol {
 	case tun.ALPN(protocol.Link_TCP):
+		logger.Debug("forwarding tcp connection")
 		g.handleH3Multiplex(ctx, logger, q, cs.ServerName)
 	default:
 		logger.Debug("forwarding http connection")
@@ -272,9 +274,11 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	}
 
 	cs := conn.ConnectionState()
-	logger := g.Logger.With(zap.Bool("via-quic", false),
+	logger := g.Logger.With(
+		zap.Bool("via-quic", false),
 		zap.String("proto", cs.NegotiatedProtocol),
-		zap.String("tls.ServerName", cs.ServerName))
+		zap.String("tls.ServerName", cs.ServerName),
+	)
 
 	if len(cs.ServerName) == 0 {
 		conn.Close()
@@ -290,6 +294,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 	// maybe tunnel it
 	switch cs.NegotiatedProtocol {
 	case tun.ALPN(protocol.Link_TCP):
+		logger.Debug("forwarding tcp connection")
 		cfg := yamux.DefaultConfig()
 		cfg.LogOutput = io.Discard
 		session, err := yamux.Server(conn, cfg, nil)
@@ -315,38 +320,4 @@ func (g *Gateway) handleH2Multiplex(ctx context.Context, logger *zap.Logger, ses
 			}
 		}(stream)
 	}
-}
-
-func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn DeadlineReadWriteCloser) error {
-	var c net.Conn
-	var err error
-	defer func() {
-		if err != nil {
-			tun.SendStatusProto(conn, err)
-			conn.Close()
-			return
-		}
-		tun.Pipe(conn, c)
-	}()
-
-	// because of quic's early connection, the client need to "poke" us before
-	// we can actually accept a stream, despite .OpenStreamSync
-	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
-	err = tun.DrainStatusProto(conn)
-	if err != nil {
-		return err
-	}
-	conn.SetReadDeadline(time.Time{})
-
-	parts := strings.SplitN(host, ".", 2)
-	g.Logger.Debug("Dialing to client via overlay (TCP)", zap.String("hostname", host))
-	c, err = g.TunnelServer.DialClient(ctx, &protocol.Link{
-		Alpn:     protocol.Link_TCP,
-		Hostname: parts[0],
-		Remote:   remote,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -1,6 +1,7 @@
 PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe android/arm64 linux/arm64 darwin/arm64 linux/arm freebsd/amd64
 
 BUILD=$(shell git rev-parse --short HEAD)
+BUILT_TIME=$(shell date +%s)
 
 PB_REL="https://github.com/protocolbuffers/protobuf/releases"
 PROTOC_VERSION=22.2
@@ -12,7 +13,7 @@ COUNT=3
 GOARM=7
 GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
-LDFLAGS=-ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=$(BUILD)"
+LDFLAGS=-ldflags "-s -w -extldflags -static -X kon.nect.sh/specter/cmd/specter.Build=$(BUILD) -X kon.nect.sh/specter/acme.BuildTime=$(BUILT_TIME)"
 TIMEOUT=180s
 
 plat_temp = $(subst /, ,$@)

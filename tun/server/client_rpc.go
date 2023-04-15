@@ -1,15 +1,20 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/pki"
+	"kon.nect.sh/specter/spec/pow"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -41,7 +46,7 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 	if delegation != nil {
 		service, _ := twirp.ServiceName(ctx)
 		method, _ := twirp.MethodName(ctx)
-		l := s.logger.With(
+		l := s.Logger.With(
 			zap.String("remote", delegation.RemoteAddr().String()),
 			zap.Object("peer", delegation.Identity),
 			zap.String("service", service),
@@ -81,7 +86,7 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 		MaxHeaderBytes:    1 << 10, // 1KB
 		ReadHeaderTimeout: time.Second * 3,
 		Handler:           rpcHandler,
-		ErrorLog:          util.GetStdLogger(s.logger, "rpc_server"),
+		ErrorLog:          util.GetStdLogger(s.Logger, "rpc_server"),
 	}
 
 	go srv.Serve(s.rpcAcceptor)
@@ -120,8 +125,8 @@ func (s *Server) verifyClientIdentity(ctx context.Context) (context.Context, err
 
 func (s *Server) Ping(_ context.Context, _ *protocol.ClientPingRequest) (*protocol.ClientPingResponse, error) {
 	return &protocol.ClientPingResponse{
-		Node: s.tunnelTransport.Identity(),
-		Apex: s.rootDomain,
+		Node: s.TunnelTransport.Identity(),
+		Apex: s.Apex,
 	}, nil
 }
 
@@ -131,7 +136,7 @@ func (s *Server) RegisterIdentity(ctx context.Context, req *protocol.RegisterIde
 		return nil, err
 	}
 
-	err = s.tunnelTransport.SendDatagram(verifiedClient, []byte(testDatagramData))
+	err = s.TunnelTransport.SendDatagram(verifiedClient, []byte(testDatagramData))
 	if err != nil {
 		return nil, twirp.Aborted.Error("client is not connected")
 	}
@@ -141,7 +146,7 @@ func (s *Server) RegisterIdentity(ctx context.Context, req *protocol.RegisterIde
 	}
 
 	return &protocol.RegisterIdentityResponse{
-		Apex: s.rootDomain,
+		Apex: s.Apex,
 	}, nil
 }
 
@@ -151,12 +156,12 @@ func (s *Server) GetNodes(ctx context.Context, _ *protocol.GetNodesRequest) (*pr
 		return nil, err
 	}
 
-	successors, err := s.chord.GetSuccessors()
+	successors, err := s.Chord.GetSuccessors()
 	if err != nil {
 		return nil, twirp.Internal.Error(err.Error())
 	}
 
-	vnodes := chord.MakeSuccListByAddress(s.chord, successors, tun.NumRedundantLinks)
+	vnodes := chord.MakeSuccListByAddress(s.Chord, successors, tun.NumRedundantLinks)
 	lookupJobs := make([]func(context.Context) (*protocol.Node, error), 0)
 	for _, chord := range vnodes {
 		if chord == nil {
@@ -196,7 +201,7 @@ func (s *Server) GenerateHostname(ctx context.Context, req *protocol.GenerateHos
 
 	hostname := strings.Join(generator.MustGenerate(5), "-")
 	prefix := tun.ClientHostnamesPrefix(token)
-	if err := s.chord.PrefixAppend(ctx, []byte(prefix), []byte(hostname)); err != nil {
+	if err := s.Chord.PrefixAppend(ctx, []byte(prefix), []byte(hostname)); err != nil {
 		return nil, rpc.WrapErrorKV(prefix, err)
 	}
 
@@ -213,7 +218,7 @@ func (s *Server) RegisteredHostnames(ctx context.Context, req *protocol.Register
 
 	prefix := tun.ClientHostnamesPrefix(token)
 
-	children, err := s.chord.PrefixList(ctx, []byte(prefix))
+	children, err := s.Chord.PrefixList(ctx, []byte(prefix))
 	if err != nil {
 		return nil, rpc.WrapErrorKV(prefix, err)
 	}
@@ -242,15 +247,15 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 		return nil, twirp.InvalidArgument.Error("no servers specified in request")
 	}
 
-	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
+	lease, err := s.Chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
 		return nil, twirp.Internal.Errorf("error acquiring lease for publishing tunnel: %w", err)
 	}
-	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+	defer s.Chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
 	hostname := req.GetHostname()
 	prefix := tun.ClientHostnamesPrefix(token)
-	b, err := s.chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
+	b, err := s.Chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
 	if err != nil {
 		return nil, rpc.WrapErrorKV(prefix, err)
 	}
@@ -296,8 +301,8 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 				return nil, err
 			}
 			key := tun.RoutingKey(hostname, i+1)
-			if err := s.chord.Put(fnCtx, []byte(key), val); err != nil {
-				s.logger.Error("Error publishing route", zap.String("key", key), zap.Error(err))
+			if err := s.Chord.Put(fnCtx, []byte(key), val); err != nil {
+				s.Logger.Error("Error publishing route", zap.String("key", key), zap.Error(err))
 				return nil, nil
 			}
 			return dst.GetTunnel(), nil
@@ -337,11 +342,11 @@ func (s *Server) UnpublishTunnel(ctx context.Context, req *protocol.UnpublishTun
 		return nil, err
 	}
 
-	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
+	lease, err := s.Chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
 		return nil, twirp.Internal.Errorf("error acquiring lease for unpublishing tunnel: %w", err)
 	}
-	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+	defer s.Chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
 	hostname := req.GetHostname()
 	if err := s.unadvertiseTunnel(ctx, token, hostname); err != nil {
@@ -352,32 +357,153 @@ func (s *Server) UnpublishTunnel(ctx context.Context, req *protocol.UnpublishTun
 }
 
 func (s *Server) ReleaseTunnel(ctx context.Context, req *protocol.ReleaseTunnelRequest) (*protocol.ReleaseTunnelResponse, error) {
-	token, _, err := extractAuthenticated(ctx)
+	token, client, err := extractAuthenticated(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	lease, err := s.chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
+	lease, err := s.Chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
 	if err != nil {
 		return nil, twirp.Internal.Errorf("error acquiring lease for releasing tunnel: %w", err)
 	}
-	defer s.chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+	defer s.Chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
 
 	hostname := req.GetHostname()
 	if err := s.unadvertiseTunnel(ctx, token, hostname); err != nil {
 		return nil, err
 	}
 	prefix := tun.ClientHostnamesPrefix(token)
-	if err := s.chord.PrefixRemove(ctx, []byte(prefix), []byte(hostname)); err != nil {
+	if err := s.Chord.PrefixRemove(ctx, []byte(prefix), []byte(hostname)); err != nil {
 		return nil, rpc.WrapErrorKV(prefix, err)
+	}
+
+	if err := tun.RemoveCustomHostname(ctx, s.Chord, hostname); err != nil {
+		s.Logger.Warn("Failed to remove custom hostname when releasing tunnel", zap.String("hostname", hostname), zap.Object("client", client), zap.Error(err))
 	}
 
 	return &protocol.ReleaseTunnelResponse{}, nil
 }
 
+func (s *Server) checkAcme(ctx context.Context, hostname string, proof *protocol.ProofOfWork, token *protocol.ClientToken, client *protocol.Node) (found bool, err error) {
+	_, err = pow.VerifySolution(proof, pow.Parameters{
+		Difficulty: acme.HashcashDifficulty,
+		Expires:    acme.HashcashExpires,
+		GetSubject: func(pubKey ed25519.PublicKey) string {
+			return hostname
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	if strings.Contains(hostname, s.Acme) || strings.Contains(hostname, s.Apex) {
+		return false, twirp.InvalidArgumentError("hostname", "provided hostname is not valid for custom hostname")
+	}
+
+	bundle, err := tun.FindCustomHostname(ctx, s.Chord, hostname)
+	switch err {
+	case nil:
+		// alreday exist
+		if !bytes.Equal(bundle.GetClientToken().GetToken(), token.GetToken()) ||
+			bundle.GetClientIdentity().GetId() != client.GetId() ||
+			bundle.GetClientIdentity().GetAddress() != client.GetAddress() {
+			return false, twirp.AlreadyExists.Error("hostname is already registered")
+		}
+		return true, nil
+	case tun.ErrHostnameNotFound:
+		// expected
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+func (s *Server) AcmeInstruction(ctx context.Context, req *protocol.InstructionRequest) (*protocol.InstructionResponse, error) {
+	token, client, err := extractAuthenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	hostname, err := acme.Normalize(req.GetHostname())
+	if err != nil {
+		return nil, twirp.InvalidArgumentError("hostname", err.Error())
+	}
+
+	if _, err := s.checkAcme(ctx, hostname, req.GetProof(), token, client); err != nil {
+		return nil, err
+	}
+
+	name, content := acme.GenerateRecord(hostname, s.Acme, token.GetToken())
+	return &protocol.InstructionResponse{
+		Name:    name,
+		Content: content,
+	}, nil
+}
+
+func (s *Server) AcmeValidate(ctx context.Context, req *protocol.ValidateRequest) (*protocol.ValidateResponse, error) {
+	token, client, err := extractAuthenticated(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	hostname, err := acme.Normalize(req.GetHostname())
+	if err != nil {
+		return nil, twirp.InvalidArgumentError("hostname", err.Error())
+	}
+
+	found, err := s.checkAcme(ctx, hostname, req.GetProof(), token, client)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		start time.Time
+		cname string
+	)
+
+	name, content := acme.GenerateRecord(hostname, s.Acme, token.GetToken())
+
+	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
+	defer lookupCancel()
+
+	if found {
+		goto VALIDATED
+	}
+
+	start = time.Now()
+	cname, err = s.Resolver.LookupCNAME(lookupCtx, name)
+	if err != nil {
+		return nil, twirp.FailedPrecondition.Error(err.Error())
+	}
+
+	if cname != content {
+		return nil, twirp.FailedPrecondition.Errorf("unexpected CNAME content: %s", cname)
+	}
+
+	s.Logger.Info("Custom hostname validated", zap.String("hostname", hostname), zap.Duration("took", time.Since(start)), zap.Object("client", client))
+
+VALIDATED:
+	if err := tun.SaveCustomHostname(ctx, s.Chord, hostname, &protocol.CustomHostname{
+		ClientIdentity: client,
+		ClientToken:    token,
+	}); err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	prefix := tun.ClientHostnamesPrefix(token)
+	err = s.Chord.PrefixAppend(ctx, []byte(prefix), []byte(hostname))
+	if err != nil && !errors.Is(err, chord.ErrKVPrefixConflict) {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	return &protocol.ValidateResponse{
+		Apex: s.Apex,
+	}, nil
+}
+
 func (s *Server) unadvertiseTunnel(ctx context.Context, token *protocol.ClientToken, hostname string) error {
 	prefix := tun.ClientHostnamesPrefix(token)
-	b, err := s.chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
+	b, err := s.Chord.PrefixContains(ctx, []byte(prefix), []byte(hostname))
 	if err != nil {
 		return rpc.WrapErrorKV(prefix, err)
 	}
@@ -390,7 +516,7 @@ func (s *Server) unadvertiseTunnel(ctx context.Context, token *protocol.ClientTo
 		i := i
 		unpublishJobs[i] = func(fnCtx context.Context) (int, error) {
 			key := tun.RoutingKey(hostname, i+1)
-			err := s.chord.Delete(fnCtx, []byte(key))
+			err := s.Chord.Delete(fnCtx, []byte(key))
 			return 0, err
 		}
 	}
@@ -414,14 +540,14 @@ func (s *Server) saveClientToken(ctx context.Context, token *protocol.ClientToke
 		return err
 	}
 
-	if err := s.chord.Put(ctx, []byte(tun.ClientTokenKey(token)), val); err != nil {
+	if err := s.Chord.Put(ctx, []byte(tun.ClientTokenKey(token)), val); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *Server) getClientByToken(ctx context.Context, token *protocol.ClientToken) (*protocol.Node, error) {
-	val, err := s.chord.Get(ctx, []byte(tun.ClientTokenKey(token)))
+	val, err := s.Chord.Get(ctx, []byte(tun.ClientTokenKey(token)))
 	if err != nil {
 		return nil, err
 	}

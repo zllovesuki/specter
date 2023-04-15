@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/avast/retry-go/v4"
 	"kon.nect.sh/specter/spec/chord"
 
+	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"
 )
 

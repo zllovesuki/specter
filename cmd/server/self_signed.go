@@ -12,36 +12,8 @@ import (
 	"math/big"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
-
-	"github.com/caddyserver/certmagic"
-	"github.com/mholt/acmez/acme"
-	"go.uber.org/zap"
 )
-
-func IsDev(ca string) bool {
-	switch ca {
-	case certmagic.LetsEncryptProductionCA:
-		return false
-	default:
-		return true
-	}
-}
-
-type NoopSolver struct {
-	Logger *zap.Logger
-}
-
-func (s NoopSolver) Present(ctx context.Context, chal acme.Challenge) error {
-	s.Logger.Debug("solver present challenge", zap.Any("challenge", chal))
-	return nil
-}
-
-func (s NoopSolver) CleanUp(ctx context.Context, chal acme.Challenge) error {
-	s.Logger.Debug("solver cleanup challenge", zap.Any("challenge", chal))
-	return nil
-}
 
 type SelfSignedProvider struct {
 	cert       *tls.Certificate
@@ -50,7 +22,7 @@ type SelfSignedProvider struct {
 
 var _ cipher.CertProvider = (*SelfSignedProvider)(nil)
 
-func (s *SelfSignedProvider) Initialize(node chord.KV) error {
+func (s *SelfSignedProvider) Initialize(_ context.Context) error {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return err

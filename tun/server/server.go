@@ -26,36 +26,38 @@ import (
 // in either case, pipe the gateway connection to (direct|indirect) Stream
 // tunnel is now established
 
+type Config struct {
+	Logger          *zap.Logger
+	Chord           chord.VNode
+	TunnelTransport transport.Transport
+	ChordTransport  transport.Transport
+	Resolver        tun.DNSResolver
+	Apex            string
+	Acme            string
+}
+
 type Server struct {
-	logger          *zap.Logger
-	chord           chord.VNode
-	tunnelTransport transport.Transport
-	chordTransport  transport.Transport
-	rpcAcceptor     *acceptor.HTTP2Acceptor
-	rootDomain      string
+	rpcAcceptor *acceptor.HTTP2Acceptor
+	Config
 }
 
 var _ tun.Server = (*Server)(nil)
 var _ protocol.TunnelService = (*Server)(nil)
 
-func New(logger *zap.Logger, local chord.VNode, tunnelTrans transport.Transport, chordTrans transport.Transport, rootDomain string) *Server {
+func New(cfg Config) *Server {
 	return &Server{
-		logger:          logger,
-		chord:           local,
-		tunnelTransport: tunnelTrans,
-		chordTransport:  chordTrans,
-		rootDomain:      rootDomain,
-		rpcAcceptor:     acceptor.NewH2Acceptor(nil),
+		Config:      cfg,
+		rpcAcceptor: acceptor.NewH2Acceptor(nil),
 	}
 }
 
 func (s *Server) Identity() *protocol.Node {
-	return s.tunnelTransport.Identity()
+	return s.TunnelTransport.Identity()
 }
 
 func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	router.HandleChord(protocol.Stream_PROXY, nil, func(delegate *transport.StreamDelegate) {
-		l := s.logger.With(
+		l := s.Logger.With(
 			zap.Object("peer", delegate.Identity),
 			zap.String("remote", delegate.RemoteAddr().String()),
 			zap.String("local", delegate.LocalAddr().String()),
@@ -76,16 +78,16 @@ func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRoute
 }
 
 func (s *Server) MustRegister(ctx context.Context) {
-	s.logger.Info("Publishing destinations to chord")
+	s.Logger.Info("Publishing destinations to chord")
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	if err := s.publishDestinations(publishCtx); err != nil {
-		s.logger.Panic("Error publishing destinations", zap.Error(err))
+		s.Logger.Panic("Error publishing destinations", zap.Error(err))
 	}
 
-	s.logger.Info("specter server started")
+	s.Logger.Info("specter server started")
 }
 
 func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.StreamDelegate) {
@@ -104,11 +106,11 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	route := &protocol.TunnelRoute{}
 	err = rpc.Receive(delegation, route)
 	if err != nil {
-		s.logger.Error("Error receiving remote tunnel negotiation", zap.Error(err))
+		s.Logger.Error("Error receiving remote tunnel negotiation", zap.Error(err))
 		return
 	}
 
-	l := s.logger.With(
+	l := s.Logger.With(
 		zap.String("hostname", route.GetHostname()),
 		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
@@ -117,37 +119,37 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		zap.Object("chord", route.GetChordDestination()),
 		zap.Object("tunnel", route.GetTunnelDestination()))
 
-	if route.GetTunnelDestination().GetAddress() != s.tunnelTransport.Identity().GetAddress() {
+	if route.GetTunnelDestination().GetAddress() != s.TunnelTransport.Identity().GetAddress() {
 		l.Warn("Received remote connection for the wrong server",
-			zap.String("expected", s.tunnelTransport.Identity().GetAddress()),
+			zap.String("expected", s.TunnelTransport.Identity().GetAddress()),
 			zap.String("got", route.GetTunnelDestination().GetAddress()),
 		)
 		err = tun.ErrDestinationNotFound
 		return
 	}
 
-	clientConn, err = s.tunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
+	clientConn, err = s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
 	if err != nil && !tun.IsNoDirect(err) {
 		l.Error("Error dialing connection to connected client", zap.Error(err))
 	}
 }
 
 func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.Conn, error) {
-	l := s.logger.With(
+	l := s.Logger.With(
 		zap.String("hostname", route.GetHostname()),
 		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
 
-	if route.GetTunnelDestination().String() == s.tunnelTransport.Identity().String() {
+	if route.GetTunnelDestination().String() == s.TunnelTransport.Identity().String() {
 		l.Debug("client is connected to us, opening direct stream")
 
-		return s.tunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
+		return s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Object("chord", route.GetChordDestination()),
 			zap.Object("tunnel", route.GetTunnelDestination()))
 
-		conn, err := s.chordTransport.DialStream(ctx, route.GetChordDestination(), protocol.Stream_PROXY)
+		conn, err := s.ChordTransport.DialStream(ctx, route.GetChordDestination(), protocol.Stream_PROXY)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +179,7 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 	if node.GetAddress() == "" || node.GetUnknown() {
 		return nil, transport.ErrNoDirect
 	}
-	return s.chordTransport.DialStream(ctx, node, protocol.Stream_INTERNAL)
+	return s.ChordTransport.DialStream(ctx, node, protocol.Stream_INTERNAL)
 }
 
 // TODO: make routing selection more intelligent with rtt
@@ -185,9 +187,9 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 	isNoDirect := false
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.RoutingKey(link.GetHostname(), k)
-		val, err := s.chord.Get(ctx, []byte(key))
+		val, err := s.Chord.Get(ctx, []byte(key))
 		if err != nil {
-			s.logger.Error("key lookup error", zap.String("key", key), zap.Error(err))
+			s.Logger.Error("key lookup error", zap.String("key", key), zap.Error(err))
 			continue
 		}
 		if val == nil {
@@ -202,12 +204,12 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 			if tun.IsNoDirect(err) {
 				isNoDirect = true
 			} else {
-				s.logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
+				s.Logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
 			}
 			continue
 		}
 		if err := rpc.Send(clientConn, link); err != nil {
-			s.logger.Error("sending link information to client", zap.Error(err))
+			s.Logger.Error("sending link information to client", zap.Error(err))
 			clientConn.Close()
 			continue
 		}

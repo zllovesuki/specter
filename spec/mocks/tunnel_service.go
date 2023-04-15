@@ -96,3 +96,23 @@ func (t *TunnelService) ReleaseTunnel(ctx context.Context, req *protocol.Release
 	}
 	return r.(*protocol.ReleaseTunnelResponse), nil
 }
+
+func (t *TunnelService) AcmeInstruction(ctx context.Context, req *protocol.InstructionRequest) (*protocol.InstructionResponse, error) {
+	args := t.Called(ctx, req)
+	r := args.Get(0)
+	e := args.Error(1)
+	if e != nil {
+		return nil, e
+	}
+	return r.(*protocol.InstructionResponse), nil
+}
+
+func (t *TunnelService) AcmeValidate(ctx context.Context, req *protocol.ValidateRequest) (*protocol.ValidateResponse, error) {
+	args := t.Called(ctx, req)
+	r := args.Get(0)
+	e := args.Error(1)
+	if e != nil {
+		return nil, e
+	}
+	return r.(*protocol.ValidateResponse), nil
+}

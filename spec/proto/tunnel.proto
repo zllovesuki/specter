@@ -5,6 +5,8 @@ option optimize_for = SPEED;
 option go_package = "kon.nect.sh/specter/spec/protocol";
 
 import "spec/proto/node.proto";
+import "spec/proto/pow.proto";
+
 import "google/protobuf/descriptor.proto";
 
 service TunnelService {
@@ -16,6 +18,9 @@ service TunnelService {
     rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
     rpc UnpublishTunnel(UnpublishTunnelRequest) returns (UnpublishTunnelResponse);
     rpc ReleaseTunnel(ReleaseTunnelRequest) returns (ReleaseTunnelResponse);
+
+    rpc AcmeInstruction(InstructionRequest) returns (InstructionResponse);
+    rpc AcmeValidate(ValidateRequest) returns (ValidateResponse);
 }
 
 extend google.protobuf.EnumValueOptions {
@@ -38,12 +43,34 @@ message Link {
     string remote = 3;
 }
 
+message CustomHostname {
+    Node client_identity = 1;
+    ClientToken client_token = 2;
+}
+
 message TunnelRoute {
     Node client_destination = 1;
     Node chord_destination = 2;
     Node tunnel_destination  = 3;
 
     string hostname = 10;
+}
+
+message TunnelDestination {
+    Node chord = 1;
+    Node tunnel = 2;
+}
+
+enum TunnelStatusCode {
+    STATUS_OK = 0;
+
+    UNKNOWN_ERROR = 1;
+    NO_DIRECT = 2;
+}
+
+message TunnelStatus {
+    TunnelStatusCode status = 2;
+    string error = 3;
 }
 
 message ClientToken {
@@ -104,19 +131,21 @@ message ReleaseTunnelRequest {
 
 message ReleaseTunnelResponse {}
 
-message TunnelDestination {
-    Node chord = 1;
-    Node tunnel = 2;
+message InstructionRequest {
+    ProofOfWork proof = 1;
+    string hostname = 2;
 }
 
-enum TunnelStatusCode {
-    STATUS_OK = 0;
-
-    UNKNOWN_ERROR = 1;
-    NO_DIRECT = 2;
+message InstructionResponse {
+    string name = 1;
+    string content = 2;
 }
 
-message TunnelStatus {
-    TunnelStatusCode status = 2;
-    string error = 3;
+message ValidateRequest {
+    ProofOfWork proof = 1;
+    string hostname = 2;
+}
+
+message ValidateResponse {
+    string apex = 1;
 }

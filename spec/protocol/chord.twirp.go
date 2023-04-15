@@ -27,11 +27,6 @@ import url "net/url"
 // See https://twitchtv.github.io/twirp/docs/version_matrix.html
 const _ = twirp.TwirpPackageMinVersion_8_1_0
 
-type vtMarshaler interface {
-	MarshalVT() (dAtA []byte, err error)
-	UnmarshalVT(dAtA []byte) error
-}
-
 // ======================
 // VNodeService Interface
 // ======================

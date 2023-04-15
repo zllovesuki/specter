@@ -4,14 +4,14 @@ package protocol;
 option optimize_for = SPEED;
 option go_package = "kon.nect.sh/specter/spec/protocol";
 
+import "spec/proto/pow.proto";
+
 service PKIService {
     rpc RequestCertificate(CertificateRequest) returns (CertificateResponse);
 }
 
 message CertificateRequest {
-    bytes pub_key = 1;
-    bytes signature = 2;
-    string hashcash_solution = 3;
+    ProofOfWork proof = 1;
 }
 
 message CertificateResponse {

@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/zap"
 	"kon.nect.sh/specter/spec/chord"
+	mocks "kon.nect.sh/specter/spec/mocks"
 	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -26,7 +26,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	mocks "kon.nect.sh/specter/spec/mocks"
+	"go.uber.org/zap"
 )
 
 type sVNode struct {
@@ -94,7 +94,15 @@ func mustGenerateToken() []byte {
 	return []byte(base64.StdEncoding.EncodeToString(b))
 }
 
-func toCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken) *x509.Certificate {
+type extractFunc func(ed25519.PrivateKey)
+
+func withExtractPrivKey(dst ed25519.PrivateKey) extractFunc {
+	return func(pk ed25519.PrivateKey) {
+		copy(dst, pk)
+	}
+}
+
+func toCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken, extra ...extractFunc) *x509.Certificate {
 	// generate a CA
 	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
@@ -115,7 +123,7 @@ func toCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, caPubKey, caPrivKey)
 	as.NoError(err)
 
-	certPubKey, _, err := ed25519.GenerateKey(rand.Reader)
+	certPubKey, certPrivKey, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
 
 	der, err := pki.GenerateCertificate(logger, tls.Certificate{
@@ -129,6 +137,10 @@ func toCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.
 
 	cert, err := x509.ParseCertificate(der)
 	as.NoError(err)
+
+	for _, e := range extra {
+		e(certPrivKey)
+	}
 
 	return cert
 }
@@ -843,7 +855,7 @@ func TestReleaseTunnel(t *testing.T) {
 		deleteCalls = append(deleteCalls, deleteCall)
 	}
 
-	node.On("PrefixRemove",
+	prefixCall := node.On("PrefixRemove",
 		mock.Anything,
 		mock.MatchedBy(func(prefix []byte) bool {
 			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(token)))
@@ -852,6 +864,14 @@ func TestReleaseTunnel(t *testing.T) {
 			return bytes.Equal(child, []byte(hostname))
 		}),
 	).Return(nil).NotBefore(deleteCalls...)
+
+	// This is needed for custom hostname
+	node.On("Delete",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.CustomHostnameKey(hostname)))
+		}),
+	).Return(nil).NotBefore(prefixCall)
 
 	tp := mocks.SelfTransport()
 	streamRouter := transport.NewStreamRouter(logger, nil, tp)
@@ -887,6 +907,7 @@ func TestTokenUpgrade(t *testing.T) {
 
 	old := &protocol.Node{
 		Id: cli.GetId(),
+		// note that previous version has no Rendezvous set
 	}
 	clientBuf, err := old.MarshalVT()
 	as.NoError(err)

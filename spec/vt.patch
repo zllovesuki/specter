@@ -2,18 +2,6 @@ diff --git a/spec/protocol/chord.twirp.go b/spec/protocol/chord.twirp.go
 index d9561c8..13eee81 100644
 --- a/spec/protocol/chord.twirp.go
 +++ b/spec/protocol/chord.twirp.go
-@@ -27,6 +27,11 @@ import url "net/url"
- // See https://twitchtv.github.io/twirp/docs/version_matrix.html
- const _ = twirp.TwirpPackageMinVersion_8_1_0
- 
-+type vtMarshaler interface {
-+	MarshalVT() (dAtA []byte, err error)
-+	UnmarshalVT(dAtA []byte) error
-+}
-+
- // ======================
- // VNodeService Interface
- // ======================
 @@ -3432,8 +3437,8 @@ func withoutRedirects(in *http.Client) *http.Client {
  }
  
