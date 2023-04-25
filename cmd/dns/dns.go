@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -213,8 +214,15 @@ func cmdDNS(ctx *cli.Context) error {
 			logger.Info("ACME DNS started", zap.String("proto", "tcp"), zap.String("listen", listenTcp))
 		},
 	}
+
+	pconn := dnsUdpListener
+	if runtime.GOOS == "illumos" {
+		// needed to force net.PacketConn path instead of *net.UDPConn path
+		// because of dual stack not working on illumos
+		pconn = &squashed{PacketConn: dnsUdpListener}
+	}
 	dnsUdpServer := &dns.Server{
-		PacketConn: dnsUdpListener,
+		PacketConn: pconn,
 		Handler:    dnsMux,
 		NotifyStartedFunc: func() {
 			logger.Info("ACME DNS started", zap.String("proto", "udp"), zap.String("listen", listenUdp))
@@ -279,4 +287,8 @@ func Chaos(version string) dns.HandlerFunc {
 
 		w.WriteMsg(m)
 	}
+}
+
+type squashed struct {
+	net.PacketConn
 }
