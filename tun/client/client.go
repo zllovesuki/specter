@@ -58,6 +58,7 @@ type ClientConfig struct {
 	ServerTransport transport.Transport
 	Recorder        rtt.Recorder
 	ReloadSignal    <-chan os.Signal
+	ServerListener  net.Listener
 }
 
 type Client struct {
@@ -751,6 +752,7 @@ func (c *Client) Start(ctx context.Context) {
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
 	go c.reBootstrap(ctx)
+	go c.startServer(ctx)
 }
 
 func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {

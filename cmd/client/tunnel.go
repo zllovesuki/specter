@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,6 +52,16 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
+	var serverListener net.Listener
+	if ctx.IsSet("server") {
+		listenCfg := &net.ListenConfig{}
+		serverListener, err = listenCfg.Listen(ctx.Context, "tcp", ctx.String("server"))
+		if err != nil {
+			return err
+		}
+		defer serverListener.Close()
+	}
+
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGHUP)
 
@@ -67,6 +78,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		ServerTransport: transport,
 		Recorder:        transportRTT,
 		ReloadSignal:    s,
+		ServerListener:  serverListener,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap client: %w", err)

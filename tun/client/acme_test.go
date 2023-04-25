@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
@@ -34,11 +36,6 @@ func TestAcmeInstruction(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "ok")
-	}))
-	defer ts.Close()
-
 	token := &protocol.ClientToken{
 		Token: []byte("test"),
 	}
@@ -63,7 +60,7 @@ func TestAcmeInstruction(t *testing.T) {
 		Tunnels: []Tunnel{
 			{
 				Hostname: testHostname,
-				Target:   ts.URL,
+				Target:   "tcp://127.0.0.1:2345",
 			},
 		},
 	}
@@ -94,9 +91,16 @@ func TestAcmeInstruction(t *testing.T) {
 		transportHelper(t1, der)
 	}
 
+	listenCfg := &net.ListenConfig{}
+	sListener, err := listenCfg.Listen(ctx, "tcp", "127.0.0.1:0")
+	as.NoError(err)
+	defer sListener.Close()
+
 	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
+
+	client.ServerListener = sListener
 
 	client.Start(ctx)
 
@@ -105,6 +109,19 @@ func TestAcmeInstruction(t *testing.T) {
 	as.NotNil(resp)
 	as.EqualValues(acmeName, resp.GetName())
 	as.EqualValues(acmeContent, resp.GetContent())
+
+	c := &http.Client{
+		Timeout: time.Second * 5,
+	}
+	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/acme/%s", sListener.Addr().String(), hostname), nil)
+	as.NoError(err)
+	httpResp, err := c.Do(httpReq)
+	as.NoError(err)
+	defer httpResp.Body.Close()
+
+	body, err := io.ReadAll(httpResp.Body)
+	as.NoError(err)
+	as.Contains(string(body), resp.GetContent())
 }
 
 func TestAcmeValidation(t *testing.T) {
@@ -117,11 +134,6 @@ func TestAcmeValidation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "ok")
-	}))
-	defer ts.Close()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),
@@ -145,7 +157,7 @@ func TestAcmeValidation(t *testing.T) {
 		Tunnels: []Tunnel{
 			{
 				Hostname: testHostname,
-				Target:   ts.URL,
+				Target:   "tcp://127.0.0.1:2345",
 			},
 		},
 	}
@@ -175,9 +187,16 @@ func TestAcmeValidation(t *testing.T) {
 		transportHelper(t1, der)
 	}
 
+	listenCfg := &net.ListenConfig{}
+	sListener, err := listenCfg.Listen(ctx, "tcp", "127.0.0.1:0")
+	as.NoError(err)
+	defer sListener.Close()
+
 	client, _, assertion := setupClient(t, as, ctx, logger, nil, cfg, nil, m, false, 1)
 	defer assertion()
 	defer client.Close()
+
+	client.ServerListener = sListener
 
 	client.Start(ctx)
 
@@ -185,4 +204,17 @@ func TestAcmeValidation(t *testing.T) {
 	as.NoError(err)
 	as.NotNil(resp)
 	as.EqualValues(testApex, resp.GetApex())
+
+	c := &http.Client{
+		Timeout: time.Second * 5,
+	}
+	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/validate/%s", sListener.Addr().String(), hostname), nil)
+	as.NoError(err)
+	httpResp, err := c.Do(httpReq)
+	as.NoError(err)
+	defer httpResp.Body.Close()
+
+	body, err := io.ReadAll(httpResp.Body)
+	as.NoError(err)
+	as.Contains(string(body), resp.GetApex())
 }

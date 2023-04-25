@@ -39,6 +39,10 @@ func Generate() *cli.Command {
 						Usage:    "path to config yaml file.",
 						Required: true,
 					},
+					&cli.StringFlag{
+						Name:  "server",
+						Usage: "start local server to handle client commands while the client is running",
+					},
 				},
 				Action: cmdTunnel,
 			},

@@ -8,7 +8,6 @@ import (
 	"kon.nect.sh/specter/tun/client"
 	"kon.nect.sh/specter/tun/client/dialer"
 
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
@@ -47,33 +46,12 @@ func cmdLs(ctx *cli.Context) error {
 		return err
 	}
 
-	tunnelMap := make(map[string]string)
 	hostnames, err := c.GetRegisteredHostnames(ctx.Context)
 	if err != nil {
 		return err
 	}
 
-	tunnelTable := table.NewWriter()
-	tunnelTable.SetOutputMirror(os.Stdout)
-
-	curr := c.GetCurrentConfig()
-	for _, t := range curr.Tunnels {
-		tunnelMap[t.Hostname] = t.Target
-	}
-
-	tunnelTable.AppendHeader(table.Row{"Hostname", "Target"})
-	for _, h := range hostnames {
-		target, ok := tunnelMap[h]
-		if ok {
-			tunnelTable.AppendRow(table.Row{h, target})
-		} else {
-			tunnelTable.AppendRow(table.Row{h, "(unused)"})
-		}
-	}
-
-	tunnelTable.SetStyle(table.StyleDefault)
-	tunnelTable.Style().Options.SeparateRows = true
-	tunnelTable.Render()
+	c.FormatList(hostnames, os.Stdout)
 
 	return nil
 }
