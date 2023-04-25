@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
@@ -19,8 +20,10 @@ import (
 	"time"
 
 	pkiImpl "kon.nect.sh/specter/pki"
+	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/pki"
+	"kon.nect.sh/specter/spec/pow"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/rtt"
@@ -340,7 +343,7 @@ func (c *Client) Register(ctx context.Context) error {
 	}
 
 	if c.PKIClient == nil {
-		return errors.New("PKIClient is not configured")
+		return errors.New("no client certificate found: please ensure your client is registered with apex first with the tunnel subcommand")
 	}
 
 	c.Logger.Info("Obtaining a new client certificate from apex")
@@ -480,7 +483,14 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 			c.Logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
 			continue
 		}
-		c.Logger.Info("Tunnel published", zap.String("hostname", fmt.Sprintf("%s.%s", tunnel.Hostname, apex)), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
+
+		var fqdn string
+		if strings.Contains(tunnel.Hostname, ".") {
+			fqdn = tunnel.Hostname
+		} else {
+			fqdn = fmt.Sprintf("%s.%s", tunnel.Hostname, apex)
+		}
+		c.Logger.Info("Tunnel published", zap.String("hostname", fqdn), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
 	}
 
 	c.RebuildTunnels(tunnels)
@@ -532,6 +542,53 @@ func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	return resp.GetHostnames(), nil
+}
+
+func (c *Client) obtainAcmeProof(hostname string) (*protocol.ProofOfWork, error) {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	privKey, err := pki.UnmarshalPrivateKey([]byte(c.Configuration.PrivKey))
+	if err != nil {
+		return nil, err
+	}
+
+	return pow.GenerateSolution(privKey, pow.Parameters{
+		Difficulty: acme.HashcashDifficulty,
+		Expires:    acme.HashcashExpires,
+		GetSubject: func(pubKey ed25519.PublicKey) string {
+			return hostname
+		},
+	})
+}
+
+func (c *Client) GetAcmeInstruction(ctx context.Context, hostname string) (*protocol.InstructionResponse, error) {
+	proof, err := c.obtainAcmeProof(hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	return retryRPC(c, ctx, func(node *protocol.Node) (*protocol.InstructionResponse, error) {
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.AcmeInstruction(ctx, &protocol.InstructionRequest{
+			Proof:    proof,
+			Hostname: hostname,
+		})
+	})
+}
+
+func (c *Client) RequestAcmeValidation(ctx context.Context, hostname string) (*protocol.ValidateResponse, error) {
+	proof, err := c.obtainAcmeProof(hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	return retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ValidateResponse, error) {
+		ctx = rpc.WithNode(ctx, node)
+		return c.tunnelClient.AcmeValidate(ctx, &protocol.ValidateRequest{
+			Proof:    proof,
+			Hostname: hostname,
+		})
+	})
 }
 
 func (c *Client) GetConnectedNodes() []*protocol.Node {

@@ -19,8 +19,8 @@ const (
 
 func (s *Server) publishDestinations(ctx context.Context) error {
 	destinations := &protocol.TunnelDestination{
-		Chord:  s.chordTransport.Identity(),
-		Tunnel: s.tunnelTransport.Identity(),
+		Chord:  s.ChordTransport.Identity(),
+		Tunnel: s.TunnelTransport.Identity(),
 	}
 
 	buf, err := destinations.MarshalVT()
@@ -29,13 +29,13 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 	}
 
 	keys := []string{
-		tun.DestinationByChordKey(s.chordTransport.Identity()),
-		tun.DestinationByTunnelKey(s.tunnelTransport.Identity()),
+		tun.DestinationByChordKey(s.ChordTransport.Identity()),
+		tun.DestinationByTunnelKey(s.TunnelTransport.Identity()),
 	}
 
 	if err := retry.Do(func() error {
 		for _, key := range keys {
-			err := s.chord.Put(ctx, []byte(key), buf)
+			err := s.Chord.Put(ctx, []byte(key), buf)
 			if err != nil {
 				return err
 			}
@@ -50,7 +50,7 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Info("Destinations published on chord",
+	s.Logger.Info("Destinations published on chord",
 		zap.String("chord", keys[0]),
 		zap.String("tunnel", keys[1]),
 	)
@@ -60,13 +60,13 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 
 func (s *Server) unpublishDestinations(ctx context.Context) {
 	keys := []string{
-		tun.DestinationByChordKey(s.chordTransport.Identity()),
-		tun.DestinationByTunnelKey(s.tunnelTransport.Identity()),
+		tun.DestinationByChordKey(s.ChordTransport.Identity()),
+		tun.DestinationByTunnelKey(s.TunnelTransport.Identity()),
 	}
 
 	if err := retry.Do(func() error {
 		for _, key := range keys {
-			err := s.chord.Delete(ctx, []byte(key))
+			err := s.Chord.Delete(ctx, []byte(key))
 			if err != nil {
 				return err
 			}
@@ -78,16 +78,16 @@ func (s *Server) unpublishDestinations(ctx context.Context) {
 		retry.Delay(kvRetryInterval),
 		retry.RetryIf(chord.ErrorIsRetryable),
 	); err != nil {
-		s.logger.Error("Failed to unpublish destinations on chord", zap.Error(err))
+		s.Logger.Error("Failed to unpublish destinations on chord", zap.Error(err))
 	}
 
-	s.logger.Info("Destination unpublished on chord",
+	s.Logger.Info("Destination unpublished on chord",
 		zap.String("chord", keys[0]),
 		zap.String("tunnel", keys[1]))
 }
 
 func (s *Server) lookupDestination(ctx context.Context, key string) (*protocol.TunnelDestination, error) {
-	buf, err := s.chord.Get(ctx, []byte(key))
+	buf, err := s.Chord.Get(ctx, []byte(key))
 	if err != nil {
 		return nil, err
 	}

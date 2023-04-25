@@ -71,11 +71,7 @@ func (g *Gateway) httpConnect(w http.ResponseWriter, r *http.Request) {
 	tun.Pipe(local, remote)
 }
 
-func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
-	host, _, err = net.SplitHostPort(addr)
-	if err != nil {
-		return
-	}
+func (g *Gateway) extractHostname(host string) (hostname string, err error) {
 	parts := strings.SplitN(host, ".", 2)
 	if len(parts) != 2 {
 		err = fmt.Errorf("gateway: invalid host for forwarding")
@@ -84,9 +80,17 @@ func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
 	if util.Contains(g.RootDomains, parts[1]) {
 		hostname = parts[0]
 	} else {
-		err = fmt.Errorf("gateway: custom hostname is not supported")
+		hostname = host
+	}
+	return
+}
+
+func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
+	host, _, err = net.SplitHostPort(addr)
+	if err != nil {
 		return
 	}
+	hostname, err = g.extractHostname(host)
 	return
 }
 
@@ -114,6 +118,48 @@ func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, err
 		Hostname: hostname,
 		Remote:   g.TunnelServer.Identity().GetAddress(), // include gateway address as placeholder
 	})
+}
+
+func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, conn DeadlineReadWriteCloser) error {
+	var (
+		hostname string
+		c        net.Conn
+		err      error
+	)
+	defer func() {
+		if err != nil {
+			tun.SendStatusProto(conn, err)
+			conn.Close()
+			return
+		}
+		tun.Pipe(conn, c)
+	}()
+
+	// because of quic's early connection, the client need to "poke" us before
+	// we can actually accept a stream, despite .OpenStreamSync
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
+	err = tun.DrainStatusProto(conn)
+	if err != nil {
+		return err
+	}
+	conn.SetReadDeadline(time.Time{})
+
+	hostname, err = g.extractHostname(host)
+	if err != nil {
+		return err
+	}
+
+	g.Logger.Debug("Dialing to client via overlay (TCP)", zap.String("hostname", host))
+	c, err = g.TunnelServer.DialClient(ctx, &protocol.Link{
+		Alpn:     protocol.Link_TCP,
+		Hostname: hostname,
+		Remote:   remote,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (g *Gateway) proxyDirector(req *http.Request) {

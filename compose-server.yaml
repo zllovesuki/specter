@@ -25,6 +25,19 @@ services:
     volumes:
       - ./dev/pebble:/pebble:ro
 
+  dns:
+    image: specter
+    restart: unless-stopped
+    stop_grace_period: 120s
+    depends_on:
+      - seed
+    ports:
+      - "11153:1153/tcp"
+      - "11153:1153/udp"
+    networks:
+      - specter
+    command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen dns:1153 --rpc tcp://seed:1280
+
   seed:
     image: specter
     restart: unless-stopped
@@ -41,9 +54,10 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+      - ACME_CA=https://pebble:14000/dir
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com}
+    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --listen-rpc tcp://seed:1280
 
   srva:
     image: specter
@@ -61,9 +75,10 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+      - ACME_CA=https://pebble:14000/dir
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter
@@ -81,9 +96,10 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+      - ACME_CA=https://pebble:14000/dir
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvc:
     image: specter
@@ -101,9 +117,10 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+      - ACME_CA=https://pebble:14000/dir
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvd:
     image: specter
@@ -121,9 +138,10 @@ services:
     environment:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
+      - ACME_CA=https://pebble:14000/dir
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --listen-http 1112 --apex dev.con.nect.sh ${SKIP:---challenger acme://admin@example.com:cf_token@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
 volumes:
   seed_kv:

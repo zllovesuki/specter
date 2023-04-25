@@ -5,7 +5,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	rttImpl "kon.nect.sh/specter/rtt"
 	"kon.nect.sh/specter/tun/client"
 	"kon.nect.sh/specter/tun/client/dialer"
 
@@ -30,15 +29,13 @@ func cmdLs(ctx *cli.Context) error {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGHUP)
 
-	transportRTT := rttImpl.NewInstrumentation(20)
-	_, transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
+	_, transport := createTransport(ctx, logger, cfg, parsed, nil)
 	defer transport.Stop()
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{
 		Logger:          logger,
 		Configuration:   cfg,
 		ServerTransport: transport,
-		Recorder:        transportRTT,
 		ReloadSignal:    s,
 	})
 	if err != nil {

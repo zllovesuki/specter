@@ -30,6 +30,20 @@ kill_timeout = 180
     port = "443"
 
 [[services]]
+  internal_port = 53
+  protocol = "udp"
+
+  [[services.ports]]
+    port = "53"
+
+[[services]]
+  internal_port = 53
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "53"
+
+[[services]]
   internal_port = 80
   protocol = "tcp"
 

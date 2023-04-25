@@ -23,6 +23,7 @@ import (
 
 const (
 	testRootDomain = "hello.com"
+	testAcmeZone   = "acme.example.com"
 )
 
 func assertBytes(got []byte, exp ...[]byte) bool {
@@ -35,14 +36,35 @@ func assertBytes(got []byte, exp ...[]byte) bool {
 	return false
 }
 
-func getFixture(t *testing.T, as *require.Assertions) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
+type configOption func(*Config)
+
+func withResolver(r tun.DNSResolver) configOption {
+	return func(c *Config) {
+		c.Resolver = r
+	}
+}
+
+func getFixture(t *testing.T, as *require.Assertions, options ...configOption) (*zap.Logger, *mocks.VNode, *mocks.Transport, *mocks.Transport, *Server) {
 	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
 	n := new(mocks.VNode)
 	cht := new(mocks.Transport)
 	clt := new(mocks.Transport)
 
-	s := New(logger, n, clt, cht, testRootDomain)
+	cfg := Config{
+		Logger:          logger,
+		Chord:           n,
+		TunnelTransport: clt,
+		ChordTransport:  cht,
+		Apex:            testRootDomain,
+		Acme:            testAcmeZone,
+	}
+
+	for _, opt := range options {
+		opt(&cfg)
+	}
+
+	s := New(cfg)
 
 	return logger, n, clt, cht, s
 }

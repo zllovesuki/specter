@@ -52,9 +52,7 @@ func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Cont
 	}
 }
 
-func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
-	n.stopWg.Add(1)
-
+func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
 	r := &Server{
 		LocalNode: n,
 		Factory: func(node *protocol.Node) (chord.VNode, error) {
@@ -81,6 +79,13 @@ func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRo
 	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractContext(nsTwirp))
 	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractContext(ksTwirp))
 
+	return rpcHandler
+}
+
+func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
+	n.stopWg.Add(1)
+
+	rpcHandler := n.getRPCHandler(ctx)
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
 			return ctx
@@ -110,4 +115,17 @@ func (n *LocalNode) AttachRoot(ctx context.Context, router *transport.StreamRout
 	router.HandleChord(protocol.Stream_RPC, nil, func(delegate *transport.StreamDelegate) {
 		n.rpcAcceptor.Handle(delegate)
 	})
+}
+
+func (n *LocalNode) AttachExternal(ctx context.Context, listener net.Listener) {
+	rpcHandler := n.getRPCHandler(ctx)
+	srv := &http.Server{
+		BaseContext: func(l net.Listener) context.Context {
+			return ctx
+		},
+		ReadHeaderTimeout: rpcTimeout,
+		Handler:           rpcHandler,
+		ErrorLog:          util.GetStdLogger(n.logger, "rpc_external"),
+	}
+	go srv.Serve(listener)
 }

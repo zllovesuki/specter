@@ -191,6 +191,61 @@ func (x *Link) GetRemote() string {
 	return ""
 }
 
+type CustomHostname struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClientIdentity *Node        `protobuf:"bytes,1,opt,name=client_identity,json=clientIdentity,proto3" json:"client_identity,omitempty"`
+	ClientToken    *ClientToken `protobuf:"bytes,2,opt,name=client_token,json=clientToken,proto3" json:"client_token,omitempty"`
+}
+
+func (x *CustomHostname) Reset() {
+	*x = CustomHostname{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CustomHostname) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomHostname) ProtoMessage() {}
+
+func (x *CustomHostname) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomHostname.ProtoReflect.Descriptor instead.
+func (*CustomHostname) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CustomHostname) GetClientIdentity() *Node {
+	if x != nil {
+		return x.ClientIdentity
+	}
+	return nil
+}
+
+func (x *CustomHostname) GetClientToken() *ClientToken {
+	if x != nil {
+		return x.ClientToken
+	}
+	return nil
+}
+
 type TunnelRoute struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -205,7 +260,7 @@ type TunnelRoute struct {
 func (x *TunnelRoute) Reset() {
 	*x = TunnelRoute{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[1]
+		mi := &file_spec_proto_tunnel_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -218,7 +273,7 @@ func (x *TunnelRoute) String() string {
 func (*TunnelRoute) ProtoMessage() {}
 
 func (x *TunnelRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[1]
+	mi := &file_spec_proto_tunnel_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +286,7 @@ func (x *TunnelRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelRoute.ProtoReflect.Descriptor instead.
 func (*TunnelRoute) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{1}
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TunnelRoute) GetClientDestination() *Node {
@@ -262,759 +317,6 @@ func (x *TunnelRoute) GetHostname() string {
 	return ""
 }
 
-type ClientToken struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Token []byte `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-}
-
-func (x *ClientToken) Reset() {
-	*x = ClientToken{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ClientToken) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ClientToken) ProtoMessage() {}
-
-func (x *ClientToken) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ClientToken.ProtoReflect.Descriptor instead.
-func (*ClientToken) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *ClientToken) GetToken() []byte {
-	if x != nil {
-		return x.Token
-	}
-	return nil
-}
-
-type ClientPingRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *ClientPingRequest) Reset() {
-	*x = ClientPingRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ClientPingRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ClientPingRequest) ProtoMessage() {}
-
-func (x *ClientPingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ClientPingRequest.ProtoReflect.Descriptor instead.
-func (*ClientPingRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{3}
-}
-
-type ClientPingResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Node *Node  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
-	Apex string `protobuf:"bytes,2,opt,name=apex,proto3" json:"apex,omitempty"`
-}
-
-func (x *ClientPingResponse) Reset() {
-	*x = ClientPingResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[4]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ClientPingResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ClientPingResponse) ProtoMessage() {}
-
-func (x *ClientPingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[4]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ClientPingResponse.ProtoReflect.Descriptor instead.
-func (*ClientPingResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *ClientPingResponse) GetNode() *Node {
-	if x != nil {
-		return x.Node
-	}
-	return nil
-}
-
-func (x *ClientPingResponse) GetApex() string {
-	if x != nil {
-		return x.Apex
-	}
-	return ""
-}
-
-type RegisterIdentityRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *RegisterIdentityRequest) Reset() {
-	*x = RegisterIdentityRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RegisterIdentityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterIdentityRequest) ProtoMessage() {}
-
-func (x *RegisterIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterIdentityRequest.ProtoReflect.Descriptor instead.
-func (*RegisterIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{5}
-}
-
-type RegisterIdentityResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Apex string `protobuf:"bytes,2,opt,name=apex,proto3" json:"apex,omitempty"`
-}
-
-func (x *RegisterIdentityResponse) Reset() {
-	*x = RegisterIdentityResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[6]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RegisterIdentityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterIdentityResponse) ProtoMessage() {}
-
-func (x *RegisterIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[6]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterIdentityResponse.ProtoReflect.Descriptor instead.
-func (*RegisterIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *RegisterIdentityResponse) GetApex() string {
-	if x != nil {
-		return x.Apex
-	}
-	return ""
-}
-
-type GetNodesRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *GetNodesRequest) Reset() {
-	*x = GetNodesRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[7]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GetNodesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetNodesRequest) ProtoMessage() {}
-
-func (x *GetNodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[7]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetNodesRequest.ProtoReflect.Descriptor instead.
-func (*GetNodesRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{7}
-}
-
-type GetNodesResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Nodes []*Node `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
-}
-
-func (x *GetNodesResponse) Reset() {
-	*x = GetNodesResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[8]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GetNodesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetNodesResponse) ProtoMessage() {}
-
-func (x *GetNodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[8]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetNodesResponse.ProtoReflect.Descriptor instead.
-func (*GetNodesResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *GetNodesResponse) GetNodes() []*Node {
-	if x != nil {
-		return x.Nodes
-	}
-	return nil
-}
-
-type GenerateHostnameRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *GenerateHostnameRequest) Reset() {
-	*x = GenerateHostnameRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[9]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateHostnameRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateHostnameRequest) ProtoMessage() {}
-
-func (x *GenerateHostnameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[9]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateHostnameRequest.ProtoReflect.Descriptor instead.
-func (*GenerateHostnameRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{9}
-}
-
-type GenerateHostnameResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
-}
-
-func (x *GenerateHostnameResponse) Reset() {
-	*x = GenerateHostnameResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[10]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GenerateHostnameResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenerateHostnameResponse) ProtoMessage() {}
-
-func (x *GenerateHostnameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[10]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenerateHostnameResponse.ProtoReflect.Descriptor instead.
-func (*GenerateHostnameResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *GenerateHostnameResponse) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-type RegisteredHostnamesRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *RegisteredHostnamesRequest) Reset() {
-	*x = RegisteredHostnamesRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[11]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RegisteredHostnamesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisteredHostnamesRequest) ProtoMessage() {}
-
-func (x *RegisteredHostnamesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[11]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisteredHostnamesRequest.ProtoReflect.Descriptor instead.
-func (*RegisteredHostnamesRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{11}
-}
-
-type RegisteredHostnamesResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Hostnames []string `protobuf:"bytes,1,rep,name=hostnames,proto3" json:"hostnames,omitempty"`
-}
-
-func (x *RegisteredHostnamesResponse) Reset() {
-	*x = RegisteredHostnamesResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[12]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RegisteredHostnamesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisteredHostnamesResponse) ProtoMessage() {}
-
-func (x *RegisteredHostnamesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[12]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisteredHostnamesResponse.ProtoReflect.Descriptor instead.
-func (*RegisteredHostnamesResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *RegisteredHostnamesResponse) GetHostnames() []string {
-	if x != nil {
-		return x.Hostnames
-	}
-	return nil
-}
-
-type PublishTunnelRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
-	// servers are tun identities
-	Servers []*Node `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty"`
-}
-
-func (x *PublishTunnelRequest) Reset() {
-	*x = PublishTunnelRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[13]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *PublishTunnelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PublishTunnelRequest) ProtoMessage() {}
-
-func (x *PublishTunnelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[13]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PublishTunnelRequest.ProtoReflect.Descriptor instead.
-func (*PublishTunnelRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *PublishTunnelRequest) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-func (x *PublishTunnelRequest) GetServers() []*Node {
-	if x != nil {
-		return x.Servers
-	}
-	return nil
-}
-
-type PublishTunnelResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Published []*Node `protobuf:"bytes,1,rep,name=published,proto3" json:"published,omitempty"`
-}
-
-func (x *PublishTunnelResponse) Reset() {
-	*x = PublishTunnelResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[14]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *PublishTunnelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PublishTunnelResponse) ProtoMessage() {}
-
-func (x *PublishTunnelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[14]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PublishTunnelResponse.ProtoReflect.Descriptor instead.
-func (*PublishTunnelResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *PublishTunnelResponse) GetPublished() []*Node {
-	if x != nil {
-		return x.Published
-	}
-	return nil
-}
-
-type UnpublishTunnelRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
-}
-
-func (x *UnpublishTunnelRequest) Reset() {
-	*x = UnpublishTunnelRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[15]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *UnpublishTunnelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnpublishTunnelRequest) ProtoMessage() {}
-
-func (x *UnpublishTunnelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[15]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnpublishTunnelRequest.ProtoReflect.Descriptor instead.
-func (*UnpublishTunnelRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *UnpublishTunnelRequest) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-type UnpublishTunnelResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *UnpublishTunnelResponse) Reset() {
-	*x = UnpublishTunnelResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[16]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *UnpublishTunnelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnpublishTunnelResponse) ProtoMessage() {}
-
-func (x *UnpublishTunnelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[16]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnpublishTunnelResponse.ProtoReflect.Descriptor instead.
-func (*UnpublishTunnelResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{16}
-}
-
-type ReleaseTunnelRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
-}
-
-func (x *ReleaseTunnelRequest) Reset() {
-	*x = ReleaseTunnelRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[17]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ReleaseTunnelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReleaseTunnelRequest) ProtoMessage() {}
-
-func (x *ReleaseTunnelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[17]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReleaseTunnelRequest.ProtoReflect.Descriptor instead.
-func (*ReleaseTunnelRequest) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *ReleaseTunnelRequest) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-type ReleaseTunnelResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *ReleaseTunnelResponse) Reset() {
-	*x = ReleaseTunnelResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[18]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ReleaseTunnelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReleaseTunnelResponse) ProtoMessage() {}
-
-func (x *ReleaseTunnelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[18]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReleaseTunnelResponse.ProtoReflect.Descriptor instead.
-func (*ReleaseTunnelResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{18}
-}
-
 type TunnelDestination struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1027,7 +329,7 @@ type TunnelDestination struct {
 func (x *TunnelDestination) Reset() {
 	*x = TunnelDestination{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[19]
+		mi := &file_spec_proto_tunnel_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1040,7 +342,7 @@ func (x *TunnelDestination) String() string {
 func (*TunnelDestination) ProtoMessage() {}
 
 func (x *TunnelDestination) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[19]
+	mi := &file_spec_proto_tunnel_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1053,7 +355,7 @@ func (x *TunnelDestination) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelDestination.ProtoReflect.Descriptor instead.
 func (*TunnelDestination) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{19}
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TunnelDestination) GetChord() *Node {
@@ -1082,7 +384,7 @@ type TunnelStatus struct {
 func (x *TunnelStatus) Reset() {
 	*x = TunnelStatus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_spec_proto_tunnel_proto_msgTypes[20]
+		mi := &file_spec_proto_tunnel_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1095,7 +397,7 @@ func (x *TunnelStatus) String() string {
 func (*TunnelStatus) ProtoMessage() {}
 
 func (x *TunnelStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_tunnel_proto_msgTypes[20]
+	mi := &file_spec_proto_tunnel_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1108,7 +410,7 @@ func (x *TunnelStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelStatus.ProtoReflect.Descriptor instead.
 func (*TunnelStatus) Descriptor() ([]byte, []int) {
-	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{20}
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TunnelStatus) GetStatus() TunnelStatusCode {
@@ -1121,6 +423,971 @@ func (x *TunnelStatus) GetStatus() TunnelStatusCode {
 func (x *TunnelStatus) GetError() string {
 	if x != nil {
 		return x.Error
+	}
+	return ""
+}
+
+type ClientToken struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Token []byte `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+}
+
+func (x *ClientToken) Reset() {
+	*x = ClientToken{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ClientToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClientToken) ProtoMessage() {}
+
+func (x *ClientToken) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClientToken.ProtoReflect.Descriptor instead.
+func (*ClientToken) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ClientToken) GetToken() []byte {
+	if x != nil {
+		return x.Token
+	}
+	return nil
+}
+
+type ClientPingRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *ClientPingRequest) Reset() {
+	*x = ClientPingRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ClientPingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClientPingRequest) ProtoMessage() {}
+
+func (x *ClientPingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClientPingRequest.ProtoReflect.Descriptor instead.
+func (*ClientPingRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{6}
+}
+
+type ClientPingResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Node *Node  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Apex string `protobuf:"bytes,2,opt,name=apex,proto3" json:"apex,omitempty"`
+}
+
+func (x *ClientPingResponse) Reset() {
+	*x = ClientPingResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ClientPingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClientPingResponse) ProtoMessage() {}
+
+func (x *ClientPingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClientPingResponse.ProtoReflect.Descriptor instead.
+func (*ClientPingResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ClientPingResponse) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *ClientPingResponse) GetApex() string {
+	if x != nil {
+		return x.Apex
+	}
+	return ""
+}
+
+type RegisterIdentityRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *RegisterIdentityRequest) Reset() {
+	*x = RegisterIdentityRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisterIdentityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterIdentityRequest) ProtoMessage() {}
+
+func (x *RegisterIdentityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterIdentityRequest.ProtoReflect.Descriptor instead.
+func (*RegisterIdentityRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{8}
+}
+
+type RegisterIdentityResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Apex string `protobuf:"bytes,2,opt,name=apex,proto3" json:"apex,omitempty"`
+}
+
+func (x *RegisterIdentityResponse) Reset() {
+	*x = RegisterIdentityResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisterIdentityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterIdentityResponse) ProtoMessage() {}
+
+func (x *RegisterIdentityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterIdentityResponse.ProtoReflect.Descriptor instead.
+func (*RegisterIdentityResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RegisterIdentityResponse) GetApex() string {
+	if x != nil {
+		return x.Apex
+	}
+	return ""
+}
+
+type GetNodesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GetNodesRequest) Reset() {
+	*x = GetNodesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNodesRequest) ProtoMessage() {}
+
+func (x *GetNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNodesRequest.ProtoReflect.Descriptor instead.
+func (*GetNodesRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{10}
+}
+
+type GetNodesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Nodes []*Node `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+}
+
+func (x *GetNodesResponse) Reset() {
+	*x = GetNodesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetNodesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNodesResponse) ProtoMessage() {}
+
+func (x *GetNodesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNodesResponse.ProtoReflect.Descriptor instead.
+func (*GetNodesResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetNodesResponse) GetNodes() []*Node {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+type GenerateHostnameRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *GenerateHostnameRequest) Reset() {
+	*x = GenerateHostnameRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GenerateHostnameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateHostnameRequest) ProtoMessage() {}
+
+func (x *GenerateHostnameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateHostnameRequest.ProtoReflect.Descriptor instead.
+func (*GenerateHostnameRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{12}
+}
+
+type GenerateHostnameResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+}
+
+func (x *GenerateHostnameResponse) Reset() {
+	*x = GenerateHostnameResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GenerateHostnameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateHostnameResponse) ProtoMessage() {}
+
+func (x *GenerateHostnameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateHostnameResponse.ProtoReflect.Descriptor instead.
+func (*GenerateHostnameResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GenerateHostnameResponse) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type RegisteredHostnamesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *RegisteredHostnamesRequest) Reset() {
+	*x = RegisteredHostnamesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisteredHostnamesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisteredHostnamesRequest) ProtoMessage() {}
+
+func (x *RegisteredHostnamesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisteredHostnamesRequest.ProtoReflect.Descriptor instead.
+func (*RegisteredHostnamesRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{14}
+}
+
+type RegisteredHostnamesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hostnames []string `protobuf:"bytes,1,rep,name=hostnames,proto3" json:"hostnames,omitempty"`
+}
+
+func (x *RegisteredHostnamesResponse) Reset() {
+	*x = RegisteredHostnamesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RegisteredHostnamesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisteredHostnamesResponse) ProtoMessage() {}
+
+func (x *RegisteredHostnamesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisteredHostnamesResponse.ProtoReflect.Descriptor instead.
+func (*RegisteredHostnamesResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RegisteredHostnamesResponse) GetHostnames() []string {
+	if x != nil {
+		return x.Hostnames
+	}
+	return nil
+}
+
+type PublishTunnelRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	// servers are tun identities
+	Servers []*Node `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty"`
+}
+
+func (x *PublishTunnelRequest) Reset() {
+	*x = PublishTunnelRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PublishTunnelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishTunnelRequest) ProtoMessage() {}
+
+func (x *PublishTunnelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishTunnelRequest.ProtoReflect.Descriptor instead.
+func (*PublishTunnelRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PublishTunnelRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *PublishTunnelRequest) GetServers() []*Node {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+type PublishTunnelResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Published []*Node `protobuf:"bytes,1,rep,name=published,proto3" json:"published,omitempty"`
+}
+
+func (x *PublishTunnelResponse) Reset() {
+	*x = PublishTunnelResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PublishTunnelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishTunnelResponse) ProtoMessage() {}
+
+func (x *PublishTunnelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishTunnelResponse.ProtoReflect.Descriptor instead.
+func (*PublishTunnelResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *PublishTunnelResponse) GetPublished() []*Node {
+	if x != nil {
+		return x.Published
+	}
+	return nil
+}
+
+type UnpublishTunnelRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+}
+
+func (x *UnpublishTunnelRequest) Reset() {
+	*x = UnpublishTunnelRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UnpublishTunnelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnpublishTunnelRequest) ProtoMessage() {}
+
+func (x *UnpublishTunnelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnpublishTunnelRequest.ProtoReflect.Descriptor instead.
+func (*UnpublishTunnelRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UnpublishTunnelRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type UnpublishTunnelResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *UnpublishTunnelResponse) Reset() {
+	*x = UnpublishTunnelResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[19]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UnpublishTunnelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnpublishTunnelResponse) ProtoMessage() {}
+
+func (x *UnpublishTunnelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[19]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnpublishTunnelResponse.ProtoReflect.Descriptor instead.
+func (*UnpublishTunnelResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{19}
+}
+
+type ReleaseTunnelRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+}
+
+func (x *ReleaseTunnelRequest) Reset() {
+	*x = ReleaseTunnelRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[20]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReleaseTunnelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseTunnelRequest) ProtoMessage() {}
+
+func (x *ReleaseTunnelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[20]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseTunnelRequest.ProtoReflect.Descriptor instead.
+func (*ReleaseTunnelRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ReleaseTunnelRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type ReleaseTunnelResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *ReleaseTunnelResponse) Reset() {
+	*x = ReleaseTunnelResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[21]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReleaseTunnelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseTunnelResponse) ProtoMessage() {}
+
+func (x *ReleaseTunnelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[21]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseTunnelResponse.ProtoReflect.Descriptor instead.
+func (*ReleaseTunnelResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{21}
+}
+
+type InstructionRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Proof    *ProofOfWork `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
+	Hostname string       `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
+}
+
+func (x *InstructionRequest) Reset() {
+	*x = InstructionRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *InstructionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstructionRequest) ProtoMessage() {}
+
+func (x *InstructionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstructionRequest.ProtoReflect.Descriptor instead.
+func (*InstructionRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *InstructionRequest) GetProof() *ProofOfWork {
+	if x != nil {
+		return x.Proof
+	}
+	return nil
+}
+
+func (x *InstructionRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type InstructionResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Content string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+}
+
+func (x *InstructionResponse) Reset() {
+	*x = InstructionResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[23]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *InstructionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstructionResponse) ProtoMessage() {}
+
+func (x *InstructionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[23]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstructionResponse.ProtoReflect.Descriptor instead.
+func (*InstructionResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *InstructionResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *InstructionResponse) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+type ValidateRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Proof    *ProofOfWork `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
+	Hostname string       `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
+}
+
+func (x *ValidateRequest) Reset() {
+	*x = ValidateRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ValidateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateRequest) ProtoMessage() {}
+
+func (x *ValidateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateRequest.ProtoReflect.Descriptor instead.
+func (*ValidateRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ValidateRequest) GetProof() *ProofOfWork {
+	if x != nil {
+		return x.Proof
+	}
+	return nil
+}
+
+func (x *ValidateRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type ValidateResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Apex string `protobuf:"bytes,1,opt,name=apex,proto3" json:"apex,omitempty"`
+}
+
+func (x *ValidateResponse) Reset() {
+	*x = ValidateResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_spec_proto_tunnel_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ValidateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateResponse) ProtoMessage() {}
+
+func (x *ValidateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_tunnel_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateResponse.ProtoReflect.Descriptor instead.
+func (*ValidateResponse) Descriptor() ([]byte, []int) {
+	return file_spec_proto_tunnel_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ValidateResponse) GetApex() string {
+	if x != nil {
+		return x.Apex
 	}
 	return ""
 }
@@ -1148,156 +1415,194 @@ var file_spec_proto_tunnel_proto_rawDesc = []byte{
 	0x0a, 0x17, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x74, 0x75, 0x6e,
 	0x6e, 0x65, 0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x63, 0x6f, 0x6c, 0x1a, 0x15, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
-	0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x20, 0x67, 0x6f, 0x6f, 0x67,
-	0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x64, 0x65, 0x73, 0x63,
-	0x72, 0x69, 0x70, 0x74, 0x6f, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x92, 0x02, 0x0a,
-	0x04, 0x4c, 0x69, 0x6e, 0x6b, 0x12, 0x27, 0x0a, 0x04, 0x61, 0x6c, 0x70, 0x6e, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x0e, 0x32, 0x13, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4c,
-	0x69, 0x6e, 0x6b, 0x2e, 0x41, 0x4c, 0x50, 0x4e, 0x52, 0x04, 0x61, 0x6c, 0x70, 0x6e, 0x12, 0x1a,
-	0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65,
-	0x6d, 0x6f, 0x74, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x6d, 0x6f,
-	0x74, 0x65, 0x22, 0xac, 0x01, 0x0a, 0x04, 0x41, 0x4c, 0x50, 0x4e, 0x12, 0x0b, 0x0a, 0x07, 0x55,
-	0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x26, 0x0a, 0x0d, 0x53, 0x50, 0x45, 0x43,
-	0x54, 0x45, 0x52, 0x5f, 0x43, 0x48, 0x4f, 0x52, 0x44, 0x10, 0x01, 0x1a, 0x13, 0x92, 0xbe, 0x1a,
-	0x0f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2d, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x2f, 0x31,
-	0x12, 0x28, 0x0a, 0x0e, 0x53, 0x50, 0x45, 0x43, 0x54, 0x45, 0x52, 0x5f, 0x43, 0x4c, 0x49, 0x45,
-	0x4e, 0x54, 0x10, 0x02, 0x1a, 0x14, 0x92, 0xbe, 0x1a, 0x10, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65,
-	0x72, 0x2d, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x2f, 0x31, 0x12, 0x11, 0x0a, 0x05, 0x48, 0x54,
-	0x54, 0x50, 0x32, 0x10, 0x09, 0x1a, 0x06, 0x92, 0xbe, 0x1a, 0x02, 0x68, 0x32, 0x12, 0x16, 0x0a,
-	0x04, 0x48, 0x54, 0x54, 0x50, 0x10, 0x0a, 0x1a, 0x0c, 0x92, 0xbe, 0x1a, 0x08, 0x68, 0x74, 0x74,
-	0x70, 0x2f, 0x31, 0x2e, 0x31, 0x12, 0x1a, 0x0a, 0x03, 0x54, 0x43, 0x50, 0x10, 0x0b, 0x1a, 0x11,
-	0x92, 0xbe, 0x1a, 0x0d, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2d, 0x74, 0x63, 0x70, 0x2f,
-	0x31, 0x22, 0xe4, 0x01, 0x0a, 0x0b, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x6f, 0x75, 0x74,
-	0x65, 0x12, 0x3d, 0x0a, 0x12, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x5f, 0x64, 0x65, 0x73, 0x74,
-	0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x11, 0x63,
-	0x6c, 0x69, 0x65, 0x6e, 0x74, 0x44, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e,
-	0x12, 0x3b, 0x0a, 0x11, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x5f, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e,
-	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x10, 0x63, 0x68, 0x6f,
-	0x72, 0x64, 0x44, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x3d, 0x0a,
-	0x12, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x5f, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74,
-	0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x11, 0x74, 0x75, 0x6e, 0x6e, 0x65,
-	0x6c, 0x44, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1a, 0x0a, 0x08,
-	0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
-	0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x23, 0x0a, 0x0b, 0x43, 0x6c, 0x69, 0x65,
-	0x6e, 0x74, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0x13, 0x0a,
-	0x11, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x22, 0x4c, 0x0a, 0x12, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x22, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
-	0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x12, 0x0a, 0x04,
-	0x61, 0x70, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x70, 0x65, 0x78,
-	0x22, 0x19, 0x0a, 0x17, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e,
-	0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x2e, 0x0a, 0x18, 0x52,
-	0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x70, 0x65, 0x78, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x70, 0x65, 0x78, 0x22, 0x11, 0x0a, 0x0f, 0x47,
-	0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x38,
-	0x0a, 0x10, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x12, 0x24, 0x0a, 0x05, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
-	0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64,
-	0x65, 0x52, 0x05, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x22, 0x19, 0x0a, 0x17, 0x47, 0x65, 0x6e, 0x65,
-	0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x22, 0x36, 0x0a, 0x18, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48,
-	0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x1c, 0x0a, 0x1a, 0x52,
-	0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
-	0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x3b, 0x0a, 0x1b, 0x52, 0x65, 0x67,
-	0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x68, 0x6f, 0x73, 0x74,
-	0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x09, 0x68, 0x6f, 0x73,
-	0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x22, 0x5c, 0x0a, 0x14, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73,
+	0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x73, 0x70, 0x65, 0x63,
+	0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x70, 0x6f, 0x77, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x1a, 0x20, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x2f, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x6f, 0x72, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x22, 0x92, 0x02, 0x0a, 0x04, 0x4c, 0x69, 0x6e, 0x6b, 0x12, 0x27, 0x0a, 0x04, 0x61,
+	0x6c, 0x70, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x13, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4c, 0x69, 0x6e, 0x6b, 0x2e, 0x41, 0x4c, 0x50, 0x4e, 0x52, 0x04,
+	0x61, 0x6c, 0x70, 0x6e, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65,
+	0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x06, 0x72, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x22, 0xac, 0x01, 0x0a, 0x04, 0x41, 0x4c, 0x50,
+	0x4e, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x26,
+	0x0a, 0x0d, 0x53, 0x50, 0x45, 0x43, 0x54, 0x45, 0x52, 0x5f, 0x43, 0x48, 0x4f, 0x52, 0x44, 0x10,
+	0x01, 0x1a, 0x13, 0x92, 0xbe, 0x1a, 0x0f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2d, 0x63,
+	0x68, 0x6f, 0x72, 0x64, 0x2f, 0x31, 0x12, 0x28, 0x0a, 0x0e, 0x53, 0x50, 0x45, 0x43, 0x54, 0x45,
+	0x52, 0x5f, 0x43, 0x4c, 0x49, 0x45, 0x4e, 0x54, 0x10, 0x02, 0x1a, 0x14, 0x92, 0xbe, 0x1a, 0x10,
+	0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2d, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x2f, 0x31,
+	0x12, 0x11, 0x0a, 0x05, 0x48, 0x54, 0x54, 0x50, 0x32, 0x10, 0x09, 0x1a, 0x06, 0x92, 0xbe, 0x1a,
+	0x02, 0x68, 0x32, 0x12, 0x16, 0x0a, 0x04, 0x48, 0x54, 0x54, 0x50, 0x10, 0x0a, 0x1a, 0x0c, 0x92,
+	0xbe, 0x1a, 0x08, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x12, 0x1a, 0x0a, 0x03, 0x54,
+	0x43, 0x50, 0x10, 0x0b, 0x1a, 0x11, 0x92, 0xbe, 0x1a, 0x0d, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65,
+	0x72, 0x2d, 0x74, 0x63, 0x70, 0x2f, 0x31, 0x22, 0x83, 0x01, 0x0a, 0x0e, 0x43, 0x75, 0x73, 0x74,
+	0x6f, 0x6d, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x37, 0x0a, 0x0f, 0x63, 0x6c,
+	0x69, 0x65, 0x6e, 0x74, 0x5f, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e,
+	0x6f, 0x64, 0x65, 0x52, 0x0e, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x65, 0x6e, 0x74,
+	0x69, 0x74, 0x79, 0x12, 0x38, 0x0a, 0x0c, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x5f, 0x74, 0x6f,
+	0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x54, 0x6f, 0x6b, 0x65, 0x6e,
+	0x52, 0x0b, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0xe4, 0x01,
+	0x0a, 0x0b, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x12, 0x3d, 0x0a,
+	0x12, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x5f, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x11, 0x63, 0x6c, 0x69, 0x65, 0x6e,
+	0x74, 0x44, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x3b, 0x0a, 0x11,
+	0x63, 0x68, 0x6f, 0x72, 0x64, 0x5f, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
+	0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x10, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x44, 0x65,
+	0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x3d, 0x0a, 0x12, 0x74, 0x75, 0x6e,
+	0x6e, 0x65, 0x6c, 0x5f, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c,
+	0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x11, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x44, 0x65, 0x73,
+	0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74,
+	0x6e, 0x61, 0x6d, 0x65, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74,
+	0x6e, 0x61, 0x6d, 0x65, 0x22, 0x61, 0x0a, 0x11, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x44, 0x65,
+	0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x24, 0x0a, 0x05, 0x63, 0x68, 0x6f,
+	0x72, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x05, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x12,
+	0x26, 0x0a, 0x06, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52,
+	0x06, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x22, 0x58, 0x0a, 0x0c, 0x54, 0x75, 0x6e, 0x6e, 0x65,
+	0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x32, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,
+	0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
+	0x6f, 0x6c, 0x2e, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43,
+	0x6f, 0x64, 0x65, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x65,
+	0x72, 0x72, 0x6f, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f,
+	0x72, 0x22, 0x23, 0x0a, 0x0b, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x54, 0x6f, 0x6b, 0x65, 0x6e,
+	0x12, 0x14, 0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0x13, 0x0a, 0x11, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74,
+	0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4c, 0x0a, 0x12, 0x43,
+	0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x22, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52,
+	0x04, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x70, 0x65, 0x78, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x70, 0x65, 0x78, 0x22, 0x19, 0x0a, 0x17, 0x52, 0x65, 0x67,
+	0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x22, 0x2e, 0x0a, 0x18, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x12, 0x0a, 0x04, 0x61, 0x70, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
+	0x61, 0x70, 0x65, 0x78, 0x22, 0x11, 0x0a, 0x0f, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x38, 0x0a, 0x10, 0x47, 0x65, 0x74, 0x4e, 0x6f,
+	0x64, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x24, 0x0a, 0x05, 0x6e,
+	0x6f, 0x64, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x05, 0x6e, 0x6f, 0x64, 0x65,
+	0x73, 0x22, 0x19, 0x0a, 0x17, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73,
+	0x74, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x36, 0x0a, 0x18,
+	0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74,
+	0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74,
+	0x6e, 0x61, 0x6d, 0x65, 0x22, 0x1c, 0x0a, 0x1a, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72,
+	0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x22, 0x3b, 0x0a, 0x1b, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64,
+	0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x1c, 0x0a, 0x09, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01,
+	0x20, 0x03, 0x28, 0x09, 0x52, 0x09, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x22,
+	0x5c, 0x0a, 0x14, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e,
+	0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e,
+	0x61, 0x6d, 0x65, 0x12, 0x28, 0x0a, 0x07, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x73, 0x18, 0x02,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e,
+	0x4e, 0x6f, 0x64, 0x65, 0x52, 0x07, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x73, 0x22, 0x45, 0x0a,
+	0x15, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a, 0x09, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73,
+	0x68, 0x65, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x09, 0x70, 0x75, 0x62, 0x6c, 0x69,
+	0x73, 0x68, 0x65, 0x64, 0x22, 0x34, 0x0a, 0x16, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73,
 	0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a,
 	0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x28, 0x0a, 0x07, 0x73, 0x65,
-	0x72, 0x76, 0x65, 0x72, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x07, 0x73, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x73, 0x22, 0x45, 0x0a, 0x15, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54,
-	0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a,
-	0x09, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x65, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65,
-	0x52, 0x09, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x65, 0x64, 0x22, 0x34, 0x0a, 0x16, 0x55,
-	0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
-	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
-	0x65, 0x22, 0x19, 0x0a, 0x17, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75,
-	0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x32, 0x0a, 0x14,
-	0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65,
-	0x22, 0x17, 0x0a, 0x15, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65,
-	0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x61, 0x0a, 0x11, 0x54, 0x75, 0x6e,
-	0x6e, 0x65, 0x6c, 0x44, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x24,
-	0x0a, 0x05, 0x63, 0x68, 0x6f, 0x72, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x05, 0x63,
-	0x68, 0x6f, 0x72, 0x64, 0x12, 0x26, 0x0a, 0x06, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e,
-	0x4e, 0x6f, 0x64, 0x65, 0x52, 0x06, 0x74, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x22, 0x58, 0x0a, 0x0c,
-	0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x32, 0x0a, 0x06,
-	0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1a, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74,
-	0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73,
-	0x12, 0x14, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x2a, 0x43, 0x0a, 0x10, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c,
-	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x0d, 0x0a, 0x09, 0x53, 0x54,
-	0x41, 0x54, 0x55, 0x53, 0x5f, 0x4f, 0x4b, 0x10, 0x00, 0x12, 0x11, 0x0a, 0x0d, 0x55, 0x4e, 0x4b,
-	0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x45, 0x52, 0x52, 0x4f, 0x52, 0x10, 0x01, 0x12, 0x0d, 0x0a, 0x09,
-	0x4e, 0x4f, 0x5f, 0x44, 0x49, 0x52, 0x45, 0x43, 0x54, 0x10, 0x02, 0x32, 0xab, 0x05, 0x0a, 0x0d,
-	0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x41, 0x0a,
-	0x04, 0x50, 0x69, 0x6e, 0x67, 0x12, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c,
-	0x2e, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x43, 0x6c,
-	0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x59, 0x0a, 0x10, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e,
-	0x74, 0x69, 0x74, 0x79, 0x12, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e,
-	0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e, 0x74,
-	0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x41, 0x0a, 0x08, 0x47,
-	0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x12, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x2e, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x47, 0x65,
-	0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x59,
-	0x0a, 0x10, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61,
-	0x6d, 0x65, 0x12, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x47, 0x65,
-	0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c,
-	0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
-	0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x62, 0x0a, 0x13, 0x52, 0x65, 0x67,
-	0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73,
-	0x12, 0x24, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69,
-	0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
-	0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74,
-	0x6e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a,
-	0x0d, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x12, 0x1e,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73,
-	0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73,
-	0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x56, 0x0a, 0x0f, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e,
-	0x65, 0x6c, 0x12, 0x20, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x55, 0x6e,
-	0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e,
-	0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a, 0x0d, 0x52, 0x65, 0x6c, 0x65, 0x61,
-	0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x12, 0x1e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65,
-	0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65,
-	0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x3a, 0x40, 0x0a, 0x09, 0x61, 0x6c, 0x70,
-	0x6e, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x21, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6e, 0x75, 0x6d, 0x56, 0x61, 0x6c,
-	0x75, 0x65, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0xe2, 0xa7, 0x03, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x08, 0x61, 0x6c, 0x70, 0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x42, 0x25, 0x48, 0x01, 0x5a,
-	0x21, 0x6b, 0x6f, 0x6e, 0x2e, 0x6e, 0x65, 0x63, 0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65,
-	0x63, 0x74, 0x65, 0x72, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
-	0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x19, 0x0a, 0x17, 0x55, 0x6e,
+	0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x32, 0x0a, 0x14, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65,
+	0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a,
+	0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x17, 0x0a, 0x15, 0x52, 0x65, 0x6c,
+	0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x5d, 0x0a, 0x12, 0x49, 0x6e, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2b, 0x0a, 0x05, 0x70, 0x72, 0x6f, 0x6f,
+	0x66, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
+	0x6f, 0x6c, 0x2e, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x4f, 0x66, 0x57, 0x6f, 0x72, 0x6b, 0x52, 0x05,
+	0x70, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d,
+	0x65, 0x22, 0x43, 0x0a, 0x13, 0x49, 0x6e, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x18, 0x0a, 0x07,
+	0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63,
+	0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x22, 0x5a, 0x0a, 0x0f, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61,
+	0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2b, 0x0a, 0x05, 0x70, 0x72, 0x6f,
+	0x6f, 0x66, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x4f, 0x66, 0x57, 0x6f, 0x72, 0x6b, 0x52,
+	0x05, 0x70, 0x72, 0x6f, 0x6f, 0x66, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61,
+	0x6d, 0x65, 0x22, 0x26, 0x0a, 0x10, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x70, 0x65, 0x78, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x70, 0x65, 0x78, 0x2a, 0x43, 0x0a, 0x10, 0x54, 0x75,
+	0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x0d,
+	0x0a, 0x09, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x4f, 0x4b, 0x10, 0x00, 0x12, 0x11, 0x0a,
+	0x0d, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x5f, 0x45, 0x52, 0x52, 0x4f, 0x52, 0x10, 0x01,
+	0x12, 0x0d, 0x0a, 0x09, 0x4e, 0x4f, 0x5f, 0x44, 0x49, 0x52, 0x45, 0x43, 0x54, 0x10, 0x02, 0x32,
+	0xc2, 0x06, 0x0a, 0x0d, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x65, 0x12, 0x41, 0x0a, 0x04, 0x50, 0x69, 0x6e, 0x67, 0x12, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
+	0x6c, 0x2e, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x59, 0x0a, 0x10, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x12, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64, 0x65, 0x6e,
+	0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x49,
+	0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x41, 0x0a, 0x08, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x12, 0x19, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
+	0x6c, 0x2e, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x59, 0x0a, 0x10, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f,
+	0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
+	0x6c, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61,
+	0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x47, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x48, 0x6f, 0x73,
+	0x74, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x62, 0x0a,
+	0x13, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e,
+	0x61, 0x6d, 0x65, 0x73, 0x12, 0x24, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e,
+	0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64, 0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61,
+	0x6d, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x65, 0x64,
+	0x48, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x50, 0x0a, 0x0d, 0x50, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e,
+	0x65, 0x6c, 0x12, 0x1e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75,
+	0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x50, 0x75,
+	0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x56, 0x0a, 0x0f, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68,
+	0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x12, 0x20, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
+	0x6c, 0x2e, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e, 0x6e, 0x65,
+	0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x55, 0x6e, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x54, 0x75, 0x6e,
+	0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a, 0x0d, 0x52,
+	0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54, 0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x12, 0x1e, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54,
+	0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x54,
+	0x75, 0x6e, 0x6e, 0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4e, 0x0a,
+	0x0f, 0x41, 0x63, 0x6d, 0x65, 0x49, 0x6e, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x12, 0x1c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x49, 0x6e, 0x73, 0x74,
+	0x72, 0x75, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x49, 0x6e, 0x73, 0x74, 0x72, 0x75,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x45, 0x0a,
+	0x0c, 0x41, 0x63, 0x6d, 0x65, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x12, 0x19, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74,
+	0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x3a, 0x40, 0x0a, 0x09, 0x61, 0x6c, 0x70, 0x6e, 0x5f, 0x6e, 0x61, 0x6d,
+	0x65, 0x12, 0x21, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x2e, 0x45, 0x6e, 0x75, 0x6d, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x4f, 0x70, 0x74,
+	0x69, 0x6f, 0x6e, 0x73, 0x18, 0xe2, 0xa7, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x61, 0x6c,
+	0x70, 0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x42, 0x25, 0x48, 0x01, 0x5a, 0x21, 0x6b, 0x6f, 0x6e, 0x2e,
+	0x6e, 0x65, 0x63, 0x74, 0x2e, 0x73, 0x68, 0x2f, 0x73, 0x70, 0x65, 0x63, 0x74, 0x65, 0x72, 0x2f,
+	0x73, 0x70, 0x65, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1313,68 +1618,82 @@ func file_spec_proto_tunnel_proto_rawDescGZIP() []byte {
 }
 
 var file_spec_proto_tunnel_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_spec_proto_tunnel_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_spec_proto_tunnel_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_spec_proto_tunnel_proto_goTypes = []interface{}{
 	(TunnelStatusCode)(0),                 // 0: protocol.TunnelStatusCode
 	(Link_ALPN)(0),                        // 1: protocol.Link.ALPN
 	(*Link)(nil),                          // 2: protocol.Link
-	(*TunnelRoute)(nil),                   // 3: protocol.TunnelRoute
-	(*ClientToken)(nil),                   // 4: protocol.ClientToken
-	(*ClientPingRequest)(nil),             // 5: protocol.ClientPingRequest
-	(*ClientPingResponse)(nil),            // 6: protocol.ClientPingResponse
-	(*RegisterIdentityRequest)(nil),       // 7: protocol.RegisterIdentityRequest
-	(*RegisterIdentityResponse)(nil),      // 8: protocol.RegisterIdentityResponse
-	(*GetNodesRequest)(nil),               // 9: protocol.GetNodesRequest
-	(*GetNodesResponse)(nil),              // 10: protocol.GetNodesResponse
-	(*GenerateHostnameRequest)(nil),       // 11: protocol.GenerateHostnameRequest
-	(*GenerateHostnameResponse)(nil),      // 12: protocol.GenerateHostnameResponse
-	(*RegisteredHostnamesRequest)(nil),    // 13: protocol.RegisteredHostnamesRequest
-	(*RegisteredHostnamesResponse)(nil),   // 14: protocol.RegisteredHostnamesResponse
-	(*PublishTunnelRequest)(nil),          // 15: protocol.PublishTunnelRequest
-	(*PublishTunnelResponse)(nil),         // 16: protocol.PublishTunnelResponse
-	(*UnpublishTunnelRequest)(nil),        // 17: protocol.UnpublishTunnelRequest
-	(*UnpublishTunnelResponse)(nil),       // 18: protocol.UnpublishTunnelResponse
-	(*ReleaseTunnelRequest)(nil),          // 19: protocol.ReleaseTunnelRequest
-	(*ReleaseTunnelResponse)(nil),         // 20: protocol.ReleaseTunnelResponse
-	(*TunnelDestination)(nil),             // 21: protocol.TunnelDestination
-	(*TunnelStatus)(nil),                  // 22: protocol.TunnelStatus
-	(*Node)(nil),                          // 23: protocol.Node
-	(*descriptorpb.EnumValueOptions)(nil), // 24: google.protobuf.EnumValueOptions
+	(*CustomHostname)(nil),                // 3: protocol.CustomHostname
+	(*TunnelRoute)(nil),                   // 4: protocol.TunnelRoute
+	(*TunnelDestination)(nil),             // 5: protocol.TunnelDestination
+	(*TunnelStatus)(nil),                  // 6: protocol.TunnelStatus
+	(*ClientToken)(nil),                   // 7: protocol.ClientToken
+	(*ClientPingRequest)(nil),             // 8: protocol.ClientPingRequest
+	(*ClientPingResponse)(nil),            // 9: protocol.ClientPingResponse
+	(*RegisterIdentityRequest)(nil),       // 10: protocol.RegisterIdentityRequest
+	(*RegisterIdentityResponse)(nil),      // 11: protocol.RegisterIdentityResponse
+	(*GetNodesRequest)(nil),               // 12: protocol.GetNodesRequest
+	(*GetNodesResponse)(nil),              // 13: protocol.GetNodesResponse
+	(*GenerateHostnameRequest)(nil),       // 14: protocol.GenerateHostnameRequest
+	(*GenerateHostnameResponse)(nil),      // 15: protocol.GenerateHostnameResponse
+	(*RegisteredHostnamesRequest)(nil),    // 16: protocol.RegisteredHostnamesRequest
+	(*RegisteredHostnamesResponse)(nil),   // 17: protocol.RegisteredHostnamesResponse
+	(*PublishTunnelRequest)(nil),          // 18: protocol.PublishTunnelRequest
+	(*PublishTunnelResponse)(nil),         // 19: protocol.PublishTunnelResponse
+	(*UnpublishTunnelRequest)(nil),        // 20: protocol.UnpublishTunnelRequest
+	(*UnpublishTunnelResponse)(nil),       // 21: protocol.UnpublishTunnelResponse
+	(*ReleaseTunnelRequest)(nil),          // 22: protocol.ReleaseTunnelRequest
+	(*ReleaseTunnelResponse)(nil),         // 23: protocol.ReleaseTunnelResponse
+	(*InstructionRequest)(nil),            // 24: protocol.InstructionRequest
+	(*InstructionResponse)(nil),           // 25: protocol.InstructionResponse
+	(*ValidateRequest)(nil),               // 26: protocol.ValidateRequest
+	(*ValidateResponse)(nil),              // 27: protocol.ValidateResponse
+	(*Node)(nil),                          // 28: protocol.Node
+	(*ProofOfWork)(nil),                   // 29: protocol.ProofOfWork
+	(*descriptorpb.EnumValueOptions)(nil), // 30: google.protobuf.EnumValueOptions
 }
 var file_spec_proto_tunnel_proto_depIdxs = []int32{
 	1,  // 0: protocol.Link.alpn:type_name -> protocol.Link.ALPN
-	23, // 1: protocol.TunnelRoute.client_destination:type_name -> protocol.Node
-	23, // 2: protocol.TunnelRoute.chord_destination:type_name -> protocol.Node
-	23, // 3: protocol.TunnelRoute.tunnel_destination:type_name -> protocol.Node
-	23, // 4: protocol.ClientPingResponse.node:type_name -> protocol.Node
-	23, // 5: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
-	23, // 6: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
-	23, // 7: protocol.PublishTunnelResponse.published:type_name -> protocol.Node
-	23, // 8: protocol.TunnelDestination.chord:type_name -> protocol.Node
-	23, // 9: protocol.TunnelDestination.tunnel:type_name -> protocol.Node
-	0,  // 10: protocol.TunnelStatus.status:type_name -> protocol.TunnelStatusCode
-	24, // 11: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
-	5,  // 12: protocol.TunnelService.Ping:input_type -> protocol.ClientPingRequest
-	7,  // 13: protocol.TunnelService.RegisterIdentity:input_type -> protocol.RegisterIdentityRequest
-	9,  // 14: protocol.TunnelService.GetNodes:input_type -> protocol.GetNodesRequest
-	11, // 15: protocol.TunnelService.GenerateHostname:input_type -> protocol.GenerateHostnameRequest
-	13, // 16: protocol.TunnelService.RegisteredHostnames:input_type -> protocol.RegisteredHostnamesRequest
-	15, // 17: protocol.TunnelService.PublishTunnel:input_type -> protocol.PublishTunnelRequest
-	17, // 18: protocol.TunnelService.UnpublishTunnel:input_type -> protocol.UnpublishTunnelRequest
-	19, // 19: protocol.TunnelService.ReleaseTunnel:input_type -> protocol.ReleaseTunnelRequest
-	6,  // 20: protocol.TunnelService.Ping:output_type -> protocol.ClientPingResponse
-	8,  // 21: protocol.TunnelService.RegisterIdentity:output_type -> protocol.RegisterIdentityResponse
-	10, // 22: protocol.TunnelService.GetNodes:output_type -> protocol.GetNodesResponse
-	12, // 23: protocol.TunnelService.GenerateHostname:output_type -> protocol.GenerateHostnameResponse
-	14, // 24: protocol.TunnelService.RegisteredHostnames:output_type -> protocol.RegisteredHostnamesResponse
-	16, // 25: protocol.TunnelService.PublishTunnel:output_type -> protocol.PublishTunnelResponse
-	18, // 26: protocol.TunnelService.UnpublishTunnel:output_type -> protocol.UnpublishTunnelResponse
-	20, // 27: protocol.TunnelService.ReleaseTunnel:output_type -> protocol.ReleaseTunnelResponse
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	11, // [11:12] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	28, // 1: protocol.CustomHostname.client_identity:type_name -> protocol.Node
+	7,  // 2: protocol.CustomHostname.client_token:type_name -> protocol.ClientToken
+	28, // 3: protocol.TunnelRoute.client_destination:type_name -> protocol.Node
+	28, // 4: protocol.TunnelRoute.chord_destination:type_name -> protocol.Node
+	28, // 5: protocol.TunnelRoute.tunnel_destination:type_name -> protocol.Node
+	28, // 6: protocol.TunnelDestination.chord:type_name -> protocol.Node
+	28, // 7: protocol.TunnelDestination.tunnel:type_name -> protocol.Node
+	0,  // 8: protocol.TunnelStatus.status:type_name -> protocol.TunnelStatusCode
+	28, // 9: protocol.ClientPingResponse.node:type_name -> protocol.Node
+	28, // 10: protocol.GetNodesResponse.nodes:type_name -> protocol.Node
+	28, // 11: protocol.PublishTunnelRequest.servers:type_name -> protocol.Node
+	28, // 12: protocol.PublishTunnelResponse.published:type_name -> protocol.Node
+	29, // 13: protocol.InstructionRequest.proof:type_name -> protocol.ProofOfWork
+	29, // 14: protocol.ValidateRequest.proof:type_name -> protocol.ProofOfWork
+	30, // 15: protocol.alpn_name:extendee -> google.protobuf.EnumValueOptions
+	8,  // 16: protocol.TunnelService.Ping:input_type -> protocol.ClientPingRequest
+	10, // 17: protocol.TunnelService.RegisterIdentity:input_type -> protocol.RegisterIdentityRequest
+	12, // 18: protocol.TunnelService.GetNodes:input_type -> protocol.GetNodesRequest
+	14, // 19: protocol.TunnelService.GenerateHostname:input_type -> protocol.GenerateHostnameRequest
+	16, // 20: protocol.TunnelService.RegisteredHostnames:input_type -> protocol.RegisteredHostnamesRequest
+	18, // 21: protocol.TunnelService.PublishTunnel:input_type -> protocol.PublishTunnelRequest
+	20, // 22: protocol.TunnelService.UnpublishTunnel:input_type -> protocol.UnpublishTunnelRequest
+	22, // 23: protocol.TunnelService.ReleaseTunnel:input_type -> protocol.ReleaseTunnelRequest
+	24, // 24: protocol.TunnelService.AcmeInstruction:input_type -> protocol.InstructionRequest
+	26, // 25: protocol.TunnelService.AcmeValidate:input_type -> protocol.ValidateRequest
+	9,  // 26: protocol.TunnelService.Ping:output_type -> protocol.ClientPingResponse
+	11, // 27: protocol.TunnelService.RegisterIdentity:output_type -> protocol.RegisterIdentityResponse
+	13, // 28: protocol.TunnelService.GetNodes:output_type -> protocol.GetNodesResponse
+	15, // 29: protocol.TunnelService.GenerateHostname:output_type -> protocol.GenerateHostnameResponse
+	17, // 30: protocol.TunnelService.RegisteredHostnames:output_type -> protocol.RegisteredHostnamesResponse
+	19, // 31: protocol.TunnelService.PublishTunnel:output_type -> protocol.PublishTunnelResponse
+	21, // 32: protocol.TunnelService.UnpublishTunnel:output_type -> protocol.UnpublishTunnelResponse
+	23, // 33: protocol.TunnelService.ReleaseTunnel:output_type -> protocol.ReleaseTunnelResponse
+	25, // 34: protocol.TunnelService.AcmeInstruction:output_type -> protocol.InstructionResponse
+	27, // 35: protocol.TunnelService.AcmeValidate:output_type -> protocol.ValidateResponse
+	26, // [26:36] is the sub-list for method output_type
+	16, // [16:26] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	15, // [15:16] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_spec_proto_tunnel_proto_init() }
@@ -1383,6 +1702,7 @@ func file_spec_proto_tunnel_proto_init() {
 		return
 	}
 	file_spec_proto_node_proto_init()
+	file_spec_proto_pow_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_spec_proto_tunnel_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Link); i {
@@ -1397,7 +1717,7 @@ func file_spec_proto_tunnel_proto_init() {
 			}
 		}
 		file_spec_proto_tunnel_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TunnelRoute); i {
+			switch v := v.(*CustomHostname); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1409,7 +1729,7 @@ func file_spec_proto_tunnel_proto_init() {
 			}
 		}
 		file_spec_proto_tunnel_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ClientToken); i {
+			switch v := v.(*TunnelRoute); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1421,198 +1741,6 @@ func file_spec_proto_tunnel_proto_init() {
 			}
 		}
 		file_spec_proto_tunnel_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ClientPingRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ClientPingResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterIdentityRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterIdentityResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetNodesRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetNodesResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateHostnameRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GenerateHostnameResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisteredHostnamesRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisteredHostnamesResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PublishTunnelRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PublishTunnelResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnpublishTunnelRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnpublishTunnelResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ReleaseTunnelRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ReleaseTunnelResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_spec_proto_tunnel_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TunnelDestination); i {
 			case 0:
 				return &v.state
@@ -1624,8 +1752,260 @@ func file_spec_proto_tunnel_proto_init() {
 				return nil
 			}
 		}
-		file_spec_proto_tunnel_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+		file_spec_proto_tunnel_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TunnelStatus); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ClientToken); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ClientPingRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ClientPingResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisterIdentityRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisterIdentityResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetNodesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetNodesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GenerateHostnameRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GenerateHostnameResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisteredHostnamesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RegisteredHostnamesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PublishTunnelRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PublishTunnelResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*UnpublishTunnelRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*UnpublishTunnelResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReleaseTunnelRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReleaseTunnelResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*InstructionRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*InstructionResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ValidateRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_spec_proto_tunnel_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ValidateResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1643,7 +2023,7 @@ func file_spec_proto_tunnel_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_spec_proto_tunnel_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   21,
+			NumMessages:   26,
 			NumExtensions: 1,
 			NumServices:   1,
 		},

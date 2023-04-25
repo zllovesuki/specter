@@ -1,9 +1,11 @@
 package tun
 
 import (
+	"context"
 	"errors"
 	"io"
 
+	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
@@ -35,4 +37,41 @@ func DrainStatusProto(src io.Reader) (err error) {
 	var b [rpc.LengthSize]byte
 	_, err = io.ReadFull(src, b[:])
 	return
+}
+
+func SaveCustomHostname(ctx context.Context, kv chord.KV, hostname string, bundle *protocol.CustomHostname) (err error) {
+	data, err := bundle.MarshalVT()
+	if err != nil {
+		return nil
+	}
+
+	err = kv.Put(ctx, []byte(CustomHostnameKey(hostname)), data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func FindCustomHostname(ctx context.Context, kv chord.KV, hostname string) (*protocol.CustomHostname, error) {
+	val, err := kv.Get(ctx, []byte(CustomHostnameKey(hostname)))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(val) == 0 {
+		return nil, ErrHostnameNotFound
+	}
+
+	bundle := &protocol.CustomHostname{}
+
+	if err := bundle.UnmarshalVT(val); err != nil {
+		return nil, err
+	}
+
+	return bundle, nil
+}
+
+func RemoveCustomHostname(ctx context.Context, kv chord.KV, hostname string) error {
+	return kv.Delete(ctx, []byte(CustomHostnameKey(hostname)))
 }

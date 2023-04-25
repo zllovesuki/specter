@@ -78,7 +78,7 @@ tunnels:
 
 Alternatively, [phantom](https://github.com/zllovesuki/phantom) is the official GUI desktop app to be used with specter:
 
-![phantom](./phantom.png)
+![phantom](./assets/phantom.png)
 
 ## Connecting to Tunnel (CLI)
 

@@ -14,14 +14,14 @@ import (
 	"syscall"
 	"time"
 
-	"kon.nect.sh/specter/acme/storage"
+	"kon.nect.sh/specter/acme"
 	chordImpl "kon.nect.sh/specter/chord"
-	ds "kon.nect.sh/specter/dev/server"
 	"kon.nect.sh/specter/gateway"
 	"kon.nect.sh/specter/kv/aof"
 	"kon.nect.sh/specter/overlay"
 	"kon.nect.sh/specter/pki"
 	"kon.nect.sh/specter/rtt"
+	acmeSpec "kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
@@ -34,13 +34,10 @@ import (
 	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/TheZeroSlave/zapsentry"
-	"github.com/caddyserver/certmagic"
 	"github.com/getsentry/sentry-go"
-	"github.com/mholt/acmez"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"kon.nect.sh/challenger/cloudflare"
 )
 
 func Generate() *cli.Command {
@@ -67,7 +64,7 @@ func Generate() *cli.Command {
 				Required: true,
 			},
 			&cli.StringSliceFlag{
-				Name:  "extra_apex",
+				Name:  "extra-apex",
 				Usage: "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
 			},
 			&cli.PathFlag{
@@ -123,12 +120,18 @@ func Generate() *cli.Command {
 			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
 			},
 			&cli.StringFlag{
-				Name:        "challenger",
-				DefaultText: "acme://{ACME_EMAIL}:{CF_API_TOKEN}@acmehostedzone.com",
+				Name:        "acme",
+				DefaultText: "acme://{ACME_EMAIL}:@acmehostedzone.com",
 				EnvVars:     []string{"ACME_URI"},
-				Usage: `To enable ACME, provide an email for issuer, the Cloudflare API token, and the Cloudflare zone responsible for hosting challenges
+				Usage: `To enable acme, provide an email for the issuer, and the delegated zone for hosting challenges.
 			Absent of this flag will serve self-signed certificate.
-			Alternatively, you can set the URI and API token via the environment variable ACME_URI and CF_API_TOKEN, respectively`,
+			Alternatively, you can set the URI via the environment variable ACME_URI.`,
+			},
+			&cli.StringFlag{
+				Name:  "listen-rpc",
+				Value: "tcp://127.0.0.1:11180",
+				Usage: `Expose chord's RPC for VNode and KV to an external program. This is required to use with specter's acme dns.
+			NOTE: The listener is exposed without any authentication or authorization. You should only expose it to localhost or unix socket`,
 			},
 			&cli.StringFlag{
 				Name:        "sentry",
@@ -136,19 +139,26 @@ func Generate() *cli.Command {
 				Usage:       "Sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
 				EnvVars:     []string{"SENTRY_DSN"},
 			},
+			&cli.BoolFlag{
+				Name:  "print-acme",
+				Value: false,
+				Usage: "Print acme setup instructions for apex domains based on current configuration.",
+			},
+
+			&cli.StringFlag{
+				Name:    "acme_ca",
+				Hidden:  true,
+				Value:   cipher.CertCA,
+				EnvVars: []string{"ACME_CA"},
+			},
 
 			// used for acme setup internally
 			&cli.StringFlag{
-				Name:   "email",
+				Name:   "acme_email",
 				Hidden: true,
 			},
 			&cli.StringFlag{
-				Name:    "cf_token",
-				Hidden:  true,
-				EnvVars: []string{"CF_API_TOKEN"},
-			},
-			&cli.StringFlag{
-				Name:   "cf_zone",
+				Name:   "acme_zone",
 				Hidden: true,
 			},
 			&cli.StringFlag{
@@ -194,42 +204,13 @@ func Generate() *cli.Command {
 			if ctx.Int("virtual") < 1 {
 				return fmt.Errorf("minimum of 1 virtual node is required")
 			}
-			if ctx.IsSet("challenger") {
-				parse, err := url.Parse(ctx.String("challenger"))
+			if ctx.IsSet("acme") {
+				email, zone, err := acmeSpec.ParseAcmeURI(ctx.String("acme"))
 				if err != nil {
-					return fmt.Errorf("error parsing challenger uri: %w", err)
+					return err
 				}
-				email := parse.User.Username()
-				if email == "" {
-					return fmt.Errorf("missing email address")
-				}
-				if !ctx.IsSet("cf_token") {
-					cf, ok := parse.User.Password()
-					if !ok {
-						return fmt.Errorf("missing cloudflare api token")
-					}
-					ctx.Set("cf_token", cf)
-				}
-				hosted := parse.Hostname()
-				if hosted == "" {
-					return fmt.Errorf("missing hosted zone")
-				}
-
-				ctx.Set("email", email)
-				ctx.Set("cf_zone", hosted)
-
-				if ds.IsDev(cipher.CertCA) {
-					return nil
-				} else {
-					p := &cloudflare.Provider{
-						APIToken: ctx.String("cf_token"),
-						RootZone: hosted,
-					}
-					if err := p.Validate(); err != nil {
-						return fmt.Errorf("error validating zone on cloudflare: %w", err)
-					}
-					return nil
-				}
+				ctx.Set("acme_email", email)
+				ctx.Set("acme_zone", zone)
 			}
 			return nil
 		},
@@ -330,82 +311,32 @@ func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
 	}, nil
 }
 
-func configSolver(ctx *cli.Context, logger *zap.Logger) acmez.Solver {
-	if ds.IsDev(cipher.CertCA) {
-		return &ds.NoopSolver{Logger: logger}
-	} else {
-		return &certmagic.DNS01Solver{
-			DNSProvider: &cloudflare.Provider{
-				APIToken: ctx.String("cf_token"),
-				RootZone: ctx.String("cf_zone"),
-			},
-		}
-	}
-}
-
 func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (cipher.CertProvider, error) {
 	rootDomain := ctx.String("apex")
-	extraRootDomains := ctx.StringSlice("extra_apex")
+	extraRootDomains := ctx.StringSlice("extra-apex")
+	managedDomains := append([]string{rootDomain}, extraRootDomains...)
 
-	if ctx.IsSet("challenger") {
-		kvStore, err := storage.New(logger.With(zap.String("component", "storage")), kv, storage.Config{
-			RetryInterval: time.Second * 3,
-			LeaseTTL:      time.Minute,
+	if ctx.IsSet("acme") {
+		acmeSolver := &acme.ChordSolver{
+			KV:             kv,
+			ManagedDomains: managedDomains,
+		}
+		manager, err := acme.NewManager(ctx.Context, acme.ManagerConfig{
+			Logger:         logger,
+			KV:             kv,
+			DNSSolver:      acmeSolver,
+			ManagedDomains: managedDomains,
+			CA:             ctx.String("acme_ca"),
+			Email:          ctx.String("acme_email"),
 		})
 		if err != nil {
 			return nil, err
 		}
-
-		cfg := certmagic.Config{
-			Storage:           kvStore,
-			DefaultServerName: ctx.String("apex"),
-			Logger:            logger.With(zap.String("component", "acme")),
-		}
-		if ds.IsDev(cipher.CertCA) {
-			cfg.OCSP = certmagic.OCSPConfig{
-				DisableStapling: true,
-			}
-		}
-		issuer := certmagic.NewACMEIssuer(&cfg, certmagic.ACMEIssuer{
-			CA:                      cipher.CertCA,
-			Email:                   ctx.String("email"),
-			Agreed:                  true,
-			Logger:                  logger.With(zap.String("component", "acme_issuer")),
-			DNS01Solver:             configSolver(ctx, logger),
-			DisableHTTPChallenge:    true,
-			DisableTLSALPNChallenge: true,
-		})
-		cfg.Issuers = []certmagic.Issuer{issuer}
-
-		logger.Info("Using certmagic as cert provider", zap.String("email", ctx.String("email")), zap.String("challenger", ctx.String("cf_zone")))
-
-		cache := certmagic.NewCache(certmagic.CacheOptions{
-			GetConfigForCert: func(c certmagic.Certificate) (*certmagic.Config, error) {
-				return &cfg, nil
-			},
-			Logger: logger.With(zap.String("component", "acme_cache")),
-		})
-
-		magic := certmagic.New(cache, cfg)
-		return &ACMEProvider{
-			Config: magic,
-			InitializeFn: func(kv chord.KV) error {
-				domains := append([]string{rootDomain}, extraRootDomains...)
-				wildcard := make([]string, len(domains))
-				for i, d := range domains {
-					wildcard[i] = "*." + d
-				}
-				domains = append(wildcard, domains...)
-				if err := magic.ManageAsync(ctx.Context, domains); err != nil {
-					logger.Error("error initializing certmagic", zap.Error(err))
-					return err
-				}
-				return nil
-			},
-		}, nil
+		logger.Info("Using acme as cert provider", zap.String("email", ctx.String("acme_email")), zap.String("zone", ctx.String("acme_zone")))
+		return manager, nil
 	} else {
 		logger.Info("Using self-signed as cert provider")
-		self := &ds.SelfSignedProvider{
+		self := &SelfSignedProvider{
 			RootDomain: rootDomain,
 		}
 		return self, nil
@@ -433,6 +364,25 @@ func cmdServer(ctx *cli.Context) error {
 	logger, ok := ctx.App.Metadata["logger"].(*zap.Logger)
 	if !ok || logger == nil {
 		return fmt.Errorf("unable to obtain logger from app context")
+	}
+
+	rootDomain := ctx.String("apex")
+	extraRootDomains := ctx.StringSlice("extra-apex")
+	managedDomains := append([]string{rootDomain}, extraRootDomains...)
+
+	if ctx.Bool("print-acme") {
+		if !ctx.IsSet("acme") {
+			return fmt.Errorf("acme is not configured")
+		}
+		for _, d := range managedDomains {
+			hostname, err := acmeSpec.Normalize(d)
+			if err != nil {
+				return fmt.Errorf("error normalizing domain for %s: %w", d, err)
+			}
+			name, content := acmeSpec.GenerateRecord(hostname, ctx.String("acme_zone"), nil)
+			logger.Info("ACME DNS Record", zap.String("name", name), zap.String("content", content), zap.String("type", "CNAME"))
+		}
+		return nil
 	}
 
 	if ctx.IsSet("sentry") {
@@ -498,6 +448,28 @@ func cmdServer(ctx *cli.Context) error {
 
 	listenCfg := &net.ListenConfig{
 		Control: reuse.Control,
+	}
+
+	var (
+		rpcListener net.Listener
+	)
+	if ctx.IsSet("listen-rpc") {
+		parsedRpc, err := url.Parse(ctx.String("listen-rpc"))
+		if err != nil {
+			return fmt.Errorf("error parsing rpc listen address: %w", err)
+		}
+		switch parsedRpc.Scheme {
+		case "unix":
+			rpcListener, err = listenCfg.Listen(ctx.Context, "unix", parsedRpc.Path)
+		case "tcp":
+			rpcListener, err = listenCfg.Listen(ctx.Context, "tcp", parsedRpc.Host)
+		default:
+			return fmt.Errorf("unknown scheme for rpc listen address: %s", parsedRpc.Scheme)
+		}
+		if err != nil {
+			return fmt.Errorf("error setting up rpc listener: %w", err)
+		}
+		defer rpcListener.Close()
 	}
 
 	// TODO: implement SNI proxy so specter can share port with another webserver
@@ -603,6 +575,10 @@ func cmdServer(ctx *cli.Context) error {
 
 	rootNode := virtualNodes[0]
 	rootNode.AttachRoot(ctx.Context, streamRouter)
+	if rpcListener != nil {
+		logger.Info("Exposing RPC externally", zap.String("listen", ctx.String("listen-rpc")))
+		rootNode.AttachExternal(ctx.Context, rpcListener)
+	}
 
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 	go streamRouter.Accept(ctx.Context)
@@ -642,7 +618,7 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}
 
-	if err := certProvider.Initialize(rootNode); err != nil {
+	if err := certProvider.Initialize(ctx.Context); err != nil {
 		return fmt.Errorf("failed to initialize cert provider: %w", err)
 	}
 
@@ -657,7 +633,7 @@ func cmdServer(ctx *cli.Context) error {
 	defer gwH2Listener.Close()
 
 	// handles h3, h3-29, and specter-tcp/1
-	gwH3Listener := alpnMux.With(gwTLSConf, append(cipher.H3Protos, tun.ALPN(protocol.Link_TCP))...)
+	gwH3Listener := alpnMux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...)
 	defer gwH3Listener.Close()
 
 	// handles specter-client/1
@@ -665,20 +641,19 @@ func cmdServer(ctx *cli.Context) error {
 	clientListener := alpnMux.With(clientTLSConf, tun.ALPN(protocol.Link_SPECTER_CLIENT))
 	defer clientListener.Close()
 
-	rootDomain := ctx.String("apex")
-	extraRootDomains := ctx.StringSlice("extra_apex")
-
 	tunnelIdentity := &protocol.Node{
 		Id:      chord.Hash([]byte(tunnelName)),
 		Address: advertise,
 	}
-	tunServer := server.New(
-		logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
-		rootNode,
-		tunnelTransport,
-		chordTransport,
-		rootDomain,
-	)
+	tunServer := server.New(server.Config{
+		Logger:          logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
+		Chord:           rootNode,
+		TunnelTransport: tunnelTransport,
+		ChordTransport:  chordTransport,
+		Resolver:        net.DefaultResolver,
+		Apex:            rootDomain,
+		Acme:            ctx.String("acme_zone"),
+	})
 	defer tunServer.Stop()
 
 	tunServer.AttachRouter(ctx.Context, streamRouter)
@@ -701,7 +676,7 @@ func cmdServer(ctx *cli.Context) error {
 		HTTPListener: httpListener,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
-		RootDomains:  append([]string{rootDomain}, extraRootDomains...),
+		RootDomains:  managedDomains,
 		GatewayPort:  int(advertisePort),
 		AdminUser:    ctx.String("auth_user"),
 		AdminPass:    ctx.String("auth_pass"),
@@ -723,14 +698,3 @@ func cmdServer(ctx *cli.Context) error {
 
 	return nil
 }
-
-type ACMEProvider struct {
-	*certmagic.Config
-	InitializeFn func(chord.KV) error
-}
-
-func (a *ACMEProvider) Initialize(node chord.KV) error {
-	return a.InitializeFn(node)
-}
-
-var _ cipher.CertProvider = (*ACMEProvider)(nil)

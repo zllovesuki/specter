@@ -2,6 +2,6 @@ package cipher
 
 import "github.com/caddyserver/certmagic"
 
-var (
+const (
 	CertCA = certmagic.LetsEncryptProductionCA
 )

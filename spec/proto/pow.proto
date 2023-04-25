@@ -1,0 +1,11 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "kon.nect.sh/specter/spec/protocol";
+
+message ProofOfWork {
+    bytes pub_key = 1;
+    bytes signature = 2;
+    string solution = 3;
+}

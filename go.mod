@@ -3,11 +3,11 @@ module kon.nect.sh/specter
 go 1.19
 
 require (
-	github.com/Microsoft/go-winio v0.6.0
+	github.com/Microsoft/go-winio v0.6.1
 	github.com/TheZeroSlave/zapsentry v1.15.0
 	github.com/avast/retry-go/v4 v4.3.3
 	github.com/caddyserver/certmagic v0.17.2
-	github.com/dominikbraun/graph v0.16.2
+	github.com/dominikbraun/graph v0.17.0
 	github.com/getsentry/sentry-go v0.20.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gorilla/websocket v1.5.0
@@ -15,6 +15,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v3 v3.1.2
 	github.com/mholt/acmez v1.1.0
+	github.com/miekg/dns v1.1.53
 	github.com/montanaflynn/stats v0.7.0
 	github.com/quic-go/quic-go v0.33.0
 	github.com/sethvargo/go-diceware v0.3.0
@@ -32,7 +33,6 @@ require (
 	golang.org/x/sys v0.7.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
-	kon.nect.sh/challenger v1.0.1
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 )
@@ -49,7 +49,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
-	github.com/miekg/dns v1.1.53 // indirect
 	github.com/onsi/ginkgo/v2 v2.8.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
@@ -65,7 +64,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/text v0.9.0 // indirect

@@ -6,13 +6,14 @@ COPY . .
 ARG GIT_HASH=head
 RUN CGO_ENABLED=0 GOARM=7 GOAMD64=v3 \
     go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' -buildvcs=false \
-    -ldflags "-s -w -extldflags -static -X=kon.nect.sh/specter/cmd/specter.Build=${GIT_HASH}" \
+    -ldflags "-s -w -extldflags -static -X kon.nect.sh/specter/cmd/specter.Build=${GIT_HASH} -X kon.nect.sh/specter/acme.BuildTime=`date +%s`" \
     -o bin/specter .
 
-FROM scratch
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/assets/supervisord.conf /app/supervisord.conf
 COPY --from=builder /app/bin/specter /app/specter
 
-ENTRYPOINT ["/app/specter"]
-CMD ["server", "--data", "/data/kv", "--cert-env", "--listen-tcp", "0.0.0.0:443", "--listen-udp", "fly-global-services:443", "--apex", "fly.specter.im", "--advertise", "fly.specter.im:443"]
+CMD ["/usr/bin/supervisord", "-c", "/app/supervisord.conf"]

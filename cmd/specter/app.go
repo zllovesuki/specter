@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"kon.nect.sh/specter/cmd/client"
+	"kon.nect.sh/specter/cmd/dns"
 	"kon.nect.sh/specter/cmd/server"
 	"kon.nect.sh/specter/spec/errata"
 
@@ -40,6 +41,7 @@ var (
 			},
 		},
 		Commands: []*cli.Command{
+			dns.Generate(),
 			server.Generate(),
 			client.Generate(),
 		},
