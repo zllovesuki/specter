@@ -44,7 +44,8 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 
 	isDev := cfg.CA != certmagic.LetsEncryptProductionCA
 	manager := &Manager{
-		parentCtx: ctx,
+		parentCtx:     ctx,
+		ManagerConfig: cfg,
 	}
 
 	managedConfig := certmagic.Config{
