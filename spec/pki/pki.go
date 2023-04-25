@@ -17,7 +17,7 @@ import (
 
 const (
 	HashcashDifficulty int           = 18
-	HashcashExpires    time.Duration = time.Second * 5
+	HashcashExpires    time.Duration = time.Second * 10
 )
 
 type IdentityRequest struct {

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
@@ -111,7 +110,7 @@ func TestAcmeInstruction(t *testing.T) {
 	as.EqualValues(acmeContent, resp.GetContent())
 
 	c := &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: acme.HashcashExpires,
 	}
 	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/acme/%s", sListener.Addr().String(), hostname), nil)
 	as.NoError(err)
@@ -206,7 +205,7 @@ func TestAcmeValidation(t *testing.T) {
 	as.EqualValues(testApex, resp.GetApex())
 
 	c := &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: acme.HashcashExpires,
 	}
 	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/validate/%s", sListener.Addr().String(), hostname), nil)
 	as.NoError(err)
