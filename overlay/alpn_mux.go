@@ -94,7 +94,6 @@ func (a *ALPNMux) Close() {
 }
 
 func (a *ALPNMux) handleConnection(ctx context.Context, conn quic.EarlyConnection) {
-	hsCtx := conn.HandshakeComplete()
 	select {
 	case <-time.After(quicConfig.HandshakeIdleTimeout):
 		conn.CloseWithError(401, "Gone")
@@ -102,7 +101,7 @@ func (a *ALPNMux) handleConnection(ctx context.Context, conn quic.EarlyConnectio
 	case <-ctx.Done():
 		conn.CloseWithError(401, "Gone")
 		return
-	case <-hsCtx.Done():
+	case <-conn.HandshakeComplete():
 	}
 
 	cs := conn.ConnectionState().TLS

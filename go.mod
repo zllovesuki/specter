@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/TheZeroSlave/zapsentry v1.15.0
-	github.com/avast/retry-go/v4 v4.3.3
+	github.com/avast/retry-go/v4 v4.3.4
 	github.com/caddyserver/certmagic v0.17.2
-	github.com/dominikbraun/graph v0.17.0
+	github.com/dominikbraun/graph v0.20.0
 	github.com/getsentry/sentry-go v0.20.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gorilla/websocket v1.5.0
@@ -15,14 +15,14 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v3 v3.1.2
 	github.com/mholt/acmez v1.1.0
-	github.com/miekg/dns v1.1.53
+	github.com/miekg/dns v1.1.54
 	github.com/montanaflynn/stats v0.7.0
-	github.com/quic-go/quic-go v0.33.0
+	github.com/quic-go/quic-go v0.34.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/wal v1.1.7
 	github.com/twitchtv/twirp v8.1.3+incompatible
-	github.com/urfave/cli/v2 v2.25.1
+	github.com/urfave/cli/v2 v2.25.3
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
