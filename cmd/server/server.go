@@ -53,53 +53,6 @@ func Generate() *cli.Command {
 	Warning: do not use certificates issued by public CA for inter-node certificates, otherwise anyone can join your specter network`,
 		ArgsUsage: " ",
 		Flags: []cli.Flag{
-			&cli.IntFlag{
-				Name:  "virtual",
-				Usage: "Number of virtual nodes to be started as part of the chord ring",
-				Value: 5,
-			},
-			&cli.StringFlag{
-				Name:     "apex",
-				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
-				Required: true,
-			},
-			&cli.StringSliceFlag{
-				Name:  "extra-apex",
-				Usage: "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
-			},
-			&cli.PathFlag{
-				Name:     "data-dir",
-				Aliases:  []string{"data"},
-				Usage:    "Path to directory that will be used for persisting non-volatile KV data",
-				Required: true,
-			},
-			&cli.PathFlag{
-				Name:    "cert-dir",
-				Aliases: []string{"cert"},
-				Usage:   `Path to directory containing ca.crt, node.crt, and node.key for mutual TLS between specter server nodes`,
-			},
-			&cli.BoolFlag{
-				Name: "cert-env",
-				Usage: `Load ca.crt (CERT_CA), client-ca.crt (CERT_CLIENT_CA), client-ca.key (CERT_CLIENT_CA_KEY), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
-			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
-			},
-			&cli.StringFlag{
-				Name:    "listen-addr",
-				Aliases: []string{"listen"},
-				Value:   fmt.Sprintf("%s:443", ip.String()),
-				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overridden).
-			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
-			},
-			&cli.StringFlag{
-				Name:        "listen-tcp",
-				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for TCP",
-			},
-			&cli.StringFlag{
-				Name:        "listen-udp",
-				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
-			},
 			&cli.StringFlag{
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
@@ -107,18 +60,76 @@ func Generate() *cli.Command {
 				Value:       fmt.Sprintf("%s:443", ip.String()),
 				Usage: `Address and port to advertise to specter servers and clients to connect to.
 			Note that specter will use advertised address to derive its Identity hash.`,
+				Category: "Network Options",
+			},
+			&cli.StringFlag{
+				Name:    "listen-addr",
+				Aliases: []string{"listen"},
+				Value:   fmt.Sprintf("%s:443", ip.String()),
+				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overridden).
+			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
+				Category: "Network Options",
+			},
+			&cli.StringFlag{
+				Name:        "listen-tcp",
+				DefaultText: "same as listen-addr",
+				Usage:       "Override the listen address and port for TCP",
+				Category:    "Network Options",
+			},
+			&cli.StringFlag{
+				Name:        "listen-udp",
+				DefaultText: "same as listen-addr",
+				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+				Category:    "Network Options",
+			},
+
+			&cli.StringFlag{
+				Name:  "listen-rpc",
+				Value: "tcp://127.0.0.1:11180",
+				Usage: `Expose chord's RPC for VNode and KV to an external program. This is required to use with specter's acme dns.
+			NOTE: The listener is exposed without any authentication or authorization. You should only expose it to localhost or unix socket`,
+				Category: "Server Options",
+			},
+			&cli.PathFlag{
+				Name:     "data-dir",
+				Aliases:  []string{"data"},
+				Usage:    "Path to directory that will be used for persisting non-volatile KV data",
+				Required: true,
+				Category: "Server Options",
+			},
+			&cli.PathFlag{
+				Name:     "cert-dir",
+				Aliases:  []string{"cert"},
+				Usage:    `Path to directory containing ca.crt, client-ca.crt, client-ca.key, node.crt, and node.key for mutual TLS between specter server nodes`,
+				Category: "Server Options",
+			},
+			&cli.BoolFlag{
+				Name: "cert-env",
+				Usage: `Load ca.crt (CERT_CA), client-ca.crt (CERT_CLIENT_CA), client-ca.key (CERT_CLIENT_CA_KEY), node.crt (CERT_NODE), and node.key (CERT_NODE_KEY) from environment variables encoded as base64.
+			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
+				Category: "Server Options",
+			},
+
+			&cli.StringFlag{
+				Name:        "sentry",
+				DefaultText: "https://public@sentry.example.com/1",
+				Usage:       "Sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
+				EnvVars:     []string{"SENTRY_DSN"},
+				Category:    "Server Options",
 			},
 			&cli.IntFlag{
-				Name:  "listen-http",
-				Value: 80,
-				Usage: `Override the listening port of the http handler, which handles http connect proxy, and redirects other http requests to https.
-			Note by default the http handler will not be started unless the node is advertising on port 443. Using this option will force the http handler to start.`,
+				Name:     "virtual",
+				Usage:    "Number of virtual nodes to be started as part of the chord ring",
+				Value:    5,
+				Category: "Chord Options",
 			},
 			&cli.StringFlag{
 				Name: "join",
 				Usage: `A known specter server's advertise address.
 			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
+				Category: "Chord Options",
 			},
+
 			&cli.StringFlag{
 				Name:        "acme",
 				DefaultText: "acme://{ACME_EMAIL}:@acmehostedzone.com",
@@ -126,23 +137,32 @@ func Generate() *cli.Command {
 				Usage: `To enable acme, provide an email for the issuer, and the delegated zone for hosting challenges.
 			Absent of this flag will serve self-signed certificate.
 			Alternatively, you can set the URI via the environment variable ACME_URI.`,
+				Category: "Gateway Options",
+			},
+			&cli.IntFlag{
+				Name:  "listen-http",
+				Value: 80,
+				Usage: `Override the listening port of the http handler, which handles http connect proxy, and redirects other http requests to https.
+			Note by default the http handler will not be started unless the node is advertising on port 443. Using this option will force the http handler to start.`,
+				Category: "Gateway Options",
 			},
 			&cli.StringFlag{
-				Name:  "listen-rpc",
-				Value: "tcp://127.0.0.1:11180",
-				Usage: `Expose chord's RPC for VNode and KV to an external program. This is required to use with specter's acme dns.
-			NOTE: The listener is exposed without any authentication or authorization. You should only expose it to localhost or unix socket`,
+				Name:     "apex",
+				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
+				Required: true,
+				Category: "Gateway Options",
 			},
-			&cli.StringFlag{
-				Name:        "sentry",
-				DefaultText: "https://public@sentry.example.com/1",
-				Usage:       "Sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
-				EnvVars:     []string{"SENTRY_DSN"},
+			&cli.StringSliceFlag{
+				Name:     "extra-apex",
+				Usage:    "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
+				Category: "Gateway Options",
 			},
+
 			&cli.BoolFlag{
-				Name:  "print-acme",
-				Value: false,
-				Usage: "Print acme setup instructions for apex domains based on current configuration.",
+				Name:     "print-acme",
+				Value:    false,
+				Usage:    "Print acme setup instructions for apex domains based on current configuration.",
+				Category: "Miscellaneous",
 			},
 
 			&cli.StringFlag{
