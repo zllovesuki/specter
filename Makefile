@@ -1,7 +1,6 @@
 PLATFORMS := windows/amd64/.exe linux/amd64 darwin/amd64 illumos/amd64 windows/arm64/.exe android/arm64 linux/arm64 darwin/arm64 linux/arm freebsd/amd64
-
-BUILD=$(shell git rev-parse --short HEAD)
-BUILT_TIME=$(shell date +%s)
+BUILD := $(shell git rev-parse --short HEAD)
+BUILT_TIME := $(shell date +%s)
 
 PB_REL="https://github.com/protocolbuffers/protobuf/releases"
 PROTOC_VERSION=22.2
