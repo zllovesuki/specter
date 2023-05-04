@@ -109,7 +109,6 @@ func Generate() *cli.Command {
 			This can be set instead of loading from cert-dir. Required if environment prefers loading secrets from ENV, such as on fly.io`,
 				Category: "Server Options",
 			},
-
 			&cli.StringFlag{
 				Name:        "sentry",
 				DefaultText: "https://public@sentry.example.com/1",
@@ -117,6 +116,7 @@ func Generate() *cli.Command {
 				EnvVars:     []string{"SENTRY_DSN"},
 				Category:    "Server Options",
 			},
+
 			&cli.IntFlag{
 				Name:     "virtual",
 				Usage:    "Number of virtual nodes to be started as part of the chord ring",

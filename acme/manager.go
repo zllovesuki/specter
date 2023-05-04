@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -11,6 +12,10 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrInvalid = fmt.Errorf("acme: invalid hostname")
 )
 
 type ManagerConfig struct {
@@ -138,7 +143,13 @@ func (m *Manager) getConfig(c certmagic.Certificate) (*certmagic.Config, error) 
 }
 
 func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	if m.isManaged(chi.ServerName) {
+	sni := chi.ServerName
+	if sni == "" {
+		return nil, ErrInvalid
+	}
+
+	tlsHostname.Add(sni, 1)
+	if m.isManaged(sni) {
 		return m.managedConfig.GetCertificate(chi)
 	} else {
 		return m.dynamicConfig.GetCertificate(chi)

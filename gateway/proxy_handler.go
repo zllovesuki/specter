@@ -99,6 +99,7 @@ func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn,
 	if err != nil {
 		return nil, err
 	}
+	connectHostname.Add(hostname, 1)
 	g.Logger.Debug("Dialing to client via overlay (HTTP Connect)", zap.String("hostname", hostname), zap.String("req.URL.Host", host))
 	return g.TunnelServer.DialClient(ctx, &protocol.Link{
 		Alpn:     protocol.Link_TCP,
