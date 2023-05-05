@@ -3,25 +3,23 @@ package atomic
 import (
 	"sync"
 
-	"github.com/zhangyunhao116/skipmap"
+	"github.com/zeebo/xxh3"
 )
+
+const shardSize = 128
 
 type KeyedRWMutex struct {
 	noCopy
-	mutexes *skipmap.StringMap[*sync.RWMutex]
+	mutexes [shardSize]sync.RWMutex
 }
 
 func NewKeyedRWMutex() *KeyedRWMutex {
-	return &KeyedRWMutex{
-		mutexes: skipmap.NewString[*sync.RWMutex](),
-	}
+	return &KeyedRWMutex{}
 }
 
 func (m *KeyedRWMutex) obtain(key string) *sync.RWMutex {
-	value, _ := m.mutexes.LoadOrStoreLazy(key, func() *sync.RWMutex {
-		return &sync.RWMutex{}
-	})
-	return value
+	i := xxh3.HashString(key) % shardSize
+	return &m.mutexes[i]
 }
 
 func (m *KeyedRWMutex) Lock(key string) func() {
