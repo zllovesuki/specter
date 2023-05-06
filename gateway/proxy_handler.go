@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,6 @@ import (
 	"kon.nect.sh/specter/util"
 
 	"go.uber.org/zap"
-	"golang.org/x/net/http2"
 )
 
 const (
@@ -174,6 +172,7 @@ func (g *Gateway) proxyDirector(req *http.Request) {
 	} else {
 		req.URL.Host = req.TLS.ServerName
 	}
+	req.URL.Host = req.URL.Hostname()
 	for _, header := range delHeaders {
 		req.Header.Del(header)
 	}
@@ -186,38 +185,27 @@ func (g *Gateway) proxyDirector(req *http.Request) {
 }
 
 func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
-	bufPool := NewBufferPool(bufferSize)
+	bufPool := util.NewBufferPool(bufferSize)
 	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
 		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 		return nil
 	}
 
-	// configure h1 transport and h2 transport separately, while letting the h2 one
-	// uses the settings from h1 transport
-	h1Transport := &http.Transport{
-		MaxConnsPerHost:       30,
-		MaxIdleConnsPerHost:   3,
-		IdleConnTimeout:       time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 15,
+	proxyTransport := &http.Transport{
+		MaxConnsPerHost:       100,
+		MaxIdleConnsPerHost:   5,
+		IdleConnTimeout:       time.Second * 15,
+		ResponseHeaderTimeout: time.Second * 5,
 		ExpectContinueTimeout: time.Second * 3,
 	}
-	h1Transport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+	proxyTransport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
 		return g.overlayDialer(ctx, addr)
 	}
-	h2Transport, _ := http2.ConfigureTransports(h1Transport)
-	h2Transport.DialTLSContext = func(ctx context.Context, _, addr string, _ *tls.Config) (net.Conn, error) {
-		return g.overlayDialer(ctx, addr)
-	}
-	h2Transport.ConnPool = nil
-	h1Transport.TLSNextProto = nil
 
 	proxy := &httputil.ReverseProxy{
-		Director: g.proxyDirector,
-		Transport: &proxyRoundTripper{
-			h1: h1Transport,
-			h2: h2Transport,
-		},
+		Director:       g.proxyDirector,
+		Transport:      proxyTransport,
 		BufferPool:     bufPool,
 		ErrorHandler:   g.errorHandler,
 		ModifyResponse: respHandler,

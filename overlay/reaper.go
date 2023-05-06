@@ -2,7 +2,6 @@ package overlay
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -42,8 +41,6 @@ func (t *QUIC) reaper(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	for {
 		select {

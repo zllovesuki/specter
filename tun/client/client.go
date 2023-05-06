@@ -38,8 +38,6 @@ import (
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 var (
@@ -814,6 +812,7 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 			MaxIdleConns:          10,
 			IdleConnTimeout:       time.Second * 30,
 			ResponseHeaderTimeout: connectTimeout,
+			ForceAttemptHTTP2:     true,
 		}
 		switch u.Scheme {
 		case "unix", "winio":
@@ -822,6 +821,7 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 				return pipe.DialPipe(ctx, u.Path)
 			}
 		}
+
 		proxy := httputil.NewSingleHostReverseProxy(u)
 		d := proxy.Director
 		// https://stackoverflow.com/a/53007606
@@ -849,18 +849,15 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
 		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
-
-		accepter := acceptor.NewH2Acceptor(nil)
-		h2s := &http2.Server{}
-		forwarder := &http.Server{
-			Handler:           h2c.NewHandler(proxy, h2s),
-			ErrorLog:          zap.NewStdLog(c.Logger),
-			ReadHeaderTimeout: time.Second * 15,
-		}
+		proxy.BufferPool = util.NewBufferPool(1024 * 8)
 
 		return &httpProxy{
-			acceptor:  accepter,
-			forwarder: forwarder,
+			acceptor: acceptor.NewH2Acceptor(nil),
+			forwarder: &http.Server{
+				Handler:           proxy,
+				ErrorLog:          zap.NewStdLog(c.Logger),
+				ReadHeaderTimeout: time.Second * 15,
+			},
 		}
 	})
 	if !loaded {
