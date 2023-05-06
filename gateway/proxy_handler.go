@@ -198,8 +198,8 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 	h1Transport := &http.Transport{
 		MaxConnsPerHost:       30,
 		MaxIdleConnsPerHost:   3,
-		IdleConnTimeout:       time.Minute,
-		ResponseHeaderTimeout: time.Second * 30,
+		IdleConnTimeout:       time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 15,
 		ExpectContinueTimeout: time.Second * 3,
 	}
 	h1Transport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {

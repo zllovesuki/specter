@@ -514,6 +514,12 @@ func (c *Client) publishTunnel(ctx context.Context, hostname string, connected [
 func (c *Client) reloadOnSignal(ctx context.Context) {
 	defer c.closeWg.Done()
 
+	onReload := func(prev, curr []Tunnel) {
+		diff := diffTunnels(prev, curr)
+		c.closeOutdatedProxies(diff...)
+		c.Configuration.buildRouter(diff...)
+	}
+
 	for {
 		select {
 		case <-c.closeCh:
@@ -523,7 +529,7 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 		case <-c.ReloadSignal:
 			c.Logger.Info("Received SIGHUP, reloading config")
 			c.configMu.Lock()
-			if err := c.Configuration.reloadFile(); err != nil {
+			if err := c.Configuration.reloadFile(onReload); err != nil {
 				c.Logger.Error("Error reloading config file", zap.Error(err))
 				c.configMu.Unlock()
 				continue
@@ -602,36 +608,11 @@ func (c *Client) GetCurrentConfig() *Config {
 	return c.Configuration.clone()
 }
 
-func (c *Client) diffTunnels(old, new []Tunnel) []Tunnel {
-	diff := make([]Tunnel, 0)
-	oldMap := map[string]Tunnel{}
-	newMap := map[string]Tunnel{}
-	for _, o := range old {
-		if o.Hostname == "" {
-			continue
-		}
-		oldMap[o.Hostname] = o
-	}
-	for _, n := range new {
-		if n.Hostname == "" {
-			continue
-		}
-		newMap[n.Hostname] = n
-	}
-	for hostname, tunnel := range newMap {
-		oldTunnel, ok := oldMap[hostname]
-		if ok && (oldTunnel.Target != tunnel.Target || oldTunnel.Insecure != tunnel.Insecure) {
-			diff = append(diff, oldTunnel)
-		}
-	}
-	return diff
-}
-
 func (c *Client) RebuildTunnels(tunnels []Tunnel) {
 	c.configMu.Lock()
 	defer c.configMu.Unlock()
 
-	diff := c.diffTunnels(c.Configuration.Tunnels, tunnels)
+	diff := diffTunnels(c.Configuration.Tunnels, tunnels)
 	c.closeOutdatedProxies(diff...)
 
 	c.Configuration.Tunnels = tunnels
@@ -759,7 +740,7 @@ func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {
 	for _, t := range tunnels {
 		proxy, loaded := c.proxies.LoadAndDelete(t.Hostname)
 		if loaded {
-			c.Logger.Info("Shutting down proxy", zap.String("hostname", t.Hostname))
+			c.Logger.Info("Shutting down proxy", zap.String("hostname", t.Hostname), zap.String("target", t.Target))
 			proxy.acceptor.Close()
 			go func(forwarder *http.Server) {
 				ctx, cancel := context.WithTimeout(c.parentCtx, connectTimeout)
@@ -830,8 +811,9 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 				ServerName:         u.Host,
 				InsecureSkipVerify: r.insecure,
 			},
-			MaxIdleConns:    10,
-			IdleConnTimeout: time.Minute,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       time.Second * 30,
+			ResponseHeaderTimeout: connectTimeout,
 		}
 		switch u.Scheme {
 		case "unix", "winio":
@@ -890,4 +872,29 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 type httpProxy struct {
 	acceptor  *acceptor.HTTP2Acceptor
 	forwarder *http.Server
+}
+
+func diffTunnels(old, new []Tunnel) []Tunnel {
+	diff := make([]Tunnel, 0)
+	oldMap := map[string]Tunnel{}
+	newMap := map[string]Tunnel{}
+	for _, o := range old {
+		if o.Hostname == "" {
+			continue
+		}
+		oldMap[o.Hostname] = o
+	}
+	for _, n := range new {
+		if n.Hostname == "" {
+			continue
+		}
+		newMap[n.Hostname] = n
+	}
+	for hostname, tunnel := range newMap {
+		oldTunnel, ok := oldMap[hostname]
+		if ok && (oldTunnel.Target != tunnel.Target || oldTunnel.Insecure != tunnel.Insecure) {
+			diff = append(diff, oldTunnel)
+		}
+	}
+	return diff
 }

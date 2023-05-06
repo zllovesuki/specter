@@ -117,7 +117,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (c *Config) reloadFile() error {
+func (c *Config) reloadFile(callbacks ...func(prev, curr []Tunnel)) error {
 	f, err := os.Open(c.path)
 	if err != nil {
 		return fmt.Errorf("error opening config file for reading: %w", err)
@@ -133,7 +133,12 @@ func (c *Config) reloadFile() error {
 		return fmt.Errorf("error validating config file: %w", err)
 	}
 
+	prev := c.clone()
 	c.Tunnels = next.Tunnels
+
+	for _, cb := range callbacks {
+		cb(prev.Tunnels, next.Tunnels)
+	}
 	return nil
 }
 
