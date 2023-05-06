@@ -13,8 +13,8 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/jedib0t/go-pretty/v6 v6.4.6
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/libp2p/go-yamux/v3 v3.1.2
-	github.com/mholt/acmez v1.1.0
+	github.com/libp2p/go-yamux/v4 v4.0.0
+	github.com/mholt/acmez v1.1.1
 	github.com/miekg/dns v1.1.54
 	github.com/montanaflynn/stats v0.7.0
 	github.com/quic-go/quic-go v0.34.0
@@ -26,18 +26,16 @@ require (
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
-	go.uber.org/atomic v1.10.0
+	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
 	go.uber.org/zap v1.24.0
 	golang.org/x/net v0.9.0
-	golang.org/x/sys v0.7.0
+	golang.org/x/sys v0.8.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 )
-
-replace github.com/libp2p/go-yamux/v3 => github.com/zllovesuki/go-yamux/v3 v3.1.3-0.20230123001349-cf75f3123f5e
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect

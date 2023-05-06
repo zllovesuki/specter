@@ -24,7 +24,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
-	"github.com/libp2p/go-yamux/v3"
+	"github.com/libp2p/go-yamux/v4"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/mock"

@@ -13,7 +13,7 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 
-	"github.com/libp2p/go-yamux/v3"
+	"github.com/libp2p/go-yamux/v4"
 	"github.com/quic-go/quic-go"
 	"go.uber.org/zap"
 )
