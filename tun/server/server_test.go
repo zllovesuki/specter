@@ -110,7 +110,7 @@ func TestContinueLookupOnError(t *testing.T) {
 	})).Return(nil, fmt.Errorf("panic"))
 
 	c, err := serv.DialClient(context.Background(), link)
-	as.Error(err)
+	as.ErrorIs(err, tun.ErrLookupFailed)
 	as.Nil(c)
 
 	node.AssertExpectations(t)

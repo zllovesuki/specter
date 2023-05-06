@@ -236,7 +236,9 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	g.Logger.Debug("error forwarding http/https request", zap.Error(e))
+	logger := g.Logger.With(zap.String("hostname", r.URL.Hostname()))
+
+	logger.Debug("error forwarding http request", zap.Error(e))
 
 	if tun.IsTimeout(e) {
 		w.WriteHeader(http.StatusGatewayTimeout)
@@ -244,7 +246,7 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	g.Logger.Error("forwarding to client", zap.Error(e))
+	logger.Error("error forwarding to client", zap.Error(e))
 	w.WriteHeader(http.StatusBadGateway)
 	fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
 }

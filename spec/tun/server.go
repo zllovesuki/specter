@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	ErrLookupFailed             = fmt.Errorf("tun: failed to lookup tunnel on specter network")
 	ErrDestinationNotFound      = fmt.Errorf("tun: tunnel not found on specter network")
 	ErrTunnelClientNotConnected = fmt.Errorf("tun: tunnel client is not connected to any nodes")
 	ErrHostnameNotFound         = fmt.Errorf("tun: custom hostname is not registered")

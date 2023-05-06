@@ -184,15 +184,20 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 
 // TODO: make routing selection more intelligent with rtt
 func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
-	isNoDirect := false
+	var (
+		isNoDirect = false
+		numLookup  = 0
+		numError   = 0
+	)
 	for k := 1; k <= tun.NumRedundantLinks; k++ {
 		key := tun.RoutingKey(link.GetHostname(), k)
+		numLookup++
 		val, err := s.Chord.Get(ctx, []byte(key))
 		if err != nil {
-			s.Logger.Error("key lookup error", zap.String("key", key), zap.Error(err))
+			numError++
 			continue
 		}
-		if val == nil {
+		if len(val) == 0 {
 			continue
 		}
 		route := &protocol.TunnelRoute{}
@@ -219,6 +224,10 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 
 	if isNoDirect {
 		return nil, tun.ErrTunnelClientNotConnected
+	}
+
+	if numLookup == numError {
+		return nil, tun.ErrLookupFailed
 	}
 
 	return nil, tun.ErrDestinationNotFound
