@@ -740,7 +740,7 @@ func (c *Client) Start(ctx context.Context) {
 			c.getHTTPProxy(ctx, hostname, u).acceptor.Handle(delegation)
 
 		case protocol.Link_TCP:
-			c.forwardStream(ctx, delegation, u)
+			c.forwardStream(ctx, hostname, delegation, u)
 
 		default:
 			c.Logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
@@ -784,13 +784,14 @@ func (c *Client) Close() {
 	c.closeWg.Wait()
 }
 
-func (c *Client) forwardStream(ctx context.Context, remote net.Conn, r route) {
+func (c *Client) forwardStream(ctx context.Context, hostname string, remote net.Conn, r route) {
 	var (
 		u      *url.URL = r.parsed
 		target string
 		local  net.Conn
 		err    error
 	)
+	logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
 	switch u.Scheme {
 	case "tcp":
 		dialer := &net.Dialer{
@@ -805,7 +806,7 @@ func (c *Client) forwardStream(ctx context.Context, remote net.Conn, r route) {
 		err = fmt.Errorf("unknown scheme: %s", u.Scheme)
 	}
 	if err != nil {
-		c.Logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
+		logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
 		tun.SendStatusProto(remote, err)
 		remote.Close()
 		return
@@ -816,12 +817,13 @@ func (c *Client) forwardStream(ctx context.Context, remote net.Conn, r route) {
 
 func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *httpProxy {
 	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
-		c.Logger.Info("Creating new proxy", zap.String("hostname", hostname))
-
 		var (
 			u      *url.URL = r.parsed
 			isPipe          = false
 		)
+
+		logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
+		logger.Info("Creating new proxy")
 
 		tp := &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -860,11 +862,11 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 				// this is expected
 				return
 			}
-			c.Logger.Error("Error forwarding http/https request", zap.Error(e))
+			logger.Error("Error forwarding http/https request", zap.Error(e))
 			rw.WriteHeader(http.StatusBadGateway)
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
-		proxy.ErrorLog = zap.NewStdLog(c.Logger)
+		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
 
 		accepter := acceptor.NewH2Acceptor(nil)
 		h2s := &http2.Server{}
