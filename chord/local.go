@@ -76,7 +76,6 @@ func NewLocalNode(conf NodeConfig) *LocalNode {
 		kvStaleCount:   atomic.NewUint64(0),
 		rpcErrorCount:  atomic.NewUint64(0),
 	}
-	n.stopWg.Add(3)
 
 	return n
 }

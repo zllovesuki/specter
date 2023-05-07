@@ -209,6 +209,7 @@ func (n *LocalNode) startTasks() {
 	// run once
 	n.stabilize()
 	n.fixFinger()
+	n.stopWg.Add(3)
 	// then run periodically
 	go n.periodicStabilize()
 	go n.periodicPredecessorCheck()
