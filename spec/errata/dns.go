@@ -7,7 +7,10 @@ import (
 	"github.com/ncruces/go-dns"
 )
 
-func ConfigDNS() bool {
+func ConfigDNS(enabled bool) bool {
+	if !enabled {
+		return false
+	}
 	resolver, err := dns.NewDoHResolver(
 		"https://cloudflare-dns.com/dns-query",
 		dns.DoHAddresses("1.1.1.1"),

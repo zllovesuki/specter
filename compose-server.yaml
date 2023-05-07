@@ -34,6 +34,8 @@ services:
     ports:
       - "11153:1153/tcp"
       - "11153:1153/udp"
+    environment:
+      - DOH=false
     networks:
       - specter
     command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen dns:1153 --rpc tcp://seed:1280
@@ -55,6 +57,7 @@ services:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
       - ACME_CA=https://pebble:14000/dir
+      - DOH=false
     networks:
       - specter
     command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --listen-rpc tcp://seed:1280
@@ -76,6 +79,7 @@ services:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
       - ACME_CA=https://pebble:14000/dir
+      - DOH=false
     networks:
       - specter
     command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
@@ -97,6 +101,7 @@ services:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
       - ACME_CA=https://pebble:14000/dir
+      - DOH=false
     networks:
       - specter
     command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
@@ -118,6 +123,7 @@ services:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
       - ACME_CA=https://pebble:14000/dir
+      - DOH=false
     networks:
       - specter
     command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
@@ -139,6 +145,7 @@ services:
       - INTERNAL_USER=test
       - INTERNAL_PASS=test
       - ACME_CA=https://pebble:14000/dir
+      - DOH=false
     networks:
       - specter
     command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113

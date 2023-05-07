@@ -14,6 +14,8 @@ services:
       - nginx
     networks:
       - specter
+    environment:
+      - DOH=false
     volumes:
       - ./dev/client:/app/config
     command: --verbose client --insecure tunnel --config /app/config/specter.yaml

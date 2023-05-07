@@ -39,6 +39,13 @@ var (
 				Hidden: true,
 				Value:  time.Now().Unix(),
 			},
+
+			&cli.BoolFlag{
+				Name:    "doh",
+				Hidden:  true,
+				Value:   true,
+				EnvVars: []string{"DOH"},
+			},
 		},
 		Commands: []*cli.Command{
 			dns.Generate(),
@@ -78,7 +85,7 @@ func ConfigLogger(ctx *cli.Context) error {
 
 func ConfigApp(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
-	if errata.ConfigDNS() {
+	if errata.ConfigDNS(ctx.Bool("doh")) {
 		logger.Info("errata: net.DefaultResolver configured with DoH dialer")
 	}
 	if errata.ConfigUDPBuffer() {
