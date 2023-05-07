@@ -79,7 +79,7 @@ func ConfigLogger(ctx *cli.Context) error {
 func ConfigApp(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 	if errata.ConfigDNS() {
-		logger.Info("errata: net.Resolver configured with custom dialer")
+		logger.Info("errata: net.DefaultResolver configured with DoH dialer")
 	}
 	if errata.ConfigUDPBuffer() {
 		logger.Info("errata: net.core.rmem_max is set to 2500000")
