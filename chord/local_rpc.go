@@ -2,6 +2,7 @@ package chord
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 
@@ -19,7 +20,7 @@ import (
 )
 
 func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Context {
-	if err.Code() == twirp.FailedPrecondition {
+	if err.Code() == twirp.FailedPrecondition || errors.Is(err, chord.ErrNodeGone) {
 		return ctx
 	}
 	delegation := rpc.GetDelegation(ctx)
