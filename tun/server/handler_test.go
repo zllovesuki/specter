@@ -94,6 +94,12 @@ func TestHandlerListClientTunnels(t *testing.T) {
 	fakeTunnelsBytes, err := fakeTunnels.MarshalVT()
 	as.NoError(err)
 
+	hostnames := []string{"test-hostname", "not-used"}
+	hostnameBytes := make([][]byte, len(hostnames))
+	for i, h := range hostnames {
+		hostnameBytes[i] = []byte(h)
+	}
+
 	c1, c2 := net.Pipe()
 
 	clientChan := make(chan *transport.StreamDelegate)
@@ -101,6 +107,14 @@ func TestHandlerListClientTunnels(t *testing.T) {
 	clientT.On("DialStream", mock.Anything, mock.MatchedBy(func(node *protocol.Node) bool {
 		return node.GetId() == 111111 && node.GetAddress() == "fake-address" && node.GetRendezvous()
 	}), protocol.Stream_RPC).Return(c1, nil)
+	node.On("PrefixList",
+		mock.Anything,
+		mock.MatchedBy(func(prefix []byte) bool {
+			return bytes.Equal(prefix, []byte(tun.ClientHostnamesPrefix(&protocol.ClientToken{
+				Token: []byte("fake-address"),
+			})))
+		}),
+	).Return(hostnameBytes, nil)
 
 	go func() {
 		_, err := http.ReadRequest(bufio.NewReader(c2))
@@ -138,6 +152,8 @@ func TestHandlerListClientTunnels(t *testing.T) {
 
 	as.Contains(string(body), fakeTunnels.GetTunnels()[0].GetHostname())
 	as.Contains(string(body), fakeTunnels.GetTunnels()[0].GetTarget())
+	as.Contains(string(body), "not-used")
+	as.Contains(string(body), "(unused)")
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)

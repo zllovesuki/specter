@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"kon.nect.sh/specter/spec/protocol"
+	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
@@ -85,12 +86,32 @@ func ConnectedClientsHandler(s *Server) http.Handler {
 			return
 		}
 
+		tunnelMap := make(map[string]string)
+		for _, t := range resp.GetTunnels() {
+			tunnelMap[t.Hostname] = t.Target
+		}
+
+		prefix := tun.ClientHostnamesPrefix(&protocol.ClientToken{
+			Token: []byte(client.GetAddress()),
+		})
+		children, err := s.Chord.PrefixList(callCtx, []byte(prefix))
+		if err != nil {
+			twirp.WriteError(w, rpc.WrapErrorKV(prefix, err))
+			return
+		}
+
 		tunnelTable := table.NewWriter()
 		tunnelTable.SetOutputMirror(w)
 
 		tunnelTable.AppendHeader(table.Row{"Hostname", "Target"})
-		for _, h := range resp.GetTunnels() {
-			tunnelTable.AppendRow(table.Row{h.GetHostname(), h.Target})
+		for _, child := range children {
+			hostname := string(child)
+			target, ok := tunnelMap[hostname]
+			if ok {
+				tunnelTable.AppendRow(table.Row{hostname, target})
+			} else {
+				tunnelTable.AppendRow(table.Row{hostname, "(unused)"})
+			}
 		}
 
 		tunnelTable.SetStyle(table.StyleDefault)
