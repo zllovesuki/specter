@@ -24,6 +24,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/tun"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-yamux/v4"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -190,6 +191,11 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 
 	mockS = new(mocks.TunnelServer)
 
+	fakeStats := chi.NewRouter()
+	fakeStats.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	conf := GatewayConfig{
 		Logger:       logger,
 		TunnelServer: mockS,
@@ -201,9 +207,7 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
 		Handlers: InternalHandlers{
-			StatsHandler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			},
+			ChordStats: fakeStats,
 		},
 	}
 

@@ -22,6 +22,18 @@ index d9561c8..13eee81 100644
  		return ctx, wrapInternal(err, "failed to unmarshal proto response")
  	}
  	return ctx, nil
+diff --git a/spec/protocol/client_query.twirp.go b/spec/protocol/client_query.twirp.go
+index ab7202e..2b5d6c3 100644
+--- a/spec/protocol/client_query.twirp.go
++++ b/spec/protocol/client_query.twirp.go
+@@ -12,7 +12,6 @@ import strconv "strconv"
+ import strings "strings"
+
+ import protojson "google.golang.org/protobuf/encoding/protojson"
+-import proto "google.golang.org/protobuf/proto"
+ import twirp "github.com/twitchtv/twirp"
+ import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
+
 diff --git a/spec/protocol/kv.twirp.go b/spec/protocol/kv.twirp.go
 index bc9a25d..22e8da2 100644
 --- a/spec/protocol/kv.twirp.go

@@ -3291,7 +3291,7 @@ func (s *kVServiceServer) serveImportProtobuf(ctx context.Context, resp http.Res
 }
 
 func (s *kVServiceServer) ServiceDescriptor() ([]byte, int) {
-	return twirpFileDescriptor1, 0
+	return twirpFileDescriptor2, 0
 }
 
 func (s *kVServiceServer) ProtocGenTwirpVersion() string {
@@ -3305,7 +3305,7 @@ func (s *kVServiceServer) PathPrefix() string {
 	return baseServicePath(s.pathPrefix, "protocol", "KVService")
 }
 
-var twirpFileDescriptor1 = []byte{
+var twirpFileDescriptor2 = []byte{
 	// 573 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0x4d, 0x6f, 0xda, 0x40,
 	0x10, 0x95, 0x63, 0x70, 0x60, 0xf8, 0x68, 0xb4, 0x45, 0x09, 0xa5, 0x6a, 0x4b, 0x2c, 0xa5, 0x45,

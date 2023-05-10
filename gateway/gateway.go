@@ -31,8 +31,8 @@ type DeadlineReadWriteCloser interface {
 }
 
 type InternalHandlers struct {
-	StatsHandler     http.HandlerFunc
-	RingGraphHandler http.HandlerFunc
+	ChordStats       http.Handler
+	ClientsQuery     http.Handler
 	MigrationHandler http.HandlerFunc
 }
 

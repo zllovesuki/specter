@@ -33,6 +33,8 @@ type Transport interface {
 	DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error)
 	AcceptStream() <-chan *StreamDelegate
 
+	ListConnected() []*protocol.Node
+
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate
 	SendDatagram(*protocol.Node, []byte) error

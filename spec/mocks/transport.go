@@ -44,6 +44,12 @@ func (t *Transport) AcceptStream() <-chan *transport.StreamDelegate {
 	return v.(chan *transport.StreamDelegate)
 }
 
+func (t *Transport) ListConnected() []*protocol.Node {
+	args := t.Called()
+	v := args.Get(0)
+	return v.([]*protocol.Node)
+}
+
 func (t *Transport) SupportDatagram() bool {
 	args := t.Called()
 	v := args.Bool(0)

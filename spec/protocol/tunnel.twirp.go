@@ -3012,7 +3012,7 @@ func (s *tunnelServiceServer) serveAcmeValidateProtobuf(ctx context.Context, res
 }
 
 func (s *tunnelServiceServer) ServiceDescriptor() ([]byte, int) {
-	return twirpFileDescriptor3, 0
+	return twirpFileDescriptor4, 0
 }
 
 func (s *tunnelServiceServer) ProtocGenTwirpVersion() string {
@@ -3026,7 +3026,7 @@ func (s *tunnelServiceServer) PathPrefix() string {
 	return baseServicePath(s.pathPrefix, "protocol", "TunnelService")
 }
 
-var twirpFileDescriptor3 = []byte{
+var twirpFileDescriptor4 = []byte{
 	// 1127 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
 	0x14, 0x5e, 0xa7, 0x69, 0xda, 0x9c, 0x34, 0x89, 0x33, 0xfd, 0xcb, 0xce, 0x16, 0x68, 0x4d, 0xb7,

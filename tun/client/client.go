@@ -69,6 +69,7 @@ type Client struct {
 	rootDomain   *atomic.String
 	proxies      *skipmap.StringMap[*httpProxy]
 	connections  *skipmap.StringMap[*protocol.Node]
+	rpcAcceptor  *acceptor.HTTP2Acceptor
 	closeCh      chan struct{}
 	closed       atomic.Bool
 }
@@ -81,6 +82,7 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		proxies:      skipmap.NewString[*httpProxy](),
 		connections:  skipmap.NewString[*protocol.Node](),
 		tunnelClient: rpc.DynamicTunnelClient(ctx, cfg.ServerTransport),
+		rpcAcceptor:  acceptor.NewH2Acceptor(nil),
 		closeCh:      make(chan struct{}),
 	}
 
@@ -726,12 +728,13 @@ func (c *Client) Start(ctx context.Context) {
 			delegation.Close()
 		}
 	})
+	c.attachRPC(ctx, streamRouter)
 
 	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
 	go c.reBootstrap(ctx)
-	go c.startServer(ctx)
+	go c.startLocalServer(ctx)
 }
 
 func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {
@@ -754,6 +757,7 @@ func (c *Client) Close() {
 	if !c.closed.CompareAndSwap(false, true) {
 		return
 	}
+	c.rpcAcceptor.Close()
 	c.proxies.Range(func(key string, proxy *httpProxy) bool {
 		c.Logger.Info("Shutting down proxy", zap.String("hostname", key))
 		proxy.acceptor.Close()

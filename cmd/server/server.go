@@ -687,8 +687,8 @@ func cmdServer(ctx *cli.Context) error {
 			ClientCA: bundle.clientCaCert,
 		},
 		Handlers: gateway.InternalHandlers{
-			StatsHandler:     chordImpl.StatsHandler(virtualNodes),
-			RingGraphHandler: chordImpl.RingGraphHandler(rootNode),
+			ChordStats:       chordImpl.ChordStatsHandler(rootNode, virtualNodes),
+			ClientsQuery:     server.ConnectedClientsHandler(tunServer),
 			MigrationHandler: migrator.ConfigMigrator(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
 		},
 		Logger:       logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),

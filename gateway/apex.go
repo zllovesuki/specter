@@ -72,9 +72,12 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			a.authUser: a.authPass,
 		}))
 		r.Use(a.internalProxy)
-		r.Use(middleware.URLFormat)
-		r.Get("/stats", a.handlers.StatsHandler)
-		r.Get("/graph", a.handlers.RingGraphHandler)
+		if a.handlers.ChordStats != nil {
+			r.Mount("/chord", a.handlers.ChordStats)
+		}
+		if a.handlers.ClientsQuery != nil {
+			r.Mount("/clients", a.handlers.ClientsQuery)
+		}
 		r.Handle("/migrator", a.handlers.MigrationHandler)
 		r.Mount("/debug", middleware.Profiler())
 	})

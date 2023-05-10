@@ -74,7 +74,7 @@ func TestInternalWithAuth(t *testing.T) {
 
 	c := getH2Client("", tcpPort)
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/stats", testDomain), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/chord/stats", testDomain), nil)
 	as.NoError(err)
 	req.SetBasicAuth(testUser, testPass)
 

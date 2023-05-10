@@ -30,7 +30,7 @@ var selfVOptions = append(vOptions,
 	graph.VertexAttribute("color", "lightgrey"),
 )
 
-func RingGraphHandler(root *LocalNode) http.HandlerFunc {
+func ringGraphHandler(root *LocalNode) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var next chord.VNode = root

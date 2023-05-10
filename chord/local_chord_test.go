@@ -47,7 +47,7 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 		ChordClient:              new(mocks.ChordClient),
 		Identity:                 iden,
 		KVProvider:               memory.WithHashFn(chord.Hash),
-		StabilizeInterval:         defaultInterval * 3,
+		StabilizeInterval:        defaultInterval * 3,
 		FixFingerInterval:        defaultInterval * 5,
 		PredecessorCheckInterval: defaultInterval * 7,
 		NodesRTT:                 m,
@@ -234,7 +234,7 @@ func TestStatsSummaryHandler(t *testing.T) {
 	node.kv.Put(context.Background(), []byte(testKey), []byte("bye"))
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(StatsHandler([]*LocalNode{node}))
+	handler := http.HandlerFunc(statsHandler([]*LocalNode{node}))
 
 	req, err := http.NewRequest("GET", "/", nil)
 	as.NoError(err)
@@ -263,7 +263,7 @@ func TestStatsKeyHandler(t *testing.T) {
 	node.kv.Put(context.Background(), []byte(testKey), []byte("hello"))
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(StatsHandler([]*LocalNode{node}))
+	handler := http.HandlerFunc(statsHandler([]*LocalNode{node}))
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("/?key=%s", testKey), nil)
 	as.NoError(err)

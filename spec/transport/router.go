@@ -82,6 +82,7 @@ func (s *StreamRouter) acceptChord(ctx context.Context) {
 					zap.Object("peer", delegate.Identity),
 					zap.String("kind", delegate.Kind.String()),
 				)
+				delegate.Close()
 				continue
 			}
 			go handler.(StreamHandler)(delegate)
@@ -101,6 +102,7 @@ func (s *StreamRouter) acceptTunnel(ctx context.Context) {
 					zap.Object("peer", delegate.Identity),
 					zap.String("kind", delegate.Kind.String()),
 				)
+				delegate.Close()
 				continue
 			}
 			go handler.(StreamHandler)(delegate)

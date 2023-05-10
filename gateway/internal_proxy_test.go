@@ -18,6 +18,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -44,6 +45,11 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	fakeStats := chi.NewRouter()
+	fakeStats.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	conf := GatewayConfig{
 		Logger:       logger,
 		TunnelServer: mockS,
@@ -55,9 +61,7 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
 		Handlers: InternalHandlers{
-			StatsHandler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			},
+			ChordStats: fakeStats,
 		},
 	}
 	g := New(conf)
@@ -117,7 +121,7 @@ func TestInternalProxy(t *testing.T) {
 		acc.Handle(c2)
 	})
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/stats", testDomain), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/_internal/chord/stats", testDomain), nil)
 	as.NoError(err)
 
 	req.SetBasicAuth(testUser, testPass)

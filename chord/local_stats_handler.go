@@ -291,7 +291,7 @@ func printKey(virtualNodes []*LocalNode, w http.ResponseWriter, r *http.Request,
 	fmt.Fprint(w, "key not found on this node")
 }
 
-func StatsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http.Request) {
+func statsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		if query.Has("key") {

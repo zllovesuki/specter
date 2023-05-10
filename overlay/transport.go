@@ -479,6 +479,15 @@ func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protoc
 	}
 }
 
+func (t *QUIC) ListConnected() []*protocol.Node {
+	nodes := make([]*protocol.Node, 0)
+	t.cachedConnections.Range(func(key string, value *nodeConnection) bool {
+		nodes = append(nodes, value.peer)
+		return true
+	})
+	return nodes
+}
+
 func (t *QUIC) Stop() {
 	if !t.closed.CompareAndSwap(false, true) {
 		return

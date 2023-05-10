@@ -1,0 +1,20 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "kon.nect.sh/specter/spec/protocol";
+
+service ClientQueryService {
+    rpc ListTunnels(ListTunnelsRequest) returns (ListTunnelsResponse);
+}
+
+message ClientTunnel {
+    string hostname = 1;
+    string target = 2;
+}
+
+message ListTunnelsRequest{}
+
+message ListTunnelsResponse{
+    repeated ClientTunnel tunnels = 1;
+}

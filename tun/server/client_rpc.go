@@ -86,7 +86,7 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 		MaxHeaderBytes:    1 << 10, // 1KB
 		ReadHeaderTimeout: time.Second * 3,
 		Handler:           rpcHandler,
-		ErrorLog:          util.GetStdLogger(s.Logger, "rpc_server"),
+		ErrorLog:          util.GetStdLogger(s.Logger, "rpcServer"),
 	}
 
 	go srv.Serve(s.rpcAcceptor)
