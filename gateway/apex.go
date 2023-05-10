@@ -2,8 +2,10 @@ package gateway
 
 import (
 	_ "embed"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -80,5 +82,19 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		}
 		r.Handle("/migrator", a.handlers.MigrationHandler)
 		r.Mount("/debug", middleware.Profiler())
+
+		// catch-all helper
+		routes := make([]string, 0)
+		chi.Walk(r, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			if method == http.MethodGet && !strings.Contains(route, "*") {
+				routes = append(routes, fmt.Sprintf("%s %s", method, route))
+			}
+			return nil
+		})
+		routesStr := []byte(strings.Join(routes, "\n"))
+		r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(routesStr)
+		})
 	})
 }
