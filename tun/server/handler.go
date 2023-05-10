@@ -49,14 +49,14 @@ func ConnectedClientsHandler(s *Server) http.Handler {
 		clientTable.Render()
 	})
 
-	router.Get("/{id}/{address}", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/{id}/*", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		address := chi.URLParam(r, "address")
+		address := chi.URLParam(r, "*")
 
 		client := &protocol.Node{
 			Id:         id,

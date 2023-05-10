@@ -86,7 +86,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		// catch-all helper
 		routes := make([]string, 0)
 		chi.Walk(r, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-			if method == http.MethodGet && !strings.Contains(route, "*") {
+			if method == http.MethodGet {
 				routes = append(routes, fmt.Sprintf("%s %s", method, route))
 			}
 			return nil
