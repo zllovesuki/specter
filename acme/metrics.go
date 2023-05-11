@@ -3,5 +3,5 @@ package acme
 import "expvar"
 
 var (
-	tlsHostname = expvar.NewMap("tls.serverName")
+	acmeHostname = expvar.NewMap("acme.serverName")
 )

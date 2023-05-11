@@ -52,6 +52,7 @@ func NewDNS(ctx context.Context, logger *zap.Logger, kv chord.KV, email, domain 
 }
 
 func (d *DNS) initStatic(email string, ns map[string][]string) {
+	nameservers := make([]string, 0)
 	for ns, ips := range ns {
 		ns = dns.Fqdn(ns)
 
@@ -82,14 +83,11 @@ func (d *DNS) initStatic(email string, ns map[string][]string) {
 				d.records[ns] = append(d.records[ns], aRR)
 			}
 		}
-	}
-
-	mbox := dns.CanonicalName(strings.ReplaceAll(email, "@", "."))
-	nameservers := make([]string, 0)
-	for ns := range d.records {
 		nameservers = append(nameservers, ns)
 	}
 	sort.Strings(nameservers)
+
+	mbox := dns.CanonicalName(strings.ReplaceAll(email, "@", "."))
 
 	var (
 		unix   int64

@@ -148,7 +148,7 @@ func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, er
 		return nil, ErrInvalid
 	}
 
-	tlsHostname.Add(sni, 1)
+	acmeHostname.Add(sni, 1)
 	if m.isManaged(sni) {
 		return m.managedConfig.GetCertificate(chi)
 	} else {
