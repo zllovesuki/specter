@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -56,12 +57,17 @@ func (c *ChordStorage) Lock(ctx context.Context, key string) error {
 			continue
 		case nil:
 			c.Logger.Debug("Lease acquired", zap.String("key", key), zap.Uint64("lease", token))
+
+			leaseCtx, leaseCancel := context.WithCancel(context.Background())
 			h := &leaseHolder{
-				token:   token,
-				closeCh: make(chan struct{}),
+				token:    token,
+				ctx:      leaseCtx,
+				cancelFn: leaseCancel,
 			}
+			h.Add(1)
 			c.leaseToken.Store(key, h)
 			go c.renewLease(key, h)
+
 			return nil
 		default:
 			c.Logger.Error("Error acquiring lease", zap.String("key", key), zap.Error(err))
@@ -73,9 +79,12 @@ func (c *ChordStorage) Lock(ctx context.Context, key string) error {
 func (c *ChordStorage) renewLease(key string, l *leaseHolder) {
 	ticker := time.NewTicker(c.renewalInterval)
 	defer ticker.Stop()
+
+	defer l.Done()
+
 	for {
 		select {
-		case <-l.closeCh:
+		case <-l.ctx.Done():
 			return
 		case <-ticker.C:
 			prev := atomic.LoadUint64(&l.token)
@@ -98,7 +107,8 @@ func (c *ChordStorage) Unlock(ctx context.Context, key string) error {
 	if !ok {
 		return fmt.Errorf("not a lease holder of key %s", key)
 	}
-	close(lease.closeCh)
+	lease.cancelFn()
+	lease.Wait()
 	_, err := retrier(ctx, c.retryInterval, func() (any, error) {
 		return nil, c.KV.Release(ctx, []byte(kvKeyName(key)), atomic.LoadUint64(&lease.token))
 	})
@@ -172,8 +182,10 @@ func (c *ChordStorage) Stat(ctx context.Context, key string) (certmagic.KeyInfo,
 }
 
 type leaseHolder struct {
-	closeCh chan struct{}
-	token   uint64
+	sync.WaitGroup
+	ctx      context.Context
+	cancelFn context.CancelFunc
+	token    uint64
 }
 
 var _ certmagic.Storage = (*ChordStorage)(nil)
