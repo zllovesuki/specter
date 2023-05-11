@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/zhangyunhao116/skipmap"
 	"kon.nect.sh/specter/spec/protocol"
 
+	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap"
 )
 
@@ -14,19 +14,17 @@ type StreamHandler func(delegate *StreamDelegate)
 
 type StreamRouter struct {
 	logger                *zap.Logger
-	virtualChordHandlers  *skipmap.FuncMap[protocol.Stream_Type, *sync.Map]
-	physicalChordHandlers sync.Map
-	tunnelHandlers        sync.Map
+	virtualChordHandlers  *skipmap.Int32Map[*sync.Map] // map[protocol.Stream_Type]StreamHandler
+	physicalChordHandlers sync.Map                     // map[protocol.Stream_Type]StreamHandler
+	tunnelHandlers        sync.Map                     // map[protocol.Stream_Type]StreamHandler
 	chordStream           <-chan *StreamDelegate
 	tunnelStream          <-chan *StreamDelegate
 }
 
 func NewStreamRouter(logger *zap.Logger, chordTransport, tunnelTransport Transport) *StreamRouter {
 	router := &StreamRouter{
-		logger: logger,
-		virtualChordHandlers: skipmap.NewFunc[protocol.Stream_Type, *sync.Map](func(a, b protocol.Stream_Type) bool {
-			return a < b
-		}),
+		logger:               logger,
+		virtualChordHandlers: skipmap.NewInt32[*sync.Map](),
 	}
 	if chordTransport != nil {
 		router.chordStream = chordTransport.AcceptStream()
@@ -43,7 +41,7 @@ func (s *StreamRouter) HandleChord(kind protocol.Stream_Type, target *protocol.N
 		s.physicalChordHandlers.Store(kind, handler)
 	} else {
 		// virtual node handler
-		m, _ := s.virtualChordHandlers.LoadOrStoreLazy(kind, func() *sync.Map {
+		m, _ := s.virtualChordHandlers.LoadOrStoreLazy(int32(kind), func() *sync.Map {
 			return &sync.Map{}
 		})
 		m.Store(target.GetId(), handler)
@@ -65,7 +63,7 @@ func (s *StreamRouter) acceptChord(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case delegate := <-s.chordStream:
-			m, ok = s.virtualChordHandlers.Load(delegate.Kind)
+			m, ok = s.virtualChordHandlers.Load(int32(delegate.Kind))
 			if ok {
 				// prioritize specific virtual node handler
 				handler, ok = m.Load(delegate.Identity.GetId())
