@@ -42,6 +42,7 @@ import (
 
 var (
 	checkInterval = time.Second * 30
+	rttInterval   = transport.RTTMeasureInterval
 )
 
 const (
@@ -106,8 +107,8 @@ func (c *Client) Initialize(ctx context.Context) error {
 		return err
 	}
 
-	c.Logger.Info("Waiting for RTT measurement...", zap.Duration("max", transport.RTTMeasureInterval))
-	time.Sleep(util.RandomTimeRange(transport.RTTMeasureInterval))
+	c.Logger.Info("Waiting for RTT measurement...", zap.Duration("max", rttInterval))
+	time.Sleep(util.RandomTimeRange(rttInterval))
 
 	c.SyncConfigTunnels(ctx)
 	return nil
@@ -439,12 +440,23 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	c.Logger.Info("Synchronizing tunnels in config file with specter", zap.Int("tunnels", len(tunnels)))
 
+	available, err := c.GetRegisteredHostnames(ctx)
+	if err != nil {
+		c.Logger.Error("Failed to query available hostnames", zap.Error(err))
+		return
+	}
+
+	var name string
 	for i, tunnel := range tunnels {
 		if tunnel.Hostname == "" && tunnel.Target != "" {
-			name, err := c.requestHostname(ctx)
-			if err != nil {
-				c.Logger.Error("Failed to request hostname", zap.String("target", tunnel.Target), zap.Error(err))
-				continue
+			if len(available) > 0 {
+				name, available = available[0], available[1:]
+			} else {
+				name, err = c.requestHostname(ctx)
+				if err != nil {
+					c.Logger.Error("Failed to request new hostname", zap.String("target", tunnel.Target), zap.Error(err))
+					continue
+				}
 			}
 			tunnels[i].Hostname = name
 		}
@@ -703,7 +715,8 @@ func (c *Client) Start(ctx context.Context) {
 			delegation.Close()
 			return
 		}
-		hostname := link.Hostname
+
+		hostname := link.GetHostname()
 		u, ok := c.Configuration.router.Load(hostname)
 		if !ok {
 			c.Logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
@@ -712,9 +725,9 @@ func (c *Client) Start(ctx context.Context) {
 		}
 
 		c.Logger.Info("Incoming connection from gateway",
-			zap.String("protocol", link.Alpn.String()),
-			zap.String("hostname", link.Hostname),
-			zap.String("remote", link.Remote))
+			zap.String("protocol", link.GetAlpn().String()),
+			zap.String("hostname", link.GetHostname()),
+			zap.String("remote", link.GetRemote()))
 
 		switch link.GetAlpn() {
 		case protocol.Link_HTTP:
@@ -743,12 +756,7 @@ func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {
 		if loaded {
 			c.Logger.Info("Shutting down proxy", zap.String("hostname", t.Hostname), zap.String("target", t.Target))
 			proxy.acceptor.Close()
-			go func(forwarder *http.Server) {
-				ctx, cancel := context.WithTimeout(c.parentCtx, connectTimeout)
-				defer cancel()
-
-				forwarder.Shutdown(ctx)
-			}(proxy.forwarder)
+			proxy.forwarder.Close()
 		}
 	}
 }
@@ -891,10 +899,17 @@ func diffTunnels(old, new []Tunnel) []Tunnel {
 		}
 		newMap[n.Hostname] = n
 	}
+	// if new != old
 	for hostname, tunnel := range newMap {
 		oldTunnel, ok := oldMap[hostname]
 		if ok && (oldTunnel.Target != tunnel.Target || oldTunnel.Insecure != tunnel.Insecure) {
 			diff = append(diff, oldTunnel)
+		}
+	}
+	// if old is gone
+	for hostname, tunnel := range oldMap {
+		if _, ok := newMap[hostname]; !ok {
+			diff = append(diff, tunnel)
 		}
 	}
 	return diff

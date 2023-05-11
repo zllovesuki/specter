@@ -87,6 +87,7 @@ func TestAcmeInstruction(t *testing.T) {
 			Content: acmeContent,
 		}, nil)
 
+		defaultNoHostnames(s)
 		transportHelper(t1, der)
 	}
 
@@ -183,6 +184,7 @@ func TestAcmeValidation(t *testing.T) {
 			Apex: testApex,
 		}, nil)
 
+		defaultNoHostnames(s)
 		transportHelper(t1, der)
 	}
 
