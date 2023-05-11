@@ -216,7 +216,7 @@ func setupClient(
 
 	as.NoError(client.Register(ctx))
 
-	as.NoError(client.Initialize(ctx))
+	as.NoError(client.Initialize(ctx, true))
 
 	return client, t2, func() {
 		acc.Close()

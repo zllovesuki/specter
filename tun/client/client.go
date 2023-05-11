@@ -102,7 +102,7 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) Initialize(ctx context.Context) error {
+func (c *Client) Initialize(ctx context.Context, syncTunnels bool) error {
 	if err := c.maintainConnections(ctx); err != nil {
 		return err
 	}
@@ -110,7 +110,9 @@ func (c *Client) Initialize(ctx context.Context) error {
 	c.Logger.Info("Waiting for RTT measurement...", zap.Duration("max", rttInterval))
 	time.Sleep(util.RandomTimeRange(rttInterval))
 
-	c.SyncConfigTunnels(ctx)
+	if syncTunnels {
+		c.SyncConfigTunnels(ctx)
+	}
 	return nil
 }
 
@@ -156,15 +158,15 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 }
 
 func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node) (V, error)) (resp V, err error) {
+	candidates := c.getConnectedNodes(ctx)
 	err = retry.Do(func() error {
 		var (
 			candidate *protocol.Node
 			rpcError  error
 		)
-		c.connections.Range(func(_ string, node *protocol.Node) bool {
-			candidate = node
-			return false
-		})
+		if len(candidates) > 0 {
+			candidate, candidates = candidates[0], candidates[1:]
+		}
 		if candidate == nil {
 			return fmt.Errorf("no rpc candidates available")
 		}
@@ -180,14 +182,38 @@ func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node
 	return
 }
 
-func (c *Client) getConnectedNodes(ctx context.Context) []*protocol.Node {
-	nodes := make([]*protocol.Node, 0)
+func (c *Client) getConnectedNodes(ctx context.Context) (nodes []*protocol.Node) {
 	c.connections.Range(func(_ string, node *protocol.Node) bool {
 		if len(nodes) < tun.NumRedundantLinks {
 			nodes = append(nodes, node)
 		}
 		return true
 	})
+
+	// sort routes based on rtt to different gateways, so hostname/1 and rpc calls
+	// always resolves to the gateway with the lowest rtt to the client
+	rttLookup := make(map[string]time.Duration)
+	for _, n := range nodes {
+		m := c.Recorder.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)
+		if m == nil {
+			continue
+		}
+		rttLookup[rtt.MakeMeasurementKey(n)] = m.Average
+	}
+	sort.SliceStable(nodes, func(i, j int) bool {
+		l, lOK := rttLookup[rtt.MakeMeasurementKey(nodes[i])]
+		r, rOK := rttLookup[rtt.MakeMeasurementKey(nodes[j])]
+		if lOK && !rOK {
+			return true
+		}
+		if !lOK && rOK {
+			return false
+		}
+		return l < r
+	})
+
+	c.Logger.Debug("rtt information", zap.String("table", fmt.Sprint(rttLookup)))
+
 	return nodes
 }
 
@@ -297,14 +323,8 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 	c.Logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
 
 	for _, node := range nodes {
-		err := func() error {
-			if err := c.openRPC(ctx, node); err != nil {
-				return fmt.Errorf("connecting to specter server: %w", err)
-			}
-			return nil
-		}()
-		if err != nil {
-			return err
+		if err := c.openRPC(ctx, node); err != nil {
+			return fmt.Errorf("connecting to specter server: %w", err)
 		}
 	}
 
@@ -479,30 +499,6 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	connected := c.getConnectedNodes(ctx)
 	apex := c.rootDomain.Load()
-
-	// sort routes based on rtt to different gateways, so hostname/1 always resolves to the gateway
-	// with the lowest rtt to the client
-	rttLookup := make(map[string]time.Duration)
-	for _, n := range connected {
-		m := c.Recorder.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)
-		if m == nil {
-			continue
-		}
-		rttLookup[rtt.MakeMeasurementKey(n)] = m.Average
-	}
-	sort.SliceStable(connected, func(i, j int) bool {
-		l, lOK := rttLookup[rtt.MakeMeasurementKey(connected[i])]
-		r, rOK := rttLookup[rtt.MakeMeasurementKey(connected[j])]
-		if lOK && !rOK {
-			return true
-		}
-		if !lOK && rOK {
-			return false
-		}
-		return l < r
-	})
-
-	c.Logger.Debug("rtt information", zap.String("table", fmt.Sprint(rttLookup)))
 
 	for _, tunnel := range tunnels {
 		if tunnel.Hostname == "" {

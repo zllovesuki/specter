@@ -89,7 +89,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		return fmt.Errorf("failed to register client: %w", err)
 	}
 
-	if err := c.Initialize(ctx.Context); err != nil {
+	if err := c.Initialize(ctx.Context, true); err != nil {
 		return fmt.Errorf("failed to initialize client: %w", err)
 	}
 
