@@ -58,8 +58,7 @@ func TestAcmeInstruction(t *testing.T) {
 		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
-				Hostname: testHostname,
-				Target:   "tcp://127.0.0.1:2345",
+				Target: "tcp://127.0.0.1:2345",
 			},
 		},
 	}
@@ -156,8 +155,7 @@ func TestAcmeValidation(t *testing.T) {
 		PrivKey:     key,
 		Tunnels: []Tunnel{
 			{
-				Hostname: testHostname,
-				Target:   "tcp://127.0.0.1:2345",
+				Target: "tcp://127.0.0.1:2345",
 			},
 		},
 	}

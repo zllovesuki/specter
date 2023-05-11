@@ -440,15 +440,29 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 
 	c.Logger.Info("Synchronizing tunnels in config file with specter", zap.Int("tunnels", len(tunnels)))
 
-	available, err := c.GetRegisteredHostnames(ctx)
+	// reuse already assigned hostnames if possible
+	registered, err := c.GetRegisteredHostnames(ctx)
 	if err != nil {
 		c.Logger.Error("Failed to query available hostnames", zap.Error(err))
 		return
 	}
+	// while we want to reuse hostnames, we want to reuse auto-generated hostnames only
+	// so we don't accidentally point, say, pointing bastion.customdomain.com to MySQL
+	available := make([]string, 0)
+	for _, hostname := range registered {
+		if strings.Contains(hostname, ".") {
+			continue
+		}
+		available = append(available, hostname)
+	}
 
+	// now assign a hostname to a target if they don't have one, either a new hostname or reused
 	var name string
 	for i, tunnel := range tunnels {
-		if tunnel.Hostname == "" && tunnel.Target != "" {
+		if tunnel.Target == "" {
+			continue
+		}
+		if tunnel.Hostname == "" {
 			if len(available) > 0 {
 				name, available = available[0], available[1:]
 			} else {
@@ -460,11 +474,14 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 			}
 			tunnels[i].Hostname = name
 		}
+		// TODO: assert that the hostname was assigned
 	}
 
 	connected := c.getConnectedNodes(ctx)
 	apex := c.rootDomain.Load()
 
+	// sort routes based on rtt to different gateways, so hostname/1 always resolves to the gateway
+	// with the lowest rtt to the client
 	rttLookup := make(map[string]time.Duration)
 	for _, n := range connected {
 		m := c.Recorder.Snapshot(rtt.MakeMeasurementKey(n), time.Second*10)

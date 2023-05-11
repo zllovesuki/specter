@@ -101,13 +101,16 @@ func TestPublishHostnameReuse(t *testing.T) {
 			{
 				Target: "tcp://127.0.0.1:2345",
 			},
+			{
+				Target: "https://example.com",
+			},
 		},
 	}
 	as.NoError(cfg.validate())
 
 	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
 		resp := &protocol.RegisteredHostnamesResponse{
-			Hostnames: []string{testHostname},
+			Hostnames: []string{testHostname, "bastion.example.com"},
 		}
 		s.On("RegisteredHostnames", mock.Anything, mock.Anything).Return(resp, nil)
 		transportHelper(t1, der)
@@ -117,6 +120,7 @@ func TestPublishHostnameReuse(t *testing.T) {
 	defer assertion()
 	defer client.Close()
 
+	// assert that we are not reusing the custom domain
 	for _, tunnel := range client.Configuration.Tunnels {
 		as.Equal(testHostname, tunnel.Hostname)
 	}
