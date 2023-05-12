@@ -1,0 +1,10 @@
+version: '3.9'
+
+services:
+  letsencrypt_pebble:
+    extends:
+      file: compose-pebble.common.yaml
+      service: pebble_common
+    ports:
+      - 14001:14000  # ACME port
+      - 15001:15000  # Management port

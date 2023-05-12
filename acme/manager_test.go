@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -20,7 +19,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/testcond"
 
-	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -30,54 +28,25 @@ var (
 	basepath   = filepath.Dir(b)
 )
 
-func TestACME(t *testing.T) {
-	if os.Getenv("GO_RUN_ACME") == "" {
+const (
+	devAcme = "https://localhost:14001/dir"
+)
+
+func TestIntegrationACME(t *testing.T) {
+	if os.Getenv("GO_INTEGRATION_ACME") == "" {
 		t.Skip("skipping integration tests")
 	}
 
 	as := require.New(t)
 	logger := zaptest.NewLogger(t)
 
-	pool, err := dockertest.NewPool("")
-	as.NoError(err)
-
-	err = pool.Client.Ping()
-	as.NoError(err)
-
-	// setup acme
-
 	devPath := path.Join(basepath, "..", "dev", "pebble")
-
 	devCa, err := os.ReadFile(path.Join(devPath, "certs", "cert.pem"))
 	as.NoError(err)
 	devTrustedRoots := x509.NewCertPool()
 	devTrustedRoots.AppendCertsFromPEM(devCa)
 
-	pebble, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "letsencrypt/pebble",
-		Tag:        "latest",
-		Env: []string{
-			"PEBBLE_VA_NOSLEEP=1",
-			"PEBBLE_VA_ALWAYS_VALID=1",
-		},
-		Mounts: []string{
-			devPath + ":/pebble:ro",
-		},
-		Cmd: []string{
-			"pebble",
-			"-config",
-			"/pebble/config.json",
-		},
-	})
-	as.NoError(err)
-
-	t.Cleanup(func() {
-		pool.Purge(pebble)
-	})
-
-	pebblePort := pebble.GetPort("14000/tcp")
-
-	pool.Retry(func() error {
+	testcond.WaitForCondition(func() bool {
 		tp := http.DefaultTransport.(*http.Transport).Clone()
 		tp.TLSClientConfig = &tls.Config{
 			RootCAs: devTrustedRoots,
@@ -85,19 +54,16 @@ func TestACME(t *testing.T) {
 		client := &http.Client{
 			Transport: tp,
 		}
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://localhost:%s/dir", pebblePort), nil)
+		req, err := http.NewRequest("GET", devAcme, nil)
 		if err != nil {
-			return err
+			return false
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			return err
+			return false
 		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("not ready")
-		}
-		return nil
-	})
+		return resp.StatusCode == http.StatusOK
+	}, time.Second, time.Second*15)
 
 	// test manager
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,7 +82,7 @@ func TestACME(t *testing.T) {
 		Email:            testEmail,
 		DNSSolver:        solver,
 		ManagedDomains:   []string{testManagedDomain},
-		CA:               fmt.Sprintf("https://localhost:%s/dir", pebblePort),
+		CA:               devAcme,
 		testTrustedRoots: devTrustedRoots,
 	})
 	as.NoError(err)

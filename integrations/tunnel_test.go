@@ -75,8 +75,8 @@ func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
 	}, observedLogs
 }
 
-func TestTunnel(t *testing.T) {
-	if os.Getenv("GO_RUN_INTEGRATION") == "" {
+func TestIntegrationTunnel(t *testing.T) {
+	if os.Getenv("GO_INTEGRATION_TUNNEL") == "" {
 		t.Skip("skipping integration tests")
 	}
 

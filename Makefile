@@ -137,14 +137,13 @@ vet:
 
 full_test: test extended_test long_test concurrency_test
 
+integration_test: certs integration_dep_up run_integration integration_dep_down
+
+coverage: integration_dep_up run_coverage integration_dep_down
+
 test:
 	go test -short -cover -count=1 -timeout 60s ./...
 	go test -short -race -cover -count=1 -timeout 60s ./...
-
-coverage:
-	go test -short -race -coverprofile cover.out ./...
-	go tool cover -func cover.out
-	-rm cover.out
 
 extended_test:
 	go test -short -race -count=$(COUNT) -timeout 300s ./...
@@ -156,9 +155,17 @@ concurrency_test:
 	go test -timeout $(TIMEOUT) -run ^TestConcurrentJoin -race -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
 	go test -timeout $(TIMEOUT) -run ^TestConcurrentLeave -race -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
 
-integration_test: certs
-	GO_RUN_INTEGRATION=1 go test -timeout 30s -race -v -count=1 ./integrations/...
-	GO_RUN_ACME=1 go test -timeout 30s -race -v -count=1 -run ^TestACME ./acme/...
+run_coverage:
+	GO_INTEGRATION_ACME=1 go test -timeout $(TIMEOUT) -coverprofile=cover.out -covermode=count ./...
+
+run_integration:
+	GO_INTEGRATION_ACME=1 GO_INTEGRATION_TUNNEL=1 go test -timeout $(TIMEOUT) -race -v -count=1 -run ^TestIntegration ./...
+
+integration_dep_up:
+	docker compose -f compose-integration.yaml up -d
+
+integration_dep_down:
+	docker compose -f compose-integration.yaml down
 
 clean:
 	-rm bin/*

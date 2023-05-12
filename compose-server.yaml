@@ -12,18 +12,14 @@ version: '3.9'
 services:
   # simulate let's encrypt acme
   pebble:
-    image: letsencrypt/pebble
-    command: pebble -config /pebble/config.json
+    extends:
+      file: compose-pebble.common.yaml
+      service: pebble_common
     ports:
       - 14000:14000  # ACME port
       - 15000:15000  # Management port
-    environment:
-      - PEBBLE_VA_NOSLEEP=1
-      - PEBBLE_VA_ALWAYS_VALID=1
     networks:
       - specter
-    volumes:
-      - ./dev/pebble:/pebble:ro
 
   dns:
     image: specter

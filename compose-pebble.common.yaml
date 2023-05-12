@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  pebble_common:
+    image: letsencrypt/pebble
+    command: pebble -config /pebble/config.json
+    environment:
+      - PEBBLE_VA_NOSLEEP=1
+      - PEBBLE_VA_ALWAYS_VALID=1
+    volumes:
+      - ./dev/pebble:/pebble:ro

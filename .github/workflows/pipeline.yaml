@@ -33,7 +33,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Test with Coverage and Race Detector
+      - name: Quick Test with Race Detector
         run: go test -v -short -race -timeout 120s ./...
   integration:
     name: Run Integration Tests
@@ -43,6 +43,7 @@ jobs:
         image: docker:23.0.6-dind-rootless
         ports:
           - 2375:2375
+    needs: [testing]
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v3
@@ -63,13 +64,12 @@ jobs:
   coverage:
     name: Update Code Coverage
     runs-on: ubuntu-latest
-    env:
-      GO_RUN_ACME: "1"
     services:
       dind:
         image: docker:23.0.6-dind-rootless
         ports:
           - 2375:2375
+    needs: [testing]
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v3
@@ -86,7 +86,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Generate Test Coverage Using Full Test Suite
-        run: go test -timeout 600s -coverprofile=cover.out -covermode=count ./...
+        run: make coverage TIMEOUT=600s
       - name: Calculate Coverage
         run: |
           set -x
@@ -112,13 +112,12 @@ jobs:
   full:
     name: Run Full Test Suite
     runs-on: ubuntu-latest
-    env:
-      GO_RUN_ACME: "1"
     services:
       dind:
         image: docker:23.0.6-dind-rootless
         ports:
           - 2375:2375
+    needs: [testing, integration]
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v3
