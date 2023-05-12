@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -25,6 +26,9 @@ type ManagerConfig struct {
 	ManagedDomains []string
 	CA             string
 	Email          string
+
+	// used when testing
+	testTrustedRoots *x509.CertPool
 }
 
 type Manager struct {
@@ -66,6 +70,7 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 		DNS01Solver:             cfg.DNSSolver,
 		DisableHTTPChallenge:    true,
 		DisableTLSALPNChallenge: true,
+		TrustedRoots:            cfg.testTrustedRoots,
 	})
 	managedConfig.Issuers = []certmagic.Issuer{managedIssuer}
 
@@ -85,6 +90,7 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 		DNS01Solver:             cfg.DNSSolver,
 		DisableHTTPChallenge:    true,
 		DisableTLSALPNChallenge: true,
+		TrustedRoots:            cfg.testTrustedRoots,
 	})
 	dynamicConfig.Issuers = []certmagic.Issuer{dynamicIssuer}
 

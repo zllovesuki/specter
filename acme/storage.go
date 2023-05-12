@@ -102,13 +102,13 @@ func (c *ChordStorage) renewLease(key string, l *leaseHolder) {
 }
 
 func (c *ChordStorage) Unlock(ctx context.Context, key string) error {
-	// c.Logger.Debug("Unlock invoked", zap.String("key", key))
 	lease, ok := c.leaseToken.LoadAndDelete(key)
 	if !ok {
 		return fmt.Errorf("not a lease holder of key %s", key)
 	}
 	lease.cancelFn()
 	lease.Wait()
+	c.Logger.Debug("Lease released", zap.String("key", key))
 	_, err := retrier(ctx, c.retryInterval, func() (any, error) {
 		return nil, c.KV.Release(ctx, []byte(kvKeyName(key)), atomic.LoadUint64(&lease.token))
 	})
