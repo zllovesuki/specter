@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/TheZeroSlave/zapsentry v1.15.0
+	github.com/VictoriaMetrics/metrics v1.23.1
 	github.com/Yiling-J/theine-go v0.2.5
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 	github.com/avast/retry-go/v4 v4.3.4
@@ -65,6 +66,8 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/tinylru v1.2.1 // indirect
+	github.com/valyala/fastrand v1.1.0 // indirect
+	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

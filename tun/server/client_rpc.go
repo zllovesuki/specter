@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/metrics"
 	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/pki"
@@ -67,6 +68,7 @@ func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context 
 func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) {
 	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
 		RequestRouted: s.verifyClientIdentity,
+		ResponseSent:  metrics.FinishRPC,
 		Error:         s.logError,
 	}))
 
@@ -75,6 +77,8 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 	rpcHandler.Use(httprate.LimitByIP(10, time.Second))
 	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
 	rpcHandler.Mount(tunTwirp.PathPrefix(), tunTwirp)
+
+	metrics.RegisterService(tunTwirp)
 
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
@@ -97,10 +101,12 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 }
 
 func (s *Server) verifyClientIdentity(ctx context.Context) (context.Context, error) {
+	ctx = metrics.BeginRPC(ctx)
+
 	method, _ := twirp.MethodName(ctx)
 	delegation := rpc.GetDelegation(ctx)
 	if delegation == nil {
-		return nil, twirp.Internal.Error("delegation missing in context")
+		return ctx, twirp.Internal.Error("delegation missing in context")
 	}
 
 	switch method {

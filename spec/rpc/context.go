@@ -18,13 +18,10 @@ const (
 type rpcContextKey string
 
 const (
-	contextNodeKey           = rpcContextKey("dial-node")         // *protocol.Node to connect
-	contextRPCContextKey     = rpcContextKey("rpc-context")       // *protocol.Context of the rpc request
-	contextAuthorizationKey  = rpcContextKey("auth-header")       // "Authorization" header from client rpc request
-	contextClientTokenKey    = rpcContextKey("client-token")      // *protocol.ClientToken from client or parsed from the header
-	contextClientIdentityKey = rpcContextKey("client-identity")   // *protocol.Node of client as matched with delegation and token
-	contextDelegationKey     = rpcContextKey("stream-delegation") // *transport.StreamDelegation of the rpc request
-	contextDisablePoolKey    = rpcContextKey("disable-http-pool") // disable HTTP client pooling. Used in test to avoid lingering connections
+	contextNodeKey        = rpcContextKey("dial-node")         // *protocol.Node to connect
+	contextRPCContextKey  = rpcContextKey("rpc-context")       // *protocol.Context of the rpc request
+	contextDelegationKey  = rpcContextKey("stream-delegation") // *transport.StreamDelegation of the rpc request
+	contextDisablePoolKey = rpcContextKey("disable-http-pool") // disable HTTP client pooling. Used in test to avoid lingering connections
 )
 
 // Disable HTTP client pool for this client

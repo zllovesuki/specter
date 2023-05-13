@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 
+	"kon.nect.sh/specter/metrics"
 	"kon.nect.sh/specter/spec/chord"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
@@ -49,7 +50,7 @@ func (n *LocalNode) logError(ctx context.Context, err twirp.Error) context.Conte
 func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Context) (context.Context, error) {
 	return func(ctx context.Context) (context.Context, error) {
 		rate.Increment()
-		return ctx, nil
+		return metrics.BeginRPC(ctx), nil
 	}
 }
 
@@ -64,6 +65,7 @@ func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
 		r,
 		twirp.WithServerHooks(&twirp.ServerHooks{
 			RequestReceived: n.getIncrementor(n.chordRate),
+			ResponseSent:    metrics.FinishRPC,
 			Error:           n.logError,
 		}),
 	)
@@ -71,6 +73,7 @@ func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
 		r,
 		twirp.WithServerHooks(&twirp.ServerHooks{
 			RequestReceived: n.getIncrementor(n.kvRate),
+			ResponseSent:    metrics.FinishRPC,
 			Error:           n.logError,
 		}),
 	)
@@ -79,6 +82,9 @@ func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
 	rpcHandler.Use(middleware.Recoverer)
 	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractContext(nsTwirp))
 	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractContext(ksTwirp))
+
+	metrics.RegisterService(nsTwirp)
+	metrics.RegisterService(ksTwirp)
 
 	return rpcHandler
 }

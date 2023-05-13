@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"kon.nect.sh/specter/metrics"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/util"
 
@@ -80,6 +81,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		if a.handlers.ClientsQuery != nil {
 			r.Mount("/clients", a.handlers.ClientsQuery)
 		}
+		r.HandleFunc("/metrics", metrics.MetricsHandler)
 		r.Handle("/migrator", a.handlers.MigrationHandler)
 		r.Mount("/debug", middleware.Profiler())
 
