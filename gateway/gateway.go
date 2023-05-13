@@ -86,7 +86,13 @@ func New(conf GatewayConfig) *Gateway {
 	filteredLogger := zap.New(zapfilter.NewFilteringCore(
 		g.Logger.Core(),
 		func(e zapcore.Entry, f []zapcore.Field) bool {
-			return !strings.HasPrefix(e.Message, "http: URL query contains semicolon")
+			if strings.HasPrefix(e.Message, "http: URL query contains semicolon") {
+				return false
+			}
+			if strings.HasPrefix(e.Message, "suppressing panic for copyResponse error in test;") {
+				return false
+			}
+			return true
 		}),
 	)
 	proxyHandler := g.proxyHandler(util.GetStdLogger(filteredLogger, "httpProxy"))
