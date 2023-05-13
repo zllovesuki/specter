@@ -190,6 +190,11 @@ func (c *Client) getConnectedNodes(ctx context.Context) (nodes []*protocol.Node)
 		return true
 	})
 
+	// fast path exit if we don't have rtt enabled
+	if c.Recorder == nil {
+		return
+	}
+
 	// sort routes based on rtt to different gateways, so hostname/1 and rpc calls
 	// always resolves to the gateway with the lowest rtt to the client
 	rttLookup := make(map[string]time.Duration)
