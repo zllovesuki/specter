@@ -555,9 +555,19 @@ func cmdServer(ctx *cli.Context) error {
 	})
 	defer tunnelTransport.Stop()
 
-	streamRouter := transport.NewStreamRouter(logger.With(zapsentry.NewScope()).With(zap.String("component", "router")), chordTransport, tunnelTransport)
-
+	var existingNode chord.VNode
 	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
+	if ctx.IsSet("join") {
+		existingNode, err = chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, &protocol.Node{
+			Unknown: true,
+			Address: ctx.String("join"),
+		})
+		if err != nil {
+			return fmt.Errorf("error connecting existing chord node: %w", err)
+		}
+	}
+
+	streamRouter := transport.NewStreamRouter(logger.With(zapsentry.NewScope()).With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	virtualNodes := make([]*chordImpl.LocalNode, 0)
 
 	k := ctx.Int("virtual")
@@ -609,14 +619,7 @@ func cmdServer(ctx *cli.Context) error {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
 	} else {
-		p, err := chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, &protocol.Node{
-			Unknown: true,
-			Address: ctx.String("join"),
-		})
-		if err != nil {
-			return fmt.Errorf("error connecting existing chord node: %w", err)
-		}
-		if err := rootNode.Join(p); err != nil {
+		if err := rootNode.Join(existingNode); err != nil {
 			return fmt.Errorf("error joining root node to existing chord ring: %w", err)
 		}
 	}
