@@ -247,11 +247,12 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 		return nil, twirp.InvalidArgument.Error("no servers specified in request")
 	}
 
-	lease, err := s.Chord.Acquire(ctx, []byte(tun.ClientLeaseKey(token)), time.Second*30)
+	leaseKey := tun.ClientLeaseKey(token)
+	lease, err := s.Chord.Acquire(ctx, []byte(leaseKey), time.Second*30)
 	if err != nil {
-		return nil, twirp.Internal.Errorf("error acquiring lease for publishing tunnel: %w", err)
+		return nil, rpc.WrapErrorKV(leaseKey, err)
 	}
-	defer s.Chord.Release(ctx, []byte(tun.ClientLeaseKey(token)), lease)
+	defer s.Chord.Release(ctx, []byte(leaseKey), lease)
 
 	hostname := req.GetHostname()
 	prefix := tun.ClientHostnamesPrefix(token)
