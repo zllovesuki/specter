@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"kon.nect.sh/specter/spec/acme"
 	"kon.nect.sh/specter/tun/client"
 	"kon.nect.sh/specter/tun/client/dialer"
 
@@ -27,6 +28,11 @@ func cmdAcme(ctx *cli.Context) error {
 	}
 
 	parsed, err := dialer.ParseApex(cfg.Apex)
+	if err != nil {
+		return err
+	}
+
+	hostname, err = acme.Normalize(hostname)
 	if err != nil {
 		return err
 	}

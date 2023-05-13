@@ -583,8 +583,8 @@ func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
 
 func (c *Client) obtainAcmeProof(hostname string) (*protocol.ProofOfWork, error) {
 	c.configMu.RLock()
-	defer c.configMu.RUnlock()
 	privKey, err := pki.UnmarshalPrivateKey([]byte(c.Configuration.PrivKey))
+	c.configMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
