@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net"
+	"sort"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -12,8 +14,10 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
+	"kon.nect.sh/specter/util/promise"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
 
 // Gateway procedure:
@@ -28,6 +32,7 @@ import (
 
 type Config struct {
 	Logger          *zap.Logger
+	ParentContext   context.Context
 	Chord           chord.VNode
 	TunnelTransport transport.Transport
 	ChordTransport  transport.Transport
@@ -38,6 +43,7 @@ type Config struct {
 
 type Server struct {
 	rpcAcceptor *acceptor.HTTP2Acceptor
+	lookupGroup singleflight.Group
 	Config
 }
 
@@ -90,6 +96,15 @@ func (s *Server) MustRegister(ctx context.Context) {
 	s.Logger.Info("specter server started")
 }
 
+func (s *Server) Stop() {
+	s.rpcAcceptor.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	s.unpublishDestinations(ctx)
+}
+
 func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.StreamDelegate) {
 	var err error
 	var clientConn net.Conn
@@ -140,7 +155,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.
 		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
 
-	if route.GetTunnelDestination().String() == s.TunnelTransport.Identity().String() {
+	if route.GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress() {
 		l.Debug("client is connected to us, opening direct stream")
 
 		return s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
@@ -185,59 +200,119 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 // TODO: make routing selection more intelligent with rtt
 func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	var (
-		isNoDirect = false
-		numLookup  = 0
-		numError   = 0
+		isNoRoute  bool
+		clientConn net.Conn
+		connError  error
 	)
-	for k := 1; k <= tun.NumRedundantLinks; k++ {
-		key := tun.RoutingKey(link.GetHostname(), k)
-		numLookup++
-		val, err := s.Chord.Get(ctx, []byte(key))
-		if err != nil {
-			numError++
-			continue
-		}
-		if len(val) == 0 {
-			continue
-		}
-		route := &protocol.TunnelRoute{}
-		if err := route.UnmarshalVT(val); err != nil {
-			continue
-		}
-		clientConn, err := s.getConn(ctx, route)
-		if err != nil {
-			if tun.IsNoDirect(err) {
-				isNoDirect = true
+
+	routes, err := s.lookupRoutes(link)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, route := range routes {
+		clientConn, connError = s.getConn(ctx, route)
+		if connError != nil {
+			if tun.IsNoDirect(connError) {
+				isNoRoute = true
 			} else {
-				s.Logger.Error("getting connection to client", zap.String("key", key), zap.Error(err))
+				s.Logger.Error("Failed to establish connection to client",
+					zap.String("hostname", link.GetHostname()),
+					zap.Object("chord", route.GetChordDestination()),
+					zap.Object("tunnel", route.GetTunnelDestination()),
+					zap.Object("client", route.GetClientDestination()),
+					zap.Error(connError),
+				)
 			}
 			continue
 		}
-		if err := rpc.Send(clientConn, link); err != nil {
-			s.Logger.Error("sending link information to client", zap.Error(err))
+
+		connError = rpc.Send(clientConn, link)
+		if connError != nil {
+			s.Logger.Error("Failed to send link information to client",
+				zap.String("hostname", link.GetHostname()),
+				zap.Object("chord", route.GetChordDestination()),
+				zap.Object("tunnel", route.GetTunnelDestination()),
+				zap.Object("client", route.GetClientDestination()),
+				zap.Error(connError),
+			)
 			clientConn.Close()
 			continue
 		}
-		// TODO: optionally cache the routing information
+
 		return clientConn, nil
 	}
 
-	if isNoDirect {
+	if isNoRoute {
 		return nil, tun.ErrTunnelClientNotConnected
 	}
 
-	if numLookup == numError {
-		return nil, tun.ErrLookupFailed
-	}
-
-	return nil, tun.ErrDestinationNotFound
+	return nil, tun.ErrDestinationNotFound // fallback to not found
 }
 
-func (s *Server) Stop() {
-	s.rpcAcceptor.Close()
+func (s *Server) lookupRoutes(link *protocol.Link) ([]*protocol.TunnelRoute, error) {
+	routes, err, _ := s.lookupGroup.Do(link.GetHostname(), func() (interface{}, error) {
+		var (
+			numNotFound = 0
+			numError    = 0
+			numLookup   = tun.NumRedundantLinks
+			lookupJobs  = make([]func(context.Context) (*protocol.TunnelRoute, error), tun.NumRedundantLinks)
+		)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
+		for i := range lookupJobs {
+			k := i + 1
+			lookupJobs[i] = func(ctx context.Context) (*protocol.TunnelRoute, error) {
+				key := tun.RoutingKey(link.GetHostname(), k)
+				val, err := s.Chord.Get(ctx, []byte(key))
+				if err != nil {
+					return nil, err
+				}
+				if len(val) == 0 {
+					return nil, fs.ErrNotExist
+				}
+				route := &protocol.TunnelRoute{}
+				if err := route.UnmarshalVT(val); err != nil {
+					return nil, err
+				}
+				return route, nil
+			}
+		}
 
-	s.unpublishDestinations(ctx)
+		// use the parent context so a prior cancelled context from DialClient won't
+		// affect lookups that come later
+		lookupCtx, lookupCancel := context.WithTimeout(s.ParentContext, lookupTimeout)
+		defer lookupCancel()
+
+		routes, errors := promise.All(lookupCtx, lookupJobs...)
+		for _, err := range errors {
+			switch err {
+			case nil:
+			case fs.ErrNotExist:
+				numNotFound++
+			default:
+				numError++
+			}
+		}
+
+		if numLookup == numNotFound {
+			return nil, tun.ErrDestinationNotFound
+		}
+
+		if numLookup == numError {
+			return nil, tun.ErrLookupFailed
+		}
+
+		// prioritize directly connected route
+		sort.SliceStable(routes, func(i, j int) bool {
+			return routes[i].GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
+		})
+
+		return routes, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return routes.([]*protocol.TunnelRoute), nil
 }

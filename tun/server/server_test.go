@@ -52,6 +52,7 @@ func getFixture(t *testing.T, as *require.Assertions, options ...configOption) (
 	clt := new(mocks.Transport)
 
 	cfg := Config{
+		ParentContext:   context.Background(),
 		Logger:          logger,
 		Chord:           n,
 		TunnelTransport: clt,
