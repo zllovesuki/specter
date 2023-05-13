@@ -48,8 +48,8 @@ tunnels:
 )
 
 var (
-	serverPorts     = []int{21948, 21949, 21950}
-	serverHttpPorts = []int{21848, 21849, 21850}
+	serverPorts     = []int{21948, 21949, 21950, 21951, 21952}
+	serverHttpPorts = []int{21848, 21849, 21850, 21851, 21852}
 )
 
 type TestWsMsg struct {
