@@ -77,7 +77,7 @@ func ConfigLogger(ctx *cli.Context) error {
 	ctx.App.Metadata["logger"] = logger
 
 	seed := ctx.Int64("rand")
-	logger.Info("specter: seeding math/rand", zap.Int64("rand", seed), zap.Bool("overridden", ctx.IsSet("rand")))
+	logger.Debug("specter: seeding math/rand", zap.Int64("rand", seed), zap.Bool("overridden", ctx.IsSet("rand")))
 	rand.Seed(seed)
 
 	return ConfigApp(ctx)
@@ -86,10 +86,10 @@ func ConfigLogger(ctx *cli.Context) error {
 func ConfigApp(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
 	if errata.ConfigDNS(ctx.Bool("doh")) {
-		logger.Info("errata: net.DefaultResolver configured with DoH dialer")
+		logger.Debug("errata: net.DefaultResolver configured with DoH dialer")
 	}
 	if errata.ConfigUDPBuffer() {
-		logger.Info("errata: net.core.rmem_max is set to 2500000")
+		logger.Debug("errata: net.core.rmem_max is set to 2500000")
 	}
 	return nil
 }
