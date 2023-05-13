@@ -3,9 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"net"
-	"sort"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -14,10 +12,9 @@ import (
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/promise"
 
+	"github.com/Yiling-J/theine-go"
 	"go.uber.org/zap"
-	"golang.org/x/sync/singleflight"
 )
 
 // Gateway procedure:
@@ -43,7 +40,7 @@ type Config struct {
 
 type Server struct {
 	rpcAcceptor *acceptor.HTTP2Acceptor
-	lookupGroup singleflight.Group
+	routeCache  *theine.LoadingCache[string, routesResult]
 	Config
 }
 
@@ -51,10 +48,12 @@ var _ tun.Server = (*Server)(nil)
 var _ protocol.TunnelService = (*Server)(nil)
 
 func New(cfg Config) *Server {
-	return &Server{
+	s := &Server{
 		Config:      cfg,
 		rpcAcceptor: acceptor.NewH2Acceptor(nil),
 	}
+	s.initRouteCache()
+	return s
 }
 
 func (s *Server) Identity() *protocol.Node {
@@ -97,6 +96,8 @@ func (s *Server) MustRegister(ctx context.Context) {
 }
 
 func (s *Server) Stop() {
+	defer s.routeCache.Close()
+
 	s.rpcAcceptor.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -197,7 +198,6 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 	return s.ChordTransport.DialStream(ctx, node, protocol.Stream_INTERNAL)
 }
 
-// TODO: make routing selection more intelligent with rtt
 func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	var (
 		isNoRoute  bool
@@ -205,12 +205,15 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 		connError  error
 	)
 
-	routes, err := s.lookupRoutes(link)
+	ret, err := s.routeCache.Get(s.ParentContext, link.GetHostname())
+	if ret.err != nil {
+		return nil, ret.err
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	for _, route := range routes {
+	for _, route := range ret.routes {
 		clientConn, connError = s.getConn(ctx, route)
 		if connError != nil {
 			if tun.IsNoDirect(connError) {
@@ -248,71 +251,4 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 	}
 
 	return nil, tun.ErrDestinationNotFound // fallback to not found
-}
-
-func (s *Server) lookupRoutes(link *protocol.Link) ([]*protocol.TunnelRoute, error) {
-	routes, err, _ := s.lookupGroup.Do(link.GetHostname(), func() (interface{}, error) {
-		var (
-			numNotFound = 0
-			numError    = 0
-			numLookup   = tun.NumRedundantLinks
-			lookupJobs  = make([]func(context.Context) (*protocol.TunnelRoute, error), tun.NumRedundantLinks)
-		)
-
-		for i := range lookupJobs {
-			k := i + 1
-			lookupJobs[i] = func(ctx context.Context) (*protocol.TunnelRoute, error) {
-				key := tun.RoutingKey(link.GetHostname(), k)
-				val, err := s.Chord.Get(ctx, []byte(key))
-				if err != nil {
-					return nil, err
-				}
-				if len(val) == 0 {
-					return nil, fs.ErrNotExist
-				}
-				route := &protocol.TunnelRoute{}
-				if err := route.UnmarshalVT(val); err != nil {
-					return nil, err
-				}
-				return route, nil
-			}
-		}
-
-		// use the parent context so a prior cancelled context from DialClient won't
-		// affect lookups that come later
-		lookupCtx, lookupCancel := context.WithTimeout(s.ParentContext, lookupTimeout)
-		defer lookupCancel()
-
-		routes, errors := promise.All(lookupCtx, lookupJobs...)
-		for _, err := range errors {
-			switch err {
-			case nil:
-			case fs.ErrNotExist:
-				numNotFound++
-			default:
-				numError++
-			}
-		}
-
-		if numLookup == numNotFound {
-			return nil, tun.ErrDestinationNotFound
-		}
-
-		if numLookup == numError {
-			return nil, tun.ErrLookupFailed
-		}
-
-		// prioritize directly connected route
-		sort.SliceStable(routes, func(i, j int) bool {
-			return routes[i].GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
-		})
-
-		return routes, nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return routes.([]*protocol.TunnelRoute), nil
 }

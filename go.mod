@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/TheZeroSlave/zapsentry v1.15.0
+	github.com/Yiling-J/theine-go v0.2.5
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/dominikbraun/graph v0.20.0
@@ -32,7 +33,6 @@ require (
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	golang.org/x/net v0.10.0
-	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.8.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -44,6 +44,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/pprof v0.0.0-20230131232505-5a9e8f65f08f // indirect
