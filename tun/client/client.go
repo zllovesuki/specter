@@ -466,11 +466,19 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		c.Logger.Error("Failed to query available hostnames", zap.Error(err))
 		return
 	}
-	// while we want to reuse hostnames, we want to reuse auto-generated hostnames only
-	// so we don't accidentally point, say, pointing bastion.customdomain.com to MySQL
 	available := make([]string, 0)
+	inused := make(map[string]string)
+	for _, t := range tunnels {
+		inused[t.Hostname] = t.Target
+	}
 	for _, hostname := range registered {
+		// while we want to reuse hostnames, we want to reuse auto-generated hostnames only
+		// so we don't accidentally point, say, pointing bastion.customdomain.com to MySQL
 		if strings.Contains(hostname, ".") {
+			continue
+		}
+		// filter out hostnames currently in used
+		if _, ok := inused[hostname]; ok {
 			continue
 		}
 		available = append(available, hostname)
