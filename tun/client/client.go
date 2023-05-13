@@ -8,11 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -31,7 +27,6 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/pipe"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/zeebo/xxh3"
@@ -791,114 +786,6 @@ func (c *Client) Close() {
 	})
 	close(c.closeCh)
 	c.closeWg.Wait()
-}
-
-func (c *Client) forwardStream(ctx context.Context, hostname string, remote net.Conn, r route) {
-	var (
-		u      *url.URL = r.parsed
-		target string
-		local  net.Conn
-		err    error
-	)
-	logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
-	switch u.Scheme {
-	case "tcp":
-		dialer := &net.Dialer{
-			Timeout: time.Second * 3,
-		}
-		target = u.Host
-		local, err = dialer.DialContext(ctx, "tcp", u.Host)
-	case "unix", "winio":
-		target = u.Path
-		local, err = pipe.DialPipe(ctx, u.Path)
-	default:
-		err = fmt.Errorf("unknown scheme: %s", u.Scheme)
-	}
-	if err != nil {
-		logger.Error("Error dialing to target", zap.String("target", target), zap.Error(err))
-		tun.SendStatusProto(remote, err)
-		remote.Close()
-		return
-	}
-	tun.SendStatusProto(remote, nil)
-	tun.Pipe(remote, local)
-}
-
-func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *httpProxy {
-	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
-		var (
-			u      *url.URL = r.parsed
-			isPipe          = false
-		)
-
-		logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
-		logger.Info("Creating new proxy")
-
-		tp := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				ServerName:         u.Host,
-				InsecureSkipVerify: r.insecure,
-			},
-			MaxIdleConns:          10,
-			IdleConnTimeout:       time.Second * 30,
-			ResponseHeaderTimeout: connectTimeout,
-			ForceAttemptHTTP2:     true,
-		}
-		switch u.Scheme {
-		case "unix", "winio":
-			isPipe = true
-			tp.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return pipe.DialPipe(ctx, u.Path)
-			}
-		}
-
-		proxy := httputil.NewSingleHostReverseProxy(u)
-		d := proxy.Director
-		// https://stackoverflow.com/a/53007606
-		// need to overwrite Host field
-		proxy.Director = func(r *http.Request) {
-			d(r)
-			if isPipe {
-				r.Host = "pipe"
-				r.URL.Host = "pipe"
-				r.URL.Scheme = "http"
-				r.URL.Path = strings.ReplaceAll(r.URL.Path, u.Path, "")
-			} else {
-				r.Host = u.Host
-			}
-		}
-		proxy.Transport = tp
-		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
-			if errors.Is(e, context.Canceled) ||
-				errors.Is(e, io.EOF) {
-				// this is expected
-				return
-			}
-			logger.Error("Error forwarding http/https request", zap.Error(e))
-			rw.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
-		}
-		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
-		proxy.BufferPool = util.NewBufferPool(1024 * 8)
-
-		return &httpProxy{
-			acceptor: acceptor.NewH2Acceptor(nil),
-			forwarder: &http.Server{
-				Handler:           proxy,
-				ErrorLog:          zap.NewStdLog(c.Logger),
-				ReadHeaderTimeout: time.Second * 15,
-			},
-		}
-	})
-	if !loaded {
-		go proxy.forwarder.Serve(proxy.acceptor)
-	}
-	return proxy
-}
-
-type httpProxy struct {
-	acceptor  *acceptor.HTTP2Acceptor
-	forwarder *http.Server
 }
 
 func diffTunnels(old, new []Tunnel) []Tunnel {
