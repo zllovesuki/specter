@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/miekg/dns"
 	"golang.org/x/net/idna"
 )
@@ -33,11 +34,22 @@ func removeSpace(str string) string {
 }
 
 func Normalize(zone string) (string, error) {
-	hostname, err := idna.ToASCII(removeSpace(zone))
-	if err != nil {
-		return "", err
+	trimmed := removeSpace(zone)
+	if !certmagic.SubjectQualifiesForPublicCert(trimmed) {
+		return "", fmt.Errorf("acme: invalid zone for acme certificate")
 	}
-	return nonDnsRegex.ReplaceAllString(strings.ToLower(hostname), ""), nil
+	if strings.Contains(trimmed, "*") {
+		return "", fmt.Errorf("acme: wildcard zone is not supported")
+	}
+	uni, err := idna.ToASCII(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("acme: error converting zone to ascii: %w", err)
+	}
+	invalid := nonDnsRegex.FindStringIndex(uni)
+	if len(invalid) > 0 {
+		return "", fmt.Errorf("acme: zone contains invalid dns characters")
+	}
+	return uni, nil
 }
 
 func EncodeZone(zone string, token []byte) string {
