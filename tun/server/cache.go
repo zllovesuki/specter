@@ -97,9 +97,7 @@ func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.L
 		}
 	}
 
-	// use the parent context so a prior cancelled context from DialClient won't
-	// affect lookups that come later
-	lookupCtx, lookupCancel := context.WithTimeout(s.ParentContext, lookupTimeout)
+	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
 	defer lookupCancel()
 
 	routes, errors := promise.All(lookupCtx, lookupJobs...)
@@ -127,13 +125,26 @@ func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.L
 		return
 	}
 
+	// we don't know which one error'd, need to filter nil routes
+	filtered := routes[:0]
+	for _, route := range routes {
+		if route != nil {
+			filtered = append(filtered, route)
+		}
+	}
+	// need to nil the elements for gc, if any
+	// see https://github.com/golang/go/wiki/SliceTricks#filtering-without-allocating
+	for i := len(filtered); i < len(routes); i++ {
+		routes[i] = nil
+	}
+
 	// prioritize directly connected route
-	sort.SliceStable(routes, func(i, j int) bool {
-		return routes[i].GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
+	sort.SliceStable(filtered, func(i, j int) bool {
+		return filtered[i].GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
 	})
 
 	// now we can store the routes on a longer ttl
-	ret.Value.routes = routes
+	ret.Value.routes = filtered
 	ret.TTL = positiveTTL
 	// cost is added atomically during lookup
 

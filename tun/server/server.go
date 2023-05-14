@@ -205,6 +205,8 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 		connError  error
 	)
 
+	// use the parent context so a prior cancelled context from DialClient won't
+	// affect route lookups that come later
 	ret, err := s.routeCache.Get(s.ParentContext, link.GetHostname())
 	if ret.err != nil {
 		return nil, ret.err
@@ -214,16 +216,19 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 	}
 
 	for _, route := range ret.routes {
+		l := s.Logger.With(
+			zap.String("hostname", link.GetHostname()),
+			zap.Object("chord", route.GetChordDestination()),
+			zap.Object("tunnel", route.GetTunnelDestination()),
+			zap.Object("client", route.GetClientDestination()),
+		)
+
 		clientConn, connError = s.getConn(ctx, route)
 		if connError != nil {
 			if tun.IsNoDirect(connError) {
 				isNoRoute = true
 			} else {
-				s.Logger.Error("Failed to establish connection to client",
-					zap.String("hostname", link.GetHostname()),
-					zap.Object("chord", route.GetChordDestination()),
-					zap.Object("tunnel", route.GetTunnelDestination()),
-					zap.Object("client", route.GetClientDestination()),
+				l.Error("Failed to establish connection to client",
 					zap.Error(connError),
 				)
 			}
@@ -232,11 +237,7 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 
 		connError = rpc.Send(clientConn, link)
 		if connError != nil {
-			s.Logger.Error("Failed to send link information to client",
-				zap.String("hostname", link.GetHostname()),
-				zap.Object("chord", route.GetChordDestination()),
-				zap.Object("tunnel", route.GetTunnelDestination()),
-				zap.Object("client", route.GetClientDestination()),
+			l.Error("Failed to send link information to client",
 				zap.Error(connError),
 			)
 			clientConn.Close()
