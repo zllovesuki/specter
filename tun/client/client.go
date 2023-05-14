@@ -149,6 +149,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 	identity := resp.GetNode()
 	c.Logger.Info("Connected to specter server", zap.String("addr", identity.GetAddress()))
 	c.connections.Store(identity.GetAddress(), identity)
+
 	return nil
 }
 
@@ -323,6 +324,9 @@ func (c *Client) maintainConnections(ctx context.Context) error {
 	c.Logger.Debug("Candidates for RPC connections", zap.Int("num", len(nodes)))
 
 	for _, node := range nodes {
+		if c.connections.Len() >= tun.NumRedundantLinks {
+			return nil
+		}
 		if err := c.openRPC(ctx, node); err != nil {
 			return fmt.Errorf("connecting to specter server: %w", err)
 		}
