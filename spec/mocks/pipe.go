@@ -86,7 +86,7 @@ func (t *MemoryTransport) AcceptStream() <-chan *transport.StreamDelegate {
 	return t.Self
 }
 
-func (t *MemoryTransport) ListConnected() []*protocol.Node {
+func (t *MemoryTransport) ListConnected() []transport.ConnectedPeer {
 	panic("not implemented") // TODO: Implement
 }
 

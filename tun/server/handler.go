@@ -25,11 +25,15 @@ func ConnectedClientsHandler(s *Server) http.Handler {
 		clientTable := table.NewWriter()
 		clientTable.SetOutputMirror(w)
 
-		clientTable.AppendHeader(table.Row{"ID", "Address", "Number of tunnels"})
+		clientTable.AppendHeader(table.Row{"Identity", "Address", "Number of tunnels"})
 		for _, h := range clients {
-			var numTunnels string
+			var (
+				numTunnels string
+				node       = h.Identity
+				addr       = h.Addr
+			)
 			prefix := tun.ClientHostnamesPrefix(&protocol.ClientToken{
-				Token: []byte(h.GetAddress()),
+				Token: []byte(node.GetAddress()),
 			})
 			children, err := s.Chord.PrefixList(r.Context(), []byte(prefix))
 			if err != nil {
@@ -38,8 +42,8 @@ func ConnectedClientsHandler(s *Server) http.Handler {
 				numTunnels = fmt.Sprintf("%d", len(children))
 			}
 			clientTable.AppendRow(table.Row{
-				h.GetId(),
-				h.GetAddress(),
+				fmt.Sprintf("%d/%s", node.GetId(), node.GetAddress()),
+				addr.String(),
 				numTunnels,
 			})
 		}

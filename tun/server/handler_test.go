@@ -24,10 +24,13 @@ func TestHandlerListConnectedClients(t *testing.T) {
 
 	logger, node, clientT, _, serv := getFixture(t, as)
 
-	fakeClients := []*protocol.Node{
+	fakeClients := []transport.ConnectedPeer{
 		{
-			Id:      111111,
-			Address: "fake-address",
+			Identity: &protocol.Node{
+				Id:      111111,
+				Address: "fake-address",
+			},
+			Addr: &net.UDPAddr{},
 		},
 	}
 

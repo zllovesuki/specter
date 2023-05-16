@@ -27,13 +27,18 @@ type DatagramDelegate struct {
 	Buffer   []byte
 }
 
+type ConnectedPeer struct {
+	Identity *protocol.Node
+	Addr     net.Addr
+}
+
 type Transport interface {
 	Identity() *protocol.Node
 
 	DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error)
 	AcceptStream() <-chan *StreamDelegate
 
-	ListConnected() []*protocol.Node
+	ListConnected() []ConnectedPeer
 
 	SupportDatagram() bool
 	ReceiveDatagram() <-chan *DatagramDelegate
