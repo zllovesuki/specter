@@ -90,7 +90,7 @@ func (g *Gateway) extractHostname(host string) (hostname string, err error) {
 		err = fmt.Errorf("gateway: hostname cannot be IP")
 		return
 	}
-	if strings.Count(host, ".") < 3 {
+	if strings.Count(host, ".") < 2 {
 		err = fmt.Errorf("gateway: too few labels in hostname")
 		return
 	}
