@@ -43,6 +43,10 @@ func (s *Server) initRouteCache() {
 	s.routeCache = routeCache
 }
 
+func (s *Server) RoutesPreload(hostname string) {
+	s.routeCache.Get(s.ParentContext, hostname)
+}
+
 func (s *Server) cacheEventListener(hostname string, ret routesResult, reason theine.RemoveReason) {
 	var reasonStr string
 	switch reason {

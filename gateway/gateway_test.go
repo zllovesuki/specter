@@ -356,6 +356,30 @@ func serveMiniClient(as *require.Assertions, ch chan net.Conn, resp string) {
 	h1.Serve(&miniClient{c: ch})
 }
 
+func TestRejectInvalidHostnames(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
+
+	conf := GatewayConfig{
+		Logger:      logger,
+		RootDomains: []string{testDomain},
+		AdminUser:   os.Getenv("INTERNAL_USER"),
+		AdminPass:   os.Getenv("INTERNAL_PASS"),
+	}
+	g := New(conf)
+
+	hostnames := []string{
+		"bleh",
+		"bleh.com",
+		"192.168.1.1",
+	}
+
+	for _, hostname := range hostnames {
+		_, _, err := g.parseAddr(hostname)
+		as.Error(err)
+	}
+}
+
 func TestH1HTTPFound(t *testing.T) {
 	as := require.New(t)
 

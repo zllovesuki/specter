@@ -73,3 +73,5 @@ func (s *SelfSignedProvider) Initialize(_ context.Context) error {
 func (s *SelfSignedProvider) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return s.cert, nil
 }
+
+func (s *SelfSignedProvider) OnHandshake(_ cipher.OnHandshakeFunc) {}

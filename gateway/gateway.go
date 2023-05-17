@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/transport"
 	"kon.nect.sh/specter/spec/tun"
@@ -37,17 +38,18 @@ type InternalHandlers struct {
 }
 
 type GatewayConfig struct {
-	PKIServer    protocol.PKIService
-	TunnelServer tun.Server
-	HTTPListener net.Listener
-	H2Listener   net.Listener
-	H3Listener   quic.EarlyListener
-	Logger       *zap.Logger
-	Handlers     InternalHandlers
-	RootDomains  []string
-	AdminUser    string
-	AdminPass    string
-	GatewayPort  int
+	Handlers          InternalHandlers
+	PKIServer         protocol.PKIService
+	TunnelServer      tun.Server
+	HTTPListener      net.Listener
+	H2Listener        net.Listener
+	H3Listener        quic.EarlyListener
+	Logger            *zap.Logger
+	HandshakeHintFunc cipher.OnHandshakeFunc
+	AdminUser         string
+	AdminPass         string
+	RootDomains       []string
+	GatewayPort       int
 }
 
 type Gateway struct {

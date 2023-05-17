@@ -31,6 +31,21 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
+// inspiration from https://blog.cloudflare.com/eliminating-cold-starts-with-cloudflare-workers/
+// warm the route cache when tls handshake begins
+func (g *Gateway) HandshakeEarlyHint(sni string) {
+	hostname, err := g.extractHostname(sni)
+	if err != nil {
+		return
+	}
+	g.Logger.Debug("Handshake early hint", zap.String("hostname", hostname))
+	if g.HandshakeHintFunc == nil {
+		return
+	}
+	// TODO: implement a limiter
+	go g.HandshakeHintFunc(hostname)
+}
+
 func (g *Gateway) httpConnect(w http.ResponseWriter, r *http.Request) {
 	remote, err := g.connectDialer(r.Context(), r)
 	if err != nil {
@@ -71,9 +86,17 @@ func (g *Gateway) httpConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *Gateway) extractHostname(host string) (hostname string, err error) {
+	if net.ParseIP(host) != nil {
+		err = fmt.Errorf("gateway: hostname cannot be IP")
+		return
+	}
+	if strings.Count(host, ".") < 3 {
+		err = fmt.Errorf("gateway: too few labels in hostname")
+		return
+	}
 	parts := strings.SplitN(host, ".", 2)
 	if len(parts) != 2 {
-		err = fmt.Errorf("gateway: invalid host for forwarding")
+		err = fmt.Errorf("gateway: invalid hostname for forwarding")
 		return
 	}
 	if util.Contains(g.RootDomains, parts[1]) {
@@ -84,7 +107,7 @@ func (g *Gateway) extractHostname(host string) (hostname string, err error) {
 	return
 }
 
-func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
+func (g *Gateway) parseAddr(addr string) (host, hostname string, err error) {
 	host, _, err = net.SplitHostPort(addr)
 	if err != nil {
 		return
@@ -94,7 +117,7 @@ func (g *Gateway) extractHost(addr string) (host, hostname string, err error) {
 }
 
 func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn, error) {
-	host, hostname, err := g.extractHost(r.Host)
+	host, hostname, err := g.parseAddr(r.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +131,7 @@ func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn,
 }
 
 func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, error) {
-	host, hostname, err := g.extractHost(addr)
+	host, hostname, err := g.parseAddr(addr)
 	if err != nil {
 		return nil, err
 	}

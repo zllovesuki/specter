@@ -19,6 +19,7 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/testcond"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -31,6 +32,14 @@ var (
 const (
 	devAcme = "https://localhost:14001/dir"
 )
+
+type handshakeHook struct {
+	mock.Mock
+}
+
+func (h *handshakeHook) onHandshake(sni string) {
+	h.Called(sni)
+}
 
 func TestIntegrationACME(t *testing.T) {
 	if os.Getenv("GO_INTEGRATION_ACME") == "" {
@@ -65,6 +74,13 @@ func TestIntegrationACME(t *testing.T) {
 		return resp.StatusCode == http.StatusOK
 	}, time.Second, time.Second*15)
 
+	// test hook
+	hook := new(handshakeHook)
+	defer hook.AssertExpectations(t)
+
+	hook.On("onHandshake", testManagedDomain)
+	hook.On("onHandshake", testDynamicDomain)
+
 	// test manager
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -86,6 +102,8 @@ func TestIntegrationACME(t *testing.T) {
 		testTrustedRoots: devTrustedRoots,
 	})
 	as.NoError(err)
+
+	manager.OnHandshake(hook.onHandshake)
 
 	// managed domain
 	err = manager.Initialize(ctx)

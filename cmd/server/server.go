@@ -720,20 +720,23 @@ func cmdServer(ctx *cli.Context) error {
 			ClientsQuery:     server.ConnectedClientsHandler(tunServer),
 			MigrationHandler: migrator.ConfigMigrator(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
 		},
-		Logger:       logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
-		TunnelServer: tunServer,
-		HTTPListener: httpListener,
-		H2Listener:   gwH2Listener,
-		H3Listener:   gwH3Listener,
-		RootDomains:  managedDomains,
-		GatewayPort:  int(advertisePort),
-		AdminUser:    ctx.String("auth_user"),
-		AdminPass:    ctx.String("auth_pass"),
+		Logger:            logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
+		TunnelServer:      tunServer,
+		HTTPListener:      httpListener,
+		H2Listener:        gwH2Listener,
+		H3Listener:        gwH3Listener,
+		RootDomains:       managedDomains,
+		GatewayPort:       int(advertisePort),
+		AdminUser:         ctx.String("auth_user"),
+		AdminPass:         ctx.String("auth_pass"),
+		HandshakeHintFunc: tunServer.RoutesPreload,
 	})
 	defer gw.Close()
 
 	gw.AttachRouter(ctx.Context, streamRouter)
 	gw.MustStart(ctx.Context)
+
+	certProvider.OnHandshake(gw.HandshakeEarlyHint)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

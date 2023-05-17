@@ -5,9 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/tun"
 
 	"github.com/caddyserver/certmagic"
@@ -36,6 +38,7 @@ type Manager struct {
 	managedConfig *certmagic.Config
 	dynamicConfig *certmagic.Config
 	managed       []string
+	onHandshake   atomic.Value // cipher.OnHandshakeFunc
 	ManagerConfig
 }
 
@@ -155,6 +158,9 @@ func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, er
 	}
 
 	acmeHostname.Add(sni, 1)
+	if fn, ok := m.onHandshake.Load().(cipher.OnHandshakeFunc); ok && fn != nil {
+		fn(sni)
+	}
 	if m.isManaged(sni) {
 		return m.managedConfig.GetCertificate(chi)
 	} else {
@@ -164,4 +170,8 @@ func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, er
 
 func (m *Manager) Initialize(ctx context.Context) error {
 	return m.managedConfig.ManageAsync(ctx, m.managed)
+}
+
+func (m *Manager) OnHandshake(fn cipher.OnHandshakeFunc) {
+	m.onHandshake.Store(fn)
 }
