@@ -401,6 +401,10 @@ func (s *Server) checkAcme(ctx context.Context, hostname string, proof *protocol
 		return false, twirp.InvalidArgumentError("hostname", "provided hostname is not valid for custom hostname")
 	}
 
+	if strings.Count(hostname, ".") < 2 {
+		return false, twirp.InvalidArgumentError("hostname", "custom domain is not supported on bare domain")
+	}
+
 	bundle, err := tun.FindCustomHostname(ctx, s.Chord, hostname)
 	switch err {
 	case nil:
