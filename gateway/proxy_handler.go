@@ -194,11 +194,12 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 	}
 
 	proxyTransport := &http.Transport{
-		MaxConnsPerHost:       100,
+		MaxConnsPerHost:       30,
 		MaxIdleConnsPerHost:   5,
-		IdleConnTimeout:       time.Second * 15,
-		ResponseHeaderTimeout: time.Second * 5,
-		ExpectContinueTimeout: time.Second * 3,
+		DisableCompression:    true,
+		IdleConnTimeout:       time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 15,
+		ExpectContinueTimeout: time.Second * 5,
 		WriteBufferSize:       bufferSize,
 		ReadBufferSize:        bufferSize,
 	}
