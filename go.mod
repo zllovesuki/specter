@@ -9,7 +9,7 @@ require (
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/dominikbraun/graph v0.20.0
-	github.com/getsentry/sentry-go v0.20.0
+	github.com/getsentry/sentry-go v0.21.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/jedib0t/go-pretty/v6 v6.4.6
@@ -17,7 +17,7 @@ require (
 	github.com/libp2p/go-yamux/v4 v4.0.0
 	github.com/mholt/acmez v1.1.1
 	github.com/miekg/dns v1.1.54
-	github.com/montanaflynn/stats v0.7.0
+	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.1
 	github.com/pires/go-proxyproto v0.7.0
 	github.com/quic-go/quic-go v0.34.0
@@ -32,7 +32,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
 	go.uber.org/zap v1.24.0
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
 	golang.org/x/net v0.10.0
 	golang.org/x/sys v0.8.0
 	google.golang.org/protobuf v1.30.0
@@ -63,11 +63,11 @@ require (
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/tinylru v1.1.0 // indirect
+	github.com/tidwall/tinylru v1.2.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.8.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
