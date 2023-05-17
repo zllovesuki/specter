@@ -35,6 +35,7 @@ import (
 
 	"github.com/TheZeroSlave/zapsentry"
 	"github.com/getsentry/sentry-go"
+	"github.com/pires/go-proxyproto"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -81,6 +82,12 @@ func Generate() *cli.Command {
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
 				Category:    "Network Options",
+			},
+			&cli.BoolFlag{
+				Name:     "proxy-protocol",
+				Value:    false,
+				Usage:    "Parse client IP via PROXY protocol (v1 or v2) when handling TCP connections. Required if environment is behind a TCP Load Balancer, such as on fly.io",
+				Category: "Network Options",
 			},
 
 			&cli.StringFlag{
@@ -497,6 +504,15 @@ func cmdServer(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("error setting up gateway tcp listener: %w", err)
 	}
+	if ctx.Bool("proxy-protocol") {
+		tcpListener = &proxyproto.Listener{
+			Listener:          tcpListener,
+			ReadHeaderTimeout: time.Second * 3,
+			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+				return proxyproto.REQUIRE, nil
+			},
+		}
+	}
 	defer tcpListener.Close()
 
 	udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listenUdp)
@@ -510,6 +526,15 @@ func cmdServer(ctx *cli.Context) error {
 		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:%d", tcpHost, ctx.Int("listen-http")))
 		if err != nil {
 			return fmt.Errorf("error setting up http listener: %w", err)
+		}
+		if ctx.Bool("proxy-protocol") {
+			httpListener = &proxyproto.Listener{
+				Listener:          httpListener,
+				ReadHeaderTimeout: time.Second * 3,
+				Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+					return proxyproto.REQUIRE, nil
+				},
+			}
 		}
 		defer httpListener.Close()
 	}

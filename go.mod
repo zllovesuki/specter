@@ -19,6 +19,7 @@ require (
 	github.com/miekg/dns v1.1.54
 	github.com/montanaflynn/stats v0.7.0
 	github.com/ncruces/go-dns v1.2.1
+	github.com/pires/go-proxyproto v0.7.0
 	github.com/quic-go/quic-go v0.34.0
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.2

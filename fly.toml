@@ -27,6 +27,7 @@ kill_timeout = 180
   protocol = "tcp"
 
   [[services.ports]]
+    handlers = ["proxy_proto"]
     port = "443"
 
 [[services]]
@@ -48,4 +49,5 @@ kill_timeout = 180
   protocol = "tcp"
 
   [[services.ports]]
+    handlers = ["proxy_proto"]
     port = "80"
