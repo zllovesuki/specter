@@ -17,11 +17,12 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
 const (
-	bufferSize = 1024 * 8
+	bufferSize = 1024 * 4
 )
 
 var delHeaders = []string{
@@ -198,6 +199,8 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 		IdleConnTimeout:       time.Second * 15,
 		ResponseHeaderTimeout: time.Second * 5,
 		ExpectContinueTimeout: time.Second * 3,
+		WriteBufferSize:       bufferSize,
+		ReadBufferSize:        bufferSize,
 	}
 	proxyTransport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
 		return g.overlayDialer(ctx, addr)
@@ -212,7 +215,12 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 		ErrorLog:       proxyLogger,
 	}
 
-	return proxy
+	router := chi.NewRouter()
+
+	g.mountCgiHandler(router)
+	router.Handle("/*", proxy)
+
+	return router
 }
 
 func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) {

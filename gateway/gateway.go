@@ -119,6 +119,7 @@ func New(conf GatewayConfig) *Gateway {
 		authPass:      conf.AdminPass,
 	}
 	g.apexServer.Mount(apex)
+	g.mountCgiHandler(apex)
 	g.tcpApexServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           apex,
