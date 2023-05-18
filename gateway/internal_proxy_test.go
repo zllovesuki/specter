@@ -63,6 +63,10 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 		Handlers: InternalHandlers{
 			ChordStats: fakeStats,
 		},
+		Options: Options{
+			TransportBufferSize: 1024 * 8,
+			ProxyBufferSize:     1024 * 8,
+		},
 	}
 	g := New(conf)
 	g.AttachRouter(ctx, streamRouter)

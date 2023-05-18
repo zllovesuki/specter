@@ -38,7 +38,7 @@ type Manager struct {
 	managedConfig *certmagic.Config
 	dynamicConfig *certmagic.Config
 	managed       []string
-	onHandshake   atomic.Value // cipher.OnHandshakeFunc
+	onHandshake   atomic.Pointer[cipher.OnHandshakeFunc]
 	ManagerConfig
 }
 
@@ -59,6 +59,8 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 		parentCtx:     ctx,
 		ManagerConfig: cfg,
 	}
+
+	manager.OnHandshake(noopHandshakFunc)
 
 	managedConfig := certmagic.Config{
 		Storage:           kvStore,
@@ -158,9 +160,10 @@ func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, er
 	}
 
 	acmeHostname.Add(sni, 1)
-	if fn, ok := m.onHandshake.Load().(cipher.OnHandshakeFunc); ok && fn != nil {
-		fn(sni)
-	}
+
+	onHandshake := m.onHandshake.Load()
+	(*onHandshake)(sni)
+
 	if m.isManaged(sni) {
 		return m.managedConfig.GetCertificate(chi)
 	} else {
@@ -173,5 +176,10 @@ func (m *Manager) Initialize(ctx context.Context) error {
 }
 
 func (m *Manager) OnHandshake(fn cipher.OnHandshakeFunc) {
-	m.onHandshake.Store(fn)
+	if fn == nil {
+		return
+	}
+	m.onHandshake.Store(&fn)
 }
+
+func noopHandshakFunc(_ string) {}

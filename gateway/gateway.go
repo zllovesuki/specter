@@ -37,6 +37,11 @@ type InternalHandlers struct {
 	MigrationHandler http.HandlerFunc
 }
 
+type Options struct {
+	TransportBufferSize int
+	ProxyBufferSize     int
+}
+
 type GatewayConfig struct {
 	Handlers          InternalHandlers
 	PKIServer         protocol.PKIService
@@ -50,6 +55,7 @@ type GatewayConfig struct {
 	AdminPass         string
 	RootDomains       []string
 	GatewayPort       int
+	Options           Options
 }
 
 type Gateway struct {

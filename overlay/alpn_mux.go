@@ -5,17 +5,17 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"sync"
 	"time"
 
 	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/quic-go/quic-go"
-	"github.com/zhangyunhao116/skipmap"
 )
 
 type ALPNMux struct {
+	mux      sync.Map // map[string]*protoCfg
 	listener quic.EarlyListener
-	mux      *skipmap.StringMap[*protoCfg]
 }
 
 type protoCfg struct {
@@ -24,9 +24,7 @@ type protoCfg struct {
 }
 
 func NewMux(listener net.PacketConn) (*ALPNMux, error) {
-	a := &ALPNMux{
-		mux: skipmap.NewString[*protoCfg](),
-	}
+	a := &ALPNMux{}
 	q, err := quic.ListenEarly(listener, &tls.Config{
 		GetConfigForClient: a.getConfigForClient,
 	}, quicConfig)
@@ -43,17 +41,15 @@ func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, e
 	var selected string
 	var found bool
 
-	a.mux.Range(func(proto string, cfg *protoCfg) bool {
-		for _, cP := range hello.SupportedProtos {
-			if proto == cP {
-				found = true
-				selected = proto
-				baseCfg = cfg.tls
-				return false
-			}
+	for _, propose := range hello.SupportedProtos {
+		cfg, ok := a.mux.Load(propose)
+		if ok {
+			found = true
+			selected = propose
+			baseCfg = cfg.(*protoCfg).tls
+			break
 		}
-		return true
-	})
+	}
 
 	if found {
 		xCfg = baseCfg.Clone()
@@ -86,7 +82,8 @@ func (a *ALPNMux) Accept(ctx context.Context) {
 }
 
 func (a *ALPNMux) Close() {
-	a.mux.Range(func(_ string, cfg *protoCfg) bool {
+	a.mux.Range(func(_, value any) bool {
+		cfg := value.(*protoCfg)
 		cfg.acceptor.Close()
 		return true
 	})
@@ -111,5 +108,5 @@ func (a *ALPNMux) handleConnection(ctx context.Context, conn quic.EarlyConnectio
 		conn.CloseWithError(404, "Unsupported protocol")
 		return
 	}
-	cfg.acceptor.Handle(conn)
+	cfg.(*protoCfg).acceptor.Handle(conn)
 }

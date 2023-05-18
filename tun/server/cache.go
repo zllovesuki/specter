@@ -22,7 +22,7 @@ type routesResult struct {
 
 const (
 	cacheBytes  = 1 << 20 // 1MiB
-	positiveTTL = time.Minute * 1
+	positiveTTL = time.Minute * 5
 	negativeTTL = time.Second * 15
 	failedTTL   = time.Second * 5
 )

@@ -34,6 +34,7 @@ import (
 	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/TheZeroSlave/zapsentry"
+	"github.com/alecthomas/units"
 	"github.com/getsentry/sentry-go"
 	"github.com/pires/go-proxyproto"
 	"github.com/urfave/cli/v2"
@@ -57,6 +58,7 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
+				EnvVars:     []string{"ADVERTISE_ADDR"},
 				DefaultText: "same as listen-addr",
 				Value:       fmt.Sprintf("%s:443", ip.String()),
 				Usage: `Address and port to advertise to specter servers and clients to connect to.
@@ -131,7 +133,8 @@ func Generate() *cli.Command {
 				Category: "Chord Options",
 			},
 			&cli.StringFlag{
-				Name: "join",
+				Name:    "join",
+				EnvVars: []string{"CHORD_JOIN"},
 				Usage: `A known specter server's advertise address.
 			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
 				Category: "Chord Options",
@@ -155,13 +158,27 @@ func Generate() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "apex",
+				EnvVars:  []string{"APEX"},
 				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
 				Required: true,
 				Category: "Gateway Options",
 			},
 			&cli.StringSliceFlag{
 				Name:     "extra-apex",
+				EnvVars:  []string{"EXTRA_APEX"},
 				Usage:    "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
+				Category: "Gateway Options",
+			},
+			&cli.StringFlag{
+				Name:     "transport-buffer",
+				Value:    "16KiB",
+				Usage:    "Buffer size when making HTTP request to client",
+				Category: "Gateway Options",
+			},
+			&cli.StringFlag{
+				Name:     "proxy-buffer",
+				Value:    "8KiB",
+				Usage:    "Buffer size when copying response from client",
 				Category: "Gateway Options",
 			},
 
@@ -411,6 +428,18 @@ func cmdServer(ctx *cli.Context) error {
 		}
 		return nil
 	}
+
+	var gwOptions gateway.Options
+	proxyBuffer, err := units.ParseStrictBytes(ctx.String("proxy-buffer"))
+	if err != nil {
+		return fmt.Errorf("error parsing proxy buffer size: %w", err)
+	}
+	gwOptions.ProxyBufferSize = int(proxyBuffer)
+	transportBuffer, err := units.ParseStrictBytes(ctx.String("transport-buffer"))
+	if err != nil {
+		return fmt.Errorf("error parsing transport buffer size: %w", err)
+	}
+	gwOptions.TransportBufferSize = int(transportBuffer)
 
 	if ctx.IsSet("sentry") {
 		client, err := sentry.NewClient(sentry.ClientOptions{
@@ -727,6 +756,7 @@ func cmdServer(ctx *cli.Context) error {
 		H3Listener:        gwH3Listener,
 		RootDomains:       managedDomains,
 		GatewayPort:       int(advertisePort),
+		Options:           gwOptions,
 		AdminUser:         ctx.String("auth_user"),
 		AdminPass:         ctx.String("auth_pass"),
 		HandshakeHintFunc: tunServer.RoutesPreload,

@@ -6,6 +6,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/TheZeroSlave/zapsentry v1.15.0
 	github.com/Yiling-J/theine-go v0.2.5
+	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/dominikbraun/graph v0.20.0

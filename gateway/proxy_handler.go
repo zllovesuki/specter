@@ -17,12 +17,9 @@ import (
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 
+	"github.com/alecthomas/units"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-)
-
-const (
-	bufferSize = 1024 * 4
 )
 
 var delHeaders = []string{
@@ -34,14 +31,17 @@ var delHeaders = []string{
 // inspiration from https://blog.cloudflare.com/eliminating-cold-starts-with-cloudflare-workers/
 // warm the route cache when tls handshake begins
 func (g *Gateway) HandshakeEarlyHint(sni string) {
+	if g.HandshakeHintFunc == nil {
+		return
+	}
 	hostname, err := g.extractHostname(sni)
 	if err != nil {
 		return
 	}
-	g.Logger.Debug("Handshake early hint", zap.String("hostname", hostname))
-	if g.HandshakeHintFunc == nil {
+	if util.Contains(g.RootDomains, hostname) {
 		return
 	}
+	g.Logger.Debug("Handshake early hint", zap.String("hostname", hostname))
 	// TODO: implement a limiter
 	go g.HandshakeHintFunc(hostname)
 }
@@ -104,6 +104,7 @@ func (g *Gateway) extractHostname(host string) (hostname string, err error) {
 	} else {
 		hostname = host
 	}
+	hostname = strings.ToLower(hostname)
 	return
 }
 
@@ -209,12 +210,16 @@ func (g *Gateway) proxyDirector(req *http.Request) {
 }
 
 func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
-	bufPool := util.NewBufferPool(bufferSize)
 	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
 		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 		return nil
 	}
+
+	g.Logger.Info("Using buffer sizes for proxy",
+		zap.String("transport", units.Base2Bytes(g.Options.TransportBufferSize).String()),
+		zap.String("proxy", units.Base2Bytes(g.Options.ProxyBufferSize).String()),
+	)
 
 	proxyTransport := &http.Transport{
 		MaxConnsPerHost:       30,
@@ -223,13 +228,14 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 		IdleConnTimeout:       time.Second * 30,
 		ResponseHeaderTimeout: time.Second * 15,
 		ExpectContinueTimeout: time.Second * 5,
-		WriteBufferSize:       bufferSize,
-		ReadBufferSize:        bufferSize,
+		WriteBufferSize:       g.Options.TransportBufferSize,
+		ReadBufferSize:        g.Options.TransportBufferSize,
 	}
 	proxyTransport.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
 		return g.overlayDialer(ctx, addr)
 	}
 
+	bufPool := util.NewBufferPool(g.Options.ProxyBufferSize)
 	proxy := &httputil.ReverseProxy{
 		Director:       g.proxyDirector,
 		Transport:      proxyTransport,
@@ -237,6 +243,7 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 		ErrorHandler:   g.errorHandler,
 		ModifyResponse: respHandler,
 		ErrorLog:       proxyLogger,
+		FlushInterval:  -1,
 	}
 
 	router := chi.NewRouter()

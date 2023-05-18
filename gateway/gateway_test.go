@@ -209,6 +209,10 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		Handlers: InternalHandlers{
 			ChordStats: fakeStats,
 		},
+		Options: Options{
+			TransportBufferSize: 1024 * 8,
+			ProxyBufferSize:     1024 * 8,
+		},
 	}
 
 	for _, option := range options {
