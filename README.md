@@ -74,11 +74,9 @@ tunnels:
   # ...
 ```
 
-### GUI
+### API
 
-Alternatively, [phantom](https://github.com/zllovesuki/phantom) is the official GUI desktop app to be used with specter:
-
-![phantom](./assets/phantom.png)
+To manage custom hostnames, unpublish, release, or list tunnels, the `specter client tunnel` subcommand accepts an optional argument to start a local API server.
 
 ## Connecting to Tunnel (CLI)
 
