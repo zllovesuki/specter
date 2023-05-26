@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"kon.nect.sh/specter/spec/acme"
@@ -72,6 +74,61 @@ func (c *Client) startLocalServer(ctx context.Context) {
 	}
 
 	r := chi.NewRouter()
+
+	r.Post("/unpublish/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+		hostname := chi.URLParam(r, "hostname")
+		hostname, err := url.PathUnescape(hostname)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		hostname, err = acme.Normalize(hostname)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		c.syncMu.Lock()
+		defer c.syncMu.Unlock()
+
+		err = c.UnpublishTunnel(r.Context(), Tunnel{
+			Hostname: hostname,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprintf(w, "Tunnel %s unpublished from network\n", hostname)
+	})
+
+	r.Post("/release/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+		hostname := chi.URLParam(r, "hostname")
+		hostname, err := url.PathUnescape(hostname)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		hostname, err = acme.Normalize(hostname)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		c.syncMu.Lock()
+		defer c.syncMu.Unlock()
+
+		err = c.ReleaseTunnel(r.Context(), Tunnel{
+			Hostname: hostname,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprintf(w, "Tunnel %s released from network\n", hostname)
+	})
+
 	r.Get("/acme/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)
@@ -119,6 +176,18 @@ func (c *Client) startLocalServer(ctx context.Context) {
 			return
 		}
 		c.FormatList(hostnames, w)
+	})
+
+	// catch-all helper
+	routes := make([]string, 0)
+	chi.Walk(r, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		routes = append(routes, fmt.Sprintf("%4s %s", method, route))
+		return nil
+	})
+	routesStr := strings.Join(routes, "\n")
+	r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "%s\n", routesStr)
 	})
 
 	srv := &http.Server{
