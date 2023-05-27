@@ -75,6 +75,8 @@ func (c *Client) startLocalServer(ctx context.Context) {
 
 	r := chi.NewRouter()
 
+	r.Use(middleware.Heartbeat("/healthz"))
+
 	r.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
 		c.Logger.Info("Received request from API, reloading config")
 		c.doReload(r.Context())
