@@ -75,6 +75,12 @@ func (c *Client) startLocalServer(ctx context.Context) {
 
 	r := chi.NewRouter()
 
+	r.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
+		c.Logger.Info("Received request from API, reloading config")
+		c.doReload(r.Context())
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	r.Post("/unpublish/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)

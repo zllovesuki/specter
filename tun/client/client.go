@@ -154,7 +154,7 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 }
 
 func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node) (V, error)) (resp V, err error) {
-	candidates := c.getConnectedNodes(ctx)
+	candidates := c.getConnectedNodes()
 	err = retry.Do(func() error {
 		var (
 			candidate *protocol.Node
@@ -178,7 +178,7 @@ func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node
 	return
 }
 
-func (c *Client) getConnectedNodes(ctx context.Context) (nodes []*protocol.Node) {
+func (c *Client) getConnectedNodes() (nodes []*protocol.Node) {
 	c.connections.Range(func(_ string, node *protocol.Node) bool {
 		if len(nodes) < tun.NumRedundantLinks {
 			nodes = append(nodes, node)
@@ -263,7 +263,7 @@ func (c *Client) reBootstrap(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			connected := c.getConnectedNodes(ctx)
+			connected := c.getConnectedNodes()
 			if len(connected) > 0 {
 				continue
 			}
@@ -509,7 +509,7 @@ func (c *Client) SyncConfigTunnels(ctx context.Context) {
 		// TODO: assert that the hostname was assigned
 	}
 
-	connected := c.getConnectedNodes(ctx)
+	connected := c.getConnectedNodes()
 	apex := c.rootDomain.Load()
 
 	for _, tunnel := range tunnels {
@@ -551,12 +551,6 @@ func (c *Client) publishTunnel(ctx context.Context, hostname string, connected [
 func (c *Client) reloadOnSignal(ctx context.Context) {
 	defer c.closeWg.Done()
 
-	onReload := func(prev, curr []Tunnel) {
-		diff := diffTunnels(prev, curr)
-		c.closeOutdatedProxies(diff...)
-		c.Configuration.buildRouter(diff...)
-	}
-
 	for {
 		select {
 		case <-c.closeCh:
@@ -565,16 +559,25 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 			return
 		case <-c.ReloadSignal:
 			c.Logger.Info("Received SIGHUP, reloading config")
-			c.configMu.Lock()
-			if err := c.Configuration.reloadFile(onReload); err != nil {
-				c.Logger.Error("Error reloading config file", zap.Error(err))
-				c.configMu.Unlock()
-				continue
-			}
-			c.configMu.Unlock()
-			c.SyncConfigTunnels(ctx)
+			c.doReload(ctx)
 		}
 	}
+}
+
+func (c *Client) doReload(ctx context.Context) {
+	onReload := func(prev, curr []Tunnel) {
+		diff := diffTunnels(prev, curr)
+		c.closeOutdatedProxies(diff...)
+		c.Configuration.buildRouter(diff...)
+	}
+	c.configMu.Lock()
+	if err := c.Configuration.reloadFile(onReload); err != nil {
+		c.Logger.Error("Error reloading config file", zap.Error(err))
+		c.configMu.Unlock()
+		return
+	}
+	c.configMu.Unlock()
+	c.SyncConfigTunnels(ctx)
 }
 
 func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
@@ -636,7 +639,7 @@ func (c *Client) RequestAcmeValidation(ctx context.Context, hostname string) (*p
 }
 
 func (c *Client) GetConnectedNodes() []*protocol.Node {
-	return c.getConnectedNodes(c.parentCtx)
+	return c.getConnectedNodes()
 }
 
 func (c *Client) GetCurrentConfig() *Config {
