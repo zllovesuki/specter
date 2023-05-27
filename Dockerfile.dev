@@ -7,6 +7,9 @@ COPY . .
 
 RUN cat /etc/ssl/certs/ca-certificates.crt /app/dev/pebble/certs/cert.pem > /app/ca-certificates.crt
 
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    go mod download
+
 ARG TARGETOS
 ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \

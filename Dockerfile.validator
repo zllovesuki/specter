@@ -5,6 +5,9 @@ RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
 
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    go mod download
+
 ARG TARGETOS
 ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
