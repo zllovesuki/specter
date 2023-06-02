@@ -16,13 +16,21 @@ import (
 	"kon.nect.sh/specter/tun/client"
 	"kon.nect.sh/specter/tun/client/dialer"
 
+	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
 
-func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, apex *dialer.ParsedApex, r rtt.Recorder) (*tls.Config, *overlay.QUIC) {
+type transportCfg struct {
+	logger *zap.Logger
+	quicTp *quic.Transport
+	apex   *dialer.ParsedApex
+	rtt    rtt.Recorder
+}
+
+func createTransport(ctx *cli.Context, cfg transportCfg) (*tls.Config, *overlay.QUIC) {
 	clientTLSConf := &tls.Config{
-		ServerName:         apex.Host,
+		ServerName:         cfg.apex.Host,
 		InsecureSkipVerify: ctx.Bool("insecure"),
 		NextProtos: []string{
 			tun.ALPN(protocol.Link_SPECTER_CLIENT),
@@ -32,10 +40,11 @@ func createTransport(ctx *cli.Context, logger *zap.Logger, cfg *client.Config, a
 		clientTLSConf.ServerName = v.(string)
 	}
 	return clientTLSConf, overlay.NewQUIC(overlay.TransportConfig{
-		Logger:      logger,
-		Endpoint:    &protocol.Node{},
-		ClientTLS:   clientTLSConf,
-		RTTRecorder: r,
+		Logger:        cfg.logger,
+		QuicTransport: cfg.quicTp,
+		Endpoint:      &protocol.Node{},
+		ClientTLS:     clientTLSConf,
+		RTTRecorder:   cfg.rtt,
 	})
 }
 
@@ -62,14 +71,28 @@ func cmdTunnel(ctx *cli.Context) error {
 		defer serverListener.Close()
 	}
 
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, syscall.SIGHUP)
+	listener, err := net.ListenPacket("udp", ":0")
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+
+	quicTransport := &quic.Transport{Conn: listener}
+	defer quicTransport.Close()
 
 	transportRTT := rttImpl.NewInstrumentation(20)
-	tlsCfg, transport := createTransport(ctx, logger, cfg, parsed, transportRTT)
+	tlsCfg, transport := createTransport(ctx, transportCfg{
+		logger: logger,
+		quicTp: quicTransport,
+		apex:   parsed,
+		rtt:    transportRTT,
+	})
 	defer transport.Stop()
 
 	pkiClient := dialer.GetPKIClient(tlsCfg.Clone(), parsed)
+
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGHUP)
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{
 		Logger:          logger,

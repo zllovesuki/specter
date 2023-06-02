@@ -22,6 +22,7 @@ type nodeConnection struct {
 
 type TransportConfig struct {
 	Logger                 *zap.Logger
+	QuicTransport          *quic.Transport
 	Endpoint               *protocol.Node
 	ServerTLS              *tls.Config
 	ClientTLS              *tls.Config

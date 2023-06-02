@@ -13,7 +13,7 @@ type HTTP2Acceptor struct {
 	closed  atomic.Bool
 }
 
-var _ net.Listener = &HTTP2Acceptor{}
+var _ net.Listener = (*HTTP2Acceptor)(nil)
 
 func NewH2Acceptor(parent net.Listener) *HTTP2Acceptor {
 	return &HTTP2Acceptor{

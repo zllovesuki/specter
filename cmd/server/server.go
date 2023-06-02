@@ -37,6 +37,7 @@ import (
 	"github.com/alecthomas/units"
 	"github.com/getsentry/sentry-go"
 	"github.com/pires/go-proxyproto"
+	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -568,7 +569,10 @@ func cmdServer(ctx *cli.Context) error {
 		defer httpListener.Close()
 	}
 
-	alpnMux, err := overlay.NewMux(udpListener)
+	qTr := &quic.Transport{Conn: udpListener}
+	defer qTr.Close()
+
+	alpnMux, err := overlay.NewMux(qTr)
 	if err != nil {
 		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
 	}
@@ -589,13 +593,14 @@ func cmdServer(ctx *cli.Context) error {
 
 	chordRTT := rtt.NewInstrumentation(20)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
-		Logger: logger.With(zapsentry.NewScope()).With(zap.String("component", "chordTransport")),
+		Logger:           logger.With(zapsentry.NewScope()).With(zap.String("component", "chordTransport")),
+		VirtualTransport: true,
+		ClientTLS:        chordTLS,
+		RTTRecorder:      chordRTT,
+		QuicTransport:    qTr,
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
-		ClientTLS:        chordTLS,
-		RTTRecorder:      chordRTT,
-		VirtualTransport: true,
 	})
 	defer chordTransport.Stop()
 

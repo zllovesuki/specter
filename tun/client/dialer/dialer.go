@@ -137,7 +137,7 @@ func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDial
 
 	bootstrap = func() (net.Addr, error) {
 		dCfg.Logger.Debug("bootstrapping quic")
-		q, err := quic.DialAddrContext(ctx, dCfg.Parsed.String(), clientTLSConf, &quic.Config{
+		q, err := quic.DialAddrEarly(ctx, dCfg.Parsed.String(), clientTLSConf, &quic.Config{
 			KeepAlivePeriod:      time.Second * 5,
 			HandshakeIdleTimeout: transport.ConnectTimeout,
 			MaxIdleTimeout:       time.Second * 30,

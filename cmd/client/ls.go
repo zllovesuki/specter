@@ -1,6 +1,7 @@
 package client
 
 import (
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,6 +9,7 @@ import (
 	"kon.nect.sh/specter/tun/client"
 	"kon.nect.sh/specter/tun/client/dialer"
 
+	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
@@ -28,7 +30,20 @@ func cmdLs(ctx *cli.Context) error {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGHUP)
 
-	_, transport := createTransport(ctx, logger, cfg, parsed, nil)
+	listener, err := net.ListenPacket("udp", ":0")
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+
+	quicTransport := &quic.Transport{Conn: listener}
+	defer quicTransport.Close()
+
+	_, transport := createTransport(ctx, transportCfg{
+		logger: logger,
+		quicTp: quicTransport,
+		apex:   parsed,
+	})
 	defer transport.Stop()
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{

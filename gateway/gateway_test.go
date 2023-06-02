@@ -111,7 +111,7 @@ func getDialer(proto string, sn string) *tls.Dialer {
 
 func getQuicDialer(proto string, sn string) func(context.Context, string) (quic.EarlyConnection, error) {
 	return func(ctx context.Context, addr string) (quic.EarlyConnection, error) {
-		return quic.DialAddrEarlyContext(ctx, addr, getDialer(proto, sn).Config, nil)
+		return quic.DialAddrEarly(ctx, addr, getDialer(proto, sn).Config, nil)
 	}
 }
 
@@ -157,7 +157,7 @@ func getH3Client(host string, port int) *http.Client {
 		Transport: &http3.RoundTripper{
 			TLSClientConfig: getDialer("h3", host).Config,
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-				return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", port), tlsCfg, cfg)
+				return quic.DialAddrEarly(ctx, fmt.Sprintf("127.0.0.1:%d", port), tlsCfg, cfg)
 			},
 		},
 	}
@@ -182,7 +182,7 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 	h2, tcpPort = getH2Listener(as)
 
 	ss := generateTLSConfig([]string{})
-	alpnMux, err := overlay.NewMux(q)
+	alpnMux, err := overlay.NewMux(&quic.Transport{Conn: q})
 	as.NoError(err)
 
 	h3 := alpnMux.With(cipher.GetGatewayTLSConfig(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {

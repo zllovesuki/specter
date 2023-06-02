@@ -4,20 +4,22 @@ import (
 	"context"
 	"net"
 
+	"kon.nect.sh/specter/spec/transport/q"
+
 	"github.com/quic-go/quic-go"
 	"go.uber.org/atomic"
 )
 
 type HTTP3Acceptor struct {
-	parent  quic.EarlyListener
+	parent  q.EarlyListener
 	conn    chan quic.EarlyConnection
 	closeCh chan struct{}
 	closed  atomic.Bool
 }
 
-var _ quic.EarlyListener = &HTTP3Acceptor{}
+var _ q.EarlyListener = (*HTTP3Acceptor)(nil)
 
-func NewH3Acceptor(parent quic.EarlyListener) *HTTP3Acceptor {
+func NewH3Acceptor(parent q.EarlyListener) *HTTP3Acceptor {
 	return &HTTP3Acceptor{
 		parent:  parent,
 		conn:    make(chan quic.EarlyConnection, 128),

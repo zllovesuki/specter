@@ -352,7 +352,7 @@ func TestIntegrationTunnel(t *testing.T) {
 				httpClient.Transport = &http3.RoundTripper{
 					TLSClientConfig: h3Cfg,
 					Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-						return quic.DialAddrEarlyContext(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
+						return quic.DialAddrEarly(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
 					},
 				}
 				resp, err := httpClient.Do(req)

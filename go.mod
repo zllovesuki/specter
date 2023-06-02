@@ -21,12 +21,12 @@ require (
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.1
 	github.com/pires/go-proxyproto v0.7.0
-	github.com/quic-go/quic-go v0.34.0
+	github.com/quic-go/quic-go v0.35.1
 	github.com/sethvargo/go-diceware v0.3.0
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/wal v1.1.7
 	github.com/twitchtv/twirp v8.1.3+incompatible
-	github.com/urfave/cli/v2 v2.25.3
+	github.com/urfave/cli/v2 v2.25.5
 	github.com/zeebo/xxh3 v1.0.2
 	github.com/zhangyunhao116/skipmap v0.10.1
 	github.com/zhangyunhao116/skipset v0.13.0
@@ -71,6 +71,6 @@ require (
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.9.3 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )

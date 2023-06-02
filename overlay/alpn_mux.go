@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"net"
 	"sync"
 	"time"
 
+	"kon.nect.sh/specter/spec/transport/q"
 	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/quic-go/quic-go"
@@ -15,7 +15,7 @@ import (
 
 type ALPNMux struct {
 	mux      sync.Map // map[string]*protoCfg
-	listener quic.EarlyListener
+	listener *quic.EarlyListener
 }
 
 type protoCfg struct {
@@ -23,9 +23,9 @@ type protoCfg struct {
 	tls      *tls.Config
 }
 
-func NewMux(listener net.PacketConn) (*ALPNMux, error) {
+func NewMux(tr *quic.Transport) (*ALPNMux, error) {
 	a := &ALPNMux{}
-	q, err := quic.ListenEarly(listener, &tls.Config{
+	q, err := tr.ListenEarly(&tls.Config{
 		GetConfigForClient: a.getConfigForClient,
 	}, quicConfig)
 	if err != nil {
@@ -60,7 +60,7 @@ func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, e
 	return nil, errors.New("cipher: no mutually supported protocols")
 }
 
-func (a *ALPNMux) With(baseCfg *tls.Config, protos ...string) quic.EarlyListener {
+func (a *ALPNMux) With(baseCfg *tls.Config, protos ...string) q.EarlyListener {
 	cfg := &protoCfg{
 		acceptor: acceptor.NewH3Acceptor(a.listener),
 		tls:      baseCfg,

@@ -19,6 +19,7 @@ import (
 	"kon.nect.sh/specter/util/acceptor"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ func setupGatewayWithRouter(t *testing.T, as *require.Assertions, logger *zap.Lo
 	h2, tcpPort = getH2Listener(as)
 
 	ss := generateTLSConfig([]string{})
-	alpnMux, err := overlay.NewMux(q)
+	alpnMux, err := overlay.NewMux(&quic.Transport{Conn: q})
 	as.NoError(err)
 
 	h3 := alpnMux.With(cipher.GetGatewayTLSConfig(func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {

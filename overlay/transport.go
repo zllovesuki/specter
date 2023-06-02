@@ -15,8 +15,8 @@ import (
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/rpc"
 	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/spec/transport/q"
 	"kon.nect.sh/specter/util/atomic"
-	"kon.nect.sh/specter/util/reuse"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/quic-go/quic-go"
@@ -93,15 +93,6 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 		defer dialCancel()
 
-		listenCfg := &net.ListenConfig{
-			Control: reuse.Control,
-		}
-
-		pconn, err := listenCfg.ListenPacket(dialCtx, "udp", ":0")
-		if err != nil {
-			return err
-		}
-
 		addr, err := net.ResolveUDPAddr("udp", peer.GetAddress())
 		if err != nil {
 			return err
@@ -112,7 +103,15 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 			cfg.Certificates = []tls.Certificate{cert}
 		}
 
-		newQ, err := quic.DialEarlyContext(dialCtx, pconn, addr, peer.GetAddress(), cfg, quicConfig)
+		if cfg.ServerName == "" {
+			host, _, err := net.SplitHostPort(peer.GetAddress())
+			if err != nil {
+				host = peer.GetAddress()
+			}
+			cfg.ServerName = host
+		}
+
+		newQ, err := t.QuicTransport.DialEarly(dialCtx, addr, cfg, quicConfig)
 		if err != nil {
 			return err
 		}
@@ -329,7 +328,7 @@ func (t *QUIC) background(ctx context.Context) {
 	go t.handleRTTAck(ctx)
 }
 
-func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListener) error {
+func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener) error {
 	t.Logger.Info("Accepting connections", zap.String("listen", listener.Addr().String()))
 	t.background(ctx)
 	for {
@@ -348,17 +347,6 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener quic.EarlyListen
 			}
 		}(q)
 	}
-}
-
-func (t *QUIC) Accept(ctx context.Context) error {
-	if t.ServerTLS == nil {
-		return fmt.Errorf("missing ServerTLS")
-	}
-	l, err := quic.ListenAddrEarly(t.Endpoint.GetAddress(), t.ServerTLS, quicConfig)
-	if err != nil {
-		return err
-	}
-	return t.AcceptWithListener(ctx, l)
 }
 
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {

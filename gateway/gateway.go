@@ -12,6 +12,7 @@ import (
 	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/transport"
+	"kon.nect.sh/specter/spec/transport/q"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util"
 	"kon.nect.sh/specter/util/acceptor"
@@ -48,7 +49,7 @@ type GatewayConfig struct {
 	TunnelServer      tun.Server
 	HTTPListener      net.Listener
 	H2Listener        net.Listener
-	H3Listener        quic.EarlyListener
+	H3Listener        q.EarlyListener
 	Logger            *zap.Logger
 	HandshakeHintFunc cipher.OnHandshakeFunc
 	AdminUser         string
