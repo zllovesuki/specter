@@ -84,8 +84,9 @@ endif
 upx: release
 	-find ./bin -type f -exec upx --best --lzma {} +
 
+DOCKER_TAG ?= miragespace/specter
 docker:
-	docker buildx build --platform linux/amd64,linux/amd64/v3,linux/arm64,linux/arm,linux/ppc64le,linux/s390x -t miragespace/specter:$(BUILD) --push -f Dockerfile .
+	docker buildx build --platform linux/amd64,linux/amd64/v3,linux/arm64,linux/arm,linux/ppc64le,linux/s390x -t $(DOCKER_TAG):$(BUILD) --push -f Dockerfile .
 
 proto: dep
 	dep/bin/protoc \
