@@ -7,6 +7,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"kon.nect.sh/specter/spec/protocol"
@@ -21,6 +24,12 @@ const (
 	// uint32
 	LengthSize = 4
 )
+
+var builderPool = sync.Pool{
+	New: func() any {
+		return &strings.Builder{}
+	},
+}
 
 type ChordClient interface {
 	protocol.VNodeService
@@ -50,7 +59,16 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 				return nil, fmt.Errorf("node not found in context")
 			}
 			SerializeContextHeader(ctx, r.Header)
-			r.URL.Host = fmt.Sprintf("%d.%s", peer.GetId(), peer.GetAddress()) // needed to override dialer instead of using http://chord as key
+
+			// needed to override dialer instead of using http://chord as key
+			sb := builderPool.Get().(*strings.Builder)
+			defer builderPool.Put(sb)
+			defer sb.Reset()
+			sb.WriteString(strconv.FormatUint(peer.GetId(), 10))
+			sb.WriteString(".")
+			sb.WriteString(peer.GetAddress())
+			r.URL.Host = sb.String()
+
 			outboundRate.Increment()
 			return ctx, nil
 		},
