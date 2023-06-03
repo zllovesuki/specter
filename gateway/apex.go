@@ -74,13 +74,15 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			a.authUser: a.authPass,
 		}))
 		r.Use(a.internalProxy)
-		if a.handlers.ChordStats != nil {
-			r.Mount("/chord", a.handlers.ChordStats)
+		if a.handlers.Chord != nil {
+			r.Mount("/chord", a.handlers.Chord)
 		}
-		if a.handlers.ClientsQuery != nil {
-			r.Mount("/clients", a.handlers.ClientsQuery)
+		if a.handlers.TunnelServer != nil {
+			r.Mount("/tun", a.handlers.TunnelServer)
 		}
-		r.Handle("/migrator", a.handlers.MigrationHandler)
+		if a.handlers.Migrator != nil {
+			r.Mount("/migrator", a.handlers.Migrator)
+		}
 		r.Mount("/debug", middleware.Profiler())
 
 		// catch-all helper

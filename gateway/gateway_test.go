@@ -207,7 +207,7 @@ func setupGateway(t *testing.T, as *require.Assertions, httpListener net.Listene
 		AdminUser:    os.Getenv("INTERNAL_USER"),
 		AdminPass:    os.Getenv("INTERNAL_PASS"),
 		Handlers: InternalHandlers{
-			ChordStats: fakeStats,
+			Chord: fakeStats,
 		},
 		Options: Options{
 			TransportBufferSize: 1024 * 8,

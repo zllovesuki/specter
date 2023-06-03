@@ -9,6 +9,7 @@ import (
 	"kon.nect.sh/specter/spec/pki"
 	"kon.nect.sh/specter/tun/client"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
@@ -23,18 +24,19 @@ type v1ClientConfig struct {
 //go:embed helper.html
 var helper []byte
 
-func ConfigMigrator(logger *zap.Logger, ca tls.Certificate) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			w.Header().Set("content-type", "text/html; charset=utf-8")
-			w.Write(helper)
-		case http.MethodPost:
-			migrateConfig(logger, ca, w, r)
-		default:
-			w.WriteHeader(http.StatusNotImplemented)
-		}
-	}
+func ConfigMigratorHandler(logger *zap.Logger, ca tls.Certificate) http.Handler {
+	router := chi.NewRouter()
+
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/html; charset=utf-8")
+		w.Write(helper)
+	})
+
+	router.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		migrateConfig(logger, ca, w, r)
+	})
+
+	return router
 }
 
 func migrateConfig(logger *zap.Logger, ca tls.Certificate, w http.ResponseWriter, r *http.Request) {

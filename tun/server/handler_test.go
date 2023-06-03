@@ -63,7 +63,7 @@ func TestHandlerListConnectedClients(t *testing.T) {
 
 	router := chi.NewRouter()
 
-	router.Mount("/clients", ConnectedClientsHandler(serv))
+	router.Mount("/clients", TunnelServerHandler(serv))
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "http://test/clients", nil)
@@ -142,7 +142,7 @@ func TestHandlerListClientTunnels(t *testing.T) {
 
 	router := chi.NewRouter()
 
-	router.Mount("/clients", ConnectedClientsHandler(serv))
+	router.Mount("/clients", TunnelServerHandler(serv))
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "http://test/clients/111111/fake-address", nil)

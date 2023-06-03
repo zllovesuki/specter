@@ -16,7 +16,7 @@ import (
 	"github.com/twitchtv/twirp"
 )
 
-func ConnectedClientsHandler(s *Server) http.Handler {
+func TunnelServerHandler(s *Server) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
