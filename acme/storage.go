@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/protocol"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/zhangyunhao116/skipmap"
@@ -160,7 +162,55 @@ func (c *ChordStorage) Exists(ctx context.Context, key string) bool {
 }
 
 func (c *ChordStorage) List(ctx context.Context, prefix string, recursive bool) ([]string, error) {
-	return nil, fmt.Errorf("not yet implemented")
+	oldPrefix := prefix
+
+	prefix = kvKeyName(prefix)
+
+	keys, err := c.KV.ListKeys(ctx, []byte(prefix))
+	if err != nil {
+		return nil, err
+	}
+
+	var newKey string
+	found := make([]string, 0)
+	if recursive {
+		for _, key := range keys {
+			if key.GetType() != protocol.KeyComposite_SIMPLE {
+				continue
+			}
+			newKey = strings.TrimPrefix(string(key.GetKey()), kvKeyPrefix)
+			found = append(found, newKey)
+		}
+	} else {
+		seen := make(map[string]bool)
+		if !strings.HasSuffix(prefix, "/") {
+			prefix += "/"
+		}
+		for _, key := range keys {
+			if key.GetType() != protocol.KeyComposite_SIMPLE {
+				continue
+			}
+			sub := strings.TrimPrefix(string(key.GetKey()), prefix)
+			n := strings.Index(sub, "/")
+
+			if n == -1 {
+				newKey = string(key.GetKey())
+			} else {
+				newKey = prefix + sub[:n]
+			}
+			newKey = strings.TrimPrefix(newKey, kvKeyPrefix)
+
+			if ok := seen[newKey]; ok {
+				continue
+			}
+			seen[newKey] = true
+			found = append(found, newKey)
+		}
+	}
+
+	c.Logger.Debug("List", zap.String("prefix", oldPrefix), zap.Strings("keys", found), zap.Bool("recursive", recursive))
+
+	return found, nil
 }
 
 func (c *ChordStorage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, error) {

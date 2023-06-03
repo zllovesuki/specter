@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -744,12 +745,17 @@ func cmdServer(ctx *cli.Context) error {
 
 	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
 
+	var acmeHandler http.Handler
+	if mgr, ok := certProvider.(*acme.Manager); ok {
+		acmeHandler = acme.AcmeManagerHandler(mgr)
+	}
 	gw := gateway.New(gateway.GatewayConfig{
 		PKIServer: &pki.Server{
 			Logger:   logger.With(zapsentry.NewScope()).With(zap.String("component", "pki")),
 			ClientCA: bundle.clientCaCert,
 		},
 		Handlers: gateway.InternalHandlers{
+			Acme:         acmeHandler,
 			Chord:        chordImpl.ChordStatsHandler(rootNode, virtualNodes),
 			TunnelServer: server.TunnelServerHandler(tunServer),
 			Migrator:     migrator.ConfigMigratorHandler(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),

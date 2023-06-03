@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
@@ -162,4 +163,12 @@ func TestIntegrationACME(t *testing.T) {
 		return false
 	}, time.Second, time.Second*15)
 	as.NoError(err)
+
+	// test clean endpoint
+	handler := AcmeManagerHandler(manager)
+	req := httptest.NewRequest("POST", "/clean", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	as.Equal(http.StatusNoContent, w.Result().StatusCode)
 }

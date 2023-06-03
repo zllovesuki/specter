@@ -38,6 +38,7 @@ type Manager struct {
 	managedConfig *certmagic.Config
 	dynamicConfig *certmagic.Config
 	managed       []string
+	chordStorage  *ChordStorage
 	onHandshake   atomic.Pointer[cipher.OnHandshakeFunc]
 	ManagerConfig
 }
@@ -57,6 +58,7 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 	isDev := cfg.CA != certmagic.LetsEncryptProductionCA
 	manager := &Manager{
 		parentCtx:     ctx,
+		chordStorage:  kvStore,
 		ManagerConfig: cfg,
 	}
 

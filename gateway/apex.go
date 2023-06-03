@@ -74,6 +74,10 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			a.authUser: a.authPass,
 		}))
 		r.Use(a.internalProxy)
+
+		if a.handlers.Acme != nil {
+			r.Mount("/acme", a.handlers.Acme)
+		}
 		if a.handlers.Chord != nil {
 			r.Mount("/chord", a.handlers.Chord)
 		}
@@ -83,6 +87,7 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		if a.handlers.Migrator != nil {
 			r.Mount("/migrator", a.handlers.Migrator)
 		}
+
 		r.Mount("/debug", middleware.Profiler())
 
 		// catch-all helper
