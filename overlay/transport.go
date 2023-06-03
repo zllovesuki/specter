@@ -93,7 +93,9 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 		defer dialCancel()
 
-		addr, err := net.ResolveUDPAddr("udp", peer.GetAddress())
+		peerAddr := peer.GetAddress()
+
+		addr, err := net.ResolveUDPAddr("udp", peerAddr)
 		if err != nil {
 			return err
 		}
@@ -104,9 +106,9 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		}
 
 		if cfg.ServerName == "" {
-			host, _, err := net.SplitHostPort(peer.GetAddress())
+			host, _, err := net.SplitHostPort(peerAddr)
 			if err != nil {
-				host = peer.GetAddress()
+				host = peerAddr
 			}
 			cfg.ServerName = host
 		}
