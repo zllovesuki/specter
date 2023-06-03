@@ -312,6 +312,21 @@ func (n *RemoteNode) Import(ctx context.Context, keys [][]byte, values []*protoc
 	return chord.ErrorMapper(err)
 }
 
+func (n *RemoteNode) ListKeys(ctx context.Context, prefix []byte, typ protocol.ListKeysRequest_Type) ([][]byte, error) {
+	reqCtx, cancel := context.WithTimeout(rpc.WithNode(ctx, n.identity), rpcTimeout)
+	defer cancel()
+
+	resp, err := n.chordClient.ListKeys(reqCtx, &protocol.ListKeysRequest{
+		Prefix: prefix,
+		Type:   typ,
+	})
+	if err != nil {
+		return nil, chord.ErrorMapper(err)
+	}
+
+	return resp.GetKeys(), nil
+}
+
 func (n *RemoteNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNode, error) {
 	reqCtx, cancel := context.WithTimeout(rpc.WithNode(n.baseContext, n.identity), rpcTimeout)
 	defer cancel()
@@ -349,7 +364,7 @@ func (n *RemoteNode) FinishJoin(stabilize bool, release bool) error {
 
 	_, err := n.chordClient.FinishJoin(reqCtx, &protocol.MembershipConclusionRequest{
 		Stabilize: stabilize,
-		Release:  release,
+		Release:   release,
 	})
 
 	return chord.ErrorMapper(err)
@@ -372,7 +387,7 @@ func (n *RemoteNode) FinishLeave(stabilize bool, release bool) error {
 
 	_, err := n.chordClient.FinishLeave(reqCtx, &protocol.MembershipConclusionRequest{
 		Stabilize: stabilize,
-		Release:  release,
+		Release:   release,
 	})
 
 	return chord.ErrorMapper(err)

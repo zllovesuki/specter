@@ -235,3 +235,13 @@ func (r *Server) Import(ctx context.Context, req *protocol.ImportRequest) (*prot
 	}
 	return &protocol.ImportResponse{}, nil
 }
+
+func (r *Server) ListKeys(ctx context.Context, req *protocol.ListKeysRequest) (*protocol.ListKeysResponse, error) {
+	keys, err := r.LocalNode.ListKeys(ctx, req.GetPrefix(), req.GetType())
+	if err != nil {
+		return nil, rpc.WrapError(err)
+	}
+	return &protocol.ListKeysResponse{
+		Keys: keys,
+	}, nil
+}

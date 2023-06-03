@@ -80,6 +80,9 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		if a.handlers.ClientsQuery != nil {
 			r.Mount("/clients", a.handlers.ClientsQuery)
 		}
+		if a.handlers.AcmeManager != nil {
+			r.Mount("/acme", a.handlers.AcmeManager)
+		}
 		r.Handle("/migrator", a.handlers.MigrationHandler)
 		r.Mount("/debug", middleware.Profiler())
 

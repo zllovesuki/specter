@@ -181,3 +181,16 @@ func (n *LocalNode) Import(ctx context.Context, keys [][]byte, values []*protoco
 	n.logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(ctx, keys, values)
 }
+
+func (n *LocalNode) ListKeys(ctx context.Context, prefix []byte, typ protocol.ListKeysRequest_Type) ([][]byte, error) {
+	n.surrogateMu.RLock()
+	defer n.surrogateMu.RUnlock()
+
+	state := n.state.Get()
+	if state != chord.Active {
+		n.kvStaleCount.Inc()
+		return nil, chord.ErrKVStaleOwnership
+	}
+
+	return n.kv.ListKeys(ctx, prefix, typ)
+}

@@ -18,6 +18,10 @@ func (d *DiskKV) PrefixContains(ctx context.Context, prefix []byte, child []byte
 	return d.memKv.PrefixContains(ctx, prefix, child)
 }
 
+func (d *DiskKV) ListKeys(ctx context.Context, prefix []byte, typ protocol.ListKeysRequest_Type) ([][]byte, error) {
+	return d.memKv.ListKeys(ctx, prefix, typ)
+}
+
 func (d *DiskKV) Export(keys [][]byte) []*protocol.KVTransfer {
 	return d.memKv.Export(keys)
 }

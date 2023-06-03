@@ -35,6 +35,7 @@ type DeadlineReadWriteCloser interface {
 type InternalHandlers struct {
 	ChordStats       http.Handler
 	ClientsQuery     http.Handler
+	AcmeManager      http.Handler
 	MigrationHandler http.HandlerFunc
 }
 

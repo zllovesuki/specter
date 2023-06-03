@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -86,6 +87,36 @@ func (m *MemoryKV) Import(ctx context.Context, keys [][]byte, values []*protocol
 		}
 	}
 	return nil
+}
+
+func (m *MemoryKV) ListKeys(ctx context.Context, prefix []byte, typ protocol.ListKeysRequest_Type) ([][]byte, error) {
+	keys := make([][]byte, 0)
+	m.s.Range(func(id uint64, kMap *skipmap.StringMap[*kvValue]) bool {
+		kMap.Range(func(key string, value *kvValue) bool {
+			if strings.HasPrefix(key, string(prefix)) {
+				switch typ {
+				case protocol.ListKeysRequest_SIMPLE:
+					k := *value.simple.Load()
+					if len(k) == 0 {
+						return true
+					}
+				case protocol.ListKeysRequest_PREFIX:
+					if value.children.Len() < 1 {
+						return true
+					}
+				case protocol.ListKeysRequest_LEASE:
+					token := value.lease.Load()
+					if token == 0 {
+						return true
+					}
+				}
+				keys = append(keys, []byte(key))
+			}
+			return true
+		})
+		return true
+	})
+	return keys, nil
 }
 
 func (m *MemoryKV) Export(keys [][]byte) []*protocol.KVTransfer {

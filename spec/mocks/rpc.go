@@ -217,6 +217,16 @@ func (c *ChordClient) Release(ctx context.Context, req *protocol.LeaseRequest) (
 	return r.(*protocol.LeaseResponse), nil
 }
 
+func (c *ChordClient) ListKeys(ctx context.Context, req *protocol.ListKeysRequest) (*protocol.ListKeysResponse, error) {
+	args := c.Called(ctx, req)
+	r := args.Get(0)
+	e := args.Error(1)
+	if e != nil {
+		return nil, e
+	}
+	return r.(*protocol.ListKeysResponse), nil
+}
+
 func (c *ChordClient) Import(_ context.Context, _ *protocol.ImportRequest) (*protocol.ImportResponse, error) {
 	panic("not implemented") // TODO: Implement
 }
