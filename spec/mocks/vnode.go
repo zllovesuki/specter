@@ -91,6 +91,13 @@ func (n *VNode) Import(ctx context.Context, keys [][]byte, values []*protocol.KV
 	return e
 }
 
+func (n *VNode) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.KeyComposite, error) {
+	args := n.Called(ctx, prefix)
+	t := args.Get(0)
+	e := args.Error(1)
+	return t.([]*protocol.KeyComposite), e
+}
+
 func (n *VNode) ID() uint64 {
 	args := n.Called()
 	v := args.Get(0)

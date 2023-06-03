@@ -8,6 +8,7 @@ message Context {
     enum TargetType {
         UNKNOWN = 0;
         KV_REPLICATION = 1;
+        KV_DIRECT_TARGET = 2;
     }
     TargetType requestTarget = 1;
 }

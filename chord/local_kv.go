@@ -2,6 +2,7 @@ package chord
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -180,4 +181,65 @@ func (n *LocalNode) Import(ctx context.Context, keys [][]byte, values []*protoco
 
 	n.logger.Debug("KV Import", zap.Int("num_keys", len(keys)))
 	return n.kv.Import(ctx, keys, values)
+}
+
+func (n *LocalNode) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.KeyComposite, error) {
+	reqCtx := rpc.GetContext(ctx)
+	if reqCtx.GetRequestTarget() == protocol.Context_KV_DIRECT_TARGET {
+		n.logger.Debug("KV Listkeys", zap.Stringer("target", targetLocal), zap.String("prefix", string(prefix)))
+		return func() ([]*protocol.KeyComposite, error) {
+			n.surrogateMu.RLock()
+			defer n.surrogateMu.RUnlock()
+
+			state := n.state.Get()
+			if state != chord.Active {
+				n.kvStaleCount.Inc()
+				return nil, chord.ErrKVStaleOwnership
+			}
+
+			return n.kv.ListKeys(ctx, prefix)
+		}()
+	}
+	n.logger.Debug("KV Listkeys", zap.Stringer("target", targetRemote), zap.String("prefix", string(prefix)))
+
+	var (
+		keys              = make([]*protocol.KeyComposite, 0)
+		nodes             = make([]chord.VNode, 0)
+		seen              = make(map[uint64]bool)
+		next  chord.VNode = n
+		err   error
+	)
+
+	// we need to walk the entire ring
+	for {
+		next, err = n.FindSuccessor(chord.ModuloSum(next.ID(), 1))
+		if err != nil {
+			return nil, err
+		}
+		if next == nil {
+			return nil, chord.ErrNodeNoSuccessor
+		}
+		if next.ID() == n.ID() {
+			nodes = append(nodes, n)
+			break
+		}
+		if seen[next.ID()] {
+			return nil, fmt.Errorf("ring is unstable")
+		}
+		nodes = append(nodes, next)
+		seen[next.ID()] = true
+	}
+
+	listCtx := rpc.WithContext(ctx, &protocol.Context{
+		RequestTarget: protocol.Context_KV_DIRECT_TARGET,
+	})
+	for _, node := range nodes {
+		k, err := node.ListKeys(listCtx, prefix)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, k...)
+	}
+
+	return keys, nil
 }

@@ -21,6 +21,8 @@ service KVService {
     rpc Release(LeaseRequest) returns (LeaseResponse);
 
     rpc Import(ImportRequest) returns (ImportResponse);
+
+    rpc ListKeys(ListKeysRequest) returns (ListKeysResponse);
 }
 
 message SimpleRequest {
@@ -66,3 +68,22 @@ message ImportRequest {
 }
 
 message ImportResponse {}
+
+message ListKeysRequest {
+    bytes prefix = 1;
+}
+
+message KeyComposite {
+    enum Type {
+        UNKNOWN = 0;
+        SIMPLE = 1;
+        PREFIX = 2;
+        LEASE  = 3;
+    }
+    bytes key = 1; 
+    Type type = 2;
+}
+
+message ListKeysResponse {
+    repeated KeyComposite keys = 1;
+}

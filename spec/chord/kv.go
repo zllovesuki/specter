@@ -63,6 +63,9 @@ type KV interface {
 	// Import is used when a node is transferring its KV to a remote node.
 	// Used when a new node joins or a node leaves gracefully
 	Import(ctx context.Context, keys [][]byte, values []*protocol.KVTransfer) error
+	// ListKeys is used when a node is traversing the network to list keys
+	// based on a prefix
+	ListKeys(ctx context.Context, prefix []byte) ([]*protocol.KeyComposite, error)
 }
 
 type KVProvider interface {

@@ -44,7 +44,7 @@ func TestRPC(t *testing.T) {
 		Identity:                 identity1,
 		KVProvider:               memory.WithHashFn(chord.Hash),
 		FixFingerInterval:        time.Millisecond * 100,
-		StabilizeInterval:         time.Millisecond * 300,
+		StabilizeInterval:        time.Millisecond * 300,
 		PredecessorCheckInterval: time.Millisecond * 500,
 		ChordClient:              client1,
 		NodesRTT:                 new(mocks.Measurement),
@@ -107,6 +107,10 @@ func TestRPC(t *testing.T) {
 	resp6, err := caller.PrefixContains(ctx, []byte("p"), []byte("c"))
 	as.NoError(err)
 	as.False(resp6)
+
+	resp7, err := caller.ListKeys(ctx, []byte(""))
+	as.NoError(err)
+	as.Greater(len(resp7), 0)
 
 	prevToken, err := caller.Acquire(ctx, []byte("lease"), time.Second)
 	as.NoError(err)

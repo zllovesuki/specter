@@ -221,6 +221,10 @@ func (c *ChordClient) Import(_ context.Context, _ *protocol.ImportRequest) (*pro
 	panic("not implemented") // TODO: Implement
 }
 
+func (c *ChordClient) ListKeys(_ context.Context, _ *protocol.ListKeysRequest) (*protocol.ListKeysResponse, error) {
+	panic("not implemented") // TODO: Implement
+}
+
 func (c *ChordClient) RatePer(interval time.Duration) float64 {
 	return 1.0
 }

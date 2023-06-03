@@ -238,6 +238,33 @@ func TestKeyTransferIn(t *testing.T) {
 	fsck(as, []*LocalNode{n2, n1, seed})
 }
 
+func TestListKeys(t *testing.T) {
+	as := require.New(t)
+
+	numNodes := 3
+	nodes, done := makeRing(t, as, numNodes)
+	defer done()
+
+	keys, values := makeKV(as, 30, 8)
+
+	for i := range keys {
+		as.Nil(nodes[0].Put(context.Background(), keys[i], values[i]))
+	}
+
+	composite, err := nodes[0].ListKeys(context.Background(), []byte(""))
+	as.NoError(err)
+	as.Len(composite, len(keys))
+	found := 0
+	for _, k1 := range composite {
+		for _, k2 := range keys {
+			if bytes.Equal(k1.GetKey(), k2) {
+				found++
+			}
+		}
+	}
+	as.Equal(len(keys), found)
+}
+
 type concurrentTest struct {
 	numNodes int
 	numKeys  int
