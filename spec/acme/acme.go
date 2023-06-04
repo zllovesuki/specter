@@ -1,7 +1,7 @@
 package acme
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/url"
@@ -18,6 +18,10 @@ import (
 const (
 	HashcashDifficulty int           = 18
 	HashcashExpires    time.Duration = time.Second * 10
+)
+
+const (
+	ManagedDelegation = "managed"
 )
 
 var nonDnsRegex = regexp.MustCompile(`[^a-z0-9-.]+`)
@@ -52,16 +56,13 @@ func Normalize(zone string) (string, error) {
 	return uni, nil
 }
 
-func EncodeZone(zone string, token []byte) string {
-	hash := sha1.New()
-	hash.Write([]byte(zone))
-	if len(token) > 0 {
-		hash.Write(token)
-	}
+func EncodeClientToken(token []byte) string {
+	hash := sha256.New224()
+	hash.Write(token)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func GenerateRecord(zone, delegation string, token []byte) (name string, content string) {
+func generateRecord(zone, delegation, subdomain string) (name, content string) {
 	builder := strings.Builder{}
 
 	builder.WriteString("_acme-challenge.")
@@ -72,7 +73,7 @@ func GenerateRecord(zone, delegation string, token []byte) (name string, content
 	name = builder.String()
 
 	builder.Reset()
-	builder.WriteString(EncodeZone(zone, token))
+	builder.WriteString(subdomain)
 	builder.WriteString(".")
 	builder.WriteString(delegation)
 	if !dns.IsFqdn(delegation) {
@@ -81,6 +82,14 @@ func GenerateRecord(zone, delegation string, token []byte) (name string, content
 	content = builder.String()
 
 	return
+}
+
+func GenerateManagedRecord(zone, delegation string) (name, content string) {
+	return generateRecord(zone, delegation, ManagedDelegation)
+}
+
+func GenerateCustomRecord(zone, delegation string, token []byte) (name, content string) {
+	return generateRecord(zone, delegation, EncodeClientToken(token))
 }
 
 func ParseAcmeURI(uri string) (email, zone string, err error) {

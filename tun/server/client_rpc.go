@@ -438,7 +438,7 @@ func (s *Server) AcmeInstruction(ctx context.Context, req *protocol.InstructionR
 		return nil, err
 	}
 
-	name, content := acme.GenerateRecord(hostname, s.Acme, token.GetToken())
+	name, content := acme.GenerateCustomRecord(hostname, s.Acme, token.GetToken())
 	return &protocol.InstructionResponse{
 		Name:    name,
 		Content: content,
@@ -466,7 +466,7 @@ func (s *Server) AcmeValidate(ctx context.Context, req *protocol.ValidateRequest
 		cname string
 	)
 
-	name, content := acme.GenerateRecord(hostname, s.Acme, token.GetToken())
+	name, content := acme.GenerateCustomRecord(hostname, s.Acme, token.GetToken())
 
 	lookupCtx, lookupCancel := context.WithTimeout(ctx, lookupTimeout)
 	defer lookupCancel()

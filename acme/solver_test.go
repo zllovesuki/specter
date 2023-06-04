@@ -31,11 +31,11 @@ func TestSolverManaged(t *testing.T) {
 	}
 
 	append := mockKV.On("PrefixAppend", mock.Anything, mock.MatchedBy(func(key []byte) bool {
-		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeZone(testManagedDomain, nil))), key)
+		return bytes.Equal([]byte(dnsKeyName(acmeSpec.ManagedDelegation)), key)
 	}), mock.Anything).Return(nil)
 
 	mockKV.On("PrefixRemove", mock.Anything, mock.MatchedBy(func(key []byte) bool {
-		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeZone(testManagedDomain, nil))), key)
+		return bytes.Equal([]byte(dnsKeyName(acmeSpec.ManagedDelegation)), key)
 	}), mock.Anything).Return(nil).NotBefore(append)
 
 	err := solver.Present(context.Background(), acme.Challenge{
@@ -85,11 +85,11 @@ func TestSolverDynamic(t *testing.T) {
 	})).Return(bundleBuf, nil)
 
 	append := mockKV.On("PrefixAppend", mock.Anything, mock.MatchedBy(func(key []byte) bool {
-		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeZone(testDynamicDomain, testToken.GetToken()))), key)
+		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeClientToken(testToken.GetToken()))), key)
 	}), mock.Anything).Return(nil).NotBefore(get)
 
 	mockKV.On("PrefixRemove", mock.Anything, mock.MatchedBy(func(key []byte) bool {
-		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeZone(testDynamicDomain, testToken.GetToken()))), key)
+		return bytes.Equal([]byte(dnsKeyName(acmeSpec.EncodeClientToken(testToken.GetToken()))), key)
 	}), mock.Anything).Return(nil).NotBefore(append)
 
 	err = solver.Present(context.Background(), acme.Challenge{

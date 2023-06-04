@@ -425,7 +425,7 @@ func cmdServer(ctx *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("error normalizing domain for %s: %w", d, err)
 			}
-			name, content := acmeSpec.GenerateRecord(hostname, ctx.String("acme_zone"), nil)
+			name, content := acmeSpec.GenerateManagedRecord(hostname, ctx.String("acme_zone"))
 			logger.Info("ACME DNS Record", zap.String("name", name), zap.String("content", content), zap.String("type", "CNAME"))
 		}
 		return nil

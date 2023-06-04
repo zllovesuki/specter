@@ -29,15 +29,15 @@ func (s *ChordSolver) isManaged(zone string) bool {
 }
 
 func (s *ChordSolver) getSubdomain(ctx context.Context, zone string) (string, error) {
-	var token []byte
-	if !s.isManaged(zone) {
-		bundle, err := tun.FindCustomHostname(ctx, s.KV, zone)
-		if err != nil {
-			return "", err
-		}
-		token = bundle.GetClientToken().GetToken()
+	if s.isManaged(zone) {
+		return acmeSpec.ManagedDelegation, nil
 	}
-	return acmeSpec.EncodeZone(zone, token), nil
+	bundle, err := tun.FindCustomHostname(ctx, s.KV, zone)
+	if err != nil {
+		return "", err
+	}
+	token := bundle.GetClientToken().GetToken()
+	return acmeSpec.EncodeClientToken(token), nil
 }
 
 func (s *ChordSolver) Present(ctx context.Context, chal acme.Challenge) error {

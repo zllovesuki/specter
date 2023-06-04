@@ -36,7 +36,7 @@ func TestAcmeInstruction(t *testing.T) {
 	clientBuf, err := cli.MarshalVT()
 	as.NoError(err)
 
-	name, content := acme.GenerateRecord(hostname, testAcmeZone, token.GetToken())
+	name, content := acme.GenerateCustomRecord(hostname, testAcmeZone, token.GetToken())
 
 	node.On("Get",
 		mock.Anything,
@@ -104,7 +104,7 @@ func TestAcmeValidationSuccess(t *testing.T) {
 	clientBuf, err := cli.MarshalVT()
 	as.NoError(err)
 
-	name, content := acme.GenerateRecord(hostname, testAcmeZone, token.GetToken())
+	name, content := acme.GenerateCustomRecord(hostname, testAcmeZone, token.GetToken())
 
 	node.On("Get",
 		mock.Anything,
@@ -279,7 +279,7 @@ func TestAcmeValidationIncorrect(t *testing.T) {
 	clientBuf, err := cli.MarshalVT()
 	as.NoError(err)
 
-	name, _ := acme.GenerateRecord(hostname, testAcmeZone, token.GetToken())
+	name, _ := acme.GenerateCustomRecord(hostname, testAcmeZone, token.GetToken())
 
 	node.On("Get",
 		mock.Anything,
@@ -346,7 +346,7 @@ func TestAcmeValidationError(t *testing.T) {
 	clientBuf, err := cli.MarshalVT()
 	as.NoError(err)
 
-	name, _ := acme.GenerateRecord(hostname, testAcmeZone, token.GetToken())
+	name, _ := acme.GenerateCustomRecord(hostname, testAcmeZone, token.GetToken())
 
 	node.On("Get",
 		mock.Anything,
