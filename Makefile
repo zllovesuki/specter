@@ -24,20 +24,20 @@ ext = $(word 3, $(plat_temp))
 
 # ==========================DEV===========================
 
-buildx: certs
-	docker buildx build -t specter -f Dockerfile.dev .
+build-dev: certs
+	docker build -t specter-dev -f Dockerfile.dev .
 
-dev-server: buildx
+dev-server: build-dev
 	SKIP=" " docker compose -f compose-server.yaml up
 
-dev-server-acme: buildx
+dev-server-acme:build-dev
 	docker compose -f compose-server.yaml up
+
+dev-client: build-dev
+	docker compose -f compose-client.yaml up
 
 dev-server-logs:
 	docker compose -f compose-server.yaml logs -f
-
-dev-client: buildx
-	docker compose -f compose-client.yaml up
 
 yeet-server:
 	docker compose -f compose-server.yaml down

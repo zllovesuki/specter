@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM golang:1.20.4-bullseye as builder
+FROM golang:1.20.4-bullseye as builder
 RUN apt install ca-certificates gcc
 WORKDIR /app
 COPY . .
@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/go/pkg/mod \
 ARG TARGETOS
 ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=7 GOAMD64=v3 \
+    GOARM=7 GOAMD64=v3 \
     go build -race -tags 'osusergo netgo urfave_cli_no_docs no_mocks' \
     -ldflags "-s -w -extldflags -static -X 'kon.nect.sh/specter/cmd/client.devApexOverride=dev.con.nect.sh' -X kon.nect.sh/specter/acme.BuildTime=`date +%s`" \
     -o bin/specter .

@@ -22,7 +22,7 @@ services:
       - specter
 
   dns:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
@@ -37,7 +37,7 @@ services:
     command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen dns:1153 --rpc tcp://seed:1280
 
   seed:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
@@ -59,7 +59,7 @@ services:
     command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --listen-rpc tcp://seed:1280
 
   srva:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
@@ -81,7 +81,7 @@ services:
     command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvb:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
@@ -103,7 +103,7 @@ services:
     command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvc:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
@@ -125,7 +125,7 @@ services:
     command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvd:
-    image: specter
+    image: specter-dev
     restart: unless-stopped
     stop_grace_period: 120s
     depends_on:
