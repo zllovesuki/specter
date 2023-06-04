@@ -3,6 +3,7 @@ package chord
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"kon.nect.sh/specter/spec/chord"
@@ -10,6 +11,7 @@ import (
 	"kon.nect.sh/specter/spec/rpc"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 // Workaround for https://github.com/golang/go/issues/49085#issuecomment-948108705
@@ -230,15 +232,47 @@ func (n *LocalNode) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.Ke
 		seen[next.ID()] = true
 	}
 
-	listCtx := rpc.WithContext(ctx, &protocol.Context{
+	ctx = rpc.WithContext(ctx, &protocol.Context{
 		RequestTarget: protocol.Context_KV_DIRECT_TARGET,
 	})
-	for _, node := range nodes {
-		k, err := node.ListKeys(listCtx, prefix)
-		if err != nil {
-			return nil, err
+
+	g, listCtx := errgroup.WithContext(ctx)
+	g.SetLimit(10)
+
+	readWg := sync.WaitGroup{}
+	readWg.Add(1)
+	resultCh := make(chan []*protocol.KeyComposite, 10)
+	gErr := make(chan error, 1)
+
+	go func() {
+		defer readWg.Done()
+
+		for k := range resultCh {
+			keys = append(keys, k...)
 		}
-		keys = append(keys, k...)
+	}()
+
+	for _, node := range nodes {
+		node := node
+		g.Go(func() error {
+			k, err := node.ListKeys(listCtx, prefix)
+			if err != nil {
+				return err
+			}
+			resultCh <- k
+			return nil
+		})
+	}
+
+	go func() {
+		err := g.Wait()
+		close(resultCh)
+		readWg.Wait()
+		gErr <- err
+	}()
+
+	if err := <-gErr; err != nil {
+		return nil, err
 	}
 
 	return keys, nil
