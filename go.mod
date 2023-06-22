@@ -21,7 +21,7 @@ require (
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.1
 	github.com/pires/go-proxyproto v0.7.0
-	github.com/quic-go/quic-go v0.36.0
+	github.com/quic-go/quic-go v0.35.1
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/wal v1.1.7
