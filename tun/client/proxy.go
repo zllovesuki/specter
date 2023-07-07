@@ -132,7 +132,7 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 			return nil
 		}
 		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
-		proxy.BufferPool = util.NewBufferPool(1024 * 8)
+		proxy.BufferPool = util.NewBufferPool(1024 * 16)
 
 		return &httpProxy{
 			acceptor: acceptor.NewH2Acceptor(nil),

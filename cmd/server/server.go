@@ -179,7 +179,7 @@ func Generate() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "proxy-buffer",
-				Value:    "8KiB",
+				Value:    "16KiB",
 				Usage:    "Buffer size when copying response from client",
 				Category: "Gateway Options",
 			},
