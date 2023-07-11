@@ -4,12 +4,12 @@ go 1.19
 
 require (
 	github.com/Microsoft/go-winio v0.6.1
-	github.com/TheZeroSlave/zapsentry v1.16.0
+	github.com/TheZeroSlave/zapsentry v1.17.0
 	github.com/Yiling-J/theine-go v0.2.7
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 	github.com/avast/retry-go/v4 v4.3.4
-	github.com/caddyserver/certmagic v0.18.2
-	github.com/dominikbraun/graph v0.22.3
+	github.com/caddyserver/certmagic v0.19.0
+	github.com/dominikbraun/graph v0.23.0
 	github.com/getsentry/sentry-go v0.22.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/gorilla/websocket v1.5.0
@@ -21,7 +21,7 @@ require (
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.1
 	github.com/pires/go-proxyproto v0.7.0
-	github.com/quic-go/quic-go v0.35.1
+	github.com/quic-go/quic-go v0.36.1
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/wal v1.1.7
@@ -33,11 +33,11 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
 	go.uber.org/zap v1.24.0
-	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
-	golang.org/x/net v0.11.0
+	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
+	golang.org/x/net v0.12.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/sys v0.9.0
-	google.golang.org/protobuf v1.30.0
+	golang.org/x/sys v0.10.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
@@ -67,11 +67,12 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/tinylru v1.2.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	github.com/zeebo/blake3 v0.2.3 // indirect
 	github.com/zhangyunhao116/fastrand v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/text v0.10.0 // indirect
-	golang.org/x/tools v0.10.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/tools v0.11.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
