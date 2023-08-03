@@ -354,7 +354,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener)
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
 	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 	for {
-		b, err := q.ReceiveMessage()
+		b, err := q.ReceiveMessage(ctx)
 		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
 				logger.Error("error receiving datagram", zap.Error(err))

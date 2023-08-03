@@ -21,7 +21,7 @@ require (
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.1
 	github.com/pires/go-proxyproto v0.7.0
-	github.com/quic-go/quic-go v0.36.1
+	github.com/quic-go/quic-go v0.37.1-0.20230730210257-95327793608a
 	github.com/sethvargo/go-diceware v0.3.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/wal v1.1.7
@@ -58,7 +58,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.3.2 // indirect
-	github.com/quic-go/qtls-go1-20 v0.2.2 // indirect
+	github.com/quic-go/qtls-go1-20 v0.3.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
