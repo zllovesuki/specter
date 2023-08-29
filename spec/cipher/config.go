@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	H3Protos = []string{http3.NextProtoH3, http3.NextProtoH3Draft29}
+	H3Protos = []string{http3.NextProtoH3}
 )
 
 // we will require the use of ECDSA certificates for Chord

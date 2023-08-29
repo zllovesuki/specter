@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 
 	"kon.nect.sh/specter/kv/memory"
 	"kon.nect.sh/specter/spec/chord"
+	"kon.nect.sh/specter/spec/cipher"
 	"kon.nect.sh/specter/spec/protocol"
 	"kon.nect.sh/specter/spec/tun"
 	"kon.nect.sh/specter/util/testcond"
@@ -40,6 +42,38 @@ type handshakeHook struct {
 
 func (h *handshakeHook) onHandshake(sni string) {
 	h.Called(sni)
+}
+
+func getTCPListener(as *require.Assertions) (net.Listener, int) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	as.NoError(err)
+
+	return l, l.Addr().(*net.TCPAddr).Port
+}
+
+func validateCert(as *require.Assertions, port int, serverName string) {
+	err := testcond.WaitForCondition(func() bool {
+		conn, err := tls.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port), &tls.Config{
+			ServerName:         serverName,
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			return false
+		}
+		if conn.Handshake() != nil {
+			return false
+		}
+		cs := conn.ConnectionState()
+		for _, cert := range cs.PeerCertificates {
+			for _, name := range cert.DNSNames {
+				if name == serverName {
+					return true
+				}
+			}
+		}
+		return false
+	}, time.Second, time.Second*15)
+	as.NoError(err)
 }
 
 func TestIntegrationACME(t *testing.T) {
@@ -106,30 +140,29 @@ func TestIntegrationACME(t *testing.T) {
 
 	manager.OnHandshake(hook.onHandshake)
 
+	listener, port := getTCPListener(as)
+	gwConf := cipher.GetGatewayTLSConfig(manager.GetCertificate, []string{tun.ALPN(protocol.Link_UNKNOWN)})
+	tlsListener := tls.NewListener(listener, gwConf)
+	defer tlsListener.Close()
+
+	go func() {
+		for {
+			conn, err := tlsListener.Accept()
+			if err != nil {
+				return
+			}
+			go func(conn net.Conn) {
+				b := make([]byte, 1)
+				conn.Read(b)
+			}(conn)
+		}
+	}()
+
 	// managed domain
 	err = manager.Initialize(ctx)
 	as.NoError(err)
 
-	err = testcond.WaitForCondition(func() bool {
-		fakeConn, _ := net.Pipe()
-		cert, err := manager.GetCertificate(&tls.ClientHelloInfo{
-			ServerName: testManagedDomain,
-			Conn:       fakeConn,
-		})
-		if err != nil {
-			return false
-		}
-		if cert == nil {
-			return false
-		}
-		for _, name := range cert.Leaf.DNSNames {
-			if name == testManagedDomain {
-				return true
-			}
-		}
-		return false
-	}, time.Second, time.Second*15)
-	as.NoError(err)
+	validateCert(as, port, testManagedDomain)
 
 	// dynamic domain
 	err = tun.SaveCustomHostname(ctx, kv, testDynamicDomain, &protocol.CustomHostname{
@@ -143,26 +176,7 @@ func TestIntegrationACME(t *testing.T) {
 	})
 	as.NoError(err)
 
-	err = testcond.WaitForCondition(func() bool {
-		fakeConn, _ := net.Pipe()
-		cert, err := manager.GetCertificate(&tls.ClientHelloInfo{
-			ServerName: testDynamicDomain,
-			Conn:       fakeConn,
-		})
-		if err != nil {
-			return false
-		}
-		if cert == nil {
-			return false
-		}
-		for _, name := range cert.Leaf.DNSNames {
-			if name == testDynamicDomain {
-				return true
-			}
-		}
-		return false
-	}, time.Second, time.Second*15)
-	as.NoError(err)
+	validateCert(as, port, testDynamicDomain)
 
 	// test clean endpoint
 	handler := AcmeManagerHandler(manager)
