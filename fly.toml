@@ -1,8 +1,12 @@
-# fly.toml file generated for specter on 2023-01-28T18:13:50-08:00
+# fly.toml app configuration file generated for specter on 2023-08-03T11:22:38-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
 app = "specter"
-
-kill_timeout = 180
+primary_region = "den"
+kill_signal = "SIGINT"
+kill_timeout = "3m0s"
 
 [build]
   dockerfile = "Dockerfile.flyio"
@@ -10,44 +14,44 @@ kill_timeout = 180
 [env]
   GOMEMLIMIT = "200MiB"
 
-# flyctl volumes create kv --size 1
-[mounts]
+[[mounts]]
   source = "kv"
   destination = "/data/kv"
+  processes = ["app"]
 
 [[services]]
-  internal_port = 443
   protocol = "udp"
+  internal_port = 443
 
   [[services.ports]]
-    port = "443"
+    port = 443
 
 [[services]]
-  internal_port = 443
   protocol = "tcp"
+  internal_port = 443
 
   [[services.ports]]
+    port = 443
     handlers = ["proxy_proto"]
-    port = "443"
 
 [[services]]
-  internal_port = 53
   protocol = "udp"
-
-  [[services.ports]]
-    port = "53"
-
-[[services]]
   internal_port = 53
-  protocol = "tcp"
 
   [[services.ports]]
-    port = "53"
+    port = 53
 
 [[services]]
+  protocol = "tcp"
+  internal_port = 53
+
+  [[services.ports]]
+    port = 53
+
+[[services]]
+  protocol = "tcp"
   internal_port = 80
-  protocol = "tcp"
 
   [[services.ports]]
+    port = 80
     handlers = ["proxy_proto"]
-    port = "80"
