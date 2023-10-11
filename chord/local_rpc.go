@@ -6,12 +6,12 @@ import (
 	"net"
 	"net/http"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/util"
-	"kon.nect.sh/specter/util/ratecounter"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/util"
+	"go.miragespace.co/specter/util/ratecounter"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

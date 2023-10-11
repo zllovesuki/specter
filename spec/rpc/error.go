@@ -3,7 +3,7 @@ package rpc
 import (
 	"fmt"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/twitchtv/twirp"
 )

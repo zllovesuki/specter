@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"time"
 
-	"kon.nect.sh/specter/spec/cipher"
+	"go.miragespace.co/specter/spec/cipher"
 )
 
 type SelfSignedProvider struct {

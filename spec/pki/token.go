@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/util"
 
 	"go.uber.org/zap/zapcore"
 )

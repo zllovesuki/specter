@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/kv/aof"
-	chordSpec "kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/kv/aof"
+	chordSpec "go.miragespace.co/specter/spec/chord"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"go.uber.org/zap"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 )
 
 var _ chord.LeaseKV = (*MemoryKV)(nil)

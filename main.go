@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"kon.nect.sh/specter/cmd/specter"
+	"go.miragespace.co/specter/cmd/specter"
 )
 
 func main() {

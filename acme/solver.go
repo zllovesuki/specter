@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	acmeSpec "kon.nect.sh/specter/spec/acme"
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/tun"
+	acmeSpec "go.miragespace.co/specter/spec/acme"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/mholt/acmez"
 	"github.com/mholt/acmez/acme"

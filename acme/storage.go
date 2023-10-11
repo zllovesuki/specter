@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/zhangyunhao116/skipmap"

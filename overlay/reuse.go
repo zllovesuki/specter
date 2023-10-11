@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/transport"
 
 	"github.com/quic-go/quic-go"
 	"go.uber.org/zap"

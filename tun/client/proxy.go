@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util"
-	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/pipe"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util"
+	"go.miragespace.co/specter/util/acceptor"
+	"go.miragespace.co/specter/util/pipe"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

@@ -5,11 +5,11 @@ import (
 	"context"
 	"testing"
 
-	acmeSpec "kon.nect.sh/specter/spec/acme"
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/mocks"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
+	acmeSpec "go.miragespace.co/specter/spec/acme"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/mocks"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/mholt/acmez/acme"
 	"github.com/stretchr/testify/mock"

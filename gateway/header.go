@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"kon.nect.sh/specter/spec/cipher"
+	"go.miragespace.co/specter/spec/cipher"
 )
 
 func generateAltHeaders(port int) string {

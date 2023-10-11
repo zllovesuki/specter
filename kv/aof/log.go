@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"hash/crc64"
 
-	"kon.nect.sh/specter/kv/aof/proto"
+	"go.miragespace.co/specter/kv/aof/proto"
 
 	bufPool "github.com/libp2p/go-buffer-pool"
 	"go.uber.org/zap"

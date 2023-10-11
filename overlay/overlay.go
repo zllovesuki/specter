@@ -3,10 +3,10 @@ package overlay
 import (
 	"crypto/tls"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rtt"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/util/atomic"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rtt"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/util/atomic"
 
 	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"

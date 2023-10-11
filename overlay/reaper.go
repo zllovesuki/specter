@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rtt"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rtt"
+	"go.miragespace.co/specter/util"
 
 	"github.com/quic-go/quic-go"
 	"go.uber.org/zap"

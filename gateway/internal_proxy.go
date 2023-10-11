@@ -8,9 +8,9 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/transport"
 
 	"go.uber.org/zap"
 )

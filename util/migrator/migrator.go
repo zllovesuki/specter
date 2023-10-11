@@ -6,8 +6,8 @@ import (
 	_ "embed"
 	"net/http"
 
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/tun/client"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/tun/client"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"

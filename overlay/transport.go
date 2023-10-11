@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/spec/transport/q"
-	"kon.nect.sh/specter/util/atomic"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/spec/transport/q"
+	"go.miragespace.co/specter/util/atomic"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/quic-go/quic-go"

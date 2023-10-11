@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap"

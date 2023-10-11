@@ -3,7 +3,7 @@ package memory
 import (
 	"context"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 )
 
 var _ chord.SimpleKV = (*MemoryKV)(nil)

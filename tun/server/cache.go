@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util/promise"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util/promise"
 
 	"github.com/Yiling-J/theine-go"
 	"go.uber.org/zap"

@@ -1,4 +1,4 @@
-module kon.nect.sh/specter
+module go.miragespace.co/specter
 
 go 1.21
 

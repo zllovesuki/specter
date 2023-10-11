@@ -10,9 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/mock"

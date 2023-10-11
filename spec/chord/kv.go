@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 )
 
 type SimpleKV interface {

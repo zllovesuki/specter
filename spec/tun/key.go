@@ -3,7 +3,7 @@ package tun
 import (
 	"fmt"
 
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 )
 
 func DestinationByChordKey(chord *protocol.Node) string {

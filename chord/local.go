@@ -4,10 +4,10 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/util/acceptor"
-	"kon.nect.sh/specter/util/ratecounter"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/util/acceptor"
+	"go.miragespace.co/specter/util/ratecounter"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"go.uber.org/atomic"

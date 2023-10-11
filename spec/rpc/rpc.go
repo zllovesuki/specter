@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/util/ratecounter"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/util/ratecounter"
 
 	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/twitchtv/twirp"

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/kv/aof/proto"
-	"kon.nect.sh/specter/kv/memory"
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/kv/aof/proto"
+	"go.miragespace.co/specter/kv/memory"
+	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/tidwall/wal"
 	"go.uber.org/atomic"

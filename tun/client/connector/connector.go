@@ -5,10 +5,10 @@ import (
 	"io"
 	"net"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/tun/client/dialer"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/tun/client/dialer"
 
 	"go.uber.org/zap"
 )

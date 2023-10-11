@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

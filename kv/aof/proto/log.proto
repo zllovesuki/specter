@@ -2,7 +2,7 @@ syntax = "proto3";
 package proto;
 
 option optimize_for = SPEED;
-option go_package = "kon.nect.sh/specter/kv/aof/proto";
+option go_package = "go.miragespace.co/specter/kv/aof/proto";
 
 enum LogVersion {
     UNKNOWN_VERSION = 0;

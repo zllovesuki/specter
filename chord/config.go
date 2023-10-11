@@ -4,10 +4,10 @@ import (
 	"errors"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/rtt"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/rtt"
 
 	"go.uber.org/zap"
 )

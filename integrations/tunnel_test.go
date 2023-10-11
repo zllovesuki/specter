@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/cmd/client"
-	"kon.nect.sh/specter/cmd/server"
-	"kon.nect.sh/specter/util/testcond"
+	"go.miragespace.co/specter/cmd/client"
+	"go.miragespace.co/specter/cmd/server"
+	"go.miragespace.co/specter/util/testcond"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"

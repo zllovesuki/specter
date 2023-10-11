@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"kon.nect.sh/specter/tun/client"
-	"kon.nect.sh/specter/tun/client/dialer"
+	"go.miragespace.co/specter/tun/client"
+	"go.miragespace.co/specter/tun/client/dialer"
 
 	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"

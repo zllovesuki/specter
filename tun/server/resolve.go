@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"

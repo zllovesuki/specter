@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"testing"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/mock"

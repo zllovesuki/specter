@@ -6,12 +6,12 @@ import (
 	"net"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/transport"
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util/acceptor"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util/acceptor"
 
 	"github.com/Yiling-J/theine-go"
 	"go.uber.org/zap"

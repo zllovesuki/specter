@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"kon.nect.sh/specter/tun/client/connector"
-	"kon.nect.sh/specter/tun/client/dialer"
+	"go.miragespace.co/specter/tun/client/connector"
+	"go.miragespace.co/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"

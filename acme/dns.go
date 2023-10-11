@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/util"
 
 	"github.com/miekg/dns"
 	"go.uber.org/zap"

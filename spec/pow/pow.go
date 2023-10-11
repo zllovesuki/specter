@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/util/hashcash"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/util/hashcash"
 
 	"github.com/twitchtv/twirp"
 )

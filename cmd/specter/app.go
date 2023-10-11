@@ -6,10 +6,10 @@ import (
 	"runtime"
 	"time"
 
-	"kon.nect.sh/specter/cmd/client"
-	"kon.nect.sh/specter/cmd/dns"
-	"kon.nect.sh/specter/cmd/server"
-	"kon.nect.sh/specter/spec/errata"
+	"go.miragespace.co/specter/cmd/client"
+	"go.miragespace.co/specter/cmd/dns"
+	"go.miragespace.co/specter/cmd/server"
+	"go.miragespace.co/specter/spec/errata"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"

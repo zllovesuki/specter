@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/rtt"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/rtt"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jedib0t/go-pretty/v6/table"

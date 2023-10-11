@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"

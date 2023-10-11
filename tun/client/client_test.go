@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/mocks"
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/mocks"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

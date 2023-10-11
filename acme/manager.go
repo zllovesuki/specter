@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/cipher"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/cipher"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez"

@@ -7,10 +7,10 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/spec/pow"
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/spec/pow"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"

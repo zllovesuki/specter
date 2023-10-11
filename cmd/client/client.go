@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/util"
 
 	"github.com/urfave/cli/v2"
 )

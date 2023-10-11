@@ -13,8 +13,8 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
 )
 
 func TestHTTPRedirect(t *testing.T) {

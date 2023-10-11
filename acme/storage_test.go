@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/spec/mocks"
+	"go.miragespace.co/specter/spec/mocks"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

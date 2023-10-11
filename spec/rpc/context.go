@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"net/http"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/transport"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/transport"
 
 	pool "github.com/libp2p/go-buffer-pool"
 )

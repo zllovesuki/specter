@@ -7,8 +7,8 @@ import (
 	"context"
 	"net"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/stretchr/testify/mock"
 )

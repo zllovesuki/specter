@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 )
 
 func GetPKIClient(cfg *tls.Config, apex *ParsedApex) protocol.PKIService {

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"text/template"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/util"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

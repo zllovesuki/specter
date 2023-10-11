@@ -15,12 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/kv/memory"
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/cipher"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util/testcond"
+	"go.miragespace.co/specter/kv/memory"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/cipher"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util/testcond"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

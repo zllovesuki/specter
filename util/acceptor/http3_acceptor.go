@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"kon.nect.sh/specter/spec/transport/q"
+	"go.miragespace.co/specter/spec/transport/q"
 
 	"github.com/quic-go/quic-go"
 	"go.uber.org/atomic"

@@ -5,8 +5,8 @@ import (
 	"io/fs"
 	"sync"
 
-	"kon.nect.sh/specter/kv/aof/proto"
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/kv/aof/proto"
+	"go.miragespace.co/specter/spec/protocol"
 )
 
 var reqPool = sync.Pool{

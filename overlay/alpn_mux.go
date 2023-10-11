@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/spec/transport/q"
-	"kon.nect.sh/specter/util/acceptor"
+	"go.miragespace.co/specter/spec/transport/q"
+	"go.miragespace.co/specter/util/acceptor"
 
 	"github.com/quic-go/quic-go"
 )

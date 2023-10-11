@@ -6,7 +6,7 @@ package mocks
 import (
 	"context"
 
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/stretchr/testify/mock"
 )

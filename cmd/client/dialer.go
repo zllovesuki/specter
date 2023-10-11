@@ -3,7 +3,7 @@ package client
 import (
 	"net"
 
-	"kon.nect.sh/specter/tun/client/dialer"
+	"go.miragespace.co/specter/tun/client/dialer"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"

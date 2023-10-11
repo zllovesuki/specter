@@ -3,7 +3,7 @@ BUILD := $(shell git rev-parse --short HEAD)
 BUILT_TIME := $(shell date +%s)
 
 PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-PROTOC_VERSION=22.2
+PROTOC_VERSION=24.4
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_TWIRP=`which protoc-gen-twirp`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
@@ -12,7 +12,7 @@ COUNT=3
 GOARM=7
 GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
-LDFLAGS=-ldflags "-s -w -extldflags -static -X kon.nect.sh/specter/cmd/specter.Build=$(BUILD) -X kon.nect.sh/specter/acme.BuildTime=$(BUILT_TIME)"
+LDFLAGS=-ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/cmd/specter.Build=$(BUILD) -X go.miragespace.co/specter/acme.BuildTime=$(BUILT_TIME)"
 TIMEOUT=180s
 
 plat_temp = $(subst /, ,$@)
@@ -96,9 +96,9 @@ proto: dep
 		--go_out=. \
 		--twirp_out=. \
 		--go-vtproto_out=. \
-		--go_opt=module=kon.nect.sh/specter \
-		--twirp_opt=module=kon.nect.sh/specter \
-		--go-vtproto_opt=module=kon.nect.sh/specter \
+		--go_opt=module=go.miragespace.co/specter \
+		--twirp_opt=module=go.miragespace.co/specter \
+		--go-vtproto_opt=module=go.miragespace.co/specter \
 		--go-vtproto_opt=features=marshal+unmarshal+size \
 		./spec/proto/*.proto
 	for twirp in ./spec/protocol/*.twirp.go; \
@@ -111,13 +111,13 @@ proto: dep
 
 proto_aof_kv: dep
 	dep/bin/protoc \
-		--go_opt=module=kon.nect.sh/specter \
-		--go-vtproto_opt=module=kon.nect.sh/specter \
+		--go_opt=module=go.miragespace.co/specter \
+		--go-vtproto_opt=module=go.miragespace.co/specter \
 		--go_out=. --plugin protoc-gen-go="$(PROTOC_GO)" \
 		--go-vtproto_out=. --plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \
 		--go-vtproto_opt=features=marshal+unmarshal+size+pool \
-		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.Mutation \
-		--go-vtproto_opt=pool=kon.nect.sh/specter/kv/aof/proto.LogEntry \
+		--go-vtproto_opt=pool=go.miragespace.co/specter/kv/aof/proto.Mutation \
+		--go-vtproto_opt=pool=go.miragespace.co/specter/kv/aof/proto.LogEntry \
 		./kv/aof/proto/*.proto
 
 benchmark_kv:
@@ -215,7 +215,7 @@ fly_certs:
 		CERT_NODE_KEY=$$(cat fly/node.key | openssl enc -A -base64)
 
 licenses:
-	go-licenses save kon.nect.sh/specter --save_path=./licenses
+	go-licenses save go.miragespace.co/specter --save_path=./licenses
 	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt
 	-rm -rf ./licenses
 

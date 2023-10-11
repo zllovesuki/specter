@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/zhangyunhao116/skipmap"
 )

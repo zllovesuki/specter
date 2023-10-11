@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/spec/pki"
+	"go.miragespace.co/specter/spec/pki"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"

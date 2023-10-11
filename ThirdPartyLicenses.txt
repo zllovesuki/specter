@@ -180,7 +180,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-==> ./licenses/kon.nect.sh/specter/LICENSE <==
+==> ./licenses/go.miragespace.co/specter/LICENSE <==
 MIT License
 
 Copyright (c) 2022 Rachel Chen
@@ -203,7 +203,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-==> ./licenses/kon.nect.sh/specter/tun/gateway/httprate/LICENSE <==
+==> ./licenses/go.miragespace.co/specter/tun/gateway/httprate/LICENSE <==
 Copyright (c) 2015-present Peter Kieltyka (https://github.com/pkieltyka).
 
 MIT License

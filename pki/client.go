@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 
-	"kon.nect.sh/specter/spec/pki"
-	"kon.nect.sh/specter/spec/pow"
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/pki"
+	"go.miragespace.co/specter/spec/pow"
+	"go.miragespace.co/specter/spec/protocol"
 )
 
 func CreateRequest(privKey ed25519.PrivateKey) (*protocol.CertificateRequest, error) {

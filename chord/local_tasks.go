@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/util"
 
 	"github.com/zeebo/xxh3"
 	"go.uber.org/zap"

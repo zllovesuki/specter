@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"go.uber.org/zap"
 )

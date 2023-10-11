@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/kv/aof"
-	"kon.nect.sh/specter/kv/memory"
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/kv/aof"
+	"go.miragespace.co/specter/kv/memory"
+	"go.miragespace.co/specter/spec/chord"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

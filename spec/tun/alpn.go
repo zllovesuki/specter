@@ -1,7 +1,7 @@
 package tun
 
 import (
-	"kon.nect.sh/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/protocol"
 
 	"google.golang.org/protobuf/proto"
 )

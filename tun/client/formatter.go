@@ -3,9 +3,10 @@ package client
 import (
 	"io"
 
+	"go.miragespace.co/specter/spec/protocol"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/miekg/dns"
-	"kon.nect.sh/specter/spec/protocol"
 )
 
 func (c *Client) FormatList(hostnames []string, output io.Writer) {

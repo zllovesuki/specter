@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"kon.nect.sh/specter/spec/chord"
+	"go.miragespace.co/specter/spec/chord"
 )
 
 func (n *LocalNode) ringTrace() string {

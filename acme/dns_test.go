@@ -7,11 +7,12 @@ import (
 	"net"
 	"testing"
 
+	"go.miragespace.co/specter/spec/mocks"
+
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
-	"kon.nect.sh/specter/spec/mocks"
 )
 
 const (

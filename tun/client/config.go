@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"kon.nect.sh/specter/spec/pki"
+	"go.miragespace.co/specter/spec/pki"
 
 	"github.com/zhangyunhao116/skipmap"
 	"gopkg.in/yaml.v3"

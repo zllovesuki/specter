@@ -6,7 +6,7 @@ package mocks
 import (
 	"time"
 
-	"kon.nect.sh/specter/spec/rtt"
+	"go.miragespace.co/specter/spec/rtt"
 
 	"github.com/stretchr/testify/mock"
 )

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"go.uber.org/zap"

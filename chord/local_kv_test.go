@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"kon.nect.sh/specter/spec/chord"
-	"kon.nect.sh/specter/util/testcond"
+	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/util/testcond"
 
 	"github.com/stretchr/testify/require"
 )

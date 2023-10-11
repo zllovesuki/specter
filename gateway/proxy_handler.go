@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"kon.nect.sh/specter/spec/protocol"
-	"kon.nect.sh/specter/spec/rpc"
-	"kon.nect.sh/specter/spec/tun"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util"
 
 	"github.com/alecthomas/units"
 	"github.com/go-chi/chi/v5"

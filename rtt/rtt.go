@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"kon.nect.sh/specter/spec/rtt"
-	"kon.nect.sh/specter/util"
+	"go.miragespace.co/specter/spec/rtt"
+	"go.miragespace.co/specter/util"
 
 	"github.com/montanaflynn/stats"
 	"github.com/zhangyunhao116/skipmap"
