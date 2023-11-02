@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"strconv"
@@ -12,20 +14,45 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/twitchtv/twirp"
 )
+
+//go:embed template
+var htmlFS embed.FS
+
+var ccTempl = template.Must(template.ParseFS(htmlFS, "template/*.html"))
+
+type connectedClient struct {
+	Identity   string
+	Address    string
+	NumTunnels string
+}
+
+type connectedInfo struct {
+	Node    string
+	Clients []connectedClient
+}
+
+type clientTunnel struct {
+	Hostname string
+	Target   string
+}
+
+type tunnelsInfo struct {
+	Address string
+	Tunnels []clientTunnel
+}
 
 func TunnelServerHandler(s *Server) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		clients := s.TunnelTransport.ListConnected()
+		info := connectedInfo{
+			Node:    s.Identity().GetAddress(),
+			Clients: make([]connectedClient, 0),
+		}
 
-		clientTable := table.NewWriter()
-		clientTable.SetOutputMirror(w)
-
-		clientTable.AppendHeader(table.Row{"Identity", "Address", "Number of tunnels"})
 		for _, h := range clients {
 			var (
 				numTunnels string
@@ -41,16 +68,18 @@ func TunnelServerHandler(s *Server) http.Handler {
 			} else {
 				numTunnels = fmt.Sprintf("%d", len(children))
 			}
-			clientTable.AppendRow(table.Row{
-				fmt.Sprintf("%d/%s", node.GetId(), node.GetAddress()),
-				addr.String(),
-				numTunnels,
+			info.Clients = append(info.Clients, connectedClient{
+				Identity:   fmt.Sprintf("%d/%s", node.GetId(), node.GetAddress()),
+				Address:    addr.String(),
+				NumTunnels: numTunnels,
 			})
 		}
 
-		clientTable.SetStyle(table.StyleDefault)
-		clientTable.Style().Options.SeparateRows = true
-		clientTable.Render()
+		w.Header().Set("content-type", "text/html; charset=utf-8")
+		if err := ccTempl.ExecuteTemplate(w, "client_list.html", info); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error rendering template: %s", err.Error())
+		}
 	})
 
 	router.Get("/{id}/*", func(w http.ResponseWriter, r *http.Request) {
@@ -104,23 +133,32 @@ func TunnelServerHandler(s *Server) http.Handler {
 			return
 		}
 
-		tunnelTable := table.NewWriter()
-		tunnelTable.SetOutputMirror(w)
+		info := tunnelsInfo{
+			Address: address,
+			Tunnels: make([]clientTunnel, 0),
+		}
 
-		tunnelTable.AppendHeader(table.Row{"Hostname", "Target"})
 		for _, child := range children {
 			hostname := string(child)
 			target, ok := tunnelMap[hostname]
 			if ok {
-				tunnelTable.AppendRow(table.Row{hostname, target})
+				info.Tunnels = append(info.Tunnels, clientTunnel{
+					Hostname: hostname,
+					Target:   target,
+				})
 			} else {
-				tunnelTable.AppendRow(table.Row{hostname, "(unused)"})
+				info.Tunnels = append(info.Tunnels, clientTunnel{
+					Hostname: hostname,
+					Target:   "(unused)",
+				})
 			}
 		}
 
-		tunnelTable.SetStyle(table.StyleDefault)
-		tunnelTable.Style().Options.SeparateRows = true
-		tunnelTable.Render()
+		w.Header().Set("content-type", "text/html; charset=utf-8")
+		if err := ccTempl.ExecuteTemplate(w, "client_tunnels.html", info); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error rendering template: %s", err.Error())
+		}
 	})
 
 	return router

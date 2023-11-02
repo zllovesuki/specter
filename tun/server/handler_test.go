@@ -52,6 +52,7 @@ func TestHandlerListConnectedClients(t *testing.T) {
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("AcceptStream").Return(clientChan)
 	clientT.On("ListConnected").Return(fakeClients)
+	clientT.On("Identity").Return(&protocol.Node{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
