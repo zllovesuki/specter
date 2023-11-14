@@ -49,7 +49,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 		case <-timer.C:
 			candidate := make([]*nodeConnection, 0)
 			t.cachedConnections.Range(func(key string, value *nodeConnection) bool {
-				if err := value.quic.SendMessage(alive); err != nil {
+				if err := value.quic.SendDatagram(alive); err != nil {
 					candidate = append(candidate, value)
 				}
 				return true

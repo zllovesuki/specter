@@ -253,7 +253,7 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 		if err != nil {
 			return err
 		}
-		return r.quic.SendMessage(b)
+		return r.quic.SendDatagram(b)
 	}
 	return transport.ErrNoDirect
 }
@@ -354,7 +354,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener)
 func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
 	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 	for {
-		b, err := q.ReceiveMessage(ctx)
+		b, err := q.ReceiveDatagram(ctx)
 		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
 				logger.Error("error receiving datagram", zap.Error(err))
@@ -375,7 +375,7 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 				logger.Error("error encoding rtt ack datagram to proto", zap.Error(err))
 				continue
 			}
-			if err := q.SendMessage(buf); err != nil {
+			if err := q.SendDatagram(buf); err != nil {
 				logger.Error("error sending rtt ack datagram", zap.Error(err))
 				continue
 			}

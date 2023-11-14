@@ -48,7 +48,7 @@ func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol
 				continue
 			}
 			mapper.Store(counter, time.Now().UnixNano())
-			if err = q.SendMessage(buf); err != nil {
+			if err = q.SendDatagram(buf); err != nil {
 				l.Error("failed to send rtt syn", zap.Error(err))
 				mapper.Delete(counter)
 				continue
