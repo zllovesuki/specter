@@ -127,7 +127,7 @@ func TestIntegrationACME(t *testing.T) {
 		ManagedDomains: []string{testManagedDomain},
 	}
 
-	manager, err := NewManager(ctx, ManagerConfig{
+	manager, err := NewManager(ManagerConfig{
 		Logger:           logger,
 		KV:               kv,
 		Email:            testEmail,

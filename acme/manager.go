@@ -34,7 +34,6 @@ type ManagerConfig struct {
 }
 
 type Manager struct {
-	parentCtx     context.Context
 	managedConfig *certmagic.Config
 	dynamicConfig *certmagic.Config
 	managed       []string
@@ -43,7 +42,7 @@ type Manager struct {
 	ManagerConfig
 }
 
-func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
+func NewManager(cfg ManagerConfig) (*Manager, error) {
 	kvStore, err := NewChordStorage(
 		cfg.Logger.With(zap.String("component", "acme_storage")),
 		cfg.KV,
@@ -57,7 +56,6 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 
 	isDev := cfg.CA != certmagic.LetsEncryptProductionCA
 	manager := &Manager{
-		parentCtx:     ctx,
 		chordStorage:  kvStore,
 		ManagerConfig: cfg,
 	}
@@ -126,10 +124,10 @@ func NewManager(ctx context.Context, cfg ManagerConfig) (*Manager, error) {
 	return manager, nil
 }
 
-func (m *Manager) check(name string) error {
+func (m *Manager) check(ctx context.Context, name string) error {
 	m.dynamicConfig.Logger.Debug("Dynamic certificate request", zap.String("name", name))
 
-	callCtx, cancel := context.WithTimeout(m.parentCtx, time.Second)
+	callCtx, cancel := context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 
 	_, err := tun.FindCustomHostname(callCtx, m.KV, name)

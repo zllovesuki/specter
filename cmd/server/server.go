@@ -367,7 +367,7 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (ciph
 			KV:             kv,
 			ManagedDomains: managedDomains,
 		}
-		manager, err := acme.NewManager(ctx.Context, acme.ManagerConfig{
+		manager, err := acme.NewManager(acme.ManagerConfig{
 			Logger:         logger,
 			KV:             kv,
 			DNSSolver:      acmeSolver,
