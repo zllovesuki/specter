@@ -47,7 +47,7 @@ func GenerateCertificate(logger *zap.Logger, ca tls.Certificate, req IdentityReq
 		SerialNumber:          sn,
 		Subject:               req.Subject,
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(5, 0, 0),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
@@ -60,7 +60,10 @@ func GenerateCertificate(logger *zap.Logger, ca tls.Certificate, req IdentityReq
 		return
 	}
 
-	logger.Info("New client certificate issued", zap.String("commonName", req.Subject.CommonName))
+	logger.Info("New client certificate issued",
+		zap.String("commonName", req.Subject.CommonName),
+		zap.Stringer("serial", sn),
+	)
 
 	return certBytes, nil
 }

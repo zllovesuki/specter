@@ -753,6 +753,7 @@ func cmdServer(ctx *cli.Context) error {
 		PKIServer: &pki.Server{
 			Logger:   logger.With(zapsentry.NewScope()).With(zap.String("component", "pki")),
 			ClientCA: bundle.clientCaCert,
+			CAPool:   bundle.ca,
 		},
 		Handlers: gateway.InternalHandlers{
 			Acme:         acmeHandler,

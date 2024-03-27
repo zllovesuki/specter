@@ -47,7 +47,7 @@ func VerifySolution(req *protocol.ProofOfWork, p Parameters) (*Decoded, error) {
 	}
 
 	if hc.Difficulty != p.Difficulty {
-		return nil, twirp.InvalidArgumentError("solution", "solution the wrong difficulty")
+		return nil, twirp.InvalidArgumentError("solution", "solution has the wrong difficulty")
 	}
 
 	if hc.ExpiresAt.IsZero() {

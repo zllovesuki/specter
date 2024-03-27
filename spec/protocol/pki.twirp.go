@@ -27,6 +27,8 @@ const _ = twirp.TwirpPackageMinVersion_8_1_0
 
 type PKIService interface {
 	RequestCertificate(context.Context, *CertificateRequest) (*CertificateResponse, error)
+
+	RenewCertificate(context.Context, *RenewalRequest) (*CertificateResponse, error)
 }
 
 // ==========================
@@ -35,7 +37,7 @@ type PKIService interface {
 
 type pKIServiceProtobufClient struct {
 	client      HTTPClient
-	urls        [1]string
+	urls        [2]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -63,8 +65,9 @@ func NewPKIServiceProtobufClient(baseURL string, client HTTPClient, opts ...twir
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "PKIService")
-	urls := [1]string{
+	urls := [2]string{
 		serviceURL + "RequestCertificate",
+		serviceURL + "RenewCertificate",
 	}
 
 	return &pKIServiceProtobufClient{
@@ -121,13 +124,59 @@ func (c *pKIServiceProtobufClient) callRequestCertificate(ctx context.Context, i
 	return out, nil
 }
 
+func (c *pKIServiceProtobufClient) RenewCertificate(ctx context.Context, in *RenewalRequest) (*CertificateResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "PKIService")
+	ctx = ctxsetters.WithMethodName(ctx, "RenewCertificate")
+	caller := c.callRenewCertificate
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *RenewalRequest) (*CertificateResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RenewalRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RenewalRequest) when calling interceptor")
+					}
+					return c.callRenewCertificate(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CertificateResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CertificateResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *pKIServiceProtobufClient) callRenewCertificate(ctx context.Context, in *RenewalRequest) (*CertificateResponse, error) {
+	out := new(CertificateResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
 // ======================
 // PKIService JSON Client
 // ======================
 
 type pKIServiceJSONClient struct {
 	client      HTTPClient
-	urls        [1]string
+	urls        [2]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -155,8 +204,9 @@ func NewPKIServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp.Cl
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "PKIService")
-	urls := [1]string{
+	urls := [2]string{
 		serviceURL + "RequestCertificate",
+		serviceURL + "RenewCertificate",
 	}
 
 	return &pKIServiceJSONClient{
@@ -199,6 +249,52 @@ func (c *pKIServiceJSONClient) RequestCertificate(ctx context.Context, in *Certi
 func (c *pKIServiceJSONClient) callRequestCertificate(ctx context.Context, in *CertificateRequest) (*CertificateResponse, error) {
 	out := new(CertificateResponse)
 	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *pKIServiceJSONClient) RenewCertificate(ctx context.Context, in *RenewalRequest) (*CertificateResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "PKIService")
+	ctx = ctxsetters.WithMethodName(ctx, "RenewCertificate")
+	caller := c.callRenewCertificate
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *RenewalRequest) (*CertificateResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RenewalRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RenewalRequest) when calling interceptor")
+					}
+					return c.callRenewCertificate(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CertificateResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CertificateResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *pKIServiceJSONClient) callRenewCertificate(ctx context.Context, in *RenewalRequest) (*CertificateResponse, error) {
+	out := new(CertificateResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -312,6 +408,9 @@ func (s *pKIServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Request
 	switch method {
 	case "RequestCertificate":
 		s.serveRequestCertificate(ctx, resp, req)
+		return
+	case "RenewCertificate":
+		s.serveRenewCertificate(ctx, resp, req)
 		return
 	default:
 		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
@@ -500,6 +599,186 @@ func (s *pKIServiceServer) serveRequestCertificateProtobuf(ctx context.Context, 
 	callResponseSent(ctx, s.hooks)
 }
 
+func (s *pKIServiceServer) serveRenewCertificate(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveRenewCertificateJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveRenewCertificateProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *pKIServiceServer) serveRenewCertificateJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RenewCertificate")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(RenewalRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.PKIService.RenewCertificate
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RenewalRequest) (*CertificateResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RenewalRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RenewalRequest) when calling interceptor")
+					}
+					return s.PKIService.RenewCertificate(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CertificateResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CertificateResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *CertificateResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *CertificateResponse and nil error while calling RenewCertificate. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *pKIServiceServer) serveRenewCertificateProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RenewCertificate")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(RenewalRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.PKIService.RenewCertificate
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RenewalRequest) (*CertificateResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RenewalRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RenewalRequest) when calling interceptor")
+					}
+					return s.PKIService.RenewCertificate(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*CertificateResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*CertificateResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *CertificateResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *CertificateResponse and nil error while calling RenewCertificate. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
 func (s *pKIServiceServer) ServiceDescriptor() ([]byte, int) {
 	return twirpFileDescriptor3, 0
 }
@@ -516,20 +795,23 @@ func (s *pKIServiceServer) PathPrefix() string {
 }
 
 var twirpFileDescriptor3 = []byte{
-	// 232 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0x4f, 0x4b, 0xc3, 0x40,
-	0x10, 0xc5, 0x89, 0xa0, 0x96, 0xd1, 0xd3, 0xaa, 0x50, 0x8b, 0x82, 0xf4, 0xa2, 0x50, 0xd8, 0x40,
-	0xfd, 0x04, 0xfe, 0x39, 0x28, 0x3d, 0x18, 0xe3, 0x41, 0xf0, 0x52, 0xe2, 0xf8, 0x52, 0x96, 0x36,
-	0xce, 0x3a, 0xbb, 0xea, 0xd7, 0x97, 0x24, 0x6a, 0x0c, 0xd2, 0xd3, 0xce, 0xee, 0x6f, 0x79, 0xf3,
-	0xe3, 0xd1, 0x7e, 0xf0, 0xe0, 0xd4, 0xab, 0x44, 0x49, 0xfd, 0xd2, 0xd9, 0x66, 0x32, 0x83, 0xe6,
-	0x60, 0x59, 0x8d, 0x7a, 0x5c, 0x3e, 0x5b, 0x3e, 0xbe, 0x20, 0x73, 0x05, 0x8d, 0xae, 0x74, 0x5c,
-	0x44, 0xe4, 0x78, 0x7b, 0x47, 0x88, 0x66, 0x42, 0x9b, 0x5e, 0x45, 0xca, 0x61, 0x72, 0x92, 0x9c,
-	0xed, 0x4c, 0x0f, 0xec, 0x4f, 0x8a, 0xcd, 0xea, 0xe7, 0xbb, 0xf2, 0x51, 0x74, 0x99, 0xb7, 0x7f,
-	0xc6, 0x33, 0xda, 0xeb, 0x45, 0x04, 0x2f, 0xaf, 0x01, 0xe6, 0x90, 0x06, 0x0c, 0x8d, 0xf3, 0x17,
-	0x68, 0x13, 0xb3, 0x9b, 0x6f, 0xd7, 0xf7, 0x6b, 0xe8, 0x2f, 0xf2, 0xa8, 0x86, 0x1b, 0x1d, 0xca,
-	0x50, 0x4d, 0xe7, 0x44, 0xd9, 0xec, 0xf6, 0x01, 0xfa, 0xe1, 0x18, 0xe6, 0x9e, 0xcc, 0xb7, 0xd2,
-	0x9f, 0x0d, 0xe6, 0xa8, 0xd3, 0xf9, 0xef, 0x3e, 0x3a, 0x5e, 0x43, 0x5b, 0xad, 0xcb, 0xc9, 0x4d,
-	0xf2, 0x74, 0xba, 0x10, 0x5b, 0x39, 0x2d, 0x16, 0x08, 0xbe, 0x60, 0x58, 0x96, 0xb4, 0x2e, 0x27,
-	0x42, 0xd3, 0xae, 0x24, 0x96, 0xd5, 0xf3, 0x56, 0x33, 0x9d, 0x7f, 0x05, 0x00, 0x00, 0xff, 0xff,
-	0x2f, 0x22, 0x6b, 0x9d, 0x5c, 0x01, 0x00, 0x00,
+	// 280 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x91, 0x4f, 0x4b, 0xc3, 0x40,
+	0x10, 0xc5, 0x59, 0x41, 0x2d, 0x53, 0x15, 0x59, 0x15, 0x62, 0x51, 0x28, 0xb9, 0x58, 0x28, 0x24,
+	0x50, 0x3f, 0x81, 0x7f, 0x0e, 0x4a, 0x0e, 0xc6, 0x78, 0x10, 0xbc, 0x94, 0xb8, 0x4e, 0x4a, 0x68,
+	0xd2, 0x59, 0x67, 0xd7, 0xf6, 0x4b, 0xf9, 0x21, 0x25, 0x9b, 0xd8, 0x34, 0x88, 0x08, 0x9e, 0x32,
+	0xcc, 0xcb, 0x7b, 0xfb, 0xe3, 0x0d, 0x1c, 0x1b, 0x8d, 0x2a, 0xd4, 0x4c, 0x96, 0x42, 0x3d, 0xcf,
+	0x03, 0x37, 0xc9, 0x9e, 0xfb, 0x28, 0x2a, 0x06, 0x1d, 0x9d, 0x56, 0xb5, 0xee, 0x5f, 0x81, 0xbc,
+	0x41, 0xb6, 0x79, 0x96, 0xab, 0xd4, 0x62, 0x82, 0xef, 0x1f, 0x68, 0xac, 0x1c, 0xc3, 0xb6, 0x66,
+	0xa2, 0xcc, 0x13, 0x43, 0x31, 0xea, 0x4f, 0x4e, 0x82, 0xef, 0x94, 0x20, 0xae, 0xd6, 0x0f, 0xd9,
+	0x33, 0xf1, 0x3c, 0xa9, 0xff, 0xf1, 0x53, 0x38, 0x48, 0x70, 0x81, 0xab, 0xb4, 0xf8, 0x8f, 0x5d,
+	0xfa, 0xb0, 0xaf, 0x19, 0x97, 0x53, 0x85, 0x6c, 0xa7, 0x6f, 0xc8, 0xde, 0xd6, 0x50, 0x8c, 0xf6,
+	0x92, 0x7e, 0xb5, 0xac, 0xd0, 0x6e, 0x91, 0xfd, 0x08, 0x8e, 0x3a, 0x94, 0x46, 0xd3, 0xc2, 0xa0,
+	0x3c, 0x85, 0xde, 0xda, 0x25, 0x9c, 0x6b, 0x57, 0xd5, 0x8e, 0xb5, 0xa4, 0xb1, 0x6c, 0x02, 0x9d,
+	0x14, 0x63, 0x39, 0xf9, 0x14, 0x00, 0x71, 0x74, 0xff, 0x84, 0xbc, 0xcc, 0x15, 0xca, 0x47, 0x90,
+	0x0d, 0xf7, 0xc6, 0x13, 0xf2, 0xac, 0x65, 0xfe, 0xd9, 0xcf, 0xe0, 0xfc, 0x17, 0xb5, 0xe1, 0x8a,
+	0xe0, 0xd0, 0x35, 0xb2, 0x19, 0xe8, 0xb5, 0x96, 0x6e, 0x5b, 0x7f, 0x84, 0x5d, 0x8f, 0xef, 0xc4,
+	0xcb, 0xc5, 0x8c, 0x82, 0x32, 0xe7, 0x74, 0x86, 0x46, 0xa7, 0x0a, 0x03, 0x45, 0x61, 0x75, 0x4d,
+	0x8b, 0x1c, 0xb6, 0x57, 0x55, 0x54, 0xbc, 0xee, 0xb8, 0xe9, 0xf2, 0x2b, 0x00, 0x00, 0xff, 0xff,
+	0xd7, 0x42, 0xcf, 0x27, 0x0d, 0x02, 0x00, 0x00,
 }

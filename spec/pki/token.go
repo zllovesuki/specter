@@ -23,8 +23,9 @@ const (
 )
 
 type Identity struct {
-	Token []byte
-	ID    uint64
+	Version TokenVersion
+	Token   []byte
+	ID      uint64
 }
 
 func (n *Identity) NodeIdentity() *protocol.Node {
@@ -66,13 +67,15 @@ func ExtractCertificateIdentity(cert *x509.Certificate) (*Identity, error) {
 	switch parts[0] {
 	case string(TokenV1):
 		return &Identity{
-			ID:    util.Must(strconv.ParseUint(parts[1], 10, 64)),
-			Token: []byte(parts[2]),
+			Version: TokenV1,
+			ID:      util.Must(strconv.ParseUint(parts[1], 10, 64)),
+			Token:   []byte(parts[2]),
 		}, nil
 	case string(TokenV2):
 		return &Identity{
-			ID:    util.Must(strconv.ParseUint(parts[1], 10, 64)),
-			Token: []byte(cn),
+			Version: TokenV2,
+			ID:      util.Must(strconv.ParseUint(parts[1], 10, 64)),
+			Token:   []byte(cn),
 		}, nil
 	default:
 		return nil, errors.New("pki: unknown subject in certificate")
