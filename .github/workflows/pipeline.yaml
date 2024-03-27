@@ -61,54 +61,6 @@ jobs:
             ${{ runner.os }}-go-
       - name: Run Integration Tests with Race Detector
         run: make integration_test
-  coverage:
-    name: Update Code Coverage
-    runs-on: ubuntu-latest
-    services:
-      dind:
-        image: docker:23.0.6-dind-rootless
-        ports:
-          - 2375:2375
-    needs: [testing]
-    steps:
-      - name: Checkout repository code
-        uses: actions/checkout@v3
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.22.1"
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Generate Test Coverage Using Full Test Suite
-        run: make coverage TIMEOUT=600s
-      - name: Calculate Coverage
-        run: |
-          set -x
-          total=`go tool cover -func=cover.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-          if (( $(echo "$total <= 60" | bc -l) )) ; then
-            COLOR=red
-          elif (( $(echo "$total > 75" | bc -l) )); then
-            COLOR=green
-          else
-            COLOR=orange
-          fi
-          echo "COLOR=$COLOR" >> $GITHUB_ENV
-          echo "COVERAGE=$total" >> $GITHUB_ENV
-      - name: Update coverage on gist
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: 49efb3a7978bf0df7d91bfad39da7092
-          filename: specter.json
-          label: Coverage
-          message: ${{ env.COVERAGE }}
-          color: ${{ env.COLOR }}
   full:
     name: Run Full Test Suite
     runs-on: ubuntu-latest

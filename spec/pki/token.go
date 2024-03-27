@@ -59,6 +59,10 @@ func ExtractCertificateIdentity(cert *x509.Certificate) (*Identity, error) {
 	cn := cert.Subject.CommonName
 	parts := strings.SplitN(cn, ":", 3)
 
+	if len(parts) != 3 {
+		return nil, errors.New("pki: invalid subject format")
+	}
+
 	switch parts[0] {
 	case string(TokenV1):
 		return &Identity{
