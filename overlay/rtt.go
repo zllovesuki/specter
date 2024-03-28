@@ -77,6 +77,7 @@ func (t *QUIC) handleRTTAck(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			t.Logger.Info("Exiting RTT ack goroutine")
 			return
 		case d = <-t.rttChan:
 			l = t.Logger.With(zap.Object("peer", d.Identity))

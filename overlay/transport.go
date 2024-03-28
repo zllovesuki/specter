@@ -79,26 +79,22 @@ func (t *QUIC) makeCachedKey(peer *protocol.Node) string {
 }
 
 func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
-	var (
-		qKey = t.makeCachedKey(peer)
-		q    quic.EarlyConnection
-	)
+	qKey := t.makeCachedKey(peer)
 
 	if t.Endpoint.GetAddress() == peer.GetAddress() {
 		return nil, fmt.Errorf("creating a new QUIC connection to the ourselves is not allowed")
 	}
 
-	if err := retry.Do(func() error {
+	q, err := retry.DoWithData(func() (quic.EarlyConnection, error) {
 		rUnlock := t.cachedMutex.RLock(qKey)
 		if cached, ok := t.cachedConnections.Load(qKey); ok {
 			rUnlock()
-			q = cached.quic
-			return nil
+			return cached.quic, nil
 		}
 		rUnlock()
 
 		if peer.GetRendezvous() || peer.GetAddress() == "" {
-			return transport.ErrNoDirect
+			return nil, transport.ErrNoDirect
 		}
 
 		t.Logger.Debug("Creating new QUIC connection", zap.Object("peer", peer))
@@ -110,7 +106,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 
 		addr, err := net.ResolveUDPAddr("udp", peerAddr)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		cfg := t.ClientTLS.Clone()
@@ -128,16 +124,10 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 
 		newQ, err := t.QuicTransport.DialEarly(dialCtx, addr, cfg, quicConfig)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		reused, err := t.handleOutgoing(ctx, newQ)
-		if err != nil {
-			return err
-		}
-
-		q = reused
-		return nil
+		return t.handleOutgoing(ctx, newQ)
 	},
 		retry.Attempts(2),
 		retry.Context(ctx),
@@ -148,7 +138,8 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (qu
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), reuseErrorState)
 		}),
-	); err != nil {
+	)
+	if err != nil {
 		if err != transport.ErrNoDirect {
 			t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))
 		}

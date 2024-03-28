@@ -731,7 +731,7 @@ func cmdServer(ctx *cli.Context) error {
 	tunServer := server.New(server.Config{
 		Logger:          logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
 		ParentContext:   ctx.Context,
-		Chord:           rootNode,
+		Chord:           chord.WrapRetryKV(rootNode, rootNode.StabilizeInterval/2, 5),
 		TunnelTransport: tunnelTransport,
 		ChordTransport:  chordTransport,
 		Resolver:        net.DefaultResolver,

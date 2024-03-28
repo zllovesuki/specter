@@ -3,18 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
 
-	"github.com/avast/retry-go/v4"
 	"go.uber.org/zap"
-)
-
-const (
-	kvRetryInterval = time.Second * 2
 )
 
 func (s *Server) publishDestinations(ctx context.Context) error {
@@ -33,21 +26,11 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 		tun.DestinationByTunnelKey(s.TunnelTransport.Identity()),
 	}
 
-	if err := retry.Do(func() error {
-		for _, key := range keys {
-			err := s.Chord.Put(ctx, []byte(key), buf)
-			if err != nil {
-				return err
-			}
+	for _, key := range keys {
+		err := s.Chord.Put(ctx, []byte(key), buf)
+		if err != nil {
+			return err
 		}
-		return nil
-	},
-		retry.Context(ctx),
-		retry.LastErrorOnly(true),
-		retry.Delay(kvRetryInterval),
-		retry.RetryIf(chord.ErrorIsRetryable),
-	); err != nil {
-		return err
 	}
 
 	s.Logger.Info("Destinations published on chord",
@@ -64,21 +47,12 @@ func (s *Server) unpublishDestinations(ctx context.Context) {
 		tun.DestinationByTunnelKey(s.TunnelTransport.Identity()),
 	}
 
-	if err := retry.Do(func() error {
-		for _, key := range keys {
-			err := s.Chord.Delete(ctx, []byte(key))
-			if err != nil {
-				return err
-			}
+	for _, key := range keys {
+		err := s.Chord.Delete(ctx, []byte(key))
+		if err != nil {
+			s.Logger.Error("Failed to unpublish destinations on chord", zap.Error(err))
+			return
 		}
-		return nil
-	},
-		retry.Context(ctx),
-		retry.LastErrorOnly(true),
-		retry.Delay(kvRetryInterval),
-		retry.RetryIf(chord.ErrorIsRetryable),
-	); err != nil {
-		s.Logger.Error("Failed to unpublish destinations on chord", zap.Error(err))
 	}
 
 	s.Logger.Info("Destination unpublished on chord",

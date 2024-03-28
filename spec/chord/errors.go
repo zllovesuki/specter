@@ -2,10 +2,18 @@ package chord
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/twitchtv/twirp"
 )
+
+type Error struct {
+	msg string
+}
+
+func (e *Error) Error() string {
+	return e.msg
+}
 
 var (
 	ErrJoinInvalidState     = errorDef("chord/membership: node cannot handle join request at the moment", true)
@@ -29,7 +37,12 @@ var (
 )
 
 func ErrorIsRetryable(err error) bool {
-	return retryableMap[err]
+	for _, e := range retryableErrs {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
 }
 
 // this is needed because RPC call squash type information, so in call site with signature
@@ -55,15 +68,19 @@ func ErrorMapper(err error) error {
 	return parsedErr
 }
 
-var retryableMap map[error]bool = map[error]bool{
-	context.DeadlineExceeded: true,
+var retryableErrs []error = []error{
+	context.DeadlineExceeded,
 }
 
 var errorStrMap map[string]error = map[string]error{}
 
 func errorDef(str string, retryable bool) error {
-	err := fmt.Errorf(str)
-	retryableMap[err] = retryable
+	err := &Error{
+		msg: str,
+	}
+	if retryable {
+		retryableErrs = append(retryableErrs, err)
+	}
 	errorStrMap[str] = err
 	return err
 }

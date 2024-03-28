@@ -45,6 +45,7 @@ func (t *QUIC) reaper(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			t.Logger.Info("Exiting reaper goroutine")
 			return
 		case <-timer.C:
 			candidate := make([]*nodeConnection, 0)

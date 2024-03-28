@@ -51,10 +51,12 @@ func getFixture(t *testing.T, as *require.Assertions, options ...configOption) (
 	cht := new(mocks.Transport)
 	clt := new(mocks.Transport)
 
+	as.True(true) // placeholder
+
 	cfg := Config{
 		ParentContext:   context.Background(),
 		Logger:          logger,
-		Chord:           n,
+		Chord:           chord.WrapRetryKV(n, time.Millisecond*100, 3),
 		TunnelTransport: clt,
 		ChordTransport:  cht,
 		Apex:            testRootDomain,
