@@ -7,6 +7,7 @@ import (
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
+	"go.miragespace.co/specter/timing"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"go.uber.org/zap"
@@ -14,8 +15,8 @@ import (
 )
 
 const (
-	rpcTimeout  = time.Second * 10
-	pingTimeout = time.Second * 3
+	rpcTimeout  = timing.ChordRPCTimeout
+	pingTimeout = timing.ChordPingTimeout
 )
 
 type RemoteNode struct {

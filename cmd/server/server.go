@@ -29,6 +29,7 @@ import (
 	"go.miragespace.co/specter/spec/rpc"
 	"go.miragespace.co/specter/spec/transport"
 	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/tun/server"
 	"go.miragespace.co/specter/util"
 	"go.miragespace.co/specter/util/migrator"
@@ -653,9 +654,9 @@ func cmdServer(ctx *cli.Context) error {
 			BaseLogger:               logger,
 			ChordClient:              chordClient,
 			KVProvider:               kvProvider,
-			StabilizeInterval:        time.Second * 3,
-			FixFingerInterval:        time.Second * 5,
-			PredecessorCheckInterval: time.Second * 7,
+			StabilizeInterval:        timing.ChordStabilizeInterval,
+			FixFingerInterval:        timing.ChordFixFingerInterval,
+			PredecessorCheckInterval: timing.ChordPredecessorCheckInterval,
 			NodesRTT:                 chordRTT,
 		})
 
@@ -696,7 +697,7 @@ func cmdServer(ctx *cli.Context) error {
 		defer virtualNodes[i].Leave()
 	}
 
-	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), chord.WrapRetryKV(rootNode, rootNode.StabilizeInterval/2, 5))
+	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), chord.WrapRetryKV(rootNode, timing.ChordStabilizeInterval/2, 5))
 	if err != nil {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}
@@ -731,7 +732,7 @@ func cmdServer(ctx *cli.Context) error {
 	tunServer := server.New(server.Config{
 		Logger:          logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
 		ParentContext:   ctx.Context,
-		Chord:           chord.WrapRetryKV(rootNode, rootNode.StabilizeInterval/2, 5),
+		Chord:           chord.WrapRetryKV(rootNode, timing.ChordStabilizeInterval/2, 5),
 		TunnelTransport: tunnelTransport,
 		ChordTransport:  chordTransport,
 		Resolver:        net.DefaultResolver,

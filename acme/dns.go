@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/util"
 
 	"github.com/miekg/dns"
@@ -205,7 +206,7 @@ func (d *DNS) answerTXT(q dns.Question) ([]dns.RR, error) {
 	}
 	subdomain := qname[0 : idx-1]
 
-	callCtx, cancel := context.WithTimeout(d.parentCtx, time.Second)
+	callCtx, cancel := context.WithTimeout(d.parentCtx, timing.DNSLookupTimeout)
 	defer cancel()
 
 	vals, err := d.storage.PrefixList(callCtx, []byte(dnsKeyName(subdomain)))

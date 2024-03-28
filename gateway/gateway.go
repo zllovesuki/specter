@@ -14,6 +14,7 @@ import (
 	"go.miragespace.co/specter/spec/transport"
 	"go.miragespace.co/specter/spec/transport/q"
 	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/util"
 	"go.miragespace.co/specter/util/acceptor"
 
@@ -283,7 +284,7 @@ func (g *Gateway) handleH3Multiplex(ctx context.Context, logger *zap.Logger, q q
 }
 
 func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
-	hsCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	hsCtx, cancel := context.WithTimeout(ctx, timing.TLSHandshakeTimeout)
 	defer cancel()
 	if err := conn.HandshakeContext(hsCtx); err != nil {
 		conn.Close()

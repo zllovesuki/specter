@@ -14,8 +14,8 @@ import (
 )
 
 type ALPNMux struct {
-	mux      sync.Map // map[string]*protoCfg
 	listener *quic.EarlyListener
+	mux      sync.Map // map[string]*protoCfg
 }
 
 type protoCfg struct {

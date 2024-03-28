@@ -4,13 +4,15 @@ import (
 	"net"
 	"time"
 
+	"go.miragespace.co/specter/timing"
+
 	"github.com/quic-go/quic-go"
 )
 
 var (
 	quicConfig = &quic.Config{
 		KeepAlivePeriod:      time.Second * 5,
-		HandshakeIdleTimeout: time.Second * 3,
+		HandshakeIdleTimeout: timing.TLSHandshakeTimeout,
 		MaxIdleTimeout:       time.Second * 30,
 		MaxIncomingStreams:   250,
 		EnableDatagrams:      true,
