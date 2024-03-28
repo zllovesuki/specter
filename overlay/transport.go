@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.miragespace.co/specter/spec/pki"
@@ -29,6 +30,12 @@ var (
 	_ transport.Transport       = (*QUIC)(nil)
 	_ transport.ClientTransport = (*QUIC)(nil)
 )
+
+var builderPool = sync.Pool{
+	New: func() any {
+		return &strings.Builder{}
+	},
+}
 
 func NewQUIC(conf TransportConfig) *QUIC {
 	if conf.VirtualTransport && conf.UseCertificateIdentity {
@@ -52,17 +59,23 @@ func NewQUIC(conf TransportConfig) *QUIC {
 }
 
 func (t *QUIC) makeCachedKey(peer *protocol.Node) string {
-	qMapKey := peer.GetAddress() + "/"
+	sb := builderPool.Get().(*strings.Builder)
+	defer builderPool.Put(sb)
+	defer sb.Reset()
+
+	sb.WriteString(peer.GetAddress())
+	sb.WriteString("/")
+
 	if peer.GetUnknown() {
-		qMapKey = qMapKey + "-1"
+		sb.WriteString("-1")
 	} else {
 		if t.VirtualTransport {
-			qMapKey = qMapKey + "PHY"
+			sb.WriteString("PHY")
 		} else {
-			qMapKey = qMapKey + strconv.FormatUint(peer.GetId(), 10)
+			sb.WriteString(strconv.FormatUint(peer.GetId(), 10))
 		}
 	}
-	return qMapKey
+	return sb.String()
 }
 
 func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
