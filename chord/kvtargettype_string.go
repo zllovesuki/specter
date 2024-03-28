@@ -11,11 +11,12 @@ func _() {
 	_ = x[targetLocal-0]
 	_ = x[targetRemote-1]
 	_ = x[targetReplication-2]
+	_ = x[targetSurrogate-3]
 }
 
-const _kvTargetType_name = "LocalRemoteReplication"
+const _kvTargetType_name = "LocalRemoteReplicationSurrogate"
 
-var _kvTargetType_index = [...]uint8{0, 5, 11, 22}
+var _kvTargetType_index = [...]uint8{0, 5, 11, 22, 31}
 
 func (i kvTargetType) String() string {
 	if i < 0 || i >= kvTargetType(len(_kvTargetType_index)-1) {

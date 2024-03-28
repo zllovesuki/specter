@@ -62,7 +62,7 @@ func kvMiddleware[V any](
 	}
 
 	if n.surrogate != nil {
-		l = l.With(zap.Object("surrogate", n.surrogate))
+		l = l.With(zap.Object("surrogate", n.surrogate.Identity()))
 	}
 
 	n.predecessorMu.RLock()
@@ -72,10 +72,10 @@ func kvMiddleware[V any](
 		l = l.With(zap.Object("predecessor", n.predecessor.Identity()))
 	}
 
-	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.GetId(), true) {
-		l.Debug("KV Ownership moved")
+	if n.surrogate != nil && chord.Between(n.ID(), id, n.surrogate.Identity().GetId(), true) {
+		l.Warn("KV Ownership moved, forwarding to surrogate")
 		n.kvStaleCount.Inc()
-		return zeroV, chord.ErrKVStaleOwnership
+		return handler(ctx, n.surrogate, targetSurrogate, id)
 	}
 
 	if n.predecessor != nil && !chord.Between(n.predecessor.ID(), id, n.ID(), true) {

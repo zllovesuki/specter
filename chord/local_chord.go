@@ -46,48 +46,48 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	}
 
 	var (
-		surrogate *protocol.Node
-		old       chord.VNode
-		new       chord.VNode
+		surrogateSnapshot    chord.VNode
+		predecessorSnapshot  chord.VNode
+		candidatePredecessor chord.VNode
 	)
 
 	defer func() {
-		if new == nil {
+		if candidatePredecessor == nil {
 			return
 		}
 		n.surrogateMu.Lock()
-		if surrogate == n.surrogate {
-			if new.ID() == n.ID() {
+		if surrogateSnapshot == n.surrogate {
+			if candidatePredecessor.ID() == n.ID() {
 				n.surrogate = nil
 			} else {
-				n.surrogate = new.Identity()
+				n.surrogate = candidatePredecessor
 			}
 		}
 		n.surrogateMu.Unlock()
 
 		n.predecessorMu.Lock()
-		if old == n.predecessor {
-			n.predecessor = new
+		if predecessorSnapshot == n.predecessor {
+			n.predecessor = candidatePredecessor
 		}
 		n.predecessorMu.Unlock()
 	}()
 
 	n.surrogateMu.RLock()
-	surrogate = n.surrogate
+	surrogateSnapshot = n.surrogate
 	n.surrogateMu.RUnlock()
 
 	n.predecessorMu.RLock()
-	old = n.predecessor
+	predecessorSnapshot = n.predecessor
 	n.predecessorMu.RUnlock()
 
 	// predecessor has not changed
-	if old != nil && old.ID() == predecessor.ID() {
+	if predecessorSnapshot != nil && predecessorSnapshot.ID() == predecessor.ID() {
 		return nil
 	}
 
 	// we have no predecessor
-	if old == nil {
-		new = predecessor
+	if predecessorSnapshot == nil {
+		candidatePredecessor = predecessor
 		n.logger.Info("Discovered new predecessor via Notify",
 			zap.String("previous", "nil"),
 			zap.Object("predecessor", predecessor.Identity()),
@@ -96,20 +96,20 @@ func (n *LocalNode) Notify(predecessor chord.VNode) error {
 	}
 
 	// new predecessor, check connectivity
-	if err := old.Ping(); err == nil {
+	if err := predecessorSnapshot.Ping(); err == nil {
 		// old predecessor is still alive, check if new predecessor is "closer"
-		if chord.Between(old.ID(), predecessor.ID(), n.ID(), false) {
-			new = predecessor
+		if chord.Between(predecessorSnapshot.ID(), predecessor.ID(), n.ID(), false) {
+			candidatePredecessor = predecessor
 		}
 	} else {
 		// old predecessor is dead
-		new = predecessor
+		candidatePredecessor = predecessor
 	}
 
-	if new != nil {
+	if candidatePredecessor != nil {
 		n.logger.Info("Discovered new predecessor via Notify",
-			zap.Object("previous", old.Identity()),
-			zap.Object("predecessor", new.Identity()),
+			zap.Object("previous", predecessorSnapshot.Identity()),
+			zap.Object("predecessor", candidatePredecessor.Identity()),
 		)
 	}
 

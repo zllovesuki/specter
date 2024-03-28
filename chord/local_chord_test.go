@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	defaultInterval = time.Millisecond * 10
+	defaultInterval = time.Millisecond * 1
 	waitInterval    = defaultInterval * 10
 )
 
@@ -41,6 +41,8 @@ func devConfig(t *testing.T, as *require.Assertions) NodeConfig {
 	}
 	m := new(mocks.Measurement)
 	m.On("Snapshot", mock.Anything, mock.Anything).Return(&rtt.Statistics{})
+
+	as.True(true) // placeholder
 
 	return NodeConfig{
 		BaseLogger:               logger,

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"go.miragespace.co/specter/spec/chord"
-	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/util/acceptor"
 	"go.miragespace.co/specter/util/ratecounter"
 
@@ -19,7 +18,7 @@ type LocalNode struct {
 	predecessorMu  sync.RWMutex                            // simple mutex surrounding operations on predecessor
 	predecessor    chord.VNode                             // nord's immediate predecessor
 	surrogateMu    sync.RWMutex                            // advanced mutex surrounding KV requests during Join/Leave
-	surrogate      *protocol.Node                          // node's previous predecessor, used to guard against outdated KV requests
+	surrogate      chord.VNode                             // node's previous predecessor, used to guard against outdated KV requests
 	successorsMu   sync.RWMutex                            // advanced mutex surrounding successors during Join/Leave
 	successors     []chord.VNode                           // node's extended list of successors
 	succListHash   *atomic.Uint64                          // simple hash on the successors to determine if they have changed
@@ -40,8 +39,8 @@ type LocalNode struct {
 var _ chord.VNode = (*LocalNode)(nil)
 
 type fingerEntry struct {
-	sync.RWMutex
 	node chord.VNode
+	sync.RWMutex
 }
 
 func (f *fingerEntry) computeUpdate(fn func(entry *fingerEntry)) {

@@ -8,4 +8,5 @@ const (
 	targetLocal       kvTargetType = iota // Local
 	targetRemote                          // Remote
 	targetReplication                     // Replication
+	targetSurrogate                       // Surrogate
 )

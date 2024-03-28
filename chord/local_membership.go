@@ -157,7 +157,7 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 		return nil, nil, chord.ErrJoinTransferFailure
 	}
 	joined = true
-	n.surrogate = joiner.Identity()
+	n.surrogate = joiner
 
 	return prevPredecessor, chord.MakeSuccListByID(n, n.getSuccessors(), chord.ExtendedSuccessorEntries), nil
 }
@@ -316,7 +316,7 @@ func (n *LocalNode) executeLeave() (pre, succ chord.VNode, err error) {
 		return nil, nil, err
 	}
 
-	n.surrogate = n.Identity()
+	n.surrogate = n
 
 	return
 }
