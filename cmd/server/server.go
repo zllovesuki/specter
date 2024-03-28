@@ -357,7 +357,7 @@ func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
 	}, nil
 }
 
-func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.KV) (cipher.CertProvider, error) {
+func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.VNode) (cipher.CertProvider, error) {
 	rootDomain := ctx.String("apex")
 	extraRootDomains := ctx.StringSlice("extra-apex")
 	managedDomains := append([]string{rootDomain}, extraRootDomains...)
@@ -696,7 +696,7 @@ func cmdServer(ctx *cli.Context) error {
 		defer virtualNodes[i].Leave()
 	}
 
-	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), rootNode)
+	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), chord.WrapRetryKV(rootNode, rootNode.StabilizeInterval/2, 5))
 	if err != nil {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}

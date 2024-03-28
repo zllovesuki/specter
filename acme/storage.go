@@ -49,9 +49,7 @@ func NewChordStorage(logger *zap.Logger, kv chord.KV, cfg StorageConfig) (*Chord
 func (c *ChordStorage) Lock(ctx context.Context, key string) error {
 	// c.Logger.Debug("Lock invoked", zap.String("key", key))
 	for {
-		token, err := retrier(ctx, c.retryInterval, func() (uint64, error) {
-			return c.KV.Acquire(ctx, []byte(kvKeyName(key)), c.leaseTTL)
-		})
+		token, err := c.KV.Acquire(ctx, []byte(kvKeyName(key)), c.leaseTTL)
 		switch err {
 		case chord.ErrKVLeaseConflict:
 			c.Logger.Debug("Lease acquire conflict, retrying", zap.String("key", key))
@@ -90,9 +88,7 @@ func (c *ChordStorage) renewLease(key string, l *leaseHolder) {
 			return
 		case <-ticker.C:
 			prev := atomic.LoadUint64(&l.token)
-			next, err := retrier(context.Background(), c.retryInterval, func() (uint64, error) {
-				return c.KV.Renew(context.Background(), []byte(kvKeyName(key)), c.leaseTTL, prev)
-			})
+			next, err := c.KV.Renew(context.Background(), []byte(kvKeyName(key)), c.leaseTTL, prev)
 			if err != nil {
 				c.Logger.Error("failed to renew lease", zap.String("lease", key), zap.Error(err))
 				return
@@ -111,24 +107,16 @@ func (c *ChordStorage) Unlock(ctx context.Context, key string) error {
 	lease.cancelFn()
 	lease.Wait()
 	c.Logger.Debug("Lease released", zap.String("key", key))
-	_, err := retrier(ctx, c.retryInterval, func() (any, error) {
-		return nil, c.KV.Release(ctx, []byte(kvKeyName(key)), atomic.LoadUint64(&lease.token))
-	})
-	return err
+	return c.KV.Release(ctx, []byte(kvKeyName(key)), atomic.LoadUint64(&lease.token))
 }
 
 func (c *ChordStorage) Store(ctx context.Context, key string, value []byte) error {
 	// c.Logger.Debug("Store invoked", zap.String("key", key))
-	_, err := retrier(ctx, c.retryInterval, func() (any, error) {
-		return nil, c.KV.Put(ctx, []byte(kvKeyName(key)), value)
-	})
-	return err
+	return c.KV.Put(ctx, []byte(kvKeyName(key)), value)
 }
 
 func (c *ChordStorage) Load(ctx context.Context, key string) ([]byte, error) {
-	val, err := retrier(ctx, c.retryInterval, func() ([]byte, error) {
-		return c.KV.Get(ctx, []byte(kvKeyName(key)))
-	})
+	val, err := c.KV.Get(ctx, []byte(kvKeyName(key)))
 	if err != nil {
 		return nil, err
 	}
@@ -142,17 +130,12 @@ func (c *ChordStorage) Load(ctx context.Context, key string) ([]byte, error) {
 
 func (c *ChordStorage) Delete(ctx context.Context, key string) error {
 	// c.Logger.Debug("Delete invoked", zap.String("key", key))
-	_, err := retrier(ctx, c.retryInterval, func() (any, error) {
-		return nil, c.KV.Delete(ctx, []byte(kvKeyName(key)))
-	})
-	return err
+	return c.KV.Delete(ctx, []byte(kvKeyName(key)))
 }
 
 func (c *ChordStorage) Exists(ctx context.Context, key string) bool {
 	// c.Logger.Debug("Exists invoked", zap.String("key", key))
-	val, err := retrier(ctx, c.retryInterval, func() ([]byte, error) {
-		return c.KV.Get(ctx, []byte(kvKeyName(key)))
-	})
+	val, err := c.KV.Get(ctx, []byte(kvKeyName(key)))
 	if err != nil {
 		c.Logger.Debug("Exists error", zap.String("key", key), zap.Error(err))
 		return false
@@ -216,9 +199,7 @@ func (c *ChordStorage) List(ctx context.Context, prefix string, recursive bool) 
 func (c *ChordStorage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, error) {
 	// c.Logger.Debug("Stat invoked", zap.String("key", key))
 	info := certmagic.KeyInfo{}
-	value, err := retrier(ctx, c.retryInterval, func() ([]byte, error) {
-		return c.KV.Get(ctx, []byte(kvKeyName(key)))
-	})
+	value, err := c.KV.Get(ctx, []byte(kvKeyName(key)))
 	if err != nil {
 		return info, err
 	}
@@ -239,23 +220,3 @@ type leaseHolder struct {
 }
 
 var _ certmagic.Storage = (*ChordStorage)(nil)
-
-func retrier[V any](ctx context.Context, wait time.Duration, fn func() (V, error)) (V, error) {
-	var zeroV V
-	for {
-		select {
-		case <-ctx.Done():
-			return zeroV, ctx.Err()
-		default:
-		}
-		v, err := fn()
-		if err != nil {
-			if chord.ErrorIsRetryable(err) {
-				<-time.After(wait)
-				continue
-			}
-			return zeroV, err
-		}
-		return v, nil
-	}
-}

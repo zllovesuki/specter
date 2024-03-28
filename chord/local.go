@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"net/http"
 	"sync"
 	"time"
 
@@ -33,6 +34,8 @@ type LocalNode struct {
 	state          *nodeState                              // a replacement of LockQueue from the paper
 	fingers        [chord.MaxFingerEntries + 1]fingerEntry // finger table to provide log(N) optimization
 	rpcAcceptor    *acceptor.HTTP2Acceptor                 // listener for handling incoming rpc request
+	rpcHandler     http.Handler
+	rpcHandlerOnce sync.Once
 	NodeConfig
 }
 

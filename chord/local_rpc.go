@@ -54,33 +54,36 @@ func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Cont
 }
 
 func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
-	r := &Server{
-		LocalNode: n,
-		Factory: func(node *protocol.Node) (chord.VNode, error) {
-			return NewRemoteNode(ctx, n.BaseLogger, n.ChordClient, node)
-		},
-	}
-	nsTwirp := protocol.NewVNodeServiceServer(
-		r,
-		twirp.WithServerHooks(&twirp.ServerHooks{
-			RequestReceived: n.getIncrementor(n.chordRate),
-			Error:           n.logError,
-		}),
-	)
-	ksTwirp := protocol.NewKVServiceServer(
-		r,
-		twirp.WithServerHooks(&twirp.ServerHooks{
-			RequestReceived: n.getIncrementor(n.kvRate),
-			Error:           n.logError,
-		}),
-	)
+	n.rpcHandlerOnce.Do(func() {
+		r := &Server{
+			LocalNode: n,
+			Factory: func(node *protocol.Node) (chord.VNode, error) {
+				return NewRemoteNode(ctx, n.BaseLogger, n.ChordClient, node)
+			},
+		}
+		nsTwirp := protocol.NewVNodeServiceServer(
+			r,
+			twirp.WithServerHooks(&twirp.ServerHooks{
+				RequestReceived: n.getIncrementor(n.chordRate),
+				Error:           n.logError,
+			}),
+		)
+		ksTwirp := protocol.NewKVServiceServer(
+			r,
+			twirp.WithServerHooks(&twirp.ServerHooks{
+				RequestReceived: n.getIncrementor(n.kvRate),
+				Error:           n.logError,
+			}),
+		)
 
-	rpcHandler := chi.NewRouter()
-	rpcHandler.Use(middleware.Recoverer)
-	rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractContext(nsTwirp))
-	rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractContext(ksTwirp))
+		rpcHandler := chi.NewRouter()
+		rpcHandler.Use(middleware.Recoverer)
+		rpcHandler.Mount(nsTwirp.PathPrefix(), rpc.ExtractContext(nsTwirp))
+		rpcHandler.Mount(ksTwirp.PathPrefix(), rpc.ExtractContext(ksTwirp))
+		n.rpcHandler = rpcHandler
+	})
 
-	return rpcHandler
+	return n.rpcHandler
 }
 
 func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
