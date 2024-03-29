@@ -13,6 +13,7 @@ require (
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/gorilla/websocket v1.5.1
+	github.com/iangudger/memnet v0.0.0-20220731214234-823edbed1e9d
 	github.com/jedib0t/go-pretty/v6 v6.5.6
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v4 v4.0.1
@@ -43,6 +44,8 @@ require (
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 )
+
+replace gitub.com/iangudger/memnet v0.0.0-20220731214234-823edbed1e9d => github.com/miragespace/memnet v0.0.0-20240328231002-8045afef8f5b
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect

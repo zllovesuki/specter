@@ -20,6 +20,7 @@ import (
 	"go.miragespace.co/specter/util/atomic"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/iangudger/memnet"
 	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
@@ -184,7 +185,7 @@ func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protoco
 	}
 
 	if peer.GetAddress() == t.Endpoint.GetAddress() && t.VirtualTransport {
-		c1, c2 := net.Pipe()
+		c1, c2 := memnet.NewBufferedStreamConnPair()
 		t.streamChan <- &transport.StreamDelegate{
 			Identity: &protocol.Node{
 				Address: t.Endpoint.GetAddress(),

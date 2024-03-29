@@ -25,6 +25,7 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/iangudger/memnet"
 	"github.com/libp2p/go-yamux/v4"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -393,7 +394,7 @@ func TestH1HTTPFound(t *testing.T) {
 	testHost := "hello"
 	testResponse := "this is fine"
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	ch := make(chan net.Conn, 1)
 	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
@@ -437,7 +438,7 @@ func TestH2HTTPFound(t *testing.T) {
 	testHost := "hello"
 	testResponse := "this is fine"
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	ch := make(chan net.Conn, 1)
 	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
@@ -479,7 +480,7 @@ func TestH3HTTPFound(t *testing.T) {
 	testHost := "hello"
 	testResponse := "this is fine from h3"
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	ch := make(chan net.Conn, 1)
 	go serveMiniClient(as, ch, testResponse)
 	defer close(ch)
@@ -625,7 +626,7 @@ func TestH2TCPFound(t *testing.T) {
 	testHost := "hello"
 	bufLength := 20
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 
 	go func() {
 		tun.SendStatusProto(c2, nil)
@@ -689,7 +690,7 @@ func TestH3TCPFound(t *testing.T) {
 	testHost := "hello"
 	bufLength := 20
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 
 	go func() {
 		tun.SendStatusProto(c2, nil)

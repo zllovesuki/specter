@@ -8,4 +8,6 @@ const (
 
 	ChordRPCTimeout  = time.Second * 10
 	ChordPingTimeout = time.Second * 3
+
+	RPCIdleTimeout = time.Second * 10
 )

@@ -15,6 +15,7 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/iangudger/memnet"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -104,7 +105,7 @@ func TestHandlerListClientTunnels(t *testing.T) {
 		hostnameBytes[i] = []byte(h)
 	}
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 
 	clientChan := make(chan *transport.StreamDelegate)
 	clientT.On("AcceptStream").Return(clientChan)

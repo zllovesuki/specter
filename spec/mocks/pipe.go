@@ -13,6 +13,7 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/transport"
 
+	"github.com/iangudger/memnet"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -68,7 +69,7 @@ func (t *MemoryTransport) Identity() *protocol.Node {
 }
 
 func (t *MemoryTransport) DialStream(ctx context.Context, peer *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	select {
 	case t.Other <- &transport.StreamDelegate{
 		Conn:        c1,

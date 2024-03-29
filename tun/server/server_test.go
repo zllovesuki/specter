@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"go.miragespace.co/specter/spec/transport"
 	"go.miragespace.co/specter/spec/tun"
 
+	"github.com/iangudger/memnet"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -151,7 +151,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 
 	// 3. once we figure out that it is connected to us,
 	// attempt to dial
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	go func() {
 		l := &protocol.Link{}
 		err := rpc.Receive(c2, l)
@@ -202,7 +202,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 
 	// 3. once we figure out that it is NOT connected to us,
 	// attempt to dial via chord
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 	go func() {
 		// the remote node should receive the bundle
 		bundle := &protocol.TunnelRoute{}
@@ -283,8 +283,8 @@ func TestHandleRemoteConnection(t *testing.T) {
 
 	// since the "client" is connected to us, we should expect a DialDirect
 	// to the client
-	c1, c2 := net.Pipe()
-	c3, c4 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
+	c3, c4 := memnet.NewBufferedStreamConnPair()
 	clientT.On("DialStream", mock.Anything, mock.MatchedBy(func(n *protocol.Node) bool {
 		return n.GetId() == cli.GetId()
 	}), protocol.Stream_DIRECT).Return(c3, nil)

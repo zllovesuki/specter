@@ -14,6 +14,7 @@ import (
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/util/ratecounter"
 
 	pool "github.com/libp2p/go-buffer-pool"
@@ -76,10 +77,10 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 
 	// default to http client pooling
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxConnsPerHost = 15
+	t.MaxConnsPerHost = 50
 	t.MaxIdleConnsPerHost = 5
 	t.DisableCompression = true
-	t.IdleConnTimeout = time.Minute
+	t.IdleConnTimeout = timing.RPCIdleTimeout
 	t.DialTLSContext = getDynamicDialer(baseContext, chordTransport)
 	c := &http.Client{
 		Transport: t,
@@ -118,10 +119,10 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 
 	// default to http client pooling
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxConnsPerHost = 3
+	t.MaxConnsPerHost = 10
 	t.MaxIdleConnsPerHost = 1
 	t.DisableCompression = true
-	t.IdleConnTimeout = time.Minute
+	t.IdleConnTimeout = timing.RPCIdleTimeout
 	t.DialTLSContext = getDynamicDialer(baseContext, tunnelTransport)
 	c := &http.Client{
 		Transport: t,

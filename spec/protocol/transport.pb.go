@@ -24,10 +24,10 @@ type Stream_Type int32
 
 const (
 	Stream_UNKNOWN_TYPE Stream_Type = 0
-	Stream_RPC          Stream_Type = 1
-	Stream_DIRECT       Stream_Type = 2
-	Stream_PROXY        Stream_Type = 3
-	Stream_INTERNAL     Stream_Type = 4
+	Stream_RPC          Stream_Type = 1 // used for rpc between nodes and between client/server
+	Stream_DIRECT       Stream_Type = 2 // used for establishing the reverse proxy from the tunneling node to client
+	Stream_PROXY        Stream_Type = 3 // used when client is not directly connected to the tunneling node
+	Stream_INTERNAL     Stream_Type = 4 // used for /_internal endpoint proxying between nodes
 )
 
 // Enum value maps for Stream_Type.

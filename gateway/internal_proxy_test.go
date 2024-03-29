@@ -19,6 +19,7 @@ import (
 	"go.miragespace.co/specter/util/acceptor"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/iangudger/memnet"
 	"github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -118,7 +119,7 @@ func TestInternalProxy(t *testing.T) {
 	acc := acceptor.NewH2Acceptor(nil)
 	go fakeServer.Serve(acc)
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 
 	mockS.On("DialInternal", mock.Anything, mock.MatchedBy(func(node *protocol.Node) bool {
 		return node.GetAddress() == fakeNode.GetAddress() && node.GetId() == fakeNode.GetId()

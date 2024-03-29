@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/iangudger/memnet"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/require"
@@ -413,7 +414,7 @@ func TestIntegrationTunnel(t *testing.T) {
 				xApp, xLogs := compileApp(client.Generate())
 				xApp.Metadata["connectOverride"] = hostMap["tcp"]
 
-				leftConn, rightConn := net.Pipe()
+				leftConn, rightConn := memnet.NewBufferedStreamConnPair()
 				xApp.Metadata[client.PipeInKey] = leftConn
 				xApp.Metadata[client.PipeOutKey] = leftConn
 

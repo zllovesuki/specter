@@ -9,10 +9,10 @@ import "spec/proto/node.proto";
 message Stream {
     enum Type {
         UNKNOWN_TYPE = 0;
-        RPC = 1;
-        DIRECT = 2;
-        PROXY = 3;
-        INTERNAL = 4;
+        RPC = 1; // used for rpc between nodes and between client/server
+        DIRECT = 2; // used for establishing the reverse proxy from the tunneling node to client
+        PROXY = 3; // used when client is not directly connected to the tunneling node
+        INTERNAL = 4; // used for /_internal endpoint proxying between nodes
     }
 
     Type type = 1;

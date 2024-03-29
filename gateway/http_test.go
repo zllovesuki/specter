@@ -11,10 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
+
+	"github.com/iangudger/memnet"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPRedirect(t *testing.T) {
@@ -54,7 +56,7 @@ func TestHTTPConnectProxy(t *testing.T) {
 	testHost := "hello"
 	bufLength := 16
 
-	c1, c2 := net.Pipe()
+	c1, c2 := memnet.NewBufferedStreamConnPair()
 
 	go func() {
 		tun.SendStatusProto(c2, nil)

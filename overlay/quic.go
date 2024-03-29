@@ -14,7 +14,7 @@ var (
 		KeepAlivePeriod:      time.Second * 5,
 		HandshakeIdleTimeout: timing.TLSHandshakeTimeout,
 		MaxIdleTimeout:       time.Second * 30,
-		MaxIncomingStreams:   250,
+		MaxIncomingStreams:   500,
 		EnableDatagrams:      true,
 	}
 )
