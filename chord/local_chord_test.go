@@ -4,13 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -140,20 +136,6 @@ func RingCheck(t *testing.T, as *require.Assertions, nodes []*LocalNode, counter
 }
 
 func TestMain(m *testing.M) {
-	var (
-		seed int64
-		err  error
-	)
-	if os.Getenv("RAND") == "" {
-		seed = time.Now().Unix()
-	} else {
-		seed, err = strconv.ParseInt(os.Getenv("RAND"), 10, 64)
-		if err != nil {
-			panic(err)
-		}
-	}
-	log.Printf(" ========== Using %d as seed in this test ==========\n", seed)
-	rand.Seed(seed)
 	goleak.VerifyTestMain(m)
 }
 

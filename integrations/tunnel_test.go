@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -80,10 +79,6 @@ func TestIntegrationTunnel(t *testing.T) {
 	if os.Getenv("GO_INTEGRATION_TUNNEL") == "" {
 		t.Skip("skipping integration tests")
 	}
-
-	seed := time.Now().Unix()
-	t.Logf(" ========== Using %d as seed in this test ==========\n", seed)
-	rand.Seed(seed)
 
 	as := require.New(t)
 

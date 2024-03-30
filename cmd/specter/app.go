@@ -2,9 +2,7 @@ package specter
 
 import (
 	"fmt"
-	"math/rand"
 	"runtime"
-	"time"
 
 	"go.miragespace.co/specter/cmd/client"
 	"go.miragespace.co/specter/cmd/dns"
@@ -33,11 +31,6 @@ var (
 				Name:  "verbose",
 				Value: false,
 				Usage: "enable verbose logging",
-			},
-			&cli.Int64Flag{
-				Name:   "rand",
-				Hidden: true,
-				Value:  time.Now().Unix(),
 			},
 
 			&cli.BoolFlag{
@@ -75,10 +68,6 @@ func ConfigLogger(ctx *cli.Context) error {
 		return fmt.Errorf("redirecting stdlog output: %w", err)
 	}
 	ctx.App.Metadata["logger"] = logger
-
-	seed := ctx.Int64("rand")
-	logger.Debug("specter: seeding math/rand", zap.Int64("rand", seed), zap.Bool("overridden", ctx.IsSet("rand")))
-	rand.Seed(seed)
 
 	return ConfigApp(ctx)
 }
