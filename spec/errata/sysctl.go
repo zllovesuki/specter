@@ -3,6 +3,10 @@
 
 package errata
 
-func ConfigUDPBuffer() bool {
+func ConfigUDPRecvBuffer() bool {
+	return false
+}
+
+func ConfigUDPSendBuffer() bool {
 	return false
 }

@@ -5,6 +5,12 @@ package errata
 
 import "os"
 
-func ConfigUDPBuffer() bool {
-	return os.WriteFile("/proc/sys/net/core/rmem_max", []byte("2500000"), 0o644) == nil
+func ConfigUDPRecvBuffer() bool {
+	// 32MiB
+	return os.WriteFile("/proc/sys/net/core/rmem_max", []byte("33554432"), 0o644) == nil
+}
+
+func ConfigUDPSendBuffer() bool {
+	// 32MiB
+	return os.WriteFile("/proc/sys/net/core/wmem_max", []byte("33554432"), 0o644) == nil
 }

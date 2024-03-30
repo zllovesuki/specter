@@ -77,8 +77,11 @@ func ConfigApp(ctx *cli.Context) error {
 	if errata.ConfigDNS(ctx.Bool("doh")) {
 		logger.Debug("errata: net.DefaultResolver configured with DoH dialer")
 	}
-	if errata.ConfigUDPBuffer() {
-		logger.Debug("errata: net.core.rmem_max is set to 2500000")
+	if errata.ConfigUDPRecvBuffer() {
+		logger.Debug("errata: net.core.rmem_max is set to 33554432 (32MiB)")
+	}
+	if errata.ConfigUDPSendBuffer() {
+		logger.Debug("errata: net.core.wmem_max is set to 33554432 (32MiB)")
 	}
 	return nil
 }
