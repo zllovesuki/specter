@@ -44,6 +44,9 @@ yeet-server:
 	docker compose -f compose-server.yaml stop
 	docker compose -f compose-server.yaml rm
 
+yeet-server-all: yeet-server
+	docker compose -f compose-server.yaml down -v
+
 yeet-client:
 	docker compose -f compose-client.yaml down
 	docker compose -f compose-client.yaml stop
@@ -76,9 +79,9 @@ compat: ext = -compat$(word 3, $(plat_temp))
 compat: release
 
 $(PLATFORMS):
-	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
+	GOEXPERIMENT=newinliner CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
 ifdef wal
-	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/wal-$(os)-$(arch)$(ext) ./cmd/wal
+	GOEXPERIMENT=newinliner CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/wal-$(os)-$(arch)$(ext) ./cmd/wal
 endif
 
 upx: release
