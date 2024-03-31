@@ -14,5 +14,6 @@ func main() {
 
 	if err := specter.App.RunContext(ctx, os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
