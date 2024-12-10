@@ -29,9 +29,6 @@ const (
 
 func (s *Server) initRouteCache() {
 	routeCache, err := theine.NewBuilder[string, routesResult](cacheBytes).
-		// listen for cache entry removal
-		// TODO: metrics
-		RemovalListener(s.cacheEventListener).
 		// configure loader to fetch routes on miss
 		// TODO: make routing selection more intelligent with rtt
 		BuildWithLoader(s.cacheLoader)
@@ -45,21 +42,6 @@ func (s *Server) initRouteCache() {
 
 func (s *Server) RoutesPreload(hostname string) {
 	s.routeCache.Get(s.ParentContext, hostname)
-}
-
-func (s *Server) cacheEventListener(hostname string, ret routesResult, reason theine.RemoveReason) {
-	var reasonStr string
-	switch reason {
-	case theine.EVICTED:
-		reasonStr = "evicted"
-	case theine.EXPIRED:
-		reasonStr = "expired"
-	case theine.REMOVED:
-		reasonStr = "removed"
-	default:
-		reasonStr = "unknown"
-	}
-	s.Logger.Debug("Route cache entry removed", zap.String("hostname", hostname), zap.String("reason", reasonStr))
 }
 
 func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.Loaded[routesResult], loadErr error) {

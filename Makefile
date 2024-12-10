@@ -170,6 +170,8 @@ integration_dep_up:
 
 integration_dep_down:
 	docker compose -f compose-integration.yaml down
+	docker compose -f compose-integration.yaml stop
+	docker compose -f compose-integration.yaml rm
 
 clean:
 	-rm bin/*
@@ -195,6 +197,11 @@ certs:
 	openssl x509 -req -CA certs/ca.crt -CAkey certs/ca.key -in certs/node.csr -out certs/node.crt -days 365 -CAcreateserial -extfile dev/openssl.txt
 	# Create Client CA
 	go run ./cmd/pki/ca
+	# Generate pebble test cert
+	openssl ecparam -name prime256v1 -genkey -noout -out certs/pebble.key
+	openssl req -new -key certs/pebble.key -out certs/pebble.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost, DNS:pebble, IP:127.0.0.1" 
+	openssl req -text -in certs/pebble.csr -noout -verify
+	openssl x509 -req -CA dev/pebble/certs/cert.pem -CAkey dev/pebble/certs/key.pem -in certs/pebble.csr -out certs/pebble.pem -days 365 -CAcreateserial -extfile dev/openssl.txt
 
 fly_deploy:
 	flyctl deploy --build-arg GIT_HASH=$$(git rev-parse --short HEAD)

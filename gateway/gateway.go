@@ -142,12 +142,12 @@ func New(conf GatewayConfig) *Gateway {
 		ErrorLog:          util.GetStdLogger(filteredLogger, "h2Tunnel"),
 	}
 	g.quicApexServer = &http3.Server{
-		QuicConfig:      qCfg,
+		QUICConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         apex,
 	}
 	g.h3TunnelServer = &http3.Server{
-		QuicConfig:      qCfg,
+		QUICConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         proxyHandler,
 	}

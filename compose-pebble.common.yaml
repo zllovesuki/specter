@@ -9,3 +9,4 @@ services:
       - PEBBLE_VA_ALWAYS_VALID=1
     volumes:
       - ./dev/pebble:/pebble:ro
+      - ./certs:/certs:ro
