@@ -35,7 +35,10 @@ func (q *quicConn) RemoteAddr() net.Addr {
 }
 
 func (q *quicConn) Close() error {
-	// https://github.com/lucas-clemente/quic-go/issues/3558#issuecomment-1253315560
+	go func() {
+		time.Sleep(time.Second)
+		q.Stream.CancelWrite(409)
+	}()
 	q.Stream.CancelRead(409)
 	return q.Stream.Close()
 }
