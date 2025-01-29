@@ -28,6 +28,10 @@ var delHeaders = []string{
 	"X-Forwarded-For",
 }
 
+const (
+	proxyHeaderTimeout = time.Second * 120 // global limit of how long the gateway will wait for response
+)
+
 // inspiration from https://blog.cloudflare.com/eliminating-cold-starts-with-cloudflare-workers/
 // warm the route cache when tls handshake begins
 func (g *Gateway) HandshakeEarlyHint(sni string) {
@@ -226,7 +230,7 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 		MaxIdleConnsPerHost:   5,
 		DisableCompression:    true,
 		IdleConnTimeout:       time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 15,
+		ResponseHeaderTimeout: proxyHeaderTimeout,
 		ExpectContinueTimeout: time.Second * 5,
 		WriteBufferSize:       g.Options.TransportBufferSize,
 		ReadBufferSize:        g.Options.TransportBufferSize,
