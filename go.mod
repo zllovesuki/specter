@@ -1,6 +1,6 @@
 module go.miragespace.co/specter
 
-go 1.23.4
+go 1.23.5
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
