@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"go.miragespace.co/specter/spec/pki"
 
@@ -15,10 +16,11 @@ import (
 )
 
 type Tunnel struct {
-	parsed   *url.URL
-	Target   string `yaml:"target" json:"target"`
-	Hostname string `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	Insecure bool   `yaml:"insecure,omitempty" json:"insecure"`
+	parsed             *url.URL
+	Target             string        `yaml:"target" json:"target"`
+	Hostname           string        `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	Insecure           bool          `yaml:"insecure,omitempty" json:"insecure"`
+	ProxyHeaderTimeout time.Duration `yaml:"proxyHeaderTimeout,omitempty" json:"proxyHeaderTimeout,omitempty"`
 }
 
 type Config struct {
@@ -32,8 +34,9 @@ type Config struct {
 }
 
 type route struct {
-	parsed   *url.URL
-	insecure bool
+	parsed        *url.URL
+	insecure      bool
+	headerTimeout time.Duration
 }
 
 func NewConfig(path string) (*Config, error) {
@@ -71,8 +74,9 @@ func (c *Config) buildRouter(drop ...Tunnel) {
 	}
 	for _, tunnel := range c.Tunnels {
 		c.router.Store(tunnel.Hostname, route{
-			parsed:   tunnel.parsed,
-			insecure: tunnel.Insecure,
+			parsed:        tunnel.parsed,
+			insecure:      tunnel.Insecure,
+			headerTimeout: tunnel.ProxyHeaderTimeout,
 		})
 	}
 }

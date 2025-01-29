@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -19,6 +20,7 @@ apex: dev.specter.dev:1234
 tunnels:
   - target: tcp://127.0.0.1:1234
     hostname: tcp.dev.specter.dev
+    proxyHeaderTimeout: 60s
 `
 
 const testPrivateKey = `MC4CAQAwBQYDK2VwBCIEIFXA98L8HvJQxzyqYosZxyaX/G1vfJ4TeSP0E+N0FIfj`
@@ -66,6 +68,9 @@ func TestConfig(t *testing.T) {
 	as.NotEmpty(bareCfg.PrivKey)
 	bareCfg.buildRouter()
 	as.Equal(1, bareCfg.router.Len())
+	route, ok := bareCfg.router.Load("tcp.dev.specter.dev")
+	as.True(ok)
+	as.Equal(time.Second*60, route.headerTimeout)
 
 	regFile, err := os.CreateTemp("", "client")
 	as.NoError(err)

@@ -30,7 +30,8 @@ type httpProxy struct {
 type httpReqCtxKey string
 
 const (
-	ctxStartTime = httpReqCtxKey("start-time")
+	ctxStartTime              = httpReqCtxKey("start-time")
+	defaultProxyHeaderTimeout = time.Second * 15
 )
 
 func injectStartTime(proxy http.Handler) http.Handler {
@@ -134,12 +135,17 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
 		proxy.BufferPool = util.NewBufferPool(1024 * 16)
 
+		readHeaderTimeout := defaultProxyHeaderTimeout
+		if r.headerTimeout > 0 {
+			readHeaderTimeout = r.headerTimeout
+		}
+
 		return &httpProxy{
 			acceptor: acceptor.NewH2Acceptor(nil),
 			forwarder: &http.Server{
 				Handler:           injectStartTime(proxy),
 				ErrorLog:          zap.NewStdLog(c.Logger),
-				ReadHeaderTimeout: time.Second * 15,
+				ReadHeaderTimeout: readHeaderTimeout,
 			},
 		}
 	})

@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 	"time"
 
@@ -186,7 +186,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.
 		case protocol.TunnelStatusCode_NO_DIRECT:
 			return nil, tun.ErrTunnelClientNotConnected
 		default:
-			return nil, fmt.Errorf(status.GetError())
+			return nil, errors.New(status.GetError())
 		}
 	}
 }
