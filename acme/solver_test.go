@@ -11,7 +11,7 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
 
-	"github.com/mholt/acmez/v2/acme"
+	"github.com/mholt/acmez/v3/acme"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )

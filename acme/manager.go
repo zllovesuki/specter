@@ -13,7 +13,7 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/mholt/acmez/v2"
+	"github.com/mholt/acmez/v3"
 	"go.uber.org/zap"
 )
 

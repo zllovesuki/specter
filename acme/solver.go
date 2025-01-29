@@ -8,8 +8,8 @@ import (
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/tun"
 
-	"github.com/mholt/acmez/v2"
-	"github.com/mholt/acmez/v2/acme"
+	"github.com/mholt/acmez/v3"
+	"github.com/mholt/acmez/v3/acme"
 )
 
 type ChordSolver struct {

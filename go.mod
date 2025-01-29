@@ -8,22 +8,22 @@ require (
 	github.com/Yiling-J/theine-go v0.6.0
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/avast/retry-go/v4 v4.6.0
-	github.com/caddyserver/certmagic v0.21.4
+	github.com/caddyserver/certmagic v0.21.7
 	github.com/dominikbraun/graph v0.23.0
-	github.com/getsentry/sentry-go v0.30.0
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/getsentry/sentry-go v0.31.1
+	github.com/go-chi/chi/v5 v5.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/iangudger/memnet v0.0.0-20220731214234-823edbed1e9d
-	github.com/jedib0t/go-pretty/v6 v6.6.4
+	github.com/jedib0t/go-pretty/v6 v6.6.5
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v4 v4.0.1
-	github.com/mholt/acmez/v2 v2.0.3
-	github.com/miekg/dns v1.1.62
+	github.com/mholt/acmez/v3 v3.0.1
+	github.com/miekg/dns v1.1.63
 	github.com/montanaflynn/stats v0.7.1
-	github.com/ncruces/go-dns v1.2.5
+	github.com/ncruces/go-dns v1.2.6
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/planetscale/vtprotobuf v0.6.0
-	github.com/quic-go/quic-go v0.48.2
+	github.com/quic-go/quic-go v0.49.0
 	github.com/sethvargo/go-diceware v0.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/wal v1.1.8
@@ -35,11 +35,11 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
-	golang.org/x/net v0.32.0
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
+	golang.org/x/net v0.34.0
 	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0
-	google.golang.org/protobuf v1.35.2
+	golang.org/x/sys v0.29.0
+	google.golang.org/protobuf v1.36.4
 	gopkg.in/yaml.v3 v3.0.1
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
@@ -73,9 +73,9 @@ require (
 	github.com/zhangyunhao116/fastrand v0.5.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.30.0 // indirect
+	go.uber.org/zap/exp v0.3.0 // indirect
+	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	golang.org/x/tools v0.29.0 // indirect
 )

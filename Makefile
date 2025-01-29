@@ -3,7 +3,7 @@ BUILD := $(shell git rev-parse --short HEAD)
 BUILT_TIME := $(shell date +%s)
 
 PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-PROTOC_VERSION=26.0
+PROTOC_VERSION=29.3
 PROTOC_GO=`which protoc-gen-go`
 PROTOC_TWIRP=`which protoc-gen-twirp`
 PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
