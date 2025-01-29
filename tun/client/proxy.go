@@ -84,6 +84,11 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 		logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
 		logger.Info("Creating new proxy")
 
+		readHeaderTimeout := defaultProxyHeaderTimeout
+		if r.headerTimeout > 0 {
+			readHeaderTimeout = r.headerTimeout
+		}
+
 		tp := &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName:         u.Host,
@@ -91,7 +96,7 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 			},
 			MaxIdleConns:          10,
 			IdleConnTimeout:       time.Second * 30,
-			ResponseHeaderTimeout: connectTimeout,
+			ResponseHeaderTimeout: readHeaderTimeout,
 			ForceAttemptHTTP2:     true,
 		}
 		switch u.Scheme {
@@ -129,16 +134,11 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
 		proxy.ModifyResponse = func(r *http.Response) error {
-			c.Logger.Debug("Access Log", zap.Object("request", (*encRequest)(r.Request)), zap.Object("response", (*encResponse)(r)))
+			logger.Debug("Access Log", zap.Object("request", (*encRequest)(r.Request)), zap.Object("response", (*encResponse)(r)))
 			return nil
 		}
 		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
 		proxy.BufferPool = util.NewBufferPool(1024 * 16)
-
-		readHeaderTimeout := defaultProxyHeaderTimeout
-		if r.headerTimeout > 0 {
-			readHeaderTimeout = r.headerTimeout
-		}
 
 		return &httpProxy{
 			acceptor: acceptor.NewH2Acceptor(nil),
