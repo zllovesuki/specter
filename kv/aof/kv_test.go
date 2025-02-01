@@ -116,8 +116,10 @@ func TestEverything(t *testing.T) {
 
 	time.Sleep(cfg.FlushInterval * 2)
 
-	keys := kv.RangeKeys(0, 0)
-	snapshot1 := kv.Export(keys)
+	keys, err := kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	snapshot1, err := kv.Export(context.Background(), keys)
+	as.NoError(err)
 
 	kv.Stop()
 
@@ -132,7 +134,8 @@ func TestEverything(t *testing.T) {
 	as.ErrorIs(err, fs.ErrClosed)
 	err = kv.Import(context.Background(), keys, snapshot1)
 	as.ErrorIs(err, fs.ErrClosed)
-	kv.RemoveKeys(keys) // no-op
+	err = kv.RemoveKeys(context.Background(), keys) // no-op
+	as.NoError(err)
 
 	kv.Stop() // no-op
 
@@ -161,8 +164,10 @@ func TestEverything(t *testing.T) {
 	as.NoError(err)
 	as.Nil(val)
 
-	keys = kv.RangeKeys(0, 0)
-	snapshot2 := kv.Export(keys)
+	keys, err = kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	snapshot2, err := kv.Export(context.Background(), keys)
+	as.NoError(err)
 
 	as.EqualValues(snapshot1, snapshot2)
 
@@ -202,8 +207,10 @@ func TestImportAndRemoveKeys(t *testing.T) {
 		as.NoError(err)
 	}
 
-	expKeys := kv.RangeKeys(0, 0)
-	snapshot := kv.Export(expKeys)
+	expKeys, err := kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	snapshot, err := kv.Export(context.Background(), expKeys)
+	as.NoError(err)
 
 	kv.Stop()
 
@@ -243,7 +250,8 @@ func TestImportAndRemoveKeys(t *testing.T) {
 		as.EqualValues(values[i], val)
 	}
 
-	kv.RemoveKeys(expKeys)
+	err = kv.RemoveKeys(context.Background(), expKeys)
+	as.NoError(err)
 
 	kv.Stop()
 

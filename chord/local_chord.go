@@ -222,9 +222,11 @@ func (n *LocalNode) GetPredecessor() (chord.VNode, error) {
 // transferKeyUpward is called when a new predecessor has notified us, and we should transfer predecessors'
 // key range (upward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, newPredecessor chord.VNode) (err error) {
-	var keys [][]byte
-	var values []*protocol.KVTransfer
-	var low chord.VNode
+	var (
+		keys   [][]byte
+		values []*protocol.KVTransfer
+		low    chord.VNode
+	)
 
 	if newPredecessor.ID() == n.ID() {
 		return nil
@@ -237,18 +239,24 @@ func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, new
 	}
 
 	if !chord.Between(low.ID(), newPredecessor.ID(), n.ID(), false) {
-		n.logger.Debug("skip transferring keys to predecessor because predecessor left", zap.Object("prev", low.Identity()), zap.Object("new", newPredecessor.Identity()))
+		n.logger.Debug("Skip transferring keys to predecessor because predecessor left", zap.Object("prev", low.Identity()), zap.Object("new", newPredecessor.Identity()))
 		return
 	}
 
-	keys = n.kv.RangeKeys(low.ID(), newPredecessor.ID())
+	keys, err = n.kv.RangeKeys(ctx, low.ID(), newPredecessor.ID())
+	if err != nil {
+		return
+	}
 	if len(keys) == 0 {
 		return nil
 	}
 
-	n.logger.Info("transferring keys to new predecessor", zap.Object("predecessor", newPredecessor.Identity()), zap.Int("num_keys", len(keys)))
+	n.logger.Info("Transferring keys to new predecessor", zap.Object("predecessor", newPredecessor.Identity()), zap.Int("num_keys", len(keys)))
 
-	values = n.kv.Export(keys)
+	values, err = n.kv.Export(ctx, keys)
+	if err != nil {
+		return
+	}
 
 	err = newPredecessor.Import(ctx, keys, values)
 	if err != nil {
@@ -256,22 +264,30 @@ func (n *LocalNode) transferKeysUpward(ctx context.Context, prevPredecessor, new
 	}
 
 	// TODO: remove this when we implement replication
-	n.kv.RemoveKeys(keys)
+	if err := n.kv.RemoveKeys(ctx, keys); err != nil {
+		n.logger.Error("Failed to remove keys from KV", zap.Error(err))
+	}
 	return
 }
 
 // transferKeyDownward is called when current node is leaving the ring, and we should transfer all of our keys
 // to the successor (downward). Caller of this function should hold the surrogateMu Write Lock.
 func (n *LocalNode) transferKeysDownward(ctx context.Context, successor chord.VNode) error {
-	keys := n.kv.RangeKeys(0, 0)
+	keys, err := n.kv.RangeKeys(ctx, 0, 0)
+	if err != nil {
+		return err
+	}
 
 	if len(keys) == 0 {
 		return nil
 	}
 
-	n.logger.Info("transferring keys to successor", zap.Object("successor", successor.Identity()), zap.Int("num_keys", len(keys)))
+	n.logger.Info("Transferring keys to successor", zap.Object("successor", successor.Identity()), zap.Int("num_keys", len(keys)))
 
-	values := n.kv.Export(keys)
+	values, err := n.kv.Export(ctx, keys)
+	if err != nil {
+		return err
+	}
 
 	// TODO: split into batches
 	if err := successor.Import(ctx, keys, values); err != nil {
@@ -279,7 +295,9 @@ func (n *LocalNode) transferKeysDownward(ctx context.Context, successor chord.VN
 	}
 
 	// TODO: remove this when we implement replication
-	n.kv.RemoveKeys(keys)
+	if err := n.kv.RemoveKeys(ctx, keys); err != nil {
+		n.logger.Error("Failed to remove keys from KV", zap.Error(err))
+	}
 
 	return nil
 }

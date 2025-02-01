@@ -42,6 +42,12 @@ func (m *MemoryKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	}
 	v, _ := m.fetchVal(lease)
 	curr := v.lease.Load()
+	if curr == 0 {
+		return 0, chord.ErrKVLeaseExpired
+	}
+	if time.Now().UnixNano() > int64(curr) {
+		return 0, chord.ErrKVLeaseExpired
+	}
 	if curr != prevToken {
 		return 0, chord.ErrKVLeaseExpired
 	}

@@ -1,6 +1,7 @@
 package chord
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -59,7 +60,7 @@ func (n *LocalNode) fingerTrace() map[string]string {
 	return f
 }
 
-func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
+func printSummary(ctx context.Context, w http.ResponseWriter, virtualNodes []*LocalNode) {
 	rootNode := virtualNodes[0]
 	numKeys := 0
 
@@ -207,8 +208,16 @@ func printSummary(w http.ResponseWriter, virtualNodes []*LocalNode) {
 			{Number: 6, AutoMerge: true, AlignHeader: text.AlignCenter},
 		})
 
-		keys := node.kv.RangeKeys(0, 0)
-		exp := node.kv.Export(keys)
+		keys, err := node.kv.RangeKeys(ctx, 0, 0)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		exp, err := node.kv.Export(ctx, keys)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
 		for i, key := range keys {
 			plain := exp[i].GetSimpleValue()
 			children := exp[i].GetPrefixChildren()
@@ -310,6 +319,6 @@ func statsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http
 			w.Header().Set("content-type", "text/plain; charset=utf-8")
 		}
 
-		printSummary(w, virtualNodes)
+		printSummary(r.Context(), w, virtualNodes)
 	}
 }

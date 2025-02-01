@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"container/ring"
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	mathRand "math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -114,7 +115,7 @@ func TestKVOperation(t *testing.T) {
 func kvFsck(kv chord.KVProvider, low, high uint64) bool {
 	valid := true
 
-	keys := kv.RangeKeys(0, 0)
+	keys, _ := kv.RangeKeys(context.Background(), 0, 0)
 	for _, key := range keys {
 		if !chord.Between(low, chord.Hash(key), high, true) {
 			valid = false
@@ -143,13 +144,14 @@ func TestKeyTransferOut(t *testing.T) {
 		as.Nil(nodes[0].Put(context.Background(), keys[i], values[i]))
 	}
 
-	randomNode := nodes[rand.Intn(numNodes)]
+	randomNode := nodes[mathRand.Intn(numNodes)]
 
 	successor := randomNode.getSuccessor()
 	predecessor := randomNode.getPredecessor()
 	t.Logf("predecessor: %d, leaving: %d, successor: %d", predecessor.ID(), randomNode.ID(), successor.ID())
 
-	leavingKeys := randomNode.kv.RangeKeys(0, 0)
+	leavingKeys, err := randomNode.kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
 
 	randomNode.Leave()
 	<-time.After(waitInterval)
@@ -163,7 +165,7 @@ func TestKeyTransferOut(t *testing.T) {
 	}
 	fsck(as, c)
 
-	succVals := successor.(*LocalNode).kv.Export(leavingKeys)
+	succVals, _ := successor.(*LocalNode).kv.Export(context.Background(), leavingKeys)
 	as.Len(succVals, len(leavingKeys))
 
 	indices := make([]int, 0)
@@ -180,7 +182,7 @@ func TestKeyTransferOut(t *testing.T) {
 		as.EqualValues(values[indices[i]], v.GetSimpleValue())
 	}
 
-	preVals := predecessor.(*LocalNode).kv.Export(leavingKeys)
+	preVals, _ := predecessor.(*LocalNode).kv.Export(context.TODO(), leavingKeys)
 	for _, v := range preVals {
 		as.Nil(v.GetSimpleValue())
 	}
@@ -212,9 +214,9 @@ func TestKeyTransferIn(t *testing.T) {
 
 	<-time.After(waitInterval * 2)
 
-	keys = n1.kv.RangeKeys(0, 0)
+	keys, _ = n1.kv.RangeKeys(context.Background(), 0, 0)
 	as.Greater(len(keys), 0)
-	vals := n1.kv.Export(keys)
+	vals, _ := n1.kv.Export(context.Background(), keys)
 	for _, val := range vals {
 		as.Greater(len(val.GetSimpleValue()), 0)
 	}
@@ -228,9 +230,9 @@ func TestKeyTransferIn(t *testing.T) {
 	defer n2.Leave()
 	waitRing(as, n2)
 
-	keys = n2.kv.RangeKeys(0, 0)
+	keys, _ = n2.kv.RangeKeys(context.Background(), 0, 0)
 	as.Greater(len(keys), 0)
-	vals = n2.kv.Export(keys)
+	vals, _ = n2.kv.Export(context.Background(), keys)
 	for _, val := range vals {
 		as.Greater(len(val.GetSimpleValue()), 0)
 	}
@@ -474,7 +476,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 	}
 
 	lostIndices := make([]int, 0)
-	k := nodes[0].kv.RangeKeys(0, 0)
+	k, _ := nodes[0].kv.RangeKeys(context.Background(), 0, 0)
 	if len(k) != numKeys {
 		for i := range keys {
 			val, err := nodes[0].kv.Get(context.Background(), keys[i])
@@ -595,7 +597,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 	as.Equal(numKeys, found, "expect %d keys to be found, but only %d keys found with %d missing and %d mismatched", numKeys, found, len(missingIndices), len(mismatchedIndices))
 
 	lostIndices := make([]int, 0)
-	k := nodes[0].kv.RangeKeys(0, 0)
+	k, _ := nodes[0].kv.RangeKeys(context.Background(), 0, 0)
 	if len(k) != numKeys {
 		for i := range keys {
 			val, err := nodes[0].kv.Get(context.Background(), keys[i])

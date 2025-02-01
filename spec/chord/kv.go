@@ -7,6 +7,8 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 )
 
+type HashFn func([]byte) uint64
+
 type SimpleKV interface {
 	// Put will store the value to a node in the Chord network responsible for the given key.
 	// If the key did not exist, a new entry will be added.
@@ -72,12 +74,12 @@ type KVProvider interface {
 	KV
 	// Export is used when a Local node is retrieving relevant keys to transfer.
 	// Only used locally, not used for RPC
-	Export(keys [][]byte) []*protocol.KVTransfer
+	Export(ctx context.Context, keys [][]byte) ([]*protocol.KVTransfer, error)
 	// RangeKeys retrieve actual byte values of the keys, given the [low, high]
 	// range of key hashes.
 	// Only used locally, not used for RPC
-	RangeKeys(low, high uint64) [][]byte
+	RangeKeys(ctx context.Context, low, high uint64) ([][]byte, error)
 	// RemoveKeys hard delete keys from local node.
 	// Only used locally, not used for RPC
-	RemoveKeys(keys [][]byte)
+	RemoveKeys(ctx context.Context, keys [][]byte) error
 }

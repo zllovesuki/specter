@@ -34,6 +34,7 @@ var (
 	ErrKVLeaseConflict   = errorDef("chord/kv: lease has not expired or was acquired by a different requester", false)
 	ErrKVLeaseExpired    = errorDef("chord/kv: lease has expired with the given token", false)
 	ErrKVLeaseInvalidTTL = errorDef("chord/kv: lease ttl must be greater than a second", false)
+	ErrKVHashFnChanged   = errorDef("chord/kv: calculated hash is different from storage", false)
 )
 
 func ErrorIsRetryable(err error) bool {
