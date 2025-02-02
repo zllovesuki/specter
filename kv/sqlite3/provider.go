@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"go.miragespace.co/specter/spec/protocol"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

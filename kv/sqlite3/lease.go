@@ -78,19 +78,17 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 			}
 			return err
 		}
-		curr := entry.Token
-		if curr != prevToken {
-			return chord.ErrKVLeaseExpired
-		}
-		// Check if the lease is already expired before updating
-		if time.Now().UnixNano() > int64(curr) {
-			return chord.ErrKVLeaseExpired
-		}
+
+		now := time.Now()
 		next = uint64(time.Now().Add(ttl).UnixNano())
-		resp := tx.Model(&LeaseEntry{}).Where(LeaseEntry{
-			Owner: lease,
-			Token: prevToken,
-		}).Update("token", next)
+
+		resp := tx.Model(&LeaseEntry{}).
+			Where(
+				"owner = ? AND token = ? AND token > ?",
+				lease,
+				prevToken,
+				uint64(now.UnixNano()),
+			).Update("token", next)
 		if resp.Error != nil {
 			return resp.Error
 		}
@@ -106,23 +104,14 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 }
 
 func (s *SqliteKV) Release(ctx context.Context, lease []byte, token uint64) error {
-	entry := &LeaseEntry{
-		Owner: lease,
-	}
 	return s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Select("token").Take(entry).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return chord.ErrKVLeaseExpired
-			}
-			return err
+		resp := tx.Where("owner = ? AND token = ?", lease, token).
+			Delete(&LeaseEntry{})
+		if resp.Error != nil {
+			return resp.Error
 		}
-		if entry.Token != token {
+		if resp.RowsAffected == 0 {
 			return chord.ErrKVLeaseExpired
-		}
-		if err := tx.Delete(LeaseEntry{
-			Owner: lease,
-		}).Error; err != nil {
-			return err
 		}
 		return s.updateKeyTracker(tx, lease, 0, LeaseFlag)
 	})
