@@ -95,7 +95,7 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	//    If the database row’s token is no longer what we set, it means
 	//    some other transaction updated it after we did our compare-and-set.
 	var curToken uint64
-	readErr := s.reader.WithContext(ctx).
+	readErr := s.writer.WithContext(ctx).
 		Model(&LeaseEntry{}).
 		Where("owner = ?", lease).
 		Pluck("token", &curToken).
