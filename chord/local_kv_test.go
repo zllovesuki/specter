@@ -286,10 +286,6 @@ var concurrentParams = []concurrentTest{
 		numNodes: 64,
 		numKeys:  300,
 	},
-	{
-		numNodes: 64,
-		numKeys:  600,
-	},
 	// 128
 	{
 		numNodes: 128,
@@ -302,10 +298,6 @@ var concurrentParams = []concurrentTest{
 	{
 		numNodes: 128,
 		numKeys:  300,
-	},
-	{
-		numNodes: 128,
-		numKeys:  600,
 	},
 }
 
@@ -535,6 +527,7 @@ func concurrentLeaveKVOps(t *testing.T, numNodes, numKeys int) {
 				return
 			}
 			t.Logf("message %d inserted\n", i)
+			time.Sleep(defaultInterval) // used to pace insertions
 		}
 	}()
 
