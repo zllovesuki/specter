@@ -42,6 +42,10 @@ func testGetKV(t *testing.T) *SqliteKV {
 	return kv
 }
 
+func TestInitialize(t *testing.T) {
+	require.NoError(t, Initialize("cache"))
+}
+
 func TestAllKeys(t *testing.T) {
 	as := require.New(t)
 	kv := testGetKV(t)

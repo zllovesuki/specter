@@ -14,7 +14,7 @@ import (
 
 func noop() {}
 
-func getKVProvider(logger *zap.Logger, datadir string, option string) (chord.KVProvider, func(), error) {
+func getKVProvider(logger *zap.Logger, option string, datadir string, cachedir string) (chord.KVProvider, func(), error) {
 	switch option {
 	case "memory":
 		kv := memory.WithHashFn(chord.Hash)
@@ -34,6 +34,9 @@ func getKVProvider(logger *zap.Logger, datadir string, option string) (chord.KVP
 		logger.Info("Using Append-only File backed memory storage backend")
 		return kv, kv.Stop, nil
 	case "sqlite":
+		if err := sqlite3.Initialize(cachedir); err != nil {
+			return nil, nil, fmt.Errorf("initializing sqlite3 dependency: %w", err)
+		}
 		kv, err := sqlite3.New(sqlite3.Config{
 			Logger:  logger,
 			HasnFn:  chord.Hash,

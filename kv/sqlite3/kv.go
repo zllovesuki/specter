@@ -1,6 +1,7 @@
 package sqlite3
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -41,18 +42,35 @@ type SqliteKV struct {
 	writer *gorm.DB
 }
 
+func (c Config) validate() error {
+	if c.Logger == nil {
+		return fmt.Errorf("nil Logger is invalid")
+	}
+	if c.HasnFn == nil {
+		return fmt.Errorf("nil HashFn is invalid")
+	}
+	if c.DataDir == "" {
+		return fmt.Errorf("empty DataDir is invalid")
+	}
+	return nil
+}
+
 func New(cfg Config) (*SqliteKV, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
 	dbDir := filepath.Join(cfg.DataDir, "sqlite3")
 	if err := os.MkdirAll(dbDir, 0750); err != nil {
 		return nil, err
 	}
 	dbPath := filepath.Join(dbDir, "db")
 
-	readDb, err := openSQLite(dbPath)
+	readDb, err := openSQLite(cfg.Logger, dbPath)
 	if err != nil {
 		return nil, err
 	}
-	writeDb, err := openSQLite(dbPath)
+	writeDb, err := openSQLite(cfg.Logger, dbPath)
 	if err != nil {
 		return nil, err
 	}

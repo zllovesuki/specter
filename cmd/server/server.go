@@ -638,6 +638,7 @@ func cmdServer(ctx *cli.Context) error {
 	virtualNodes := make([]*chordImpl.LocalNode, 0)
 
 	k := ctx.Int("virtual")
+	cacheDir := filepath.Join(ctx.String("data-dir"), "cache")
 	for i := 0; i < k; i++ {
 		nodeIdentity := &protocol.Node{
 			Id:      chord.Hash([]byte(fmt.Sprintf("%s/%d", chordName, i))),
@@ -645,8 +646,9 @@ func cmdServer(ctx *cli.Context) error {
 		}
 		kvProvider, stopFn, err := getKVProvider(
 			logger.With(zapsentry.NewScope()).With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
-			filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
 			ctx.String("kv-provider"),
+			filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
+			cacheDir,
 		)
 		if err != nil {
 			return fmt.Errorf("initializing kv storage: %w", err)
