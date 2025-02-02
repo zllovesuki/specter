@@ -2,7 +2,6 @@ package sqlite3
 
 import (
 	"fmt"
-	"math/bits"
 	"runtime"
 
 	"github.com/ncruces/go-sqlite3"
@@ -46,11 +45,9 @@ func Initialize(cacheDir string) error {
 	} else {
 		cfg = wazero.NewRuntimeConfigInterpreter()
 	}
-	if bits.UintSize < 64 {
-		cfg = cfg.WithMemoryLimitPages(512) // 32MB
-	} else {
-		cfg = cfg.WithMemoryLimitPages(4096) // 256MB
-	}
+	// errata: testing with this set to 256MB on illumos/amd64
+	// will yield "resource temporarily unavailable"
+	cfg = cfg.WithMemoryLimitPages(512) // 32MB
 	cfg = cfg.WithCompilationCache(cache)
 	sqlite3.RuntimeConfig = cfg
 
