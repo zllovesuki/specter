@@ -186,8 +186,8 @@ func TestLeaseRenewalWithParallelLoad(t *testing.T) {
 	for i := 0; i < numWorkers; i++ {
 		go func(tokenSnapshot uint64) {
 			token, err := kv.Renew(ctx, leaseID, ttl, tokenSnapshot)
-			errChan <- err
 			tokenChan <- token
+			errChan <- err
 		}(token)
 	}
 
