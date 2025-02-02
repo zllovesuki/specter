@@ -91,6 +91,26 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	if err != nil {
 		return 0, err
 	}
+	// Post-commit check: re-read the row in a new session
+	//    If the database row’s token is no longer what we set, it means
+	//    some other transaction updated it after we did our compare-and-set.
+	var curToken uint64
+	readErr := s.reader.WithContext(ctx).
+		Model(&LeaseEntry{}).
+		Where("owner = ?", lease).
+		Pluck("token", &curToken).
+		Error
+	if readErr != nil {
+		// If the row no longer exists or some other error,
+		// you could consider that as concurrency override or just return readErr.
+		return 0, readErr
+	}
+
+	// 3. Compare the token we set (`next`) vs. what's actually in the DB now
+	if curToken != next {
+		// Another transaction must have updated it post-commit => concurrency lost
+		return 0, chord.ErrKVLeaseExpired
+	}
 	return next, nil
 }
 
