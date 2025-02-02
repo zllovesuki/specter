@@ -197,8 +197,10 @@ func TestLeaseRenewalWithParallelLoad(t *testing.T) {
 		err := <-errChan
 		token := <-tokenChan
 		if err == nil && token > 0 {
+			t.Log("success")
 			successCount++
 		} else {
+			t.Logf("token: %d; err: %+v\n", token, err)
 			as.ErrorIs(err, chord.ErrKVLeaseExpired)
 		}
 	}
@@ -264,8 +266,10 @@ func TestConcurrentLeaseAcquisition(t *testing.T) {
 		err := <-errChan
 		token := <-tokenChan
 		if err == nil && token > 0 {
+			t.Log("success")
 			successCount++
 		} else {
+			t.Logf("token: %d; err: %+v\n", token, err)
 			as.ErrorIs(err, chord.ErrKVLeaseConflict) // Ensure others fail
 		}
 	}
