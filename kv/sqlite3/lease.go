@@ -2,12 +2,12 @@ package sqlite3
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.miragespace.co/specter/spec/chord"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func durationGuard(t time.Duration) (time.Duration, bool) {
@@ -25,28 +25,28 @@ func (s *SqliteKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 	}
 
 	var next uint64
-	entry := &LeaseEntry{
-		Owner: lease,
-	}
-
 	err := s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if resp := tx.Where(LeaseEntry{
+		now := time.Now()
+		next = uint64(now.Add(ttl).UnixNano())
+
+		// single statement compare-and-set was collaborated with OpenAI GPT o1
+		resp := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "owner"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"token": next,
+			}),
+			Where: clause.Where{
+				Exprs: []clause.Expression{
+					clause.Lte{
+						Column: "token",
+						Value:  uint64(now.UnixNano()),
+					},
+				},
+			},
+		}).Create(&LeaseEntry{
 			Owner: lease,
-		}).Attrs(LeaseEntry{
-			Token: 0,
-		}).FirstOrCreate(&entry); resp.Error != nil {
-			return resp.Error
-		}
-		curr := entry.Token
-		ref := time.Now()
-		if curr > uint64(ref.UnixNano()) {
-			return chord.ErrKVLeaseConflict
-		}
-		next = uint64(ref.Add(ttl).UnixNano())
-		resp := tx.Model(&LeaseEntry{}).Where(LeaseEntry{
-			Owner: lease,
-			Token: curr,
-		}).Update("token", next)
+			Token: next,
+		})
 		if resp.Error != nil {
 			return resp.Error
 		}
@@ -68,20 +68,11 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	}
 
 	var next uint64
-	entry := &LeaseEntry{
-		Owner: lease,
-	}
 	err := s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Select("token").Take(entry).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return chord.ErrKVLeaseExpired
-			}
-			return err
-		}
-
 		now := time.Now()
 		next = uint64(time.Now().Add(ttl).UnixNano())
 
+		// single statement compare-and-set was collaborated with OpenAI GPT o1
 		resp := tx.Model(&LeaseEntry{}).
 			Where(
 				"owner = ? AND token = ? AND token > ?",
