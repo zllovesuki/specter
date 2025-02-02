@@ -139,6 +139,8 @@ func TestLeaseAcquisitionAndRenewal(t *testing.T) {
 	token, err := kv.Acquire(ctx, leaseID, ttl)
 	as.NoError(err)
 
+	time.Sleep(50 * time.Millisecond)
+
 	// Renew Lease before expiration
 	newToken, err := kv.Renew(ctx, leaseID, ttl, token)
 	as.NoError(err)
