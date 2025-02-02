@@ -38,7 +38,7 @@ func (d *DiskKV) handleMutation(mut *proto.Mutation) error {
 		err = d.memKv.Import(context.Background(), mut.GetKeys(), mut.GetValues())
 
 	case proto.MutationType_REMOVE_KEYS:
-		d.memKv.RemoveKeys(mut.GetKeys())
+		err = d.memKv.RemoveKeys(context.Background(), mut.GetKeys())
 
 	}
 	return err
@@ -102,9 +102,10 @@ func (d *DiskKV) Import(ctx context.Context, keys [][]byte, values []*protocol.K
 	})
 }
 
-func (d *DiskKV) RemoveKeys(keys [][]byte) {
+func (d *DiskKV) RemoveKeys(ctx context.Context, keys [][]byte) error {
 	d.mutationHandler(func(mut *proto.Mutation) {
 		mut.Type = proto.MutationType_REMOVE_KEYS
 		mut.Keys = keys
 	})
+	return nil
 }

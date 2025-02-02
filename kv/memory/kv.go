@@ -12,11 +12,9 @@ import (
 	"github.com/zhangyunhao116/skipset"
 )
 
-type HashFn func([]byte) uint64
-
 type MemoryKV struct {
 	s      *skipmap.Uint64Map[*skipmap.StringMap[*kvValue]]
-	hashFn HashFn
+	hashFn chord.HashFn
 }
 
 var _ chord.KVProvider = (*MemoryKV)(nil)
@@ -51,7 +49,7 @@ func newValueFunc() *kvValue {
 	return v
 }
 
-func WithHashFn(fn HashFn) *MemoryKV {
+func WithHashFn(fn chord.HashFn) *MemoryKV {
 	return &MemoryKV{
 		s:      skipmap.NewUint64[*skipmap.StringMap[*kvValue]](),
 		hashFn: fn,
@@ -123,7 +121,7 @@ func (m *MemoryKV) ListKeys(_ context.Context, prefix []byte) ([]*protocol.KeyCo
 	return keys, nil
 }
 
-func (m *MemoryKV) Export(keys [][]byte) []*protocol.KVTransfer {
+func (m *MemoryKV) Export(_ context.Context, keys [][]byte) ([]*protocol.KVTransfer, error) {
 	vals := make([]*protocol.KVTransfer, len(keys))
 	for i, key := range keys {
 		v, _ := m.fetchVal(key)
@@ -136,10 +134,10 @@ func (m *MemoryKV) Export(keys [][]byte) []*protocol.KVTransfer {
 			LeaseToken:     token,
 		}
 	}
-	return vals
+	return vals, nil
 }
 
-func (m *MemoryKV) RangeKeys(low, high uint64) [][]byte {
+func (m *MemoryKV) RangeKeys(ctx context.Context, low, high uint64) ([][]byte, error) {
 	keys := make([][]byte, 0)
 
 	m.s.Range(func(id uint64, kMap *skipmap.StringMap[*kvValue]) bool {
@@ -155,11 +153,13 @@ func (m *MemoryKV) RangeKeys(low, high uint64) [][]byte {
 		return true
 	})
 
-	return keys
+	return keys, nil
 }
 
-func (m *MemoryKV) RemoveKeys(keys [][]byte) {
+func (m *MemoryKV) RemoveKeys(ctx context.Context, keys [][]byte) error {
 	for _, key := range keys {
 		m.deleteAll(key)
 	}
+
+	return nil
 }

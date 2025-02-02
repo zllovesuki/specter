@@ -22,10 +22,10 @@ func (d *DiskKV) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.KeyCo
 	return d.memKv.ListKeys(ctx, prefix)
 }
 
-func (d *DiskKV) Export(keys [][]byte) []*protocol.KVTransfer {
-	return d.memKv.Export(keys)
+func (d *DiskKV) Export(ctx context.Context, keys [][]byte) ([]*protocol.KVTransfer, error) {
+	return d.memKv.Export(ctx, keys)
 }
 
-func (d *DiskKV) RangeKeys(low, high uint64) [][]byte {
-	return d.memKv.RangeKeys(low, high)
+func (d *DiskKV) RangeKeys(ctx context.Context, low, high uint64) ([][]byte, error) {
+	return d.memKv.RangeKeys(ctx, low, high)
 }

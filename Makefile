@@ -199,9 +199,9 @@ certs:
 	go run ./cmd/pki/ca
 	# Generate pebble test cert
 	openssl ecparam -name prime256v1 -genkey -noout -out certs/pebble.key
-	openssl req -new -key certs/pebble.key -out certs/pebble.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost, DNS:pebble, IP:127.0.0.1" 
+	openssl req -new -key certs/pebble.key -out certs/pebble.csr -subj "/CN=pebble" -addext "subjectAltName = DNS:localhost, DNS:pebble, IP:127.0.0.1" 
 	openssl req -text -in certs/pebble.csr -noout -verify
-	openssl x509 -req -CA dev/pebble/certs/cert.pem -CAkey dev/pebble/certs/key.pem -in certs/pebble.csr -out certs/pebble.pem -days 365 -CAcreateserial -extfile dev/openssl.txt
+	openssl x509 -req -CA dev/pebble/certs/cert.pem -CAkey dev/pebble/certs/key.pem -in certs/pebble.csr -out certs/pebble.pem -days 365 -CAcreateserial -extfile dev/openssl_pebble.txt
 
 fly_deploy:
 	flyctl deploy --build-arg GIT_HASH=$$(git rev-parse --short HEAD)

@@ -36,7 +36,7 @@ type DiskKV struct {
 
 type Config struct {
 	Logger        *zap.Logger
-	HasnFn        memory.HashFn
+	HasnFn        chord.HashFn
 	DataDir       string
 	FlushInterval time.Duration
 }

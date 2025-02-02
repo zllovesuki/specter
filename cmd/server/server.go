@@ -18,7 +18,6 @@ import (
 	"go.miragespace.co/specter/acme"
 	chordImpl "go.miragespace.co/specter/chord"
 	"go.miragespace.co/specter/gateway"
-	"go.miragespace.co/specter/kv/aof"
 	"go.miragespace.co/specter/overlay"
 	"go.miragespace.co/specter/pki"
 	"go.miragespace.co/specter/rtt"
@@ -140,6 +139,13 @@ func Generate() *cli.Command {
 				EnvVars: []string{"CHORD_JOIN"},
 				Usage: `A known specter server's advertise address.
 			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
+				Category: "Chord Options",
+			},
+			&cli.StringFlag{
+				Name:     "kv-provider",
+				Usage:    "Backend storage provider for KV. Valid options are memory, aof, and sqlite",
+				Value:    "aof",
+				EnvVars:  []string{"KV_PROVIDER"},
 				Category: "Chord Options",
 			},
 
@@ -637,17 +643,15 @@ func cmdServer(ctx *cli.Context) error {
 			Id:      chord.Hash([]byte(fmt.Sprintf("%s/%d", chordName, i))),
 			Address: advertise,
 		}
-		kvProvider, err := aof.New(aof.Config{
-			Logger:        logger.With(zapsentry.NewScope()).With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
-			HasnFn:        chord.Hash,
-			DataDir:       filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
-			FlushInterval: time.Second * 3,
-		})
+		kvProvider, stopFn, err := getKVProvider(
+			logger.With(zapsentry.NewScope()).With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
+			filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
+			ctx.String("kv-provider"),
+		)
 		if err != nil {
 			return fmt.Errorf("initializing kv storage: %w", err)
 		}
-		defer kvProvider.Stop()
-		go kvProvider.Start()
+		defer stopFn()
 
 		virtualNode := chordImpl.NewLocalNode(chordImpl.NodeConfig{
 			Identity:                 nodeIdentity,

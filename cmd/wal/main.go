@@ -47,7 +47,10 @@ func main() {
 
 	switch *op {
 	case "list":
-		keys := kvProvider.RangeKeys(0, 0)
+		keys, err := kvProvider.RangeKeys(context.Background(), 0, 0)
+		if err != nil {
+			panic(err)
+		}
 		for _, k := range keys {
 			fmt.Printf("%s\n", k)
 		}
@@ -66,7 +69,10 @@ func main() {
 			fmt.Printf("%s\n", val)
 		}
 	case "simple-delete-prefix":
-		keys := kvProvider.RangeKeys(0, 0)
+		keys, err := kvProvider.RangeKeys(context.Background(), 0, 0)
+		if err != nil {
+			panic(err)
+		}
 		for _, k := range keys {
 			if strings.HasPrefix(string(k), *key) {
 				fmt.Printf("deleting simple key %s\n", k)
@@ -85,7 +91,10 @@ func main() {
 	case "delete-all":
 		keys := [][]byte{[]byte(*key)}
 		fmt.Printf("removing everything under key %s\n", *key)
-		kvProvider.RemoveKeys(keys)
+		err := kvProvider.RemoveKeys(context.Background(), keys)
+		if err != nil {
+			panic(err)
+		}
 	default:
 		fmt.Printf("available ops:\n")
 		opsTable := table.NewWriter()

@@ -117,8 +117,10 @@ func TestEmpty(t *testing.T) {
 	as.NoError(err)
 	as.Nil(val)
 
-	keys := kv.RangeKeys(0, 0)
-	exp := kv.Export(keys)
+	keys, err := kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	exp, err := kv.Export(context.Background(), keys)
+	as.NoError(err)
 
 	kv2 := WithHashFn(chord.Hash)
 	as.NoError(kv2.Import(context.Background(), keys, exp))

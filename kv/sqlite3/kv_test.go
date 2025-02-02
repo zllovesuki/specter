@@ -1,8 +1,10 @@
-package memory
+package sqlite3
 
 import (
 	"context"
 	"crypto/rand"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,21 +12,49 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+	"gorm.io/gorm"
 )
+
+func testGetKV(t *testing.T) *SqliteKV {
+	t.Helper()
+
+	as := require.New(t)
+	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
+
+	dir, err := os.MkdirTemp("", "sql")
+	as.NoError(err)
+
+	t.Cleanup(func() {
+		os.RemoveAll(dir)
+	})
+
+	cfg := Config{
+		Logger:  logger,
+		HasnFn:  chord.Hash,
+		DataDir: dir,
+	}
+
+	kv, err := New(cfg)
+	as.NoError(err)
+
+	return kv
+}
 
 func TestAllKeys(t *testing.T) {
 	as := require.New(t)
-
-	kv := WithHashFn(chord.Hash)
+	kv := testGetKV(t)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
 
-	num := 10000
+	num := 1000
 	for i := 0; i < num; i++ {
 		rand.Read(key)
 		rand.Read(value)
-		kv.Put(context.Background(), key, value)
+		err := kv.Put(context.Background(), key, value)
+		as.NoError(err)
 	}
 
 	keys, err := kv.RangeKeys(context.Background(), 0, 0)
@@ -34,17 +64,17 @@ func TestAllKeys(t *testing.T) {
 
 func TestOrderedKeys(t *testing.T) {
 	as := require.New(t)
-
-	kv := WithHashFn(chord.Hash)
+	kv := testGetKV(t)
 
 	key := make([]byte, 64)
 	value := make([]byte, 8)
 
-	num := 10000
+	num := 1000
 	for i := 0; i < num; i++ {
 		rand.Read(key)
 		rand.Read(value)
-		kv.Put(context.Background(), key, value)
+		err := kv.Put(context.Background(), key, value)
+		as.NoError(err)
 	}
 
 	keys, err := kv.RangeKeys(context.Background(), 0, 0)
@@ -60,8 +90,7 @@ func TestOrderedKeys(t *testing.T) {
 
 func TestLocalOperations(t *testing.T) {
 	as := require.New(t)
-
-	kv := WithHashFn(chord.Hash)
+	kv := testGetKV(t)
 
 	num := 32
 	length := 8
@@ -94,8 +123,7 @@ func TestLocalOperations(t *testing.T) {
 
 func TestComplexImportExport(t *testing.T) {
 	as := require.New(t)
-
-	kv := WithHashFn(chord.Hash)
+	kv := testGetKV(t)
 
 	key := make([]byte, 8)
 	rand.Read(key)
@@ -124,7 +152,7 @@ func TestComplexImportExport(t *testing.T) {
 	exp, err := kv.Export(context.Background(), keys)
 	as.NoError(err)
 
-	kv2 := WithHashFn(chord.Hash)
+	kv2 := testGetKV(t)
 	as.NoError(kv2.Import(context.Background(), keys, exp))
 
 	val, err = kv2.Get(context.Background(), key)
@@ -139,4 +167,73 @@ func TestComplexImportExport(t *testing.T) {
 	tk2, err := kv2.Renew(context.Background(), key, time.Second, tk)
 	as.NoError(err)
 	as.NoError(kv2.Release(context.Background(), key, tk2))
+}
+
+// The following test was collaborated with GPT 4o-mini
+func TestConcurrentOps(t *testing.T) {
+	kv := testGetKV(t)
+	as := require.New(t)
+
+	keys := make([][]byte, 8)
+	for i := range keys {
+		keys[i] = make([]byte, 8)
+		rand.Read(keys[i])
+	}
+
+	var wg sync.WaitGroup
+	const numGoroutines = 50
+
+	testOperations := func(ctx context.Context, key []byte, id int) {
+		defer wg.Done()
+
+		err := kv.Put(ctx, key, []byte("test_data"))
+		as.NoError(err)
+
+		prefixValue := "prefix_value_" + string(rune(id))
+		err = kv.PrefixAppend(ctx, key, []byte(prefixValue))
+		as.NoError(err)
+
+		token, err := kv.Acquire(ctx, key, time.Second*5)
+		if err == nil {
+			token, err = kv.Renew(ctx, key, time.Second*5, token)
+			as.NoError(err)
+
+			err = kv.Release(ctx, key, token)
+			as.NoError(err)
+		}
+
+		_, err = kv.Get(ctx, key)
+		as.NoError(err)
+
+		_, err = kv.PrefixList(ctx, key)
+		as.NoError(err)
+
+		err = kv.PrefixAppend(ctx, key, []byte(prefixValue))
+		as.Error(err)
+
+		err = kv.Delete(ctx, key)
+		as.NoError(err)
+
+		err = kv.PrefixRemove(ctx, key, []byte(prefixValue))
+		as.NoError(err)
+	}
+
+	ctx := context.Background()
+	for i := 0; i < numGoroutines; i++ {
+		for _, key := range keys {
+			wg.Add(1)
+			go testOperations(ctx, key, i)
+		}
+	}
+
+	wg.Wait()
+
+	for _, key := range keys {
+		tracker := KeyTracker{
+			Key: key,
+		}
+		resp := kv.reader.Where("key = ?", key).Take(&tracker)
+		as.ErrorIs(resp.Error, gorm.ErrRecordNotFound)
+	}
+
 }
