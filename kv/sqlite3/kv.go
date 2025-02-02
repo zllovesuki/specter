@@ -1,7 +1,6 @@
 package sqlite3
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,7 +8,6 @@ import (
 
 	"go.miragespace.co/specter/spec/chord"
 
-	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"moul.io/zapgorm2"
@@ -48,10 +46,16 @@ func New(cfg Config) (*SqliteKV, error) {
 	if err := os.MkdirAll(dbDir, 0750); err != nil {
 		return nil, err
 	}
-	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=synchronous(1)&_pragma=page_size(4096)&_txlock=immediate", filepath.Join(dbDir, "db"))
+	dbPath := filepath.Join(dbDir, "db")
 
-	readDb := sqlite.Open(dsn)
-	writeDb := sqlite.Open(dsn)
+	readDb, err := openSQLite(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	writeDb, err := openSQLite(dbPath)
+	if err != nil {
+		return nil, err
+	}
 
 	logger := zapgorm2.New(cfg.Logger)
 	logger.IgnoreRecordNotFoundError = true
