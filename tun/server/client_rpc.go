@@ -39,8 +39,12 @@ const (
 )
 
 func (s *Server) logError(ctx context.Context, err twirp.Error) context.Context {
-	if err.Code() == twirp.FailedPrecondition {
+	switch err.Code() {
+	case twirp.FailedPrecondition:
+		fallthrough
+	case twirp.InvalidArgument:
 		return ctx
+	default:
 	}
 	delegation := rpc.GetDelegation(ctx)
 	if delegation != nil {
