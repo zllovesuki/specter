@@ -1,9 +1,17 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine as builder
+FROM --platform=$BUILDPLATFORM node:22.14.0-alpine AS ui-builder
+RUN apk --no-cache add make
+WORKDIR /app
+COPY . .
+
+RUN make ui
+
+FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine AS app-builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
+COPY --from=ui-builder /app/tun/client/ui/build /app/tun/client/ui/build
 
 RUN --mount=type=cache,target=/root/go/pkg/mod \
     go mod download
@@ -20,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM scratch
 WORKDIR /app
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /app/bin/specter /app/specter
+COPY --from=app-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=app-builder /app/bin/specter /app/specter
 
 ENTRYPOINT ["/app/specter"]
