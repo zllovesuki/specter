@@ -20,19 +20,19 @@ jobs:
       OS: ${{ matrix.os }}
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-      - uses: actions/cache@v3
+      - name: Install node
+        uses: actions/setup-node@v4
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          node-version: "22.14.0"
+          cache: "npm"
+          cache-dependency-path: tun/client/ui/package-lock.json
+      - name: Build UI
+        run: make ui
       - name: Test with Coverage and Race Detector
         run: go test -v -short -race -timeout 120s ./...
   integration:
@@ -42,19 +42,19 @@ jobs:
       GO_RUN_INTEGRATION: "1"
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: "1.24.1"
-      - uses: actions/cache@v3
+      - name: Install node
+        uses: actions/setup-node@v4
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          node-version: "22.14.0"
+          cache: "npm"
+          cache-dependency-path: tun/client/ui/package-lock.json
+      - name: Build UI
+        run: make ui
       - name: Generate Certificates
         run: make certs
       - name: Run Integration Tests with Race Detector
@@ -64,18 +64,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: "1.24.1"
-      - uses: actions/cache@v3
+      - name: Install node
+        uses: actions/setup-node@v4
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          node-version: "22.14.0"
+          cache: "npm"
+          cache-dependency-path: tun/client/ui/package-lock.json
+      - name: Build UI
+        run: make ui
       - name: Test short, long, extended, and concurrency validation
         run: make full_test TIMEOUT=600s

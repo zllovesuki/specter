@@ -91,6 +91,9 @@ DOCKER_TAG ?= miragespace/specter
 docker:
 	docker buildx build --platform linux/amd64,linux/amd64/v3,linux/arm64,linux/arm,linux/ppc64le,linux/s390x -t $(DOCKER_TAG):$(BUILD) --push -f Dockerfile .
 
+ui:
+	cd tun/client/ui && npm install && npm run build
+
 proto: dep
 	dep/bin/protoc \
 		--plugin protoc-gen-go-vtproto="$(PROTOC_VTPROTO)" \

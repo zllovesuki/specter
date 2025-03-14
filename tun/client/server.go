@@ -2,11 +2,14 @@ package client
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
+	"os"
 	"time"
 
 	"go.miragespace.co/specter/spec/acme"
@@ -19,6 +22,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
+
+//go:embed all:ui/build/*
+var ui embed.FS
 
 var _ protocol.ClientQueryService = (*Client)(nil)
 
@@ -81,6 +87,17 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		c.Logger.Info("Received request from API, reloading config")
 		c.doReload(r.Context())
 		w.WriteHeader(http.StatusNoContent)
+	})
+
+	r.Get("/config", func(w http.ResponseWriter, r *http.Request) {
+		cfg := c.GetCurrentConfig()
+		f, err := os.Open(cfg.path)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer f.Close()
+		io.Copy(w, f)
 	})
 
 	r.Post("/unpublish/{hostname}", func(w http.ResponseWriter, r *http.Request) {
@@ -186,17 +203,12 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		c.FormatList(hostnames, w)
 	})
 
-	// catch-all helper
-	routes := make([]string, 0)
-	chi.Walk(r, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-		routes = append(routes, fmt.Sprintf("%4s %s", method, route))
-		return nil
-	})
-	routesStr := strings.Join(routes, "\n")
-	r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "%s\n", routesStr)
-	})
+	uiFs, err := fs.Sub(ui, "ui/build")
+	if err != nil {
+		panic(err)
+	}
+
+	r.Handle("/*", http.FileServerFS(uiFs))
 
 	srv := &http.Server{
 		Handler:           r,
