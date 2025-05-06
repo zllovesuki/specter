@@ -314,7 +314,12 @@
                         <td class="px-4 py-2 font-semibold"
                           >{tunnel.hostname}</td
                         >
-                        <td class="px-4 py-2 text-gray-700">{tunnel.target}</td>
+                        <td class="px-4 py-2 text-gray-700"
+                          >{tunnel.target}
+                          {tunnel.headerHost
+                            ? " (" + tunnel.headerHost + ")"
+                            : ""}</td
+                        >
                         <td class="px-4 py-2 space-x-2">
                           <button
                             class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded transition"

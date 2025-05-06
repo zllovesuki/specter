@@ -74,7 +74,7 @@ func (c *Client) forwardStream(ctx context.Context, hostname string, remote net.
 	tun.Pipe(remote, local)
 }
 
-func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *httpProxy {
+func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *httpProxy {
 	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
 		var (
 			u      *url.URL = r.parsed
@@ -85,8 +85,8 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 		logger.Info("Creating new proxy")
 
 		readHeaderTimeout := defaultProxyHeaderTimeout
-		if r.headerTimeout > 0 {
-			readHeaderTimeout = r.headerTimeout
+		if r.proxyHeaderReadTimeout > 0 {
+			readHeaderTimeout = r.proxyHeaderReadTimeout
 		}
 
 		tp := &http.Transport{
@@ -111,15 +111,18 @@ func (c *Client) getHTTPProxy(ctx context.Context, hostname string, r route) *ht
 		d := proxy.Director
 		// https://stackoverflow.com/a/53007606
 		// need to overwrite Host field
-		proxy.Director = func(r *http.Request) {
-			d(r)
+		proxy.Director = func(req *http.Request) {
+			d(req)
 			if isPipe {
-				r.Host = "pipe"
-				r.URL.Host = "pipe"
-				r.URL.Scheme = "http"
-				r.URL.Path = strings.ReplaceAll(r.URL.Path, u.Path, "")
+				req.Host = "pipe"
+				req.URL.Host = "pipe"
+				req.URL.Scheme = "http"
+				req.URL.Path = strings.ReplaceAll(req.URL.Path, u.Path, "")
 			} else {
-				r.Host = u.Host
+				req.Host = u.Host
+			}
+			if len(r.proxyHeaderHost) > 0 {
+				req.Host = r.proxyHeaderHost
 			}
 		}
 		proxy.Transport = tp

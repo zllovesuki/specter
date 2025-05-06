@@ -10,26 +10,28 @@ import (
 )
 
 type listTunnelItem struct {
-	Hostname string `json:"hostname"`
-	Target   string `json:"target"`
+	Hostname   string `json:"hostname"`
+	Target     string `json:"target"`
+	HeaderHost string `json:"headerHost"`
 }
 
 func (c *Client) FormatList(hostnames []string, output io.Writer) {
 	items := make([]listTunnelItem, 0)
 
-	tunnelMap := make(map[string]string)
+	tunnelMap := make(map[string]Tunnel)
 	curr := c.GetCurrentConfig()
 	for _, t := range curr.Tunnels {
-		tunnelMap[t.Hostname] = t.Target
+		tunnelMap[t.Hostname] = t
 	}
 
 	for _, h := range hostnames {
 		item := listTunnelItem{
 			Hostname: h,
 		}
-		target, ok := tunnelMap[h]
+		t, ok := tunnelMap[h]
 		if ok {
-			item.Target = target
+			item.Target = t.Target
+			item.HeaderHost = t.ProxyHeaderHost
 		} else {
 			item.Target = "(unused)"
 		}
