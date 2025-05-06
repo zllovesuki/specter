@@ -29,7 +29,7 @@ var delHeaders = []string{
 }
 
 const (
-	proxyHeaderTimeout = time.Second * 120 // global limit of how long the gateway will wait for response
+	proxyHeaderTimeout = time.Second * 300 // global limit of how long the gateway will wait for response
 )
 
 // inspiration from https://blog.cloudflare.com/eliminating-cold-starts-with-cloudflare-workers/
