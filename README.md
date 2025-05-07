@@ -1,7 +1,7 @@
 # 👻 Specter
 
 [![GoDoc](https://godoc.org/github.com/urfave/cli?status.svg)](https://pkg.go.dev/go.miragespace.co/specter)
-![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/zllovesuki/specter/pipeline.yaml?branch=main)
+![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/zllovesuki/specter/ci.yaml?branch=main)
 
 ## What is it?
 
