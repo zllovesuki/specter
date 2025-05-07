@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"go.miragespace.co/specter/overlay"
 	pkiImpl "go.miragespace.co/specter/pki"
 	"go.miragespace.co/specter/spec/acme"
 	"go.miragespace.co/specter/spec/chord"
@@ -28,6 +29,7 @@ import (
 	"go.miragespace.co/specter/util"
 	"go.miragespace.co/specter/util/acceptor"
 
+	"github.com/Yiling-J/theine-go"
 	"github.com/avast/retry-go/v4"
 	"github.com/zeebo/xxh3"
 	"github.com/zhangyunhao116/skipmap"
@@ -46,28 +48,31 @@ const (
 )
 
 type ClientConfig struct {
-	Logger          *zap.Logger
-	Configuration   *Config
-	PKIClient       protocol.PKIService
-	ServerTransport transport.Transport
-	Recorder        rtt.Recorder
-	ReloadSignal    <-chan os.Signal
-	ServerListener  net.Listener
+	Logger             *zap.Logger
+	Configuration      *Config
+	PKIClient          protocol.PKIService
+	ServerTransport    transport.Transport
+	Recorder           rtt.Recorder
+	ReloadSignal       <-chan os.Signal
+	ServerListener     net.Listener
+	KeylessTCPListener net.Listener
+	KeylessALPNMux     *overlay.ALPNMux
 }
 
 type Client struct {
 	ClientConfig
-	configMu     sync.RWMutex
-	closeWg      sync.WaitGroup
-	syncMu       sync.Mutex
-	tunnelClient protocol.TunnelService
-	parentCtx    context.Context
-	rootDomain   *atomic.String
-	proxies      *skipmap.StringMap[*httpProxy]
-	connections  *skipmap.StringMap[*protocol.Node]
-	rpcAcceptor  *acceptor.HTTP2Acceptor
-	closeCh      chan struct{}
-	closed       atomic.Bool
+	configMu                sync.RWMutex
+	closeWg                 sync.WaitGroup
+	syncMu                  sync.Mutex
+	tunnelClient            rpc.TunnelClient
+	parentCtx               context.Context
+	rootDomain              *atomic.String
+	proxies                 *skipmap.StringMap[*httpProxy]
+	connections             *skipmap.StringMap[*protocol.Node]
+	rpcAcceptor             *acceptor.HTTP2Acceptor
+	keylessCertificateCache *theine.LoadingCache[string, keylessCertificateResult]
+	closeCh                 chan struct{}
+	closed                  atomic.Bool
 }
 
 func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
@@ -93,6 +98,13 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 			return nil, err
 		}
 	}
+
+	keylessCache, err := theine.NewBuilder[string, keylessCertificateResult](cacheTotalCost).
+		BuildWithLoader(c.keylesCertificateCacheLoader)
+	if err != nil {
+		return nil, err
+	}
+	c.keylessCertificateCache = keylessCache
 
 	return c, nil
 }
@@ -743,31 +755,7 @@ func (c *Client) Start(ctx context.Context) {
 			delegation.Close()
 			return
 		}
-
-		hostname := link.GetHostname()
-		u, ok := c.Configuration.router.Load(hostname)
-		if !ok {
-			c.Logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
-			delegation.Close()
-			return
-		}
-
-		c.Logger.Info("Incoming connection from gateway",
-			zap.String("protocol", link.GetAlpn().String()),
-			zap.String("hostname", link.GetHostname()),
-			zap.String("remote", link.GetRemote()))
-
-		switch link.GetAlpn() {
-		case protocol.Link_HTTP:
-			c.getHTTPProxy(ctx, hostname, u).acceptor.Handle(delegation)
-
-		case protocol.Link_TCP:
-			c.forwardStream(ctx, hostname, delegation, u)
-
-		default:
-			c.Logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
-			delegation.Close()
-		}
+		c.handleIncomingDelegation(ctx, link, delegation)
 	})
 	c.attachRPC(ctx, streamRouter)
 
@@ -776,6 +764,37 @@ func (c *Client) Start(ctx context.Context) {
 	go c.reloadOnSignal(ctx)
 	go c.reBootstrap(ctx)
 	go c.startLocalServer(ctx)
+	go c.startKeylessProxy()
+}
+
+func (c *Client) handleIncomingDelegation(ctx context.Context, link *protocol.Link, delegation net.Conn) error {
+	hostname := link.GetHostname()
+	u, ok := c.Configuration.router.Load(hostname)
+	if !ok {
+		c.Logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
+		delegation.Close()
+		return tun.ErrDestinationNotFound
+	}
+
+	c.Logger.Info("Incoming connection from gateway",
+		zap.String("protocol", link.GetAlpn().String()),
+		zap.String("hostname", link.GetHostname()),
+		zap.String("remote", link.GetRemote()))
+
+	switch link.GetAlpn() {
+	case protocol.Link_HTTP:
+		c.getHTTPProxy(ctx, hostname, u).acceptor.Handle(delegation)
+
+	case protocol.Link_TCP:
+		c.forwardStream(ctx, hostname, delegation, u)
+
+	default:
+		c.Logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
+		delegation.Close()
+		return tun.ErrDestinationNotFound
+	}
+
+	return nil
 }
 
 func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {

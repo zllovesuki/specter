@@ -77,10 +77,11 @@ type Gateway struct {
 	GatewayConfig
 }
 
+func (c *GatewayConfig) startApex() bool {
+	return len(c.RootDomains) > 0
+}
+
 func New(conf GatewayConfig) *Gateway {
-	if conf.AdminUser == "" || conf.AdminPass == "" {
-		conf.Logger.Info("Missing credentials for internal endpoint, disabling endpoint")
-	}
 	if conf.PKIServer != nil {
 		conf.Logger.Info("Enabling client certificate issuance")
 	}
@@ -114,48 +115,54 @@ func New(conf GatewayConfig) *Gateway {
 		MaxIdleTimeout:       time.Second * 60,
 	}
 
-	apex := chi.NewRouter()
-	apex.Use(func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
-			h.ServeHTTP(w, r)
+	if conf.startApex() {
+		if conf.AdminUser == "" || conf.AdminPass == "" {
+			conf.Logger.Info("Missing credentials for internal endpoint, disabling /_internal endpoint")
+		}
+		apex := chi.NewRouter()
+		apex.Use(func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
+				h.ServeHTTP(w, r)
+			})
 		})
-	})
-	g.apexServer = &apexServer{
-		handlers:      conf.Handlers,
-		limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
-		internalProxy: g.getInternalProxyHandler(),
-		pkiServer:     conf.PKIServer,
-		authUser:      conf.AdminUser,
-		authPass:      conf.AdminPass,
+		g.apexServer = &apexServer{
+			handlers:      conf.Handlers,
+			limiter:       httprate.LimitAll(10, time.Second), // limit request to apex endpoint to 10 req/s
+			internalProxy: g.getInternalProxyHandler(),
+			pkiServer:     conf.PKIServer,
+			authUser:      conf.AdminUser,
+			authPass:      conf.AdminPass,
+		}
+		g.apexServer.Mount(apex)
+		g.mountCgiHandler(apex)
+		g.tcpApexServer = &http.Server{
+			ReadHeaderTimeout: time.Second * 5,
+			Handler:           apex,
+			ErrorLog:          util.GetStdLogger(filteredLogger, "tcpApex"),
+		}
+		g.quicApexServer = &http3.Server{
+			QUICConfig:      qCfg,
+			EnableDatagrams: false,
+			Handler:         apex,
+		}
+		g.localApexServer = &http.Server{
+			Addr:              "127.0.0.1:9999",
+			ReadHeaderTimeout: time.Second * 5,
+			Handler:           apex,
+			ErrorLog:          util.GetStdLogger(filteredLogger, "localApex"),
+		}
 	}
-	g.apexServer.Mount(apex)
-	g.mountCgiHandler(apex)
-	g.tcpApexServer = &http.Server{
-		ReadHeaderTimeout: time.Second * 5,
-		Handler:           apex,
-		ErrorLog:          util.GetStdLogger(filteredLogger, "tcpApex"),
-	}
+
 	g.h2TunnelServer = &http.Server{
 		ReadHeaderTimeout: time.Second * 5,
 		Handler:           proxyHandler,
 		ErrorLog:          util.GetStdLogger(filteredLogger, "h2Tunnel"),
 	}
-	g.quicApexServer = &http3.Server{
-		QUICConfig:      qCfg,
-		EnableDatagrams: false,
-		Handler:         apex,
-	}
 	g.h3TunnelServer = &http3.Server{
 		QUICConfig:      qCfg,
 		EnableDatagrams: false,
 		Handler:         proxyHandler,
-	}
-	g.localApexServer = &http.Server{
-		Addr:              "127.0.0.1:9999",
-		ReadHeaderTimeout: time.Second * 5,
-		Handler:           apex,
-		ErrorLog:          util.GetStdLogger(filteredLogger, "localApex"),
 	}
 	g.httpServer = &http.Server{
 		ReadHeaderTimeout: 5 * time.Second,
@@ -179,21 +186,22 @@ func (g *Gateway) AttachRouter(ctx context.Context, router *transport.StreamRout
 func (g *Gateway) MustStart(ctx context.Context) {
 	// provide application context
 	g.h2TunnelServer.BaseContext = func(l net.Listener) context.Context { return ctx }
-	g.tcpApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
-	g.localApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 	g.httpServer.BaseContext = func(l net.Listener) context.Context { return ctx }
 
-	// start all servers
 	go g.h2TunnelServer.Serve(g.httpTunnelAcceptor)
-	go g.tcpApexServer.Serve(g.tcpApexAcceptor)
-
 	go g.h3TunnelServer.ServeListener(g.http3TunnelAcceptor)
-	go g.quicApexServer.ServeListener(g.quicApexAcceptor)
 
 	go g.acceptTCP(ctx)
 	go g.acceptQUIC(ctx)
 
-	go g.localApexServer.ListenAndServe()
+	if g.startApex() {
+		g.tcpApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+		g.localApexServer.BaseContext = func(l net.Listener) context.Context { return ctx }
+
+		go g.tcpApexServer.Serve(g.tcpApexAcceptor)
+		go g.quicApexServer.ServeListener(g.quicApexAcceptor)
+		go g.localApexServer.ListenAndServe()
+	}
 
 	if g.HTTPListener != nil {
 		g.Logger.Info("Enabling HTTP Handler for HTTP Connect and HTTPS Redirect", zap.String("listen", g.HTTPListener.Addr().String()))
@@ -206,16 +214,18 @@ func (g *Gateway) MustStart(ctx context.Context) {
 func (g *Gateway) Close() {
 	g.httpTunnelAcceptor.Close()
 
-	g.tcpApexAcceptor.Close()
-	g.quicApexAcceptor.Close()
-
 	g.h2TunnelServer.Close()
 	g.h3TunnelServer.Close()
 
-	g.tcpApexServer.Close()
-	g.quicApexServer.Close()
+	if g.startApex() {
+		g.tcpApexAcceptor.Close()
+		g.quicApexAcceptor.Close()
 
-	g.localApexServer.Close()
+		g.tcpApexServer.Close()
+		g.quicApexServer.Close()
+
+		g.localApexServer.Close()
+	}
 }
 
 func (g *Gateway) acceptTCP(ctx context.Context) {

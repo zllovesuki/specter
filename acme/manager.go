@@ -21,6 +21,8 @@ var (
 	ErrInvalid = fmt.Errorf("acme: invalid hostname")
 )
 
+var _ cipher.CertProvider = (*Manager)(nil)
+
 type ManagerConfig struct {
 	Logger         *zap.Logger
 	KV             chord.KV
@@ -154,6 +156,13 @@ func (m *Manager) getConfig(c certmagic.Certificate) (*certmagic.Config, error) 
 }
 
 func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if chi.Context() != nil {
+		return m.GetCertificateWithContext(chi.Context(), chi)
+	}
+	return m.GetCertificateWithContext(context.Background(), chi)
+}
+
+func (m *Manager) GetCertificateWithContext(ctx context.Context, chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	sni := chi.ServerName
 	if sni == "" {
 		return nil, ErrInvalid
@@ -165,9 +174,9 @@ func (m *Manager) GetCertificate(chi *tls.ClientHelloInfo) (*tls.Certificate, er
 	(*onHandshake)(sni)
 
 	if m.isManaged(sni) {
-		return m.managedConfig.GetCertificate(chi)
+		return m.managedConfig.GetCertificateWithContext(ctx, chi)
 	} else {
-		return m.dynamicConfig.GetCertificate(chi)
+		return m.dynamicConfig.GetCertificateWithContext(ctx, chi)
 	}
 }
 

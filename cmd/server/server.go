@@ -742,6 +742,7 @@ func cmdServer(ctx *cli.Context) error {
 		TunnelTransport: tunnelTransport,
 		ChordTransport:  chordTransport,
 		Resolver:        net.DefaultResolver,
+		CertProvider:    certProvider,
 		Apex:            rootDomain,
 		Acme:            ctx.String("acme_zone"),
 	})

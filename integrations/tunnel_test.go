@@ -410,8 +410,8 @@ func TestIntegrationTunnel(t *testing.T) {
 				xApp.Metadata["connectOverride"] = hostMap["tcp"]
 
 				leftConn, rightConn := memnet.NewBufferedStreamConnPair()
-				xApp.Metadata[client.PipeInKey] = leftConn
-				xApp.Metadata[client.PipeOutKey] = leftConn
+				xApp.Reader = leftConn
+				xApp.Writer = leftConn
 
 				go func() {
 					if err := xApp.RunContext(ctx, connectArgs); err != nil {

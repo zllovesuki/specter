@@ -15,22 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	PipeInKey  string = "pipeIn"
-	PipeOutKey string = "pipeOut"
-)
-
 func cmdConnect(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
-
-	out, ok := ctx.App.Metadata[PipeOutKey].(io.Writer)
-	if !ok || out == nil {
-		return fmt.Errorf("missing pipe output")
-	}
-	in, ok := ctx.App.Metadata[PipeInKey].(io.Reader)
-	if !ok || in == nil {
-		return fmt.Errorf("missing pipe input")
-	}
 
 	hostname := ctx.Args().First()
 	if hostname == "" {
@@ -69,14 +55,14 @@ func cmdConnect(ctx *cli.Context) error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		_, err := io.Copy(out, rw)
+		_, err := io.Copy(ctx.App.Writer, rw)
 		if err != nil {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM
 		}
 	}()
 	go func() {
-		_, err := io.Copy(rw, in)
+		_, err := io.Copy(rw, ctx.App.Reader)
 		if err != nil {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM

@@ -13,6 +13,7 @@ import (
 
 type TunnelService struct {
 	mock.Mock
+	Keyless *KeylessService
 }
 
 var _ protocol.TunnelService = (*TunnelService)(nil)

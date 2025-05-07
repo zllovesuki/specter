@@ -1,0 +1,39 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "go.miragespace.co/specter/spec/protocol";
+
+import "spec/proto/pow.proto";
+
+service KeylessService {
+    rpc GetCertificate(KeylessGetCertificateRequest) returns (KeylessGetCertificateResponse);
+    rpc Sign(KeylessSignRequest) returns (KeylessSignResponse);
+}
+
+message KeylessGetCertificateRequest {
+    ProofOfWork proof = 1;
+    string hostname = 2;
+}
+
+message KeylessGetCertificateResponse {
+    repeated bytes certificates = 1;
+}
+
+message KeylessSignRequest {
+    enum HashAlgorithm {
+        UNKNOWN = 0;
+        SHA256 = 1;
+        SHA384 = 2;
+        SHA512 = 3;
+    }
+
+    ProofOfWork proof = 1;
+    string hostname = 2;
+    bytes digest = 3;
+    HashAlgorithm algo = 4;
+}
+
+message KeylessSignResponse {
+    bytes signature = 1;
+}
