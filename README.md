@@ -9,6 +9,8 @@ Specter aims to create a distributed network of nodes that forms an overlay netw
 
 ## Why another tunnel project?
 
+<details>
+<summary>Rationale</summary>
 Specter is the spiritual successor of [t](https://github.com/zllovesuki/t/), another similar reverse tunnel software written by me.
 
 (Also this is an excuse for me to play with DHT 😛)
@@ -35,6 +37,7 @@ specter also has some interesting features:
 
 1. Support tunneling TCP or HTTP to Unix socket and Windows named pipe (!);
 2. When connecting to the tunnel from gateway, error is propagated from the client.
+</details>
 
 ## Client Configuration
 
@@ -76,6 +79,14 @@ tunnels:
 ### API
 
 To manage custom hostnames, unpublish, release, or list tunnels, the `specter client tunnel` subcommand accepts an optional argument to start a local API server.
+
+## Keyless TLS
+
+If your specter client is running in the same local network as you, and split DNS is configured to have your custom domain pointing to the specter client's LAN address, specter will allow you to reuse the same Let's Encrypt certificate managed by the specter server, via keyless TLS. 
+
+The private key will remain on the specter server to comply with Let's Encrypt ToS, and Keyless TLS is only enabled for custom domain validated via ACME.
+
+Keyless TLS can be enabled on the `specter client tunnel` subcommand via option `--keyless [host]:[port]`
 
 ## Connecting to Tunnel (CLI)
 
@@ -131,7 +142,7 @@ Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q
 The following should be installed on your machine:
 
 - Docker with buildx support
-- Go 1.19+ (`atomic.Pointer`)
+- Go 1.24+
 - [protoc](https://grpc.io/docs/protoc-installation)
 - [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
 - [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
