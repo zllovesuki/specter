@@ -78,6 +78,7 @@ jobs:
   rolling:
     name: Rolling release
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/tags/edge' }}
     needs: [testing, integration]
     permissions:
       contents: write
