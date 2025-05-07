@@ -1,0 +1,76 @@
+name: Rolling Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  checks: read
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Edge Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      # 1) Make sure 'edge' actually points at this SHA:
+      - name: Check `edge` tag matches CI commit
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              ref:   'tags/edge'
+            });
+            const edgeSha = tag.data.object.sha;
+            const ciSha   = context.payload.workflow_run.head_sha;
+            if (edgeSha !== ciSha) {
+              console.log(`⚠️ edge tag (${edgeSha}) ≠ CI commit (${ciSha}); skipping release.`);
+              // exit 78 = neutral (job is skipped)
+              process.exit(78);
+            }
+            console.log('✅ edge tag matches; proceeding with release.');
+
+      # 2) Checkout the exact commit the CI tested:
+      - name: Checkout CI-tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # 3) Your usual release steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: npm
+          cache-dependency-path: tun/client/ui/package-lock.json
+
+      - name: Build UI
+        run: make ui
+
+      - name: Build release binaries with WAL helper
+        run: make -j$(nproc) release wal=1
+
+      - name: Build compatibility binaries
+        run: make -j$(nproc) compat
+
+      - name: Publish rolling “edge” release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Automatic Build on main branch"
+          body: |
+            This is a rolling release with the latest build artifacts
+            on main branch. The release is updated every time the
+            `edge` tag is moved.
+          prerelease: true
+          tag_name: edge
+          files: bin/**

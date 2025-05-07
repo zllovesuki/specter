@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "Jenkinsfile"
+
+jobs:
+  testing:
+    name: Short Tests with Race Detector
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        go: ["1.24.1"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Build UI
+        run: make ui
+
+      - name: Quick Test with Race Detector
+        run: go test -v -short -race -timeout 120s ./...
+
+  integration:
+    name: Run Integration Tests
+    needs: testing
+    runs-on: ubuntu-latest
+    services:
+      dind:
+        image: docker:23.0.6-dind-rootless
+        ports:
+          - 2375:2375
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+
+      - run: make ui
+      - run: make integration_test
+
+  full:
+    name: Run Full Test Suite
+    needs: [testing, integration]
+    runs-on: ubuntu-latest
+    services:
+      dind:
+        image: docker:28.0.1-dind-rootless
+        ports:
+          - 2375:2375
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: "npm"
+          cache-dependency-path: tun/client/ui/package-lock.json
+
+      - run: make ui
+      - run: make full_test TIMEOUT=600s
