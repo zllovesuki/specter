@@ -33,7 +33,10 @@ func (e *emulatedTunnelServer) DialInternal(context.Context, *protocol.Node) (ne
 }
 
 func (e *emulatedTunnelServer) Identity() *protocol.Node {
-	return e.cli.ServerTransport.Identity()
+	return &protocol.Node{
+		Id:      e.cli.ServerTransport.Identity().GetId(),
+		Address: e.cli.KeylessTCPListener.Addr().String(),
+	}
 }
 
 var _ tun.Server = (*emulatedTunnelServer)(nil)
