@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"os"
 
 	"go.miragespace.co/specter/util"
 
@@ -43,6 +42,10 @@ func Generate() *cli.Command {
 						Name:  "server",
 						Usage: "start local server to handle client commands while the client is running",
 					},
+					&cli.StringFlag{
+						Name:  "keyless",
+						Usage: "start a keyless TLS gateway while the client is running. This is useful for local access with split DNS, without going to the edge specter node for proxying.",
+					},
 				},
 				Action: cmdTunnel,
 			},
@@ -55,15 +58,6 @@ func Generate() *cli.Command {
 						Name:  "tcp",
 						Usage: "fallback to connect to gateway via TLS/TCP instead of QUIC",
 					},
-				},
-				Before: func(ctx *cli.Context) error {
-					if _, ok := ctx.App.Metadata[PipeInKey]; !ok {
-						ctx.App.Metadata[PipeInKey] = os.Stdin
-					}
-					if _, ok := ctx.App.Metadata[PipeOutKey]; !ok {
-						ctx.App.Metadata[PipeOutKey] = os.Stdout
-					}
-					return nil
 				},
 				Action: cmdConnect,
 			},

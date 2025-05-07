@@ -501,7 +501,7 @@ func (s *pKIServiceServer) serveRequestCertificateProtobuf(ctx context.Context, 
 }
 
 func (s *pKIServiceServer) ServiceDescriptor() ([]byte, int) {
-	return twirpFileDescriptor3, 0
+	return twirpFileDescriptor4, 0
 }
 
 func (s *pKIServiceServer) ProtocGenTwirpVersion() string {
@@ -515,7 +515,7 @@ func (s *pKIServiceServer) PathPrefix() string {
 	return baseServicePath(s.pathPrefix, "protocol", "PKIService")
 }
 
-var twirpFileDescriptor3 = []byte{
+var twirpFileDescriptor4 = []byte{
 	// 232 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0x4f, 0x4b, 0xc3, 0x40,
 	0x10, 0xc5, 0x89, 0xa0, 0x96, 0xd1, 0xd3, 0xaa, 0x50, 0x8b, 0x82, 0xf4, 0xa2, 0x50, 0xd8, 0x40,

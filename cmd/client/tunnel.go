@@ -15,6 +15,7 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 	"go.miragespace.co/specter/tun/client"
 	"go.miragespace.co/specter/tun/client/dialer"
+	"go.miragespace.co/specter/util/reuse"
 
 	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v2"
@@ -61,14 +62,48 @@ func cmdTunnel(ctx *cli.Context) error {
 		return err
 	}
 
-	var serverListener net.Listener
+	listenCfg := &net.ListenConfig{
+		Control: reuse.Control,
+	}
+
+	var (
+		serverListener     net.Listener
+		keylessTCPListener net.Listener
+		keylessALPNMux     *overlay.ALPNMux
+	)
+
 	if ctx.IsSet("server") {
-		listenCfg := &net.ListenConfig{}
 		serverListener, err = listenCfg.Listen(ctx.Context, "tcp", ctx.String("server"))
 		if err != nil {
 			return err
 		}
 		defer serverListener.Close()
+	}
+
+	if ctx.IsSet("keyless") {
+		keylessAddr := ctx.String("keyless")
+		keylessTCPListener, err = listenCfg.Listen(ctx.Context, "tcp", keylessAddr)
+		if err != nil {
+			return err
+		}
+		defer keylessTCPListener.Close()
+
+		udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", keylessAddr)
+		if err != nil {
+			return err
+		}
+		defer udpListener.Close()
+
+		qTr := &quic.Transport{Conn: udpListener}
+		defer qTr.Close()
+
+		keylessALPNMux, err = overlay.NewMux(qTr)
+		if err != nil {
+			return err
+		}
+		defer keylessALPNMux.Close()
+
+		go keylessALPNMux.Accept(ctx.Context)
 	}
 
 	listener, err := net.ListenPacket("udp", ":0")
@@ -95,13 +130,15 @@ func cmdTunnel(ctx *cli.Context) error {
 	signal.Notify(s, syscall.SIGHUP)
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{
-		Logger:          logger,
-		Configuration:   cfg,
-		PKIClient:       pkiClient,
-		ServerTransport: transport,
-		Recorder:        transportRTT,
-		ReloadSignal:    s,
-		ServerListener:  serverListener,
+		Logger:             logger,
+		Configuration:      cfg,
+		PKIClient:          pkiClient,
+		ServerTransport:    transport,
+		Recorder:           transportRTT,
+		ReloadSignal:       s,
+		ServerListener:     serverListener,
+		KeylessTCPListener: keylessTCPListener,
+		KeylessALPNMux:     keylessALPNMux,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap client: %w", err)

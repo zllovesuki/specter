@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.miragespace.co/specter/spec/chord"
+	"go.miragespace.co/specter/spec/cipher"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
 	"go.miragespace.co/specter/spec/transport"
@@ -34,6 +35,7 @@ type Config struct {
 	TunnelTransport transport.Transport
 	ChordTransport  transport.Transport
 	Resolver        tun.DNSResolver
+	CertProvider    cipher.CertProvider
 	Apex            string
 	Acme            string
 }

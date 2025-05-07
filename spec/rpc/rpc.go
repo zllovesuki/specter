@@ -38,6 +38,11 @@ type ChordClient interface {
 	RatePer(interval time.Duration) float64
 }
 
+type TunnelClient interface {
+	protocol.TunnelService
+	protocol.KeylessService
+}
+
 func getDynamicDialer(baseCtx context.Context, transport transport.Transport) func(reqCtx context.Context, _, _ string) (net.Conn, error) {
 	return func(reqCtx context.Context, _, _ string) (net.Conn, error) {
 		peer := GetNode(reqCtx)
@@ -105,7 +110,7 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 // DynamicTunnelClient returns a rpc client suitable for TunnelService,  with the destination set per call dynamically
 // according to the destination in context. Use WithNode(ctx, node) at call site to dynamically dispatch. Optionally,
 // use WithClientToken(ctx, token) to include client token.
-func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.Transport) protocol.TunnelService {
+func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.Transport) TunnelClient {
 	injector := &twirp.ClientHooks{
 		RequestPrepared: func(ctx context.Context, r *http.Request) (context.Context, error) {
 			peer := GetNode(ctx)
@@ -133,7 +138,13 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 		t.MaxConnsPerHost = -1
 	}
 
-	return protocol.NewTunnelServiceProtobufClient("https://tunnel", c, twirp.WithClientHooks(injector))
+	return &struct {
+		protocol.TunnelService
+		protocol.KeylessService
+	}{
+		TunnelService:  protocol.NewTunnelServiceProtobufClient("https://tunnel", c, twirp.WithClientHooks(injector)),
+		KeylessService: protocol.NewKeylessServiceProtobufClient("https://tunnel", c, twirp.WithClientHooks(injector)),
+	}
 }
 
 func receive(stream io.Reader, rr VTMarshaler, checker func(size uint32) bool) error {

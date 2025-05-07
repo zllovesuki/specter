@@ -172,7 +172,9 @@ func (r *encRequest) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			ips[i] = strings.TrimSpace(ip)
 		}
 		enc.AddString("client", ips[0])
-		enc.AddString("via", ips[1])
+		if len(ips) > 1 {
+			enc.AddString("via", ips[1])
+		}
 	}
 	return nil
 }

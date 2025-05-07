@@ -66,21 +66,7 @@ func TestAcmeInstruction(t *testing.T) {
 
 	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
 		s.On("AcmeInstruction", mock.Anything, mock.MatchedBy(func(req *protocol.InstructionRequest) bool {
-			match := req.GetHostname() == hostname
-			if !match {
-				return false
-			}
-			d, err := pow.VerifySolution(req.GetProof(), pow.Parameters{
-				Difficulty: acme.HashcashDifficulty,
-				Expires:    acme.HashcashExpires,
-				GetSubject: func(pubKey ed25519.PublicKey) string {
-					return req.GetHostname()
-				},
-			})
-			if err != nil {
-				return false
-			}
-			return bytes.Equal(d.PubKey, privKey.Public().(ed25519.PublicKey))
+			return powValidateFunc(hostname, privKey)(req.GetProof(), req.GetHostname())
 		})).Return(&protocol.InstructionResponse{
 			Name:    acmeName,
 			Content: acmeContent,
@@ -163,21 +149,7 @@ func TestAcmeValidation(t *testing.T) {
 
 	m := func(s *mocks.TunnelService, t1 *mocks.MemoryTransport, publishCall *mock.Call) {
 		s.On("AcmeValidate", mock.Anything, mock.MatchedBy(func(req *protocol.ValidateRequest) bool {
-			match := req.GetHostname() == hostname
-			if !match {
-				return false
-			}
-			d, err := pow.VerifySolution(req.GetProof(), pow.Parameters{
-				Difficulty: acme.HashcashDifficulty,
-				Expires:    acme.HashcashExpires,
-				GetSubject: func(pubKey ed25519.PublicKey) string {
-					return req.GetHostname()
-				},
-			})
-			if err != nil {
-				return false
-			}
-			return bytes.Equal(d.PubKey, privKey.Public().(ed25519.PublicKey))
+			return powValidateFunc(hostname, privKey)(req.GetProof(), req.GetHostname())
 		})).Return(&protocol.ValidateResponse{
 			Apex: testApex,
 		}, nil)
@@ -216,4 +188,24 @@ func TestAcmeValidation(t *testing.T) {
 	body, err := io.ReadAll(httpResp.Body)
 	as.NoError(err)
 	as.Contains(string(body), resp.GetApex())
+}
+
+func powValidateFunc(expectHostname string, privKey ed25519.PrivateKey) func(reqProof *protocol.ProofOfWork, reqHostname string) bool {
+	return func(reqProof *protocol.ProofOfWork, reqHostname string) bool {
+		match := reqHostname == expectHostname
+		if !match {
+			return false
+		}
+		d, err := pow.VerifySolution(reqProof, pow.Parameters{
+			Difficulty: acme.HashcashDifficulty,
+			Expires:    acme.HashcashExpires,
+			GetSubject: func(pubKey ed25519.PublicKey) string {
+				return reqHostname
+			},
+		})
+		if err != nil {
+			return false
+		}
+		return bytes.Equal(d.PubKey, privKey.Public().(ed25519.PublicKey))
+	}
 }

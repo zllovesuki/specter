@@ -28,7 +28,13 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 	proxy.Transport = &http.Transport{
 		DisableKeepAlives:   true,
 		MaxIdleConnsPerHost: -1,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+			defer func() {
+				if pr := recover(); pr != nil {
+					err = fmt.Errorf("internalDialer panic: %v", pr)
+				}
+			}()
+
 			target := rpc.GetNode(ctx)
 			if target == nil {
 				return nil, transport.ErrNoDirect

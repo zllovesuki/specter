@@ -48,10 +48,24 @@ func TestMain(m *testing.M) {
 func setupRPC(ctx context.Context,
 	logger *zap.Logger,
 	s protocol.TunnelService,
+	k protocol.KeylessService,
 	router *transport.StreamRouter,
 	acc *acceptor.HTTP2Acceptor,
 ) {
 	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
+		RequestRouted: func(ctx context.Context) (context.Context, error) {
+			delegation := rpc.GetDelegation(ctx)
+			if delegation.Certificate == nil {
+				return ctx, fmt.Errorf("missing client certificate")
+			}
+			return ctx, nil
+		},
+		Error: func(ctx context.Context, err twirp.Error) context.Context {
+			logger.Error("error handling request", zap.Error(err))
+			return ctx
+		},
+	}))
+	keylessTwirp := protocol.NewKeylessServiceServer(k, twirp.WithServerHooks(&twirp.ServerHooks{
 		RequestRouted: func(ctx context.Context) (context.Context, error) {
 			delegation := rpc.GetDelegation(ctx)
 			if delegation.Certificate == nil {
@@ -69,6 +83,7 @@ func setupRPC(ctx context.Context,
 	rpcHandler.Use(middleware.Recoverer)
 	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
 	rpcHandler.Mount(tunTwirp.PathPrefix(), tunTwirp)
+	rpcHandler.Mount(keylessTwirp.PathPrefix(), keylessTwirp)
 
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
@@ -149,6 +164,12 @@ func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, expectGenerat
 	return fakeNodes
 }
 
+type mockTunnelClient struct {
+	mock.Mock
+	mocks.TunnelService
+	mocks.KeylessService
+}
+
 func setupClient(
 	t *testing.T,
 	as *require.Assertions,
@@ -168,7 +189,10 @@ func setupClient(
 	t1, t2 := mocks.PipeTransport()
 	rr := new(mocks.Measurement)
 
+	k := new(mocks.KeylessService)
 	s := new(mocks.TunnelService)
+	s.Keyless = k
+
 	router := transport.NewStreamRouter(logger, nil, t2)
 	acc := acceptor.NewH2Acceptor(nil)
 
@@ -202,7 +226,7 @@ func setupClient(
 
 	go router.Accept(ctx)
 
-	setupRPC(ctx, logger, s, router, acc)
+	setupRPC(ctx, logger, s, k, router, acc)
 
 	client, err := NewClient(rpc.DisablePooling(ctx), ClientConfig{
 		Logger:          logger,
@@ -222,6 +246,7 @@ func setupClient(
 		acc.Close()
 		rr.AssertExpectations(t)
 		s.AssertExpectations(t)
+		k.AssertExpectations(t)
 		if pkiClient != nil {
 			pkiClient.AssertExpectations(t)
 		}

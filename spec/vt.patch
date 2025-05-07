@@ -70,3 +70,15 @@ index d686366..c83c570 100644
  import twirp "github.com/twitchtv/twirp"
  import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
  
+diff --git a/spec/protocol/keyless.twirp.go b/spec/protocol/keyless.twirp.go
+index d686366..c83c570 100644
+--- a/spec/protocol/keyless.twirp.go
++++ b/spec/protocol/keyless.twirp.go
+@@ -12,7 +12,6 @@ import strconv "strconv"
+ import strings "strings"
+
+ import protojson "google.golang.org/protobuf/encoding/protojson"
+-import proto "google.golang.org/protobuf/proto"
+ import twirp "github.com/twitchtv/twirp"
+ import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
+ 

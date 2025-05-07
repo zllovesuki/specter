@@ -121,7 +121,13 @@ func (g *Gateway) parseAddr(addr string) (host, hostname string, err error) {
 	return
 }
 
-func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn, error) {
+func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (conn net.Conn, err error) {
+	defer func() {
+		if pr := recover(); pr != nil {
+			err = fmt.Errorf("connectDialer panic: %v", pr)
+		}
+	}()
+
 	host, hostname, err := g.parseAddr(r.Host)
 	if err != nil {
 		return nil, err
@@ -135,7 +141,13 @@ func (g *Gateway) connectDialer(ctx context.Context, r *http.Request) (net.Conn,
 	})
 }
 
-func (g *Gateway) overlayDialer(ctx context.Context, addr string) (net.Conn, error) {
+func (g *Gateway) overlayDialer(ctx context.Context, addr string) (conn net.Conn, err error) {
+	defer func() {
+		if pr := recover(); pr != nil {
+			err = fmt.Errorf("overlayDialer panic: %v", pr)
+		}
+	}()
+
 	host, hostname, err := g.parseAddr(addr)
 	if err != nil {
 		return nil, err
