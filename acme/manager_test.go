@@ -60,6 +60,8 @@ func validateCert(as *require.Assertions, port int, serverName string) {
 		if err != nil {
 			return false
 		}
+		defer conn.Close()
+
 		if conn.Handshake() != nil {
 			return false
 		}
