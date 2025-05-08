@@ -20,12 +20,11 @@ var (
 
 var (
 	App = cli.App{
-		Name:            "specter",
-		Usage:           fmt.Sprintf("build for %s on %s", runtime.GOARCH, runtime.GOOS),
-		Version:         Build,
-		HideHelpCommand: true,
-		Copyright:       "miragespace.com, licensed under MIT.\nSee https://github.com/zllovesuki/specter/blob/main/ThirdPartyLicenses.txt for third-party licenses.",
-		Description:     "like ngrok, but more ambitious with DHT for flavor",
+		Name:        "specter",
+		Usage:       fmt.Sprintf("build for %s on %s", runtime.GOARCH, runtime.GOOS),
+		Version:     Build,
+		Copyright:   "miragespace.com, licensed under MIT.\nSee https://github.com/zllovesuki/specter/blob/main/ThirdPartyLicenses.txt for third-party licenses.",
+		Description: "like ngrok, but more ambitious with DHT for flavor",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "verbose",

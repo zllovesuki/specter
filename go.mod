@@ -1,6 +1,6 @@
 module go.miragespace.co/specter
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
@@ -10,6 +10,7 @@ require (
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/dominikbraun/graph v0.23.0
+	github.com/fatih/color v1.18.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gorilla/websocket v1.5.3
@@ -18,7 +19,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v4 v4.0.2
 	github.com/mholt/acmez/v3 v3.1.2
-	github.com/miekg/dns v1.1.65
+	github.com/miekg/dns v1.1.66
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.7
 	github.com/ncruces/go-sqlite3 v0.25.1
@@ -41,9 +42,10 @@ require (
 	golang.org/x/net v0.40.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/sys v0.33.0
+	golang.org/x/term v0.32.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.25.12
+	gorm.io/gorm v1.26.1
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 	moul.io/zapgorm2 v1.3.0
@@ -62,6 +64,8 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/libdns/libdns v1.0.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.22.0 // indirect
