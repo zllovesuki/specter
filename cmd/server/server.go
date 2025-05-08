@@ -165,17 +165,11 @@ func Generate() *cli.Command {
 			Note by default the http handler will not be started unless the node is advertising on port 443. Using this option will force the http handler to start.`,
 				Category: "Gateway Options",
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:     "apex",
 				EnvVars:  []string{"APEX"},
-				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`",
+				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`. Additional canonical domains can be specified.",
 				Required: true,
-				Category: "Gateway Options",
-			},
-			&cli.StringSliceFlag{
-				Name:     "extra-apex",
-				EnvVars:  []string{"EXTRA_APEX"},
-				Usage:    "Additional canonical domains, useful for redundant tunnel hostnames. Tunnels will also be available under *.`EXTRA_APEX`",
 				Category: "Gateway Options",
 			},
 			&cli.StringFlag{
@@ -365,9 +359,8 @@ func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
 }
 
 func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.VNode) (cipher.CertProvider, error) {
-	rootDomain := ctx.String("apex")
-	extraRootDomains := ctx.StringSlice("extra-apex")
-	managedDomains := append([]string{rootDomain}, extraRootDomains...)
+	rootDomains := ctx.StringSlice("apex")
+	managedDomains := rootDomains
 
 	if ctx.IsSet("acme") {
 		acmeSolver := &acme.ChordSolver{
@@ -390,7 +383,7 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.VNode) (c
 	} else {
 		logger.Info("Using self-signed as cert provider")
 		self := &SelfSignedProvider{
-			RootDomain: rootDomain,
+			RootDomain: rootDomains[0],
 		}
 		return self, nil
 	}
@@ -419,9 +412,8 @@ func cmdServer(ctx *cli.Context) error {
 		return fmt.Errorf("unable to obtain logger from app context")
 	}
 
-	rootDomain := ctx.String("apex")
-	extraRootDomains := ctx.StringSlice("extra-apex")
-	managedDomains := append([]string{rootDomain}, extraRootDomains...)
+	rootDomains := ctx.StringSlice("apex")
+	managedDomains := rootDomains
 
 	if ctx.Bool("print-acme") {
 		if !ctx.IsSet("acme") {
@@ -743,7 +735,7 @@ func cmdServer(ctx *cli.Context) error {
 		ChordTransport:  chordTransport,
 		Resolver:        net.DefaultResolver,
 		CertProvider:    certProvider,
-		Apex:            rootDomain,
+		Apex:            rootDomains[0],
 		Acme:            ctx.String("acme_zone"),
 	})
 	defer tunServer.Stop()
