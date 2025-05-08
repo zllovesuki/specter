@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        go: ["1.24.1"]
+        go: ["1.24.2"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24.1"
+          go-version: "1.24.2"
 
       - run: make ui
       - run: make integration_test
@@ -67,7 +67,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24.1"
+          go-version: "1.24.2"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

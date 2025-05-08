@@ -7,7 +7,7 @@ COPY . .
 
 RUN make ui
 
-FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine AS app-builder
+FROM --platform=$BUILDPLATFORM golang:1.24.2-alpine AS app-builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
