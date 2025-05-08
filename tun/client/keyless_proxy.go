@@ -35,18 +35,18 @@ func (e *emulatedTunnelServer) DialInternal(context.Context, *protocol.Node) (ne
 func (e *emulatedTunnelServer) Identity() *protocol.Node {
 	return &protocol.Node{
 		Id:      e.cli.ServerTransport.Identity().GetId(),
-		Address: e.cli.KeylessTCPListener.Addr().String(),
+		Address: e.cli.KeylessProxy.HTTPSListner.Addr().String(),
 	}
 }
 
 var _ tun.Server = (*emulatedTunnelServer)(nil)
 
 func (c *Client) startKeylessProxy() {
-	if c.KeylessTCPListener == nil || c.KeylessALPNMux == nil {
+	if c.KeylessProxy.ALPNMux == nil || c.KeylessProxy.HTTPListner == nil || c.KeylessProxy.HTTPSListner == nil {
 		return
 	}
 
-	address := c.KeylessTCPListener.Addr()
+	address := c.KeylessProxy.HTTPSListner.Addr()
 	tcpAddress, ok := address.(*net.TCPAddr)
 	if !ok {
 		return
@@ -59,16 +59,17 @@ func (c *Client) startKeylessProxy() {
 		tun.ALPN(protocol.Link_UNKNOWN),
 	})
 
-	gwH2Listener := tls.NewListener(c.KeylessTCPListener, gwTLSConf)
+	gwH2Listener := tls.NewListener(c.KeylessProxy.HTTPSListner, gwTLSConf)
 	defer gwH2Listener.Close()
 
 	// handles h3, h3-29, and specter-tcp/1
-	gwH3Listener := c.KeylessALPNMux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...)
+	gwH3Listener := c.KeylessProxy.ALPNMux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...)
 	defer gwH3Listener.Close()
 
 	gwCfg := gateway.GatewayConfig{
 		TunnelServer: &emulatedTunnelServer{c},
 		Logger:       c.Logger.With(zap.String("component", "keyless_proxy")),
+		HTTPListener: c.KeylessProxy.HTTPListner,
 		H2Listener:   gwH2Listener,
 		H3Listener:   gwH3Listener,
 		GatewayPort:  tcpAddress.Port,

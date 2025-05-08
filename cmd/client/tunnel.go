@@ -67,9 +67,10 @@ func cmdTunnel(ctx *cli.Context) error {
 	}
 
 	var (
-		serverListener     net.Listener
-		keylessTCPListener net.Listener
-		keylessALPNMux     *overlay.ALPNMux
+		serverListener      net.Listener
+		keylessHTTPListener net.Listener
+		keylessTCPListener  net.Listener
+		keylessALPNMux      *overlay.ALPNMux
 	)
 
 	if ctx.IsSet("server") {
@@ -82,6 +83,11 @@ func cmdTunnel(ctx *cli.Context) error {
 
 	if ctx.IsSet("keyless") {
 		keylessAddr := ctx.String("keyless")
+		listenHost, listenPort, err := net.SplitHostPort(keylessAddr)
+		if err != nil {
+			return err
+		}
+
 		keylessTCPListener, err = listenCfg.Listen(ctx.Context, "tcp", keylessAddr)
 		if err != nil {
 			return err
@@ -93,6 +99,14 @@ func cmdTunnel(ctx *cli.Context) error {
 			return err
 		}
 		defer udpListener.Close()
+
+		if listenPort == "443" {
+			keylessHTTPListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:%d", listenHost, 80))
+			if err != nil {
+				return fmt.Errorf("error setting up http listener: %w", err)
+			}
+			defer keylessHTTPListener.Close()
+		}
 
 		qTr := &quic.Transport{Conn: udpListener}
 		defer qTr.Close()
@@ -130,15 +144,18 @@ func cmdTunnel(ctx *cli.Context) error {
 	signal.Notify(s, syscall.SIGHUP)
 
 	c, err := client.NewClient(ctx.Context, client.ClientConfig{
-		Logger:             logger,
-		Configuration:      cfg,
-		PKIClient:          pkiClient,
-		ServerTransport:    transport,
-		Recorder:           transportRTT,
-		ReloadSignal:       s,
-		ServerListener:     serverListener,
-		KeylessTCPListener: keylessTCPListener,
-		KeylessALPNMux:     keylessALPNMux,
+		Logger:          logger,
+		Configuration:   cfg,
+		PKIClient:       pkiClient,
+		ServerTransport: transport,
+		Recorder:        transportRTT,
+		ReloadSignal:    s,
+		ServerListener:  serverListener,
+		KeylessProxy: client.KeylessProxyConfig{
+			HTTPListner:  keylessHTTPListener,
+			HTTPSListner: keylessTCPListener,
+			ALPNMux:      keylessALPNMux,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap client: %w", err)

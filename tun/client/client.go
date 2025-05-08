@@ -47,16 +47,21 @@ const (
 	rpcTimeout     = time.Second * 5
 )
 
+type KeylessProxyConfig struct {
+	HTTPListner  net.Listener
+	HTTPSListner net.Listener
+	ALPNMux      *overlay.ALPNMux
+}
+
 type ClientConfig struct {
-	Logger             *zap.Logger
-	Configuration      *Config
-	PKIClient          protocol.PKIService
-	ServerTransport    transport.Transport
-	Recorder           rtt.Recorder
-	ReloadSignal       <-chan os.Signal
-	ServerListener     net.Listener
-	KeylessTCPListener net.Listener
-	KeylessALPNMux     *overlay.ALPNMux
+	Logger          *zap.Logger
+	Configuration   *Config
+	PKIClient       protocol.PKIService
+	ServerTransport transport.Transport
+	Recorder        rtt.Recorder
+	ReloadSignal    <-chan os.Signal
+	ServerListener  net.Listener
+	KeylessProxy    KeylessProxyConfig
 }
 
 type Client struct {
