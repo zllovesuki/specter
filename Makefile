@@ -79,9 +79,9 @@ compat: ext = -compat$(word 3, $(plat_temp))
 compat: release
 
 $(PLATFORMS):
-	GOEXPERIMENT=newinliner CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
+	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/specter-$(os)-$(arch)$(ext) .
 ifdef wal
-	GOEXPERIMENT=newinliner CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/wal-$(os)-$(arch)$(ext) ./cmd/wal
+	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) GOARM=$(GOARM) GOAMD64=$(GOAMD64) go build $(GOTAGS) $(LDFLAGS) -o bin/wal-$(os)-$(arch)$(ext) ./cmd/wal
 endif
 
 upx: release
