@@ -49,7 +49,7 @@ func Generate() *cli.Command {
 	return &cli.Command{
 		Name:  "server",
 		Usage: "start an specter server on the edge",
-		Description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum.
+		Description: `Start a Specter server that joins a Chord DHT ring, routes all tunnels over QUIC, issues/renews TLS certificates via ACME DNS-01, and persists state for high availability.
 
 	Specter server provides an internal endpoint on /_internal under apex domain. To enable internal endpoint, provide username and password 
 	under environment variables INTERNAL_USER and INTERNAL_PASS. Absent of them will disable the internal endpoint entirely.

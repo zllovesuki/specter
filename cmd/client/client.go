@@ -18,7 +18,7 @@ func Generate() *cli.Command {
 		Name:        "client",
 		ArgsUsage:   " ",
 		Usage:       "start an specter client on this machine",
-		Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis fringilla suscipit tincidunt. Aenean ut sem ipsum. ",
+		Description: "Run a Specter client to publish and manage reverse tunnels over QUIC, fetch hostnames and TLS certs via ACME, and connect or listen to your endpoints",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "insecure",
@@ -43,8 +43,9 @@ func Generate() *cli.Command {
 						Usage: "start local server to handle client commands while the client is running",
 					},
 					&cli.StringFlag{
-						Name:  "keyless",
-						Usage: "start a keyless TLS gateway while the client is running. This is useful for local access with split DNS, without going to the edge specter node for proxying.",
+						Name: "keyless",
+						Usage: `start a keyless TLS proxy while the client is running. This is useful for local access with split DNS, without going to the edge specter node for proxying.
+			Note that if keyless proxy is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
 					},
 				},
 				Action: cmdTunnel,
