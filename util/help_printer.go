@@ -3,12 +3,14 @@
 //   - Sections in order:
 //     NAME
 //     USAGE
+//     VERSION   (app level only)
 //     DESCRIPTION
 //     COMMANDS   (only user-defined, hide built-in "help")
 //     OPTIONS
+//     COPYRIGHT (app level only)
 //
 // 2. Section Headers
-//   - "NAME:", "USAGE:", "DESCRIPTION:", "COMMANDS:", "OPTIONS:" in bold green.
+//   - "NAME:", "USAGE:", "VERSION:", "DESCRIPTION:", "COMMANDS:", "OPTIONS:" and "COPYRIGHT:" in bold green.
 //   - Category headings (e.g. "Chord Options", "Gateway Options", "Global Options") in bold cyan, indented 2 spaces.
 //
 // 3. Wrapping & Indentation
@@ -52,6 +54,7 @@ import (
 	"golang.org/x/term"
 )
 
+// getTermWidth returns the terminal width or defaultWidth if unavailable.
 func getTermWidth(defaultWidth int) int {
 	// 1) Direct system call
 	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 {
@@ -69,36 +72,35 @@ func getTermWidth(defaultWidth int) int {
 	return defaultWidth
 }
 
+// PrettierHelpPrinter installs a custom HelpPrinter for urfave/cli/v2.
 func PrettierHelpPrinter() {
-	// --- helpers ---
-
-	// word-wrap to a fixed width, preserving paragraphs
+	// wrap splits text into lines of at most width, preserving paragraph breaks.
 	wrap := func(text string, width int) []string {
-		var out []string
+		var lines []string
 		for _, para := range strings.Split(text, "\n\n") {
 			words := strings.Fields(para)
 			if len(words) == 0 {
-				out = append(out, "")
+				lines = append(lines, "")
 				continue
 			}
 			line := words[0]
 			for _, w := range words[1:] {
 				if len(line)+1+len(w) > width {
-					out = append(out, line)
+					lines = append(lines, line)
 					line = w
 				} else {
 					line += " " + w
 				}
 			}
-			out = append(out, line, "")
+			lines = append(lines, line, "")
 		}
-		if len(out) > 0 && out[len(out)-1] == "" {
-			out = out[:len(out)-1]
+		if len(lines) > 0 && lines[len(lines)-1] == "" {
+			lines = lines[:len(lines)-1]
 		}
-		return out
+		return lines
 	}
 
-	// reflect Category & Hidden off each concrete cli.Flag
+	// flagCategory extracts the Category field from a cli.Flag via reflection.
 	flagCategory := func(f cli.Flag) string {
 		v := reflect.ValueOf(f)
 		if v.Kind() == reflect.Ptr {
@@ -109,6 +111,7 @@ func PrettierHelpPrinter() {
 		}
 		return ""
 	}
+	// flagHidden extracts the Hidden field from a cli.Flag via reflection.
 	flagHidden := func(f cli.Flag) bool {
 		v := reflect.ValueOf(f)
 		if v.Kind() == reflect.Ptr {
@@ -121,8 +124,8 @@ func PrettierHelpPrinter() {
 	}
 
 	// colors
-	sectionColor := color.New(color.FgGreen, color.Bold).SprintFunc() // for NAME/USAGE/DESCRIPTION
-	headerColor := color.New(color.FgCyan, color.Bold).SprintFunc()   // for categories
+	sectionColor := color.New(color.FgGreen, color.Bold).SprintFunc()
+	headerColor := color.New(color.FgCyan, color.Bold).SprintFunc()
 
 	const (
 		descIndent  = "   "
@@ -130,76 +133,98 @@ func PrettierHelpPrinter() {
 		gapBetween  = 2
 		extraIndent = "  "
 	)
-	var wrapWidth = min(160, getTermWidth(160)) - 4
+	wrapWidth := min(160, getTermWidth(160)) - 4
 
-	// --- override HelpPrinter ---
+	// override the default HelpPrinter
 	cli.HelpPrinter = func(w io.Writer, templ string, data interface{}) {
-		// a) extract context
 		var (
-			flags    []cli.Flag
-			cmds     []*cli.Command
-			helpName string
-			usage    string
-			desc     string
+			flags     []cli.Flag
+			cmds      []*cli.Command
+			helpName  string
+			usage     string
+			desc      string
+			argsUsage string
+			isApp     bool
+			app       *cli.App
 		)
+
 		switch v := data.(type) {
 		case *cli.App:
 			flags, cmds, helpName, usage, desc = v.Flags, v.Commands, v.HelpName, v.Usage, v.Description
+			isApp, app = true, v
 		case *cli.Command:
 			flags, cmds, helpName, usage, desc = v.Flags, v.Subcommands, v.HelpName, v.Usage, v.Description
+			argsUsage = v.ArgsUsage
 		default:
 			cli.HelpPrinter(w, templ, data)
 			return
 		}
 
-		// b) NAME
+		// NAME
 		fmt.Fprintf(w, "%s\n%s%s - %s\n\n",
-			sectionColor("NAME:"),
-			descIndent, helpName, usage,
+			sectionColor("NAME:"), descIndent, helpName, usage,
 		)
 
-		// c) USAGE
-		fmt.Fprintf(w, "%s\n%s%s", sectionColor("USAGE:"), descIndent, helpName)
-		if len(flags) > 0 {
-			fmt.Fprintf(w, " [command options]")
+		// USAGE
+		fmt.Fprintf(w, "%s\n%s", sectionColor("USAGE:"), descIndent)
+		if isApp {
+			fmt.Fprintf(w, "%s [global options] command [command options]\n\n", helpName)
+		} else {
+			fmt.Fprintf(w, "%s", helpName)
+			if len(flags) > 0 {
+				fmt.Fprint(w, " [command options]")
+			}
+			if argsUsage != "" {
+				fmt.Fprintf(w, " %s", argsUsage)
+			}
+			fmt.Fprint(w, "\n\n")
 		}
-		fmt.Fprint(w, "\n\n")
 
-		// d) DESCRIPTION
+		// VERSION (app level)
+		if isApp && app.Version != "" {
+			fmt.Fprintf(w, "%s\n%s%s\n\n",
+				sectionColor("VERSION:"), descIndent, app.Version,
+			)
+		}
+
+		// DESCRIPTION
 		if desc != "" {
-			fmt.Fprintf(w, "%s\n", sectionColor("DESCRIPTION:"))
+			fmt.Fprintln(w, sectionColor("DESCRIPTION:"))
 			for _, line := range wrap(desc, wrapWidth-len(descIndent)) {
 				fmt.Fprintf(w, "%s%s\n", descIndent, line)
 			}
 			fmt.Fprint(w, "\n")
 		}
 
-		// e) COMMANDS (skip built-in help)
-		realCmds := []*cli.Command{}
+		// COMMANDS (omit hidden and built-in help)
+		var visibleCmds []*cli.Command
 		for _, c := range cmds {
-			if c.Hidden || c.Name == "help" {
-				continue
+			if !c.Hidden && c.Name != "help" {
+				visibleCmds = append(visibleCmds, c)
 			}
-			realCmds = append(realCmds, c)
 		}
-		if len(realCmds) > 0 {
+		if len(visibleCmds) > 0 {
 			fmt.Fprintln(w, sectionColor("COMMANDS:"))
-			for _, c := range realCmds {
-				fmt.Fprintf(w, "%s%-20s  %s\n",
-					descIndent, c.FullName(), c.Usage)
+			for _, c := range visibleCmds {
+				fmt.Fprintf(w, "%s%-20s  %s\n", descIndent, c.FullName(), c.Usage)
 			}
 			fmt.Fprint(w, "\n")
 		}
 
-		// f) OPTIONS header (now colored)
+		// OPTIONS / GLOBAL OPTIONS
 		if len(flags) == 0 {
+			// no flags, skip
 			return
 		}
-		fmt.Fprintf(w, "%s\n\n", sectionColor("OPTIONS:"))
+		optsHeader := "OPTIONS:"
+		if isApp {
+			optsHeader = "GLOBAL OPTIONS:"
+		}
+		fmt.Fprintln(w, sectionColor(optsHeader))
 
-		// g) Group flags…
+		// group flags by category
 		byCat := map[string][]cli.Flag{}
-		order := []string{}
+		var cats []string
 		for _, f := range flags {
 			if flagHidden(f) {
 				continue
@@ -210,16 +235,16 @@ func PrettierHelpPrinter() {
 				continue
 			}
 			cat := flagCategory(f)
-			if _, ok := byCat[cat]; !ok {
-				order = append(order, cat)
+			if _, seen := byCat[cat]; !seen {
+				cats = append(cats, cat)
 			}
 			byCat[cat] = append(byCat[cat], f)
 		}
-		sort.Strings(order)
+		sort.Strings(cats)
 
-		// h) Max label width…
+		// compute max label width for alignment
 		maxLabel := 0
-		for _, cat := range order {
+		for _, cat := range cats {
 			for _, f := range byCat[cat] {
 				lbl := strings.SplitN(strings.TrimRight(f.String(), "\n"), "\t", 2)[0]
 				if l := len(lbl); l > maxLabel {
@@ -228,39 +253,30 @@ func PrettierHelpPrinter() {
 			}
 		}
 
-		// i) Render groups with indented, colored headings
-		for _, cat := range order {
-			header := cat
-			if header == "" {
-				header = "Global Options"
+		// render each category
+		for _, cat := range cats {
+			if cat != "" {
+				fmt.Fprintf(w, "%s%s\n", flagIndent, headerColor(cat))
 			}
-			// two-space indent for category
-			fmt.Fprintf(w, "%s%s\n", flagIndent, headerColor(header))
-
 			for _, f := range byCat[cat] {
 				raw := strings.TrimRight(f.String(), "\n")
 				parts := strings.SplitN(raw, "\t", 2)
-				label := parts[0]
-				usageText := ""
+				label, usageText := parts[0], ""
 				if len(parts) > 1 {
 					usageText = parts[1]
 				}
-
-				// wrap usage
 				wrapLen := wrapWidth - len(flagIndent) - maxLabel - gapBetween
 				lines := wrap(usageText, wrapLen)
 
 				// first line
 				pad := maxLabel - len(label)
 				fmt.Fprintf(w, "%s%s%s%s%s\n",
-					flagIndent,
-					label,
+					flagIndent, label,
 					strings.Repeat(" ", pad),
 					strings.Repeat(" ", gapBetween),
 					lines[0],
 				)
-
-				// continuation lines get extra indent
+				// continuation lines
 				contIndent := flagIndent +
 					strings.Repeat(" ", maxLabel+gapBetween) +
 					extraIndent
@@ -269,6 +285,14 @@ func PrettierHelpPrinter() {
 				}
 			}
 			fmt.Fprint(w, "\n")
+		}
+
+		// COPYRIGHT (app level)
+		if isApp && strings.TrimSpace(app.Copyright) != "" {
+			fmt.Fprintln(w, sectionColor("COPYRIGHT:"))
+			for _, line := range strings.Split(app.Copyright, "\n") {
+				fmt.Fprintf(w, "%s%s\n", descIndent, line)
+			}
 		}
 	}
 }
