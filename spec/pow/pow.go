@@ -54,7 +54,7 @@ func VerifySolution(req *protocol.ProofOfWork, p Parameters) (*Decoded, error) {
 		return nil, twirp.InvalidArgumentError("solution", "solution cannot have zero-value expiresAt")
 	}
 
-	if time.Since(hc.ExpiresAt).Abs() > p.Expires {
+	if time.Since(hc.ExpiresAt).Abs() > p.Expires*2 {
 		return nil, twirp.InvalidArgumentError("solution", "solution expires too far away from now")
 	}
 
