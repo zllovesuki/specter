@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.miragespace.co/specter/spec"
 	"go.miragespace.co/specter/spec/pki"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
@@ -22,9 +23,10 @@ func wrapReuseError(msg string) error {
 	return fmt.Errorf("%s: %s", reuseErrorState, msg)
 }
 
-func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s quic.Stream, dir direction) (*nodeConnection, bool, error) {
+func (t *QUIC) reuseConnection(_ context.Context, q quic.EarlyConnection, s quic.Stream, dir direction) (*nodeConnection, bool, error) {
 	negotiation := &protocol.Connection{
 		Identity: t.Endpoint,
+		Version:  spec.BuildVersion,
 	}
 
 	err := rpc.Send(s, negotiation)
@@ -59,6 +61,7 @@ func (t *QUIC) reuseConnection(ctx context.Context, q quic.EarlyConnection, s qu
 		peer:      negotiation.GetIdentity(),
 		quic:      q,
 		direction: dir,
+		version:   negotiation.GetVersion(),
 	}
 
 	negotiation.Reset()

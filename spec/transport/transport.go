@@ -30,6 +30,7 @@ type DatagramDelegate struct {
 type ConnectedPeer struct {
 	Identity *protocol.Node
 	Addr     net.Addr
+	Version  string
 }
 
 type Transport interface {

@@ -25,6 +25,7 @@ var ccTempl = template.Must(template.ParseFS(htmlFS, "template/*.html"))
 type connectedClient struct {
 	Identity   string
 	Address    string
+	Version    string
 	NumTunnels string
 }
 
@@ -71,6 +72,7 @@ func TunnelServerHandler(s *Server) http.Handler {
 			info.Clients = append(info.Clients, connectedClient{
 				Identity:   fmt.Sprintf("%d/%s", node.GetId(), node.GetAddress()),
 				Address:    addr.String(),
+				Version:    h.Version,
 				NumTunnels: numTunnels,
 			})
 		}

@@ -37,6 +37,10 @@
                                             Address
                                         </th>
                                         <th scope="col"
+                                            class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                            Version
+                                        </th>
+                                        <th scope="col"
                                             class="py-3.5 pl-3 pr-4 sm:pr-6 text-left text-sm font-semibold text-gray-900">
                                             Number of Tunnels
                                         </th>
@@ -52,6 +56,9 @@
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                                             {{ .Address }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+                                            {{ .Version }}
                                         </td>
                                         <td class="whitespace-nowrap py-4 pl-3 pr-4 sm:pr-6 text-sm text-gray-500">
                                             {{ .NumTunnels }}

@@ -47,4 +47,5 @@ message Connection {
     Node identity = 1;
     State cache_state = 2;
     Direction cache_direction = 3;
+    string version = 5;
 }

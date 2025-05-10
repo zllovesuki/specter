@@ -9,16 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"go.miragespace.co/specter/spec"
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/util"
 
 	"github.com/miekg/dns"
 	"go.uber.org/zap"
-)
-
-var (
-	BuildTime = "now"
 )
 
 type DNS struct {
@@ -94,7 +91,7 @@ func (d *DNS) initStatic(email string, ns map[string][]string) {
 		unix   int64
 		serial uint32
 	)
-	unix, err := strconv.ParseInt(BuildTime, 10, 64)
+	unix, err := strconv.ParseInt(spec.BuildTime, 10, 64)
 	if err != nil {
 		unix = time.Now().Unix()
 	}

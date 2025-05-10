@@ -338,6 +338,7 @@ type Connection struct {
 	Identity       *Node                  `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	CacheState     Connection_State       `protobuf:"varint,2,opt,name=cache_state,json=cacheState,proto3,enum=protocol.Connection_State" json:"cache_state,omitempty"`
 	CacheDirection Connection_Direction   `protobuf:"varint,3,opt,name=cache_direction,json=cacheDirection,proto3,enum=protocol.Connection_Direction" json:"cache_direction,omitempty"`
+	Version        string                 `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -393,6 +394,13 @@ func (x *Connection) GetCacheDirection() Connection_Direction {
 	return Connection_UNKNOWN_DIRECTION
 }
 
+func (x *Connection) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
 var File_spec_proto_transport_proto protoreflect.FileDescriptor
 
 const file_spec_proto_transport_proto_rawDesc = "" +
@@ -416,13 +424,14 @@ const file_spec_proto_transport_proto_rawDesc = "" +
 	"\x05ALIVE\x10\x01\x12\b\n" +
 	"\x04DATA\x10\x02\x12\v\n" +
 	"\aRTT_SYN\x10\x03\x12\v\n" +
-	"\aRTT_ACK\x10\x04\"\xb1\x02\n" +
+	"\aRTT_ACK\x10\x04\"\xcb\x02\n" +
 	"\n" +
 	"Connection\x12*\n" +
 	"\bidentity\x18\x01 \x01(\v2\x0e.protocol.NodeR\bidentity\x12;\n" +
 	"\vcache_state\x18\x02 \x01(\x0e2\x1a.protocol.Connection.StateR\n" +
 	"cacheState\x12G\n" +
-	"\x0fcache_direction\x18\x03 \x01(\x0e2\x1e.protocol.Connection.DirectionR\x0ecacheDirection\"1\n" +
+	"\x0fcache_direction\x18\x03 \x01(\x0e2\x1e.protocol.Connection.DirectionR\x0ecacheDirection\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\"1\n" +
 	"\x05State\x12\x11\n" +
 	"\rUNKNOWN_STATE\x10\x00\x12\n" +
 	"\n" +

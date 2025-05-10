@@ -480,6 +480,7 @@ func (t *QUIC) ListConnected() []transport.ConnectedPeer {
 		nodes = append(nodes, transport.ConnectedPeer{
 			Identity: value.peer,
 			Addr:     value.quic.RemoteAddr(),
+			Version:  value.version,
 		})
 		return true
 	})

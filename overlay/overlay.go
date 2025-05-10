@@ -18,6 +18,7 @@ type nodeConnection struct {
 	peer      *protocol.Node
 	quic      quic.EarlyConnection
 	direction direction
+	version   string
 }
 
 type TransportConfig struct {

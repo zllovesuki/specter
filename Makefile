@@ -12,7 +12,7 @@ COUNT=3
 GOARM=7
 GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
-LDFLAGS=-ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/cmd/specter.Build=$(BUILD) -X go.miragespace.co/specter/acme.BuildTime=$(BUILT_TIME)"
+LDFLAGS=-ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/spec.BuildVersion=$(BUILD) -X go.miragespace.co/specter/spec.BuildTime=$(BUILT_TIME)"
 TIMEOUT=180s
 
 plat_temp = $(subst /, ,$@)

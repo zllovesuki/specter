@@ -7,6 +7,7 @@ import (
 	"go.miragespace.co/specter/cmd/client"
 	"go.miragespace.co/specter/cmd/dns"
 	"go.miragespace.co/specter/cmd/server"
+	"go.miragespace.co/specter/spec"
 	"go.miragespace.co/specter/spec/errata"
 
 	"github.com/urfave/cli/v2"
@@ -15,14 +16,10 @@ import (
 )
 
 var (
-	Build = "head"
-)
-
-var (
 	App = cli.App{
 		Name:        "specter",
 		Usage:       fmt.Sprintf("build for %s on %s", runtime.GOARCH, runtime.GOOS),
-		Version:     Build,
+		Version:     spec.BuildVersion,
 		Copyright:   "miragespace.com, licensed under MIT.\nSee https://github.com/zllovesuki/specter/blob/main/ThirdPartyLicenses.txt for third-party licenses.",
 		Description: "like ngrok, but more ambitious with DHT for flavor",
 		Flags: []cli.Flag{
