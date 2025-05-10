@@ -20,11 +20,11 @@ import (
 
 	"go.miragespace.co/specter/cmd/client"
 	"go.miragespace.co/specter/cmd/server"
+	"go.miragespace.co/specter/util/bufconn"
 	"go.miragespace.co/specter/util/testcond"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"github.com/iangudger/memnet"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/require"
@@ -409,7 +409,7 @@ func TestIntegrationTunnel(t *testing.T) {
 				xApp, xLogs := compileApp(client.Generate())
 				xApp.Metadata["connectOverride"] = hostMap["tcp"]
 
-				leftConn, rightConn := memnet.NewBufferedStreamConnPair()
+				leftConn, rightConn := bufconn.BufferedPipe(8192)
 				xApp.Reader = leftConn
 				xApp.Writer = leftConn
 

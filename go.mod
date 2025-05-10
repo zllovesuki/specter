@@ -14,7 +14,6 @@ require (
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/iangudger/memnet v0.0.0-20220731214234-823edbed1e9d
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v4 v4.0.2
@@ -50,8 +49,6 @@ require (
 	moul.io/zapfilter v1.7.0
 	moul.io/zapgorm2 v1.3.0
 )
-
-replace gitub.com/iangudger/memnet v0.0.0-20220731214234-823edbed1e9d => github.com/miragespace/memnet v0.0.0-20240328231002-8045afef8f5b
 
 require (
 	github.com/caddyserver/zerossl v0.1.3 // indirect

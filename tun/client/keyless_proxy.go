@@ -9,8 +9,8 @@ import (
 	"go.miragespace.co/specter/spec/cipher"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util/bufconn"
 
-	"github.com/iangudger/memnet"
 	"go.uber.org/zap"
 )
 
@@ -20,12 +20,12 @@ type emulatedTunnelServer struct {
 
 func (e *emulatedTunnelServer) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
 	// the pipe net.Conn must be buffered to preserved real-world network behavior
-	p1, p2 := memnet.NewBufferedStreamConnPair()
-	err := e.cli.handleIncomingDelegation(ctx, link, p1)
+	c1, c2 := bufconn.BufferedPipe(8192)
+	err := e.cli.handleIncomingDelegation(ctx, link, c1)
 	if err != nil {
 		return nil, err
 	}
-	return p2, nil
+	return c2, nil
 }
 
 func (e *emulatedTunnelServer) DialInternal(context.Context, *protocol.Node) (net.Conn, error) {

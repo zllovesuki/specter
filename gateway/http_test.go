@@ -13,8 +13,8 @@ import (
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
+	"go.miragespace.co/specter/util/bufconn"
 
-	"github.com/iangudger/memnet"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +56,7 @@ func TestHTTPConnectProxy(t *testing.T) {
 	testHost := "hello"
 	bufLength := 16
 
-	c1, c2 := memnet.NewBufferedStreamConnPair()
+	c1, c2 := bufconn.BufferedPipe(8192)
 
 	go func() {
 		tun.SendStatusProto(c2, nil)
