@@ -42,7 +42,7 @@ func (e *emulatedTunnelServer) Identity() *protocol.Node {
 var _ tun.Server = (*emulatedTunnelServer)(nil)
 
 func (c *Client) startKeylessProxy() {
-	if c.KeylessProxy.ALPNMux == nil || c.KeylessProxy.HTTPListner == nil || c.KeylessProxy.HTTPSListner == nil {
+	if c.KeylessProxy.ALPNMux == nil || c.KeylessProxy.HTTPSListner == nil {
 		return
 	}
 
