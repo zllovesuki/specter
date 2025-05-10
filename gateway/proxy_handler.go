@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,7 +43,7 @@ func (g *Gateway) HandshakeEarlyHint(sni string) {
 	if err != nil {
 		return
 	}
-	if util.Contains(g.RootDomains, hostname) {
+	if slices.Contains(g.RootDomains, hostname) {
 		return
 	}
 	g.Logger.Debug("Handshake early hint", zap.String("hostname", hostname))
@@ -103,7 +104,7 @@ func (g *Gateway) extractHostname(host string) (hostname string, err error) {
 		err = fmt.Errorf("gateway: invalid hostname for forwarding")
 		return
 	}
-	if util.Contains(g.RootDomains, parts[1]) {
+	if slices.Contains(g.RootDomains, parts[1]) {
 		hostname = parts[0]
 	} else {
 		hostname = host

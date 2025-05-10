@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -262,7 +263,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection
 		return
 	}
 
-	if util.Contains(g.RootDomains, cs.ServerName) {
+	if slices.Contains(g.RootDomains, cs.ServerName) {
 		logger.Debug("forwarding apex connection")
 		g.quicApexAcceptor.Handle(q)
 		return
@@ -313,7 +314,7 @@ func (g *Gateway) handleH2Connection(ctx context.Context, conn *tls.Conn) {
 		return
 	}
 
-	if util.Contains(g.RootDomains, cs.ServerName) {
+	if slices.Contains(g.RootDomains, cs.ServerName) {
 		logger.Debug("forwarding apex connection")
 		g.tcpApexAcceptor.Handle(conn)
 		return
