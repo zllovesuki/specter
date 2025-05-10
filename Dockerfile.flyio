@@ -14,7 +14,7 @@ COPY --from=ui-builder /app/tun/client/ui/build /app/tun/client/ui/build
 ARG GIT_HASH=head
 RUN CGO_ENABLED=0 GOARM=7 GOAMD64=v3 \
     go build -tags 'osusergo netgo urfave_cli_no_docs no_mocks' -buildvcs=false \
-    -ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/cmd/specter.Build=${GIT_HASH} -X go.miragespace.co/specter/acme.BuildTime=`date +%s`" \
+    -ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/spec.Build=${GIT_HASH} -X go.miragespace.co/specter/spec.BuildTime=`date +%s`" \
     -o bin/specter .
 
 FROM debian:bullseye-slim
