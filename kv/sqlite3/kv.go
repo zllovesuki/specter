@@ -81,7 +81,7 @@ func New(cfg Config) (*SqliteKV, error) {
 
 	reader, err := gorm.Open(readDb, &gorm.Config{
 		Logger:         logger,
-		PrepareStmt:    true,
+		PrepareStmt:    false,
 		TranslateError: true,
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func New(cfg Config) (*SqliteKV, error) {
 
 	writer, err := gorm.Open(writeDb, &gorm.Config{
 		Logger:         logger,
-		PrepareStmt:    true,
+		PrepareStmt:    false,
 		TranslateError: true,
 	})
 	if err != nil {
