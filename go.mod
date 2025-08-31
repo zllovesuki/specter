@@ -1,33 +1,33 @@
 module go.miragespace.co/specter
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/TheZeroSlave/zapsentry v1.23.0
-	github.com/Yiling-J/theine-go v0.6.1
+	github.com/Yiling-J/theine-go v0.6.2
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/avast/retry-go/v4 v4.6.1
-	github.com/caddyserver/certmagic v0.23.0
+	github.com/caddyserver/certmagic v0.24.0
 	github.com/dominikbraun/graph v0.23.0
 	github.com/fatih/color v1.18.0
-	github.com/getsentry/sentry-go v0.33.0
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/getsentry/sentry-go v0.35.1
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/gorilla/websocket v1.5.3
-	github.com/jedib0t/go-pretty/v6 v6.6.7
+	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/libp2p/go-yamux/v4 v4.0.2
 	github.com/mholt/acmez/v3 v3.1.2
-	github.com/miekg/dns v1.1.66
+	github.com/miekg/dns v1.1.68
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-dns v1.2.7
-	github.com/ncruces/go-sqlite3 v0.26.1
+	github.com/ncruces/go-sqlite3 v0.28.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/planetscale/vtprotobuf v0.6.0
 	github.com/quic-go/quic-go v0.52.0
 	github.com/sethvargo/go-diceware v0.5.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/wal v1.1.8
 	github.com/twitchtv/twirp v8.1.3+incompatible
 	github.com/urfave/cli/v2 v2.27.7
@@ -37,14 +37,14 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476
-	golang.org/x/net v0.41.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/sys v0.33.0
-	golang.org/x/term v0.32.0
-	google.golang.org/protobuf v1.36.6
+	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
+	golang.org/x/net v0.43.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/sys v0.35.0
+	golang.org/x/term v0.34.0
+	google.golang.org/protobuf v1.36.8
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.30.0
+	gorm.io/gorm v1.30.2
 	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 	moul.io/zapgorm2 v1.3.0
@@ -83,8 +83,8 @@ require (
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	golang.org/x/crypto v0.39.0 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 )
