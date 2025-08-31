@@ -28,7 +28,7 @@ require (
 	github.com/quic-go/quic-go v0.54.0
 	github.com/sethvargo/go-diceware v0.5.0
 	github.com/stretchr/testify v1.11.1
-	github.com/tidwall/wal v1.1.8
+	github.com/tidwall/wal v1.2.1
 	github.com/twitchtv/twirp v8.1.3+incompatible
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/zeebo/xxh3 v1.0.2
