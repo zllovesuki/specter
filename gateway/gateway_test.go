@@ -110,9 +110,9 @@ func getDialer(proto string, sn string) *tls.Dialer {
 	return dialer
 }
 
-func getQuicDialer(proto string, sn string) func(context.Context, string) (quic.EarlyConnection, error) {
-	return func(ctx context.Context, addr string) (quic.EarlyConnection, error) {
-		return quic.DialAddrEarly(ctx, addr, getDialer(proto, sn).Config, nil)
+func getQuicDialer(proto string, sn string) func(context.Context, string) (*quic.Conn, error) {
+	return func(ctx context.Context, addr string) (*quic.Conn, error) {
+		return quic.DialAddr(ctx, addr, getDialer(proto, sn).Config, nil)
 	}
 }
 
@@ -155,10 +155,10 @@ func getH2Client(host string, port int) *http.Client {
 func getH3Client(host string, port int) *http.Client {
 	return &http.Client{
 		Timeout: time.Second,
-		Transport: &http3.RoundTripper{
+		Transport: &http3.Transport{
 			TLSClientConfig: getDialer("h3", host).Config,
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-				return quic.DialAddrEarly(ctx, fmt.Sprintf("127.0.0.1:%d", port), tlsCfg, cfg)
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+				return quic.DialAddr(ctx, fmt.Sprintf("127.0.0.1:%d", port), tlsCfg, cfg)
 			},
 		},
 	}

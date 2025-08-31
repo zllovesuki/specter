@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (t *QUIC) reapPeer(q quic.Connection, peer *protocol.Node) {
+func (t *QUIC) reapPeer(q *quic.Conn, peer *protocol.Node) {
 	qKey := t.makeCachedKey(peer)
 	unlock := t.cachedMutex.Lock(qKey)
 	defer unlock()

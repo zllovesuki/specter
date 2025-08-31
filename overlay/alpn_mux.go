@@ -14,7 +14,7 @@ import (
 )
 
 type ALPNMux struct {
-	listener *quic.EarlyListener
+	listener *quic.Listener
 	mux      sync.Map // map[string]*protoCfg
 }
 
@@ -25,7 +25,7 @@ type protoCfg struct {
 
 func NewMux(tr *quic.Transport) (*ALPNMux, error) {
 	a := &ALPNMux{}
-	q, err := tr.ListenEarly(&tls.Config{
+	q, err := tr.Listen(&tls.Config{
 		GetConfigForClient: a.getConfigForClient,
 	}, quicConfig)
 	if err != nil {
@@ -60,7 +60,7 @@ func (a *ALPNMux) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, e
 	return nil, errors.New("cipher: no mutually supported protocols")
 }
 
-func (a *ALPNMux) With(baseCfg *tls.Config, protos ...string) q.EarlyListener {
+func (a *ALPNMux) With(baseCfg *tls.Config, protos ...string) q.Listener {
 	cfg := &protoCfg{
 		acceptor: acceptor.NewH3Acceptor(a.listener),
 		tls:      baseCfg,
@@ -90,7 +90,7 @@ func (a *ALPNMux) Close() {
 	a.listener.Close()
 }
 
-func (a *ALPNMux) handleConnection(ctx context.Context, conn quic.EarlyConnection) {
+func (a *ALPNMux) handleConnection(ctx context.Context, conn *quic.Conn) {
 	select {
 	case <-time.After(quicConfig.HandshakeIdleTimeout):
 		conn.CloseWithError(401, "Gone")

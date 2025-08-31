@@ -170,7 +170,7 @@ type quicDialer struct {
 var _ TransportDialer = (*quicDialer)(nil)
 
 func (q *quicDialer) Dial() (net.Conn, error) {
-	qConn := q.aQuic.Load().(quic.Connection)
+	qConn := q.aQuic.Load().(*quic.Conn)
 	r, err := qConn.OpenStream()
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func (q *quicDialer) Dial() (net.Conn, error) {
 }
 
 func (q *quicDialer) Remote() net.Addr {
-	qConn := q.aQuic.Load().(quic.Connection)
+	qConn := q.aQuic.Load().(*quic.Conn)
 	return qConn.RemoteAddr()
 }
 

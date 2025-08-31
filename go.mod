@@ -25,7 +25,7 @@ require (
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/planetscale/vtprotobuf v0.6.0
-	github.com/quic-go/quic-go v0.52.0
+	github.com/quic-go/quic-go v0.54.0
 	github.com/sethvargo/go-diceware v0.5.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/wal v1.1.8
@@ -54,8 +54,6 @@ require (
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
@@ -65,7 +63,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
-	github.com/onsi/ginkgo/v2 v2.22.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

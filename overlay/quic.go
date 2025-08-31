@@ -20,8 +20,8 @@ var (
 )
 
 type quicConn struct {
-	quic.Stream
-	q quic.Connection
+	*quic.Stream
+	q *quic.Conn
 }
 
 var _ net.Conn = (*quicConn)(nil)
@@ -43,7 +43,7 @@ func (q *quicConn) Close() error {
 	return q.Stream.Close()
 }
 
-func WrapQuicConnection(s quic.Stream, q quic.Connection) net.Conn {
+func WrapQuicConnection(s *quic.Stream, q *quic.Conn) net.Conn {
 	return &quicConn{
 		Stream: s,
 		q:      q,

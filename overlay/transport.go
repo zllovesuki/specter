@@ -79,14 +79,14 @@ func (t *QUIC) makeCachedKey(peer *protocol.Node) string {
 	return sb.String()
 }
 
-func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (quic.EarlyConnection, error) {
+func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*quic.Conn, error) {
 	qKey := t.makeCachedKey(peer)
 
 	if t.Endpoint.GetAddress() == peer.GetAddress() {
 		return nil, fmt.Errorf("creating a new QUIC connection to the ourselves is not allowed")
 	}
 
-	q, err := retry.DoWithData(func() (quic.EarlyConnection, error) {
+	q, err := retry.DoWithData(func() (*quic.Conn, error) {
 		rUnlock := t.cachedMutex.RLock(qKey)
 		if cached, ok := t.cachedConnections.Load(qKey); ok {
 			rUnlock()
@@ -263,7 +263,7 @@ func (t *QUIC) SendDatagram(peer *protocol.Node, buf []byte) error {
 	return transport.ErrNoDirect
 }
 
-func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
+func (t *QUIC) handleIncoming(ctx context.Context, q *quic.Conn) (*quic.Conn, error) {
 	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
@@ -285,7 +285,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q quic.EarlyConnection) (quic
 	return c.quic, nil
 }
 
-func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic.EarlyConnection, error) {
+func (t *QUIC) handleOutgoing(ctx context.Context, q *quic.Conn) (*quic.Conn, error) {
 	openCtx, openCancel := context.WithTimeout(ctx, quicConfig.HandshakeIdleTimeout)
 	defer openCancel()
 
@@ -307,7 +307,7 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q quic.EarlyConnection) (quic
 	return c.quic, nil
 }
 
-func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *protocol.Node, dir direction) {
+func (t *QUIC) handlePeer(ctx context.Context, q *quic.Conn, peer *protocol.Node, dir direction) {
 	l := t.Logger.With(
 		zap.String("remote", q.RemoteAddr().String()),
 		zap.Object("peer", peer),
@@ -320,7 +320,7 @@ func (t *QUIC) handlePeer(ctx context.Context, q quic.EarlyConnection, peer *pro
 	if t.RTTRecorder != nil {
 		go t.sendRTTSyn(ctx, q, peer)
 	}
-	go func(q quic.Connection) {
+	go func(q *quic.Conn) {
 		<-q.Context().Done()
 		l.Debug("Connection with peer closed", zap.Error(q.Context().Err()))
 		t.reapPeer(q, peer)
@@ -335,7 +335,7 @@ func (t *QUIC) background(ctx context.Context) {
 	go t.handleRTTAck(ctx)
 }
 
-func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener) error {
+func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.Listener) error {
 	t.Logger.Info("Accepting connections", zap.String("listen", listener.Addr().String()))
 	t.background(ctx)
 	for {
@@ -343,7 +343,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener)
 		if err != nil {
 			return err
 		}
-		go func(q quic.EarlyConnection) {
+		go func(q *quic.Conn) {
 			if _, err := t.handleIncoming(ctx, q); err != nil {
 				if !strings.Contains(err.Error(), reuseErrorState) {
 					t.Logger.Error("Incoming connection reuse error", zap.String("endpoint", q.RemoteAddr().String()), zap.Error(err))
@@ -356,7 +356,7 @@ func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.EarlyListener)
 	}
 }
 
-func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *protocol.Node) {
+func (t *QUIC) handleDatagram(ctx context.Context, q *quic.Conn, peer *protocol.Node) {
 	logger := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 	for {
 		b, err := q.ReceiveDatagram(ctx)
@@ -402,7 +402,7 @@ func (t *QUIC) handleDatagram(ctx context.Context, q quic.Connection, peer *prot
 	}
 }
 
-func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *protocol.Node) {
+func (t *QUIC) handleConnection(ctx context.Context, q *quic.Conn, peer *protocol.Node) {
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {
@@ -415,7 +415,7 @@ func (t *QUIC) handleConnection(ctx context.Context, q quic.Connection, peer *pr
 	}
 }
 
-func (t *QUIC) streamHandler(q quic.Connection, stream quic.Stream, peer *protocol.Node) {
+func (t *QUIC) streamHandler(q *quic.Conn, stream *quic.Stream, peer *protocol.Node) {
 	l := t.Logger.With(zap.Object("peer", peer))
 	conn := WrapQuicConnection(stream, q)
 

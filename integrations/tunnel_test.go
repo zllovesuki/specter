@@ -345,10 +345,10 @@ func TestIntegrationTunnel(t *testing.T) {
 
 				h3Cfg := baseCfg.Clone()
 				h3Cfg.NextProtos = []string{"h3"}
-				httpClient.Transport = &http3.RoundTripper{
+				httpClient.Transport = &http3.Transport{
 					TLSClientConfig: h3Cfg,
-					Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-						return quic.DialAddrEarly(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
+					Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+						return quic.DialAddr(ctx, fmt.Sprintf("127.0.0.1:%d", serverPort), h3Cfg, nil)
 					},
 				}
 				resp, err := httpClient.Do(req)

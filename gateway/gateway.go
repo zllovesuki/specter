@@ -52,7 +52,7 @@ type GatewayConfig struct {
 	TunnelServer      tun.Server
 	HTTPListener      net.Listener
 	H2Listener        net.Listener
-	H3Listener        q.EarlyListener
+	H3Listener        q.Listener
 	Logger            *zap.Logger
 	HandshakeHintFunc cipher.OnHandshakeFunc
 	AdminUser         string
@@ -250,7 +250,7 @@ func (g *Gateway) acceptQUIC(ctx context.Context) {
 	}
 }
 
-func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection) {
+func (g *Gateway) handleH3Connection(ctx context.Context, q *quic.Conn) {
 	cs := q.ConnectionState().TLS
 	logger := g.Logger.With(
 		zap.Bool("via-quic", true),
@@ -280,7 +280,7 @@ func (g *Gateway) handleH3Connection(ctx context.Context, q quic.EarlyConnection
 	}
 }
 
-func (g *Gateway) handleH3Multiplex(ctx context.Context, logger *zap.Logger, q quic.EarlyConnection, host string) {
+func (g *Gateway) handleH3Multiplex(ctx context.Context, logger *zap.Logger, q *quic.Conn, host string) {
 	for {
 		stream, err := q.AcceptStream(ctx)
 		if err != nil {

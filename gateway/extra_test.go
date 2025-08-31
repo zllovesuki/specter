@@ -57,7 +57,7 @@ func TestH3ExtraApexIndex(t *testing.T) {
 	c := getH3Client("", udpPort)
 	dialer := getDialer("h3", "")
 	dialer.Config.ServerName = extraRootDomain
-	c.Transport.(*http3.RoundTripper).TLSClientConfig = dialer.Config
+	c.Transport.(*http3.Transport).TLSClientConfig = dialer.Config
 
 	resp, err := c.Get(fmt.Sprintf("https://%s/", extraRootDomain))
 	as.NoError(err)
@@ -129,7 +129,7 @@ func TestH3HTTPNotFoundExtra(t *testing.T) {
 	c := getH3Client(testHost, udpPort)
 	dialer := getDialer("h3", "")
 	dialer.Config.ServerName = testHost + "." + extraRootDomain
-	c.Transport.(*http3.RoundTripper).TLSClientConfig = dialer.Config
+	c.Transport.(*http3.Transport).TLSClientConfig = dialer.Config
 
 	resp, err := c.Get(fmt.Sprintf("https://%s.%s", testHost, extraRootDomain))
 	as.NoError(err)

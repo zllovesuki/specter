@@ -1,5 +1,15 @@
 package q
 
-import "github.com/quic-go/quic-go/http3"
+import (
+	"context"
+	"net"
 
-type EarlyListener http3.QUICEarlyListener
+	"github.com/quic-go/quic-go"
+)
+
+// Listener interface for accepting QUIC connections
+type Listener interface {
+	Accept(context.Context) (*quic.Conn, error)
+	Addr() net.Addr
+	Close() error
+}

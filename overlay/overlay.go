@@ -16,7 +16,7 @@ import (
 
 type nodeConnection struct {
 	peer      *protocol.Node
-	quic      quic.EarlyConnection
+	quic      *quic.Conn
 	direction direction
 	version   string
 }

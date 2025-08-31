@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (t *QUIC) sendRTTSyn(ctx context.Context, q quic.Connection, peer *protocol.Node) {
+func (t *QUIC) sendRTTSyn(ctx context.Context, q *quic.Conn, peer *protocol.Node) {
 	l := t.Logger.With(zap.String("endpoint", q.RemoteAddr().String()), zap.Object("peer", peer))
 
 	var (
@@ -105,7 +105,7 @@ func (t *QUIC) handleRTTAck(ctx context.Context) {
 	}
 }
 
-func (t *QUIC) handleRTTLost(ctx context.Context, q quic.Connection, peer *protocol.Node) {
+func (t *QUIC) handleRTTLost(ctx context.Context, q *quic.Conn, peer *protocol.Node) {
 	if t.RTTRecorder == nil {
 		return
 	}

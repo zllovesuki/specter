@@ -23,7 +23,7 @@ func wrapReuseError(msg string) error {
 	return fmt.Errorf("%s: %s", reuseErrorState, msg)
 }
 
-func (t *QUIC) reuseConnection(_ context.Context, q quic.EarlyConnection, s quic.Stream, dir direction) (*nodeConnection, bool, error) {
+func (t *QUIC) reuseConnection(_ context.Context, q *quic.Conn, s *quic.Stream, dir direction) (*nodeConnection, bool, error) {
 	negotiation := &protocol.Connection{
 		Identity: t.Endpoint,
 		Version:  spec.BuildVersion,
