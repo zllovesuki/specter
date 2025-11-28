@@ -98,7 +98,7 @@ func TestAcmeInstruction(t *testing.T) {
 	c := &http.Client{
 		Timeout: acme.HashcashExpires,
 	}
-	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/acme/%s", sListener.Addr().String(), hostname), nil)
+	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/api/acme/%s", sListener.Addr().String(), hostname), nil)
 	as.NoError(err)
 	httpResp, err := c.Do(httpReq)
 	as.NoError(err)
@@ -179,7 +179,7 @@ func TestAcmeValidation(t *testing.T) {
 	c := &http.Client{
 		Timeout: acme.HashcashExpires,
 	}
-	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/validate/%s", sListener.Addr().String(), hostname), nil)
+	httpReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/api/validate/%s", sListener.Addr().String(), hostname), nil)
 	as.NoError(err)
 	httpResp, err := c.Do(httpReq)
 	as.NoError(err)
