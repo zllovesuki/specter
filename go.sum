@@ -2,8 +2,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/TheZeroSlave/zapsentry v1.23.0 h1:TKyzfEL7LRlRr+7AvkukVLZ+jZPC++ebCUv7ZJHl1AU=
 github.com/TheZeroSlave/zapsentry v1.23.0/go.mod h1:3DRFLu4gIpnCTD4V9HMCBSaqYP8gYU7mZickrs2/rIY=
-github.com/Yiling-J/theine-go v0.6.2 h1:1GeoXeQ0O0AUkiwj2S9Jc0Mzx+hpqzmqsJ4kIC4M9AY=
-github.com/Yiling-J/theine-go v0.6.2/go.mod h1:08QpMa5JZ2pKN+UJCRrCasWYO1IKCdl54Xa836rpmDU=
+github.com/Yiling-J/theine-go v0.6.3-0.20250918135241-1be01cecc132 h1:9sx5TJURrKiAYHHYDDhGcNww5/WV08LdOlgaZuN/Kpc=
+github.com/Yiling-J/theine-go v0.6.3-0.20250918135241-1be01cecc132/go.mod h1:08QpMa5JZ2pKN+UJCRrCasWYO1IKCdl54Xa836rpmDU=
 github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b h1:mimo19zliBX/vSQ6PWWSL9lK8qwHozUj03+zLoEB8O0=
 github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b/go.mod h1:fvzegU4vN3H1qMT+8wDmzjAcDONcgo2/SZ/TyfdUOFs=
 github.com/avast/retry-go/v4 v4.7.0 h1:yjDs35SlGvKwRNSykujfjdMxMhMQQM0TnIjJaHB+Zio=

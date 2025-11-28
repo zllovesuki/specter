@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/TheZeroSlave/zapsentry v1.23.0
-	github.com/Yiling-J/theine-go v0.6.2
+	github.com/Yiling-J/theine-go v0.6.3-0.20250918135241-1be01cecc132
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/caddyserver/certmagic v0.25.0
