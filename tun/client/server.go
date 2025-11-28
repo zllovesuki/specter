@@ -83,13 +83,15 @@ func (c *Client) startLocalServer(ctx context.Context) {
 
 	r.Use(middleware.Heartbeat("/healthz"))
 
-	r.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
+	api := chi.NewRouter()
+
+	api.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
 		c.Logger.Info("Received request from API, reloading config")
 		c.doReload(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	r.Get("/config", func(w http.ResponseWriter, r *http.Request) {
+	api.Get("/config", func(w http.ResponseWriter, r *http.Request) {
 		cfg := c.GetCurrentConfig()
 		f, err := os.Open(cfg.path)
 		if err != nil {
@@ -100,7 +102,7 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		io.Copy(w, f)
 	})
 
-	r.Post("/unpublish/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+	api.Post("/unpublish/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)
 		if err != nil {
@@ -127,7 +129,7 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		fmt.Fprintf(w, "Tunnel %s unpublished from network\n", hostname)
 	})
 
-	r.Post("/release/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+	api.Post("/release/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)
 		if err != nil {
@@ -154,7 +156,7 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		fmt.Fprintf(w, "Tunnel %s released from network\n", hostname)
 	})
 
-	r.Get("/acme/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+	api.Get("/acme/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)
 		if err != nil {
@@ -174,7 +176,7 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		c.FormatAcme(resp, w)
 	})
 
-	r.Get("/validate/{hostname}", func(w http.ResponseWriter, r *http.Request) {
+	api.Get("/validate/{hostname}", func(w http.ResponseWriter, r *http.Request) {
 		hostname := chi.URLParam(r, "hostname")
 		hostname, err := url.PathUnescape(hostname)
 		if err != nil {
@@ -194,7 +196,7 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		c.FormatValidate(hostname, resp, w)
 	})
 
-	r.Get("/ls", func(w http.ResponseWriter, r *http.Request) {
+	api.Get("/ls", func(w http.ResponseWriter, r *http.Request) {
 		hostnames, err := c.GetRegisteredHostnames(r.Context())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -202,6 +204,8 @@ func (c *Client) startLocalServer(ctx context.Context) {
 		}
 		c.FormatList(hostnames, w)
 	})
+
+	r.Mount("/api", api)
 
 	uiFs, err := fs.Sub(ui, "ui/build")
 	if err != nil {

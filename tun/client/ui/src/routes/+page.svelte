@@ -31,7 +31,7 @@
    */
   async function loadTunnels(quiet = false) {
     try {
-      const res = await fetch("/ls");
+      const res = await fetch("/api/ls");
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -55,7 +55,7 @@
       return;
     }
     try {
-      const res = await fetch(`/acme/${encodeURIComponent(domain)}`);
+      const res = await fetch(`/api/acme/${encodeURIComponent(domain)}`);
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -76,7 +76,7 @@
       return;
     }
     try {
-      const res = await fetch(`/validate/${encodeURIComponent(domain)}`);
+      const res = await fetch(`/api/validate/${encodeURIComponent(domain)}`);
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -94,9 +94,12 @@
     confirmMessage = `Are you sure you want to unpublish ${hostname}?`;
     actionToConfirm = async () => {
       try {
-        const res = await fetch(`/unpublish/${encodeURIComponent(hostname)}`, {
-          method: "POST",
-        });
+        const res = await fetch(
+          `/api/unpublish/${encodeURIComponent(hostname)}`,
+          {
+            method: "POST",
+          },
+        );
         if (!res.ok) {
           throw new Error(await res.text());
         }
@@ -117,9 +120,12 @@
     confirmMessage = `Are you sure you want to release ${hostname}?`;
     actionToConfirm = async () => {
       try {
-        const res = await fetch(`/release/${encodeURIComponent(hostname)}`, {
-          method: "POST",
-        });
+        const res = await fetch(
+          `/api/release/${encodeURIComponent(hostname)}`,
+          {
+            method: "POST",
+          },
+        );
         if (!res.ok) {
           throw new Error(await res.text());
         }
@@ -151,7 +157,7 @@
   // Synchronize with the server (previously called "reload")
   async function synchronize() {
     try {
-      const res = await fetch("/reload", { method: "POST" });
+      const res = await fetch("/api/reload", { method: "POST" });
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -167,7 +173,7 @@
   // Load current config
   async function loadConfig() {
     try {
-      const res = await fetch("/config");
+      const res = await fetch("/api/config");
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -188,13 +194,13 @@
 
 <!-- Container with fixed width to avoid shifting -->
 <div class="flex flex-col min-h-screen">
-  <div class="mx-auto w-[900px] px-4 py-6 flex-grow">
+  <div class="mx-auto w-[900px] px-4 py-6 grow">
     <h1 class="text-3xl font-bold mb-4">Tunnel Manager</h1>
 
     <!-- Alert box (only shown if message != '') -->
     {#if message}
       <div
-        class="mb-4 p-4 rounded border flex items-start justify-between"
+        class="mb-4 p-4 rounded-sm border flex items-start justify-between"
         class:bg-red-50={alertType === "error"}
         class:bg-green-50={alertType === "success"}
         class:border-red-300={alertType === "error"}
@@ -214,7 +220,7 @@
       <ul class="flex space-x-4">
         <li>
           <button
-            class="py-2 px-3 text-gray-700 hover:text-blue-600 transition font-semibold"
+            class="py-2 px-3 text-gray-700 hover:text-blue-600 font-semibold"
             class:font-bold={activeTab === "tunnels"}
             on:click={() => (activeTab = "tunnels")}
           >
@@ -223,7 +229,7 @@
         </li>
         <li>
           <button
-            class="py-2 px-3 text-gray-700 hover:text-blue-600 transition font-semibold"
+            class="py-2 px-3 text-gray-700 hover:text-blue-600 font-semibold"
             class:font-bold={activeTab === "acme"}
             on:click={() => (activeTab = "acme")}
           >
@@ -232,7 +238,7 @@
         </li>
         <li>
           <button
-            class="py-2 px-3 text-gray-700 hover:text-blue-600 transition font-semibold"
+            class="py-2 px-3 text-gray-700 hover:text-blue-600 font-semibold"
             class:font-bold={activeTab === "publish"}
             on:click={() => (activeTab = "publish")}
           >
@@ -241,7 +247,7 @@
         </li>
         <li>
           <button
-            class="py-2 px-3 text-gray-700 hover:text-blue-600 transition font-semibold"
+            class="py-2 px-3 text-gray-700 hover:text-blue-600 font-semibold"
             class:font-bold={activeTab === "config"}
             on:click={() => (activeTab = "config")}
           >
@@ -257,17 +263,17 @@
         <!-- TUNNELS TAB -->
         <div class="space-y-6">
           <!-- General tunnel actions -->
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-3">General Tunnel Actions</h2>
             <div class="flex items-center space-x-2">
               <button
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-sm"
                 on:click={() => loadTunnels(false)}
               >
                 Refresh Tunnels
               </button>
               <button
-                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-sm"
                 on:click={synchronize}
               >
                 Synchronize
@@ -276,7 +282,7 @@
           </div>
 
           <!-- Unpublish vs Release -->
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-3">
               Difference between Unpublish and Release
             </h2>
@@ -294,7 +300,7 @@
           </div>
 
           <!-- Registered Tunnels -->
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-3">Registered Tunnels</h2>
             {#if tunnels.length === 0}
               <p class="text-gray-600">No tunnels found.</p>
@@ -302,7 +308,7 @@
               <div class="overflow-auto">
                 <table class="table-auto w-full border-collapse">
                   <thead>
-                    <tr class="bg-gray-100 border-b">
+                    <tr class="bg-gray-100 border-b border-gray-200">
                       <th class="px-4 py-2 text-left">Hostname</th>
                       <th class="px-4 py-2 text-left">Target</th>
                       <th class="px-4 py-2 text-left">Actions</th>
@@ -310,7 +316,7 @@
                   </thead>
                   <tbody>
                     {#each tunnels as tunnel}
-                      <tr class="border-b">
+                      <tr class="border-b border-gray-200">
                         <td class="px-4 py-2 font-semibold"
                           >{tunnel.hostname}</td
                         >
@@ -320,19 +326,21 @@
                             ? " (" + tunnel.headerHost + ")"
                             : ""}</td
                         >
-                        <td class="px-4 py-2 space-x-2">
-                          <button
-                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded transition"
-                            on:click={() => confirmUnpublish(tunnel.hostname)}
-                          >
-                            Unpublish
-                          </button>
-                          <button
-                            class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition"
-                            on:click={() => confirmRelease(tunnel.hostname)}
-                          >
-                            Release
-                          </button>
+                        <td class="px-4 py-2">
+                          <div class="flex items-center gap-2">
+                            <button
+                              class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-sm"
+                              on:click={() => confirmUnpublish(tunnel.hostname)}
+                            >
+                              Unpublish
+                            </button>
+                            <button
+                              class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-sm"
+                              on:click={() => confirmRelease(tunnel.hostname)}
+                            >
+                              Release
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     {/each}
@@ -345,14 +353,14 @@
       {:else if activeTab === "acme"}
         <!-- ACME TAB -->
         <div class="space-y-6">
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-4">ACME Domain Management</h2>
             <label for="acmeDomain" class="block mb-2 font-medium"
               >Custom Domain</label
             >
             <input
               id="acmeDomain"
-              class="border border-gray-300 p-2 w-full rounded focus:outline-none focus:border-blue-400"
+              class="border border-gray-300 p-2 w-full rounded-sm focus:outline-none focus:border-blue-400"
               type="text"
               bind:value={domain}
               placeholder="e.g. custom.domain.com"
@@ -360,13 +368,13 @@
 
             <div class="mt-4 flex items-center space-x-2">
               <button
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-sm"
                 on:click={getAcmeInstruction}
               >
                 Get ACME Instruction
               </button>
               <button
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-sm"
                 on:click={validateAcme}
               >
                 Validate ACME
@@ -375,7 +383,9 @@
 
             <!-- ACME Output -->
             {#if acmeOutput}
-              <div class="mt-4 bg-gray-50 border border-gray-200 rounded p-4">
+              <div
+                class="mt-4 bg-gray-50 border border-gray-200 rounded-sm p-4"
+              >
                 <p class="font-semibold">{acmeOutput.message}</p>
                 {#if acmeOutput.record}
                   <p class="mt-2">
@@ -402,14 +412,15 @@
       {:else if activeTab === "publish"}
         <!-- PUBLISH TAB -->
         <div class="space-y-6">
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-4">How to Publish a Tunnel</h2>
             <p class="text-gray-700 mb-2">
               To publish a new tunnel, you must edit your config YAML and then
               synchronize the local config with the server. Here’s a simple
               example of a configuration:
             </p>
-            <pre class="bg-gray-100 p-2 rounded text-sm overflow-x-auto mb-4">
+            <pre
+              class="bg-gray-100 p-2 rounded-sm text-sm overflow-x-auto mb-4">
 version: 2
 apex: apex.example.com:443
 certificate: |
@@ -421,10 +432,11 @@ privKey: |
 
             <p class="text-gray-700 mb-2">
               To add a tunnel, insert a <code
-                class="bg-gray-100 p-1 rounded text-sm">tunnels</code
+                class="bg-gray-100 p-1 rounded-sm text-sm">tunnels</code
               > stanza:
             </p>
-            <pre class="bg-gray-100 p-2 rounded text-sm overflow-x-auto mb-4">
+            <pre
+              class="bg-gray-100 p-2 rounded-sm text-sm overflow-x-auto mb-4">
 version: 2
 apex: apex.example.com:443
 certificate: |
@@ -440,7 +452,8 @@ tunnels:
               If you have validated a custom domain via ACME, specify the
               hostname:
             </p>
-            <pre class="bg-gray-100 p-2 rounded text-sm overflow-x-auto mb-4">
+            <pre
+              class="bg-gray-100 p-2 rounded-sm text-sm overflow-x-auto mb-4">
 tunnels:
   - target: tcp://127.0.0.1:1111
     hostname: custom.domain.com</pre>
@@ -455,12 +468,12 @@ tunnels:
       {:else if activeTab === "config"}
         <!-- CONFIG TAB -->
         <div class="space-y-6">
-          <div class="bg-white shadow rounded p-4">
+          <div class="bg-white shadow-sm rounded-sm p-4">
             <h2 class="text-xl font-semibold mb-4">Current Config</h2>
 
             <div class="mb-4 flex items-center space-x-2">
               <button
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-sm"
                 on:click={loadConfig}
               >
                 Refresh Config
@@ -469,7 +482,7 @@ tunnels:
 
             {#if configText}
               <pre
-                class="bg-gray-100 p-2 rounded text-sm overflow-x-auto">{configText}</pre>
+                class="bg-gray-100 p-2 rounded-sm text-sm overflow-x-auto">{configText}</pre>
             {:else}
               <p class="text-gray-600">
                 No config loaded. Click "Refresh Config" to load.
@@ -488,9 +501,7 @@ tunnels:
 
   <!-- Modal Overlay (only shown if showConfirmModal is true) -->
   {#if showConfirmModal}
-    <div
-      class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-40"
-    ></div>
+    <div class="fixed inset-0 bg-gray-500/75 z-40"></div>
 
     <!-- Modal Content -->
     <div
@@ -500,7 +511,7 @@ tunnels:
       aria-modal="true"
     >
       <div
-        class="bg-white rounded-lg shadow-xl transform transition-all sm:w-full sm:max-w-lg"
+        class="bg-white rounded-lg shadow-xl transform sm:w-full sm:max-w-lg"
       >
         <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
           <h3
@@ -518,7 +529,7 @@ tunnels:
             type="button"
             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm
                    px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700
-                   sm:ml-3 sm:w-auto sm:text-sm transition"
+                   sm:ml-3 sm:w-auto sm:text-sm"
             on:click={confirmAction}
           >
             Confirm
@@ -527,7 +538,7 @@ tunnels:
             type="button"
             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm
                    px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-100
-                   sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition"
+                   sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
             on:click={closeModal}
           >
             Cancel
