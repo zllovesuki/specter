@@ -57,3 +57,44 @@ func TestStorageLocker(t *testing.T) {
 	err = s.Unlock(ctx, testLockKey)
 	as.NoError(err)
 }
+
+func TestStorageLockerRenewLockLease(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+	kv := new(mocks.VNode)
+	defer kv.AssertExpectations(t)
+
+	s, err := NewChordStorage(logger, kv, StorageConfig{
+		RetryInterval: time.Millisecond * 100,
+		LeaseTTL:      time.Hour,
+	})
+	as.NoError(err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	acquireCall := kv.On("Acquire", mock.Anything, mock.MatchedBy(func(name []byte) bool {
+		return bytes.Equal(name, []byte(kvKeyName(testLockKey)))
+	}), mock.MatchedBy(func(ttl time.Duration) bool {
+		return ttl == time.Hour
+	})).Return(testLockToken, nil).Once()
+
+	renewCall := kv.On("Renew", mock.Anything, mock.MatchedBy(func(name []byte) bool {
+		return bytes.Equal(name, []byte(kvKeyName(testLockKey)))
+	}), mock.MatchedBy(func(ttl time.Duration) bool {
+		return ttl == time.Hour
+	}), testLockToken).Return(testLockToken, nil).NotBefore(acquireCall).Once()
+
+	kv.On("Release", mock.Anything, mock.MatchedBy(func(name []byte) bool {
+		return bytes.Equal(name, []byte(kvKeyName(testLockKey)))
+	}), testLockToken).Return(nil).NotBefore(renewCall)
+
+	err = s.Lock(ctx, testLockKey)
+	as.NoError(err)
+
+	err = s.RenewLockLease(ctx, testLockKey, time.Hour)
+	as.NoError(err)
+
+	err = s.Unlock(ctx, testLockKey)
+	as.NoError(err)
+}

@@ -144,9 +144,7 @@ vet:
 
 full_test: test extended_test long_test concurrency_test
 
-integration_test: certs integration_dep_up run_integration integration_dep_down
-
-coverage: integration_dep_up run_coverage integration_dep_down
+integration_test: certs run_integration
 
 test:
 	go test -short -cover -count=1 -timeout 60s ./...
@@ -162,19 +160,11 @@ concurrency_test:
 	go test -timeout $(TIMEOUT) -run ^TestConcurrentJoin -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
 	go test -timeout $(TIMEOUT) -run ^TestConcurrentLeave -count=$(COUNT) -parallel=$$(expr $$(nproc) - 1) ./chord/...
 
-run_coverage:
+coverage:
 	GO_INTEGRATION_ACME=1 go test -timeout $(TIMEOUT) -coverprofile=cover.out -covermode=count ./...
 
 run_integration:
 	GO_INTEGRATION_ACME=1 GO_INTEGRATION_TUNNEL=1 go test -timeout $(TIMEOUT) -race -v -count=1 -run ^TestIntegration ./...
-
-integration_dep_up:
-	docker compose -f compose-integration.yaml up -d
-
-integration_dep_down:
-	docker compose -f compose-integration.yaml down
-	docker compose -f compose-integration.yaml stop
-	docker compose -f compose-integration.yaml rm
 
 clean:
 	-rm bin/*

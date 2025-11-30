@@ -56,19 +56,7 @@ func (c *ChordStorage) Lock(ctx context.Context, key string) error {
 			<-time.After(c.pollInterval)
 			continue
 		case nil:
-			c.Logger.Debug("Lease acquired", zap.String("key", key), zap.Uint64("lease", token))
-
-			leaseCtx, leaseCancel := context.WithCancel(context.Background())
-			h := &leaseHolder{
-				token:    token,
-				ctx:      leaseCtx,
-				cancelFn: leaseCancel,
-			}
-			h.Add(1)
-			c.leaseToken.Store(key, h)
-			go c.renewLease(key, h)
-
-			return nil
+			return c.startLeaseRenewal(key, token)
 		default:
 			c.Logger.Error("Error acquiring lease", zap.String("key", key), zap.Error(err))
 			return err
@@ -87,16 +75,46 @@ func (c *ChordStorage) renewLease(key string, l *leaseHolder) {
 		case <-l.ctx.Done():
 			return
 		case <-ticker.C:
-			prev := atomic.LoadUint64(&l.token)
-			next, err := c.KV.Renew(context.Background(), []byte(kvKeyName(key)), c.leaseTTL, prev)
-			if err != nil {
+			if err := c.renewLeaseOnce(context.Background(), key, l); err != nil {
 				c.Logger.Error("failed to renew lease", zap.String("lease", key), zap.Error(err))
 				return
 			}
-			c.Logger.Debug("Lease renewal", zap.String("key", key), zap.Uint64("newToken", next))
-			atomic.StoreUint64(&l.token, next)
 		}
 	}
+}
+
+func (c *ChordStorage) startLeaseRenewal(key string, token uint64) error {
+	leaseCtx, leaseCancel := context.WithCancel(context.Background())
+	h := &leaseHolder{
+		token:    token,
+		ctx:      leaseCtx,
+		cancelFn: leaseCancel,
+	}
+	h.Add(1)
+	c.leaseToken.Store(key, h)
+	go c.renewLease(key, h)
+
+	c.Logger.Debug("Lease acquired", zap.String("key", key), zap.Uint64("lease", token))
+	return nil
+}
+
+func (c *ChordStorage) renewLeaseOnce(ctx context.Context, key string, l *leaseHolder) error {
+	prev := atomic.LoadUint64(&l.token)
+	next, err := c.KV.Renew(ctx, []byte(kvKeyName(key)), c.leaseTTL, prev)
+	if err != nil {
+		return err
+	}
+	c.Logger.Debug("Lease renewal", zap.String("key", key), zap.Uint64("newToken", next))
+	atomic.StoreUint64(&l.token, next)
+	return nil
+}
+
+func (c *ChordStorage) RenewLockLease(ctx context.Context, key string, leaseDuration time.Duration) error {
+	lease, ok := c.leaseToken.Load(key)
+	if !ok {
+		return fmt.Errorf("not a lease holder of key %s", key)
+	}
+	return c.renewLeaseOnce(ctx, key, lease)
 }
 
 func (c *ChordStorage) Unlock(ctx context.Context, key string) error {
@@ -220,3 +238,4 @@ type leaseHolder struct {
 }
 
 var _ certmagic.Storage = (*ChordStorage)(nil)
+var _ certmagic.LockLeaseRenewer = (*ChordStorage)(nil)

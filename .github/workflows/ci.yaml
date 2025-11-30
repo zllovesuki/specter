@@ -36,11 +36,6 @@ jobs:
     name: Run Integration Tests
     needs: testing
     runs-on: ubuntu-latest
-    services:
-      dind:
-        image: docker:23.0.6-dind-rootless
-        ports:
-          - 2375:2375
     steps:
       - uses: actions/checkout@v4
 
@@ -56,11 +51,6 @@ jobs:
     name: Run Full Test Suite
     needs: [testing, integration]
     runs-on: ubuntu-latest
-    services:
-      dind:
-        image: docker:28.0.1-dind-rootless
-        ports:
-          - 2375:2375
     steps:
       - uses: actions/checkout@v4
 

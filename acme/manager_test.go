@@ -1,17 +1,15 @@
 package acme
 
 import (
-	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 
@@ -30,10 +28,6 @@ import (
 var (
 	_, b, _, _ = runtime.Caller(0)
 	basepath   = filepath.Dir(b)
-)
-
-const (
-	devAcme = "https://localhost:14001/dir"
 )
 
 type handshakeHook struct {
@@ -67,14 +61,12 @@ func validateCert(as *require.Assertions, port int, serverName string) {
 		}
 		cs := conn.ConnectionState()
 		for _, cert := range cs.PeerCertificates {
-			for _, name := range cert.DNSNames {
-				if name == serverName {
-					return true
-				}
+			if slices.Contains(cert.DNSNames, serverName) {
+				return true
 			}
 		}
 		return false
-	}, time.Second, time.Second*15)
+	}, time.Second, time.Second*30)
 	as.NoError(err)
 }
 
@@ -85,31 +77,11 @@ func TestIntegrationACME(t *testing.T) {
 
 	as := require.New(t)
 	logger := zaptest.NewLogger(t)
+	ctx := t.Context()
 
-	devPath := path.Join(basepath, "..", "dev", "pebble")
-	devCa, err := os.ReadFile(path.Join(devPath, "certs", "cert.pem"))
-	as.NoError(err)
-	devTrustedRoots := x509.NewCertPool()
-	devTrustedRoots.AppendCertsFromPEM(devCa)
-
-	testcond.WaitForCondition(func() bool {
-		tp := http.DefaultTransport.(*http.Transport).Clone()
-		tp.TLSClientConfig = &tls.Config{
-			RootCAs: devTrustedRoots,
-		}
-		client := &http.Client{
-			Transport: tp,
-		}
-		req, err := http.NewRequest("GET", devAcme, nil)
-		if err != nil {
-			return false
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return false
-		}
-		return resp.StatusCode == http.StatusOK
-	}, time.Second, time.Second*15)
+	// Start Pebble ACME server in a container
+	pebbleEnv := StartPebble(t)
+	defer pebbleEnv.Stop(ctx)
 
 	// test hook
 	hook := new(handshakeHook)
@@ -119,9 +91,6 @@ func TestIntegrationACME(t *testing.T) {
 	hook.On("onHandshake", testDynamicDomain)
 
 	// test manager
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	kv := memory.WithHashFn(chord.Hash)
 
 	solver := &ChordSolver{
@@ -135,8 +104,8 @@ func TestIntegrationACME(t *testing.T) {
 		Email:            testEmail,
 		DNSSolver:        solver,
 		ManagedDomains:   []string{testManagedDomain},
-		CA:               devAcme,
-		testTrustedRoots: devTrustedRoots,
+		CA:               pebbleEnv.ACMEURL,
+		testTrustedRoots: pebbleEnv.TrustedRoots,
 	})
 	as.NoError(err)
 

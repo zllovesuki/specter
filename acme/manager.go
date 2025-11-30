@@ -129,7 +129,7 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 func (m *Manager) check(ctx context.Context, name string) error {
 	m.dynamicConfig.Logger.Debug("Dynamic certificate request", zap.String("name", name))
 
-	callCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	callCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	_, err := tun.FindCustomHostname(callCtx, m.KV, name)
