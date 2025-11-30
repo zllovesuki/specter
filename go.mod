@@ -13,6 +13,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/getsentry/sentry-go v0.40.0
 	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/httprate v0.15.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jedib0t/go-pretty/v6 v6.7.5
 	github.com/libp2p/go-buffer-pool v0.1.0
@@ -46,7 +47,6 @@ require (
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.1
-	kon.nect.sh/httprate v0.7.3
 	moul.io/zapfilter v1.7.0
 	moul.io/zapgorm2 v1.3.0
 )

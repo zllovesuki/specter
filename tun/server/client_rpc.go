@@ -19,10 +19,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
 	"github.com/sethvargo/go-diceware/diceware"
 	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
-	"kon.nect.sh/httprate"
 )
 
 var generator, _ = diceware.NewGenerator(nil)

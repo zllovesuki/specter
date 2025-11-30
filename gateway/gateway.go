@@ -20,12 +20,12 @@ import (
 	"go.miragespace.co/specter/util/acceptor"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 	"github.com/libp2p/go-yamux/v4"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"kon.nect.sh/httprate"
 	"moul.io/zapfilter"
 )
 
