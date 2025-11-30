@@ -41,8 +41,9 @@ type Config struct {
 }
 
 type Server struct {
-	rpcAcceptor *acceptor.HTTP2Acceptor
-	routeCache  *theine.LoadingCache[string, routesResult]
+	rpcAcceptor  *acceptor.HTTP2Acceptor
+	routeCache   *theine.LoadingCache[string, routesResult]
+	keylessCache *theine.LoadingCache[string, keylessCertResult]
 	Config
 }
 
@@ -55,6 +56,7 @@ func New(cfg Config) *Server {
 		rpcAcceptor: acceptor.NewH2Acceptor(nil),
 	}
 	s.initRouteCache()
+	s.initKeylessCache()
 	return s
 }
 
@@ -99,6 +101,7 @@ func (s *Server) MustRegister(ctx context.Context) {
 
 func (s *Server) Stop() {
 	defer s.routeCache.Close()
+	defer s.keylessCache.Close()
 
 	s.rpcAcceptor.Close()
 

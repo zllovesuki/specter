@@ -8,7 +8,6 @@ import (
 
 	"go.miragespace.co/specter/spec/acme"
 	"go.miragespace.co/specter/spec/protocol"
-	"go.miragespace.co/specter/spec/rpc"
 
 	"github.com/twitchtv/twirp"
 )
@@ -33,15 +32,15 @@ func (s *Server) getCertificate(ctx context.Context, proof *protocol.ProofOfWork
 		return nil, twirp.PermissionDenied.Error("cannot use provided hostname for keyless tls")
 	}
 
-	delegation := rpc.GetDelegation(ctx)
-	if delegation == nil {
-		return nil, twirp.Internal.Error("delegation missing in context")
+	ret, cacheErr := s.keylessCache.Get(ctx, normalized)
+	if ret.err != nil {
+		return nil, ret.err
+	}
+	if cacheErr != nil {
+		return nil, cacheErr
 	}
 
-	return s.CertProvider.GetCertificateWithContext(ctx, &tls.ClientHelloInfo{
-		ServerName: hostname,
-		Conn:       delegation,
-	})
+	return ret.cert, nil
 }
 
 func (s *Server) GetCertificate(ctx context.Context, req *protocol.KeylessGetCertificateRequest) (*protocol.KeylessGetCertificateResponse, error) {

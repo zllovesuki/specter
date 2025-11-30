@@ -138,6 +138,128 @@ func TestKeylessGetCertificate(t *testing.T) {
 	resolver.AssertExpectations(t)
 }
 
+func TestKeylessGetCertificateUsesCache(t *testing.T) {
+	as := require.New(t)
+
+	resolver := new(mocks.Resolver)
+	certProvider := new(mocks.CertProvider)
+
+	logger, node, _, _, serv := getFixture(t, as, withResolver(resolver))
+	cli, _, _ := getIdentities()
+
+	serv.Config.CertProvider = certProvider
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	hostname := "external.example.com"
+	token := &protocol.ClientToken{
+		Token: mustGenerateToken(),
+	}
+	cli.Address = string(token.GetToken())
+
+	clientBuf, err := cli.MarshalVT()
+	as.NoError(err)
+
+	bundle := &protocol.CustomHostname{
+		ClientIdentity: cli,
+		ClientToken:    token,
+	}
+
+	bundleBuf, err := bundle.MarshalVT()
+	as.NoError(err)
+
+	certProvider.On("GetCertificateWithContext",
+		mock.Anything,
+		mock.MatchedBy(func(chi *tls.ClientHelloInfo) bool {
+			return chi.ServerName == hostname
+		}),
+	).Return(&tls.Certificate{
+		Certificate: [][]byte{
+			[]byte("123"),
+		},
+	}, nil).Once()
+
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.CustomHostnameKey(hostname)))
+		}),
+	).Return(bundleBuf, nil)
+	node.On("Get",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
+		}),
+	).Return(clientBuf, nil)
+	node.On("Put",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.CustomHostnameKey(hostname)))
+		}),
+		mock.Anything,
+	).Return(nil).Once()
+	node.On("PrefixAppend",
+		mock.Anything,
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(tun.ClientHostnamesPrefix(token)))
+		}),
+		mock.MatchedBy(func(key []byte) bool {
+			return bytes.Equal(key, []byte(hostname))
+		}),
+	).Return(nil).Once()
+
+	tp := mocks.SelfTransport()
+	streamRouter := transport.NewStreamRouter(logger, nil, tp)
+	go streamRouter.Accept(ctx)
+
+	serv.AttachRouter(ctx, streamRouter)
+
+	cRPC := rpc.DynamicTunnelClient(rpc.DisablePooling(ctx), tp)
+
+	privKey := make(ed25519.PrivateKey, ed25519.PrivateKeySize)
+	tp.WithCertificate(toCertificate(as, logger, cli, token, withExtractPrivKey(privKey)))
+
+	proof, err := pow.GenerateSolution(privKey, pow.Parameters{
+		Difficulty: acme.HashcashDifficulty,
+		Expires:    acme.HashcashExpires,
+		GetSubject: func(pubKey ed25519.PublicKey) string {
+			return hostname
+		},
+	})
+	as.NoError(err)
+
+	resp, err := cRPC.AcmeValidate(rpc.WithNode(ctx, cli), &protocol.ValidateRequest{
+		Proof:    proof,
+		Hostname: hostname,
+	})
+
+	as.NoError(err)
+	as.NotNil(resp)
+	as.Equal(testRootDomain, resp.GetApex())
+
+	first, err := cRPC.GetCertificate(rpc.WithNode(ctx, cli), &protocol.KeylessGetCertificateRequest{
+		Proof:    proof,
+		Hostname: hostname,
+	})
+	as.NoError(err)
+	as.NotNil(first)
+	as.Equal([]byte("123"), first.GetCertificates()[0])
+
+	second, err := cRPC.GetCertificate(rpc.WithNode(ctx, cli), &protocol.KeylessGetCertificateRequest{
+		Proof:    proof,
+		Hostname: hostname,
+	})
+	as.NoError(err)
+	as.NotNil(second)
+	as.Equal([]byte("123"), second.GetCertificates()[0])
+
+	certProvider.AssertNumberOfCalls(t, "GetCertificateWithContext", 1)
+
+	node.AssertExpectations(t)
+	resolver.AssertExpectations(t)
+}
+
 func TestKeylessSign(t *testing.T) {
 	as := require.New(t)
 

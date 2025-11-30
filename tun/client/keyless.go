@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	cacheTotalCost = 1 << 20
-	positiveTTL    = time.Second * 30
+	cacheTotalCost = 1 << 21 // 2MiB
+	positiveTTL    = time.Second * 60
 	failedTTL      = time.Second * 10
 )
 

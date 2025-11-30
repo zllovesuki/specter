@@ -21,17 +21,17 @@ type routesResult struct {
 }
 
 const (
-	cacheBytes  = 1 << 20 // 1MiB
-	positiveTTL = time.Minute * 5
-	negativeTTL = time.Second * 15
-	failedTTL   = time.Second * 5
+	routeCacheBytes  = 1 << 20 // 1MiB
+	routePositiveTTL = time.Minute * 5
+	routeNegativeTTL = time.Second * 15
+	routeFailedTTL   = time.Second * 5
 )
 
 func (s *Server) initRouteCache() {
-	routeCache, err := theine.NewBuilder[string, routesResult](cacheBytes).
+	routeCache, err := theine.NewBuilder[string, routesResult](routeCacheBytes).
 		// configure loader to fetch routes on miss
 		// TODO: make routing selection more intelligent with rtt
-		BuildWithLoader(s.cacheLoader)
+		BuildWithLoader(s.routeCacheLoader)
 
 	if err != nil {
 		panic("BUG: " + err.Error())
@@ -44,7 +44,7 @@ func (s *Server) RoutesPreload(hostname string) {
 	s.routeCache.Get(s.ParentContext, hostname)
 }
 
-func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.Loaded[routesResult], loadErr error) {
+func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret theine.Loaded[routesResult], loadErr error) {
 	start := time.Now()
 	defer func() {
 		s.Logger.Debug("Route cache loader invoked",
@@ -99,15 +99,15 @@ func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.L
 
 	if numLookup == numNotFound {
 		ret.Value.err = tun.ErrDestinationNotFound
-		ret.TTL = negativeTTL // cache negative result with shorter ttl
-		ret.Cost = 8          // use a (1 pointer) cost for negative result
+		ret.TTL = routeNegativeTTL // cache negative result with shorter ttl
+		ret.Cost = 8               // use a (1 pointer) cost for negative result
 		return
 	}
 
 	if numLookup == numError {
 		ret.Value.err = tun.ErrLookupFailed
-		ret.TTL = failedTTL // also cache failed result with an even shorter ttl
-		ret.Cost = 16       // use a (2 pointers) cost for failed result
+		ret.TTL = routeFailedTTL // also cache failed result with an even shorter ttl
+		ret.Cost = 16            // use a (2 pointers) cost for failed result
 		return
 	}
 
@@ -131,7 +131,7 @@ func (s *Server) cacheLoader(ctx context.Context, hostname string) (ret theine.L
 
 	// now we can store the routes on a longer ttl
 	ret.Value.routes = filtered
-	ret.TTL = positiveTTL
+	ret.TTL = routePositiveTTL
 	// cost is added atomically during lookup
 
 	return
