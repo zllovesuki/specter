@@ -7,7 +7,7 @@ COPY . .
 
 RUN make ui
 
-FROM golang:1.25.0-bullseye AS app-builder
+FROM golang:1.25.4-bullseye AS app-builder
 RUN apt install ca-certificates gcc
 WORKDIR /app
 COPY . .
