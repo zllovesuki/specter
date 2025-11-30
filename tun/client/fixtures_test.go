@@ -34,18 +34,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	testHostname = "abcd"
-	testApex     = "specter.dev"
-)
-
-func TestMain(m *testing.M) {
-	checkInterval = time.Millisecond * 200
-	rttInterval = time.Millisecond * 250
-	certCheckInterval = time.Millisecond * 100 // Shortened for testing background renewal
-	m.Run()
-}
-
 func setupRPC(ctx context.Context,
 	logger *zap.Logger,
 	s protocol.TunnelService,
