@@ -17,6 +17,7 @@ import (
 )
 
 func (c *Client) bootstrap(ctx context.Context, apex string) error {
+	c.Logger.Info("Bootstraping connection to specter server", zap.String("addr", apex))
 	return c.openRPC(ctx, &protocol.Node{
 		Address: apex,
 	})
