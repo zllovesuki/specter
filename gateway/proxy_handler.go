@@ -58,7 +58,7 @@ func (g *Gateway) httpConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	status := protocol.TunnelStatus{}
-	err = rpc.Receive(remote, &status)
+	err = rpc.BoundedReceive(remote, &status, 1024)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		remote.Close()

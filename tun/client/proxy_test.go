@@ -262,7 +262,7 @@ func TestPipeTCP(t *testing.T) {
 	}))
 
 	status := &protocol.TunnelStatus{}
-	rpc.Receive(conn, status)
+	rpc.BoundedReceive(conn, status, 1024)
 	as.Equal(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
 	buf := make([]byte, 2)

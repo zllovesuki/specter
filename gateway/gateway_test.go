@@ -542,7 +542,7 @@ func TestH2TCPNotFound(t *testing.T) {
 	status := &protocol.TunnelStatus{}
 	err = rpc.Send(stream, status)
 	as.NoError(err)
-	err = rpc.Receive(stream, status)
+	err = rpc.BoundedReceive(stream, status, 1024)
 	as.NoError(err)
 	as.NotEqual(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
@@ -575,7 +575,7 @@ func TestH3TCPNotFound(t *testing.T) {
 	status := &protocol.TunnelStatus{}
 	err = rpc.Send(b, status)
 	as.NoError(err)
-	err = rpc.Receive(b, status)
+	err = rpc.BoundedReceive(b, status, 1024)
 	as.NoError(err)
 	as.NotEqual(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
@@ -608,7 +608,7 @@ func TestTCPNotConnected(t *testing.T) {
 	status := &protocol.TunnelStatus{}
 	err = rpc.Send(b, status)
 	as.NoError(err)
-	err = rpc.Receive(b, status)
+	err = rpc.BoundedReceive(b, status, 1024)
 	as.NoError(err)
 	as.Equal(protocol.TunnelStatusCode_NO_DIRECT, status.GetStatus())
 
@@ -663,7 +663,7 @@ func TestH2TCPFound(t *testing.T) {
 	status := &protocol.TunnelStatus{}
 	err = rpc.Send(stream, status)
 	as.NoError(err)
-	err = rpc.Receive(stream, status)
+	err = rpc.BoundedReceive(stream, status, 1024)
 	as.NoError(err)
 	as.Equal(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 
@@ -722,7 +722,7 @@ func TestH3TCPFound(t *testing.T) {
 	status := &protocol.TunnelStatus{}
 	err = rpc.Send(stream, status)
 	as.NoError(err)
-	err = rpc.Receive(stream, status)
+	err = rpc.BoundedReceive(stream, status, 1024)
 	as.NoError(err)
 	as.Equal(protocol.TunnelStatusCode_STATUS_OK, status.GetStatus())
 

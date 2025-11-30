@@ -141,7 +141,7 @@ func (c *Client) Start(ctx context.Context) {
 	streamRouter := transport.NewStreamRouter(c.Logger, nil, c.ServerTransport)
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
 		link := &protocol.Link{}
-		if err := rpc.Receive(delegation, link); err != nil {
+		if err := rpc.BoundedReceive(delegation, link, 1024); err != nil {
 			c.Logger.Error("Receiving link information from gateway", zap.Error(err))
 			delegation.Close()
 			return

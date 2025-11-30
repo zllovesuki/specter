@@ -154,7 +154,7 @@ func TestLookupSuccessDirect(t *testing.T) {
 	c1, c2 := bufconn.BufferedPipe(8192)
 	go func() {
 		l := &protocol.Link{}
-		err := rpc.Receive(c2, l)
+		err := rpc.BoundedReceive(c2, l, 1024)
 		as.NoError(err)
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
@@ -206,7 +206,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 	go func() {
 		// the remote node should receive the bundle
 		bundle := &protocol.TunnelRoute{}
-		err := rpc.Receive(c2, bundle)
+		err := rpc.BoundedReceive(c2, bundle, 2048)
 		as.NoError(err)
 
 		// remote node need to send feedback
@@ -214,7 +214,7 @@ func TestLookupSuccessRemote(t *testing.T) {
 
 		// then receive the link information
 		l := &protocol.Link{}
-		err = rpc.Receive(c2, l)
+		err = rpc.BoundedReceive(c2, l, 1024)
 		as.NoError(err)
 		as.Equal(link.GetAlpn(), l.GetAlpn())
 		as.Equal(link.GetHostname(), l.GetHostname())
@@ -298,7 +298,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 
 		// getConn should check the status
 		x := &protocol.TunnelStatus{}
-		err = rpc.Receive(c2, x)
+		err = rpc.BoundedReceive(c2, x, 1024)
 		as.NoError(err)
 		as.Equal(protocol.TunnelStatusCode_STATUS_OK, x.GetStatus())
 

@@ -22,7 +22,7 @@ func statusExchange(rw io.ReadWriter) (*protocol.TunnelStatus, error) {
 		return nil, fmt.Errorf("error sending status check: %w", err)
 	}
 	status.Reset()
-	err = rpc.Receive(rw, status)
+	err = rpc.BoundedReceive(rw, status, 1024)
 	if err != nil {
 		return nil, fmt.Errorf("error receiving checking status: %w", err)
 	}

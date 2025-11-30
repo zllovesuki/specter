@@ -125,7 +125,7 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	}()
 
 	route := &protocol.TunnelRoute{}
-	err = rpc.Receive(delegation, route)
+	err = rpc.BoundedReceive(delegation, route, 2048)
 	if err != nil {
 		s.Logger.Error("Error receiving remote tunnel negotiation", zap.Error(err))
 		return
@@ -180,7 +180,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.
 		}
 		status := &protocol.TunnelStatus{}
 		conn.SetReadDeadline(time.Now().Add(time.Second * 3))
-		if err := rpc.Receive(conn, status); err != nil {
+		if err := rpc.BoundedReceive(conn, status, 1024); err != nil {
 			l.Error("Error receiving remote tunnel status", zap.Error(err))
 			return nil, err
 		}
