@@ -11,7 +11,7 @@ PROTOC_VTPROTO=`which protoc-gen-go-vtproto`
 COUNT=3
 GOARM=7
 GOAMD64=v3
-GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks'
+GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks' -trimpath
 LDFLAGS=-ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/spec.BuildVersion=$(BUILD) -X go.miragespace.co/specter/spec.BuildTime=$(BUILT_TIME)"
 TIMEOUT=180s
 
