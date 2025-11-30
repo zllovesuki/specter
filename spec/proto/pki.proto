@@ -8,10 +8,16 @@ import "spec/proto/pow.proto";
 
 service PKIService {
     rpc RequestCertificate(CertificateRequest) returns (CertificateResponse);
+    rpc RenewCertificate(CertificateRenewalRequest) returns (CertificateResponse);
 }
 
 message CertificateRequest {
     ProofOfWork proof = 1;
+}
+
+message CertificateRenewalRequest {
+    ProofOfWork proof = 1;
+    bytes current_cert_der = 2;
 }
 
 message CertificateResponse {

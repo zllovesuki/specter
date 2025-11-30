@@ -18,11 +18,18 @@ import (
 const (
 	HashcashDifficulty int           = 18
 	HashcashExpires    time.Duration = time.Second * 10
+
+	// DefaultCertValidity is the default validity duration for client certificates.
+	DefaultCertValidity time.Duration = time.Hour * 24 * 365 * 5 // 5 years
 )
 
 type IdentityRequest struct {
 	PublicKey []byte
 	Subject   pkix.Name
+
+	// ValidFor specifies the certificate validity duration.
+	// If zero, defaults to DefaultCertValidity.
+	ValidFor time.Duration
 }
 
 func GenerateCertificate(logger *zap.Logger, ca tls.Certificate, req IdentityRequest) (derBytes []byte, err error) {
@@ -43,11 +50,18 @@ func GenerateCertificate(logger *zap.Logger, ca tls.Certificate, req IdentityReq
 		return
 	}
 
+	now := time.Now()
+	validFor := DefaultCertValidity
+	if req.ValidFor > 0 {
+		validFor = req.ValidFor
+	}
+	notAfter := now.Add(validFor)
+
 	cert := &x509.Certificate{
 		SerialNumber:          sn,
 		Subject:               req.Subject,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(5, 0, 0),
+		NotBefore:             now,
+		NotAfter:              notAfter,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,

@@ -65,6 +65,58 @@ func (x *CertificateRequest) GetProof() *ProofOfWork {
 	return nil
 }
 
+type CertificateRenewalRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Proof          *ProofOfWork           `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
+	CurrentCertDer []byte                 `protobuf:"bytes,2,opt,name=current_cert_der,json=currentCertDer,proto3" json:"current_cert_der,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CertificateRenewalRequest) Reset() {
+	*x = CertificateRenewalRequest{}
+	mi := &file_spec_proto_pki_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CertificateRenewalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CertificateRenewalRequest) ProtoMessage() {}
+
+func (x *CertificateRenewalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_spec_proto_pki_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CertificateRenewalRequest.ProtoReflect.Descriptor instead.
+func (*CertificateRenewalRequest) Descriptor() ([]byte, []int) {
+	return file_spec_proto_pki_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CertificateRenewalRequest) GetProof() *ProofOfWork {
+	if x != nil {
+		return x.Proof
+	}
+	return nil
+}
+
+func (x *CertificateRenewalRequest) GetCurrentCertDer() []byte {
+	if x != nil {
+		return x.CurrentCertDer
+	}
+	return nil
+}
+
 type CertificateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CertDer       []byte                 `protobuf:"bytes,1,opt,name=cert_der,json=certDer,proto3" json:"cert_der,omitempty"`
@@ -75,7 +127,7 @@ type CertificateResponse struct {
 
 func (x *CertificateResponse) Reset() {
 	*x = CertificateResponse{}
-	mi := &file_spec_proto_pki_proto_msgTypes[1]
+	mi := &file_spec_proto_pki_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +139,7 @@ func (x *CertificateResponse) String() string {
 func (*CertificateResponse) ProtoMessage() {}
 
 func (x *CertificateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_spec_proto_pki_proto_msgTypes[1]
+	mi := &file_spec_proto_pki_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +152,7 @@ func (x *CertificateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateResponse.ProtoReflect.Descriptor instead.
 func (*CertificateResponse) Descriptor() ([]byte, []int) {
-	return file_spec_proto_pki_proto_rawDescGZIP(), []int{1}
+	return file_spec_proto_pki_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CertificateResponse) GetCertDer() []byte {
@@ -123,13 +175,17 @@ const file_spec_proto_pki_proto_rawDesc = "" +
 	"\n" +
 	"\x14spec/proto/pki.proto\x12\bprotocol\x1a\x14spec/proto/pow.proto\"A\n" +
 	"\x12CertificateRequest\x12+\n" +
-	"\x05proof\x18\x01 \x01(\v2\x15.protocol.ProofOfWorkR\x05proof\"K\n" +
+	"\x05proof\x18\x01 \x01(\v2\x15.protocol.ProofOfWorkR\x05proof\"r\n" +
+	"\x19CertificateRenewalRequest\x12+\n" +
+	"\x05proof\x18\x01 \x01(\v2\x15.protocol.ProofOfWorkR\x05proof\x12(\n" +
+	"\x10current_cert_der\x18\x02 \x01(\fR\x0ecurrentCertDer\"K\n" +
 	"\x13CertificateResponse\x12\x19\n" +
 	"\bcert_der\x18\x01 \x01(\fR\acertDer\x12\x19\n" +
-	"\bcert_pem\x18\x02 \x01(\fR\acertPem2_\n" +
+	"\bcert_pem\x18\x02 \x01(\fR\acertPem2\xb7\x01\n" +
 	"\n" +
 	"PKIService\x12Q\n" +
-	"\x12RequestCertificate\x12\x1c.protocol.CertificateRequest\x1a\x1d.protocol.CertificateResponseB+H\x01Z'go.miragespace.co/specter/spec/protocolb\x06proto3"
+	"\x12RequestCertificate\x12\x1c.protocol.CertificateRequest\x1a\x1d.protocol.CertificateResponse\x12V\n" +
+	"\x10RenewCertificate\x12#.protocol.CertificateRenewalRequest\x1a\x1d.protocol.CertificateResponseB+H\x01Z'go.miragespace.co/specter/spec/protocolb\x06proto3"
 
 var (
 	file_spec_proto_pki_proto_rawDescOnce sync.Once
@@ -143,21 +199,25 @@ func file_spec_proto_pki_proto_rawDescGZIP() []byte {
 	return file_spec_proto_pki_proto_rawDescData
 }
 
-var file_spec_proto_pki_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_spec_proto_pki_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_spec_proto_pki_proto_goTypes = []any{
-	(*CertificateRequest)(nil),  // 0: protocol.CertificateRequest
-	(*CertificateResponse)(nil), // 1: protocol.CertificateResponse
-	(*ProofOfWork)(nil),         // 2: protocol.ProofOfWork
+	(*CertificateRequest)(nil),        // 0: protocol.CertificateRequest
+	(*CertificateRenewalRequest)(nil), // 1: protocol.CertificateRenewalRequest
+	(*CertificateResponse)(nil),       // 2: protocol.CertificateResponse
+	(*ProofOfWork)(nil),               // 3: protocol.ProofOfWork
 }
 var file_spec_proto_pki_proto_depIdxs = []int32{
-	2, // 0: protocol.CertificateRequest.proof:type_name -> protocol.ProofOfWork
-	0, // 1: protocol.PKIService.RequestCertificate:input_type -> protocol.CertificateRequest
-	1, // 2: protocol.PKIService.RequestCertificate:output_type -> protocol.CertificateResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: protocol.CertificateRequest.proof:type_name -> protocol.ProofOfWork
+	3, // 1: protocol.CertificateRenewalRequest.proof:type_name -> protocol.ProofOfWork
+	0, // 2: protocol.PKIService.RequestCertificate:input_type -> protocol.CertificateRequest
+	1, // 3: protocol.PKIService.RenewCertificate:input_type -> protocol.CertificateRenewalRequest
+	2, // 4: protocol.PKIService.RequestCertificate:output_type -> protocol.CertificateResponse
+	2, // 5: protocol.PKIService.RenewCertificate:output_type -> protocol.CertificateResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_spec_proto_pki_proto_init() }
@@ -172,7 +232,7 @@ func file_spec_proto_pki_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_spec_proto_pki_proto_rawDesc), len(file_spec_proto_pki_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

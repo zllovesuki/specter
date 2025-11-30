@@ -42,6 +42,7 @@ const (
 func TestMain(m *testing.M) {
 	checkInterval = time.Millisecond * 200
 	rttInterval = time.Millisecond * 250
+	certCheckInterval = time.Millisecond * 100 // Shortened for testing background renewal
 	m.Run()
 }
 
@@ -254,24 +255,30 @@ func setupClient(
 }
 
 func makeCertificate(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken, privKey ed25519.PrivateKey) (certDer []byte, certPem, keyPem string) {
+	return makeCertificateWithExpiry(as, logger, client, token, privKey, time.Hour*24*180)
+}
+
+// makeCertificateWithExpiry creates a certificate that expires in the given duration.
+// Use a short duration (e.g., time.Hour) to create a certificate within the renewal window for testing.
+func makeCertificateWithExpiry(as *require.Assertions, logger *zap.Logger, client *protocol.Node, token *protocol.ClientToken, privKey ed25519.PrivateKey, expiresIn time.Duration) (certDer []byte, certPem, keyPem string) {
 	// generate a CA
 	caPubKey, caPrivKey, err := ed25519.GenerateKey(rand.Reader)
 	as.NoError(err)
 
-	template := x509.Certificate{
+	caTemplate := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
 			Organization: []string{"dev"},
 		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(time.Hour * 24 * 180),
-
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365), // CA valid for 1 year
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
+		IsCA:                  true,
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, caPubKey, caPrivKey)
+	caBytes, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, caPubKey, caPrivKey)
 	as.NoError(err)
 
 	var (
@@ -287,12 +294,16 @@ func makeCertificate(as *require.Assertions, logger *zap.Logger, client *protoco
 		as.NoError(err)
 	}
 
-	der, err := pki.GenerateCertificate(logger, tls.Certificate{
-		Certificate: [][]byte{derBytes},
+	// Create client certificate with custom expiry using pki.GenerateCertificate
+	caTLS := tls.Certificate{
+		Certificate: [][]byte{caBytes},
 		PrivateKey:  caPrivKey,
-	}, pki.IdentityRequest{
-		Subject:   pki.MakeSubjectV2(client.GetId(), token.GetToken()),
+	}
+
+	der, err := pki.GenerateCertificate(logger, caTLS, pki.IdentityRequest{
 		PublicKey: certPubKey,
+		Subject:   pki.MakeSubjectV2(client.GetId(), token.GetToken()),
+		ValidFor:  expiresIn,
 	})
 	as.NoError(err)
 

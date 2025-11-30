@@ -23,8 +23,9 @@ const (
 )
 
 type Identity struct {
-	Token []byte
-	ID    uint64
+	Token   []byte
+	ID      uint64
+	Version TokenVersion
 }
 
 func (n *Identity) NodeIdentity() *protocol.Node {
@@ -66,13 +67,15 @@ func ExtractCertificateIdentity(cert *x509.Certificate) (*Identity, error) {
 	switch parts[0] {
 	case string(TokenV1):
 		return &Identity{
-			ID:    util.Must(strconv.ParseUint(parts[1], 10, 64)),
-			Token: []byte(parts[2]),
+			ID:      util.Must(strconv.ParseUint(parts[1], 10, 64)),
+			Token:   []byte(parts[2]),
+			Version: TokenV1,
 		}, nil
 	case string(TokenV2):
 		return &Identity{
-			ID:    util.Must(strconv.ParseUint(parts[1], 10, 64)),
-			Token: []byte(cn),
+			ID:      util.Must(strconv.ParseUint(parts[1], 10, 64)),
+			Token:   []byte(cn),
+			Version: TokenV2,
 		}, nil
 	default:
 		return nil, errors.New("pki: unknown subject in certificate")
@@ -84,5 +87,6 @@ var _ zapcore.ObjectMarshaler = (*Identity)(nil)
 func (n *Identity) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddUint64("id", n.ID)
 	enc.AddString("token", string(n.Token))
+	enc.AddString("version", string(n.Version))
 	return nil
 }

@@ -92,6 +92,58 @@ func TestGenerateCertificate(t *testing.T) {
 	as.Error(err)
 }
 
+func TestGenerateCertificate_CustomValidity(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	as := require.New(t)
+	pubKey, _ := GeneratePrivKey()
+
+	ca := generateCA(as)
+
+	customValidity := time.Hour * 2
+
+	der, err := GenerateCertificate(logger, ca, IdentityRequest{
+		PublicKey: pubKey,
+		Subject: pkix.Name{
+			CommonName: "custom-validity-test",
+		},
+		ValidFor: customValidity,
+	})
+	as.NoError(err)
+
+	cert, err := x509.ParseCertificate(der)
+	as.NoError(err)
+
+	// Verify the certificate validity is approximately the custom duration
+	// Allow 1 minute tolerance for test execution time
+	actualValidity := cert.NotAfter.Sub(cert.NotBefore)
+	as.InDelta(customValidity.Seconds(), actualValidity.Seconds(), 60)
+}
+
+func TestGenerateCertificate_DefaultValidity(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	as := require.New(t)
+	pubKey, _ := GeneratePrivKey()
+
+	ca := generateCA(as)
+
+	der, err := GenerateCertificate(logger, ca, IdentityRequest{
+		PublicKey: pubKey,
+		Subject: pkix.Name{
+			CommonName: "default-validity-test",
+		},
+		// ValidFor not set, should default to DefaultCertValidity
+	})
+	as.NoError(err)
+
+	cert, err := x509.ParseCertificate(der)
+	as.NoError(err)
+
+	// Verify the certificate validity matches the default constant
+	actualValidity := cert.NotAfter.Sub(cert.NotBefore)
+	// Allow 1 minute tolerance for test execution time
+	as.InDelta(DefaultCertValidity.Seconds(), actualValidity.Seconds(), 60)
+}
+
 func TestPrivateKey(t *testing.T) {
 	as := require.New(t)
 	pubKey, keyPem := GeneratePrivKey()
