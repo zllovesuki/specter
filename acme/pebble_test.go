@@ -101,8 +101,10 @@ func StartPebble(t *testing.T) *pebbleEnv {
 		),
 		testcontainers.WithExposedPorts(acmePort, mgmtPort),
 		testcontainers.WithEnv(map[string]string{
-			"PEBBLE_VA_NOSLEEP":      "1",
+			"PEBBLE_VA_NOSLEEP": "1",
+			// reduce test flakes due to certmagic waiting at least 1 minute before retrying
 			"PEBBLE_VA_ALWAYS_VALID": "1",
+			"PEBBLE_WFE_NONCEREJECT": "0",
 		}),
 		testcontainers.WithCmd("-config", "/pebble/config.json"),
 		testcontainers.WithWaitStrategy(
