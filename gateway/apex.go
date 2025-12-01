@@ -2,10 +2,8 @@ package gateway
 
 import (
 	_ "embed"
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"text/template"
 
 	"go.miragespace.co/specter/spec/protocol"
@@ -16,12 +14,14 @@ import (
 )
 
 const bodyLimit = 1 << 10 // 1kb
-
 //go:embed index.html
 var index string
 
 //go:embed quic.png
 var quicPng []byte
+
+//go:embed endpoints.md
+var endpointsDoc string
 
 var view = template.Must(template.New("index").Parse(index))
 
@@ -91,17 +91,9 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		r.Mount("/debug", middleware.Profiler())
 
 		// catch-all helper
-		routes := make([]string, 0)
-		chi.Walk(r, func(method, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-			if method == http.MethodGet {
-				routes = append(routes, fmt.Sprintf("%s %s", method, route))
-			}
-			return nil
-		})
-		routesStr := []byte(strings.Join(routes, "\n"))
 		r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(routesStr)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write([]byte(endpointsDoc))
 		})
 	})
 }
