@@ -24,6 +24,29 @@ tunnels:
     proxyHeaderHost: blah.com
 `
 
+const bareHeader = `version: 2
+apex: dev.specter.dev:1234
+tunnels:
+  - target: tcp://127.0.0.1:1234
+    hostname: tcp.dev.specter.dev
+    headerTimeout: 45s
+    headerHost: header.com
+    headerMode: hostname
+`
+
+const bareMixedHeaders = `version: 2
+apex: dev.specter.dev:1234
+tunnels:
+  - target: tcp://127.0.0.1:1234
+    hostname: tcp.dev.specter.dev
+    proxyHeaderTimeout: 60s
+    proxyHeaderHost: old.com
+    proxyHeaderMode: target
+    headerTimeout: 30s
+    headerHost: new.com
+    headerMode: hostname
+`
+
 const testPrivateKey = `MC4CAQAwBQYDK2VwBCIEIFXA98L8HvJQxzyqYosZxyaX/G1vfJ4TeSP0E+N0FIfj`
 const registered = `version: 2
 apex: dev.specter.dev:1234
@@ -73,6 +96,44 @@ func TestConfig(t *testing.T) {
 	as.True(ok)
 	as.Equal(time.Second*60, route.proxyHeaderReadTimeout)
 	as.Equal("blah.com", route.proxyHeaderHost)
+
+	// new header* names only
+	headerFile, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(headerFile.Name())
+
+	_, err = headerFile.WriteString(bareHeader)
+	as.NoError(err)
+	as.NoError(headerFile.Close())
+
+	headerCfg, err := NewConfig(headerFile.Name())
+	as.NoError(err)
+	headerCfg.buildRouter()
+	as.Equal(1, headerCfg.router.Len())
+	route, ok = headerCfg.router.Load("tcp.dev.specter.dev")
+	as.True(ok)
+	as.Equal(time.Second*45, route.proxyHeaderReadTimeout)
+	as.Equal("header.com", route.proxyHeaderHost)
+
+	// mixed legacy and new names: new should win
+	mixedFile, err := os.CreateTemp("", "client")
+	as.NoError(err)
+	defer os.Remove(mixedFile.Name())
+
+	_, err = mixedFile.WriteString(bareMixedHeaders)
+	as.NoError(err)
+	as.NoError(mixedFile.Close())
+
+	mixedCfg, err := NewConfig(mixedFile.Name())
+	as.NoError(err)
+	mixedCfg.buildRouter()
+	as.Equal(1, mixedCfg.router.Len())
+	route, ok = mixedCfg.router.Load("tcp.dev.specter.dev")
+	as.True(ok)
+	// headerTimeout 30s should override proxyHeaderTimeout 60s
+	as.Equal(time.Second*30, route.proxyHeaderReadTimeout)
+	// headerHost new.com should override proxyHeaderHost old.com
+	as.Equal("new.com", route.proxyHeaderHost)
 
 	regFile, err := os.CreateTemp("", "client")
 	as.NoError(err)
@@ -207,5 +268,43 @@ func TestV1Config(t *testing.T) {
 	as.NoError(v1File.Close())
 
 	_, err = NewConfig(v1File.Name())
+	as.Error(err)
+}
+
+func TestProxyHeaderModeValidation(t *testing.T) {
+	as := require.New(t)
+
+	// invalid mode
+	cfg := &Config{
+		Tunnels: []Tunnel{{
+			Target:          "http://127.0.0.1:8080",
+			ProxyHeaderMode: "invalid",
+		}},
+	}
+	err := cfg.validate()
+	as.Error(err)
+
+	// custom mode without host should fail
+	cfg = &Config{
+		Tunnels: []Tunnel{{
+			Target:          "http://127.0.0.1:8080",
+			ProxyHeaderMode: "custom",
+		}},
+	}
+	err = cfg.validate()
+	as.Error(err)
+
+	// target mode with pipe/unix targets should fail on all platforms
+	pipeTarget := "unix:///tmp/nginx.sock"
+	if runtime.GOOS == "windows" {
+		pipeTarget = `\\.\\pipe\\something`
+	}
+	cfg = &Config{
+		Tunnels: []Tunnel{{
+			Target:          pipeTarget,
+			ProxyHeaderMode: "target",
+		}},
+	}
+	err = cfg.validate()
 	as.Error(err)
 }

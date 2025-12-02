@@ -76,6 +76,11 @@ tunnels:
   # ...
 ```
 
+For a complete example including all supported options, see:
+
+- `tun/client/config.example.yaml` in this repository, or
+- run `specter client config-example` to print the same example to stdout.
+
 ### API
 
 To manage custom hostnames, unpublish, release, or list tunnels, the `specter client tunnel` subcommand accepts an optional argument to start a local API server.

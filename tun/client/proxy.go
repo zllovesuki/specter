@@ -107,6 +107,40 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 			}
 		}
 
+		// determine Host header behavior based on ProxyHeaderMode
+		mode := strings.ToLower(r.proxyHeaderMode)
+		root := c.rootDomain.Load()
+		fqdn := hostname
+		if !strings.Contains(fqdn, ".") && root != "" {
+			fqdn = fmt.Sprintf("%s.%s", fqdn, root)
+		}
+
+		hostHeader := u.Host
+		if isPipe {
+			hostHeader = "pipe"
+		}
+
+		switch mode {
+		case "":
+			// legacy behavior: optional override only
+			if len(r.proxyHeaderHost) > 0 {
+				hostHeader = r.proxyHeaderHost
+			}
+		case "hostname":
+			hostHeader = fqdn
+		case "target":
+			if !isPipe {
+				hostHeader = u.Host
+			} else {
+				// validate() should have prevented this; fall back to hostname for safety
+				hostHeader = fqdn
+			}
+		case "custom":
+			if len(r.proxyHeaderHost) > 0 {
+				hostHeader = r.proxyHeaderHost
+			}
+		}
+
 		proxy := httputil.NewSingleHostReverseProxy(u)
 		d := proxy.Director
 		// https://stackoverflow.com/a/53007606
@@ -114,16 +148,11 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 		proxy.Director = func(req *http.Request) {
 			d(req)
 			if isPipe {
-				req.Host = "pipe"
 				req.URL.Host = "pipe"
 				req.URL.Scheme = "http"
 				req.URL.Path = strings.ReplaceAll(req.URL.Path, u.Path, "")
-			} else {
-				req.Host = u.Host
 			}
-			if len(r.proxyHeaderHost) > 0 {
-				req.Host = r.proxyHeaderHost
-			}
+			req.Host = hostHeader
 		}
 		proxy.Transport = tp
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {

@@ -20,8 +20,38 @@ type Tunnel struct {
 	Target             string        `yaml:"target" json:"target"`
 	Hostname           string        `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	Insecure           bool          `yaml:"insecure,omitempty" json:"insecure"`
-	ProxyHeaderTimeout time.Duration `yaml:"proxyHeaderTimeout,omitempty" json:"proxyHeaderTimeout,omitempty"`
-	ProxyHeaderHost    string        `yaml:"proxyHeaderHost,omitempty" json:"proxyHeaderHost,omitempty"`
+	ProxyHeaderTimeout time.Duration `yaml:"headerTimeout,omitempty" json:"headerTimeout,omitempty"`
+	ProxyHeaderHost    string        `yaml:"headerHost,omitempty" json:"headerHost,omitempty"`
+	ProxyHeaderMode    string        `yaml:"headerMode,omitempty" json:"headerMode,omitempty"`
+}
+
+func (t *Tunnel) UnmarshalYAML(value *yaml.Node) error {
+	type tunnelAlias Tunnel
+	var aux struct {
+		tunnelAlias `yaml:",inline"`
+		// legacy names for backward compatibility
+		OldHeaderTimeout time.Duration `yaml:"proxyHeaderTimeout,omitempty"`
+		OldHeaderHost    string        `yaml:"proxyHeaderHost,omitempty"`
+		OldHeaderMode    string        `yaml:"proxyHeaderMode,omitempty"`
+	}
+	if err := value.Decode(&aux); err != nil {
+		return err
+	}
+	*t = Tunnel(aux.tunnelAlias)
+
+	// If new header* fields are not set, fall back to legacy proxyHeader* values.
+	// This ensures configs using header* take precedence when both are present.
+	if aux.OldHeaderTimeout != 0 && t.ProxyHeaderTimeout == 0 {
+		t.ProxyHeaderTimeout = aux.OldHeaderTimeout
+	}
+	if aux.OldHeaderHost != "" && t.ProxyHeaderHost == "" {
+		t.ProxyHeaderHost = aux.OldHeaderHost
+	}
+	if aux.OldHeaderMode != "" && t.ProxyHeaderMode == "" {
+		t.ProxyHeaderMode = aux.OldHeaderMode
+	}
+
+	return nil
 }
 
 type Config struct {
@@ -39,6 +69,7 @@ type route struct {
 	insecure               bool
 	proxyHeaderReadTimeout time.Duration
 	proxyHeaderHost        string
+	proxyHeaderMode        string
 }
 
 func NewConfig(path string) (*Config, error) {
@@ -80,6 +111,7 @@ func (c *Config) buildRouter(drop ...Tunnel) {
 			insecure:               tunnel.Insecure,
 			proxyHeaderReadTimeout: tunnel.ProxyHeaderTimeout,
 			proxyHeaderHost:        tunnel.ProxyHeaderHost,
+			proxyHeaderMode:        tunnel.ProxyHeaderMode,
 		})
 	}
 }
@@ -115,6 +147,20 @@ func (c *Config) validate() error {
 			if runtime.GOOS == "windows" {
 				return errors.New("unix socket is not supported on non-Unix platform")
 			}
+		}
+
+		switch tunnel.ProxyHeaderMode {
+		case "", "target", "hostname", "custom":
+		default:
+			return fmt.Errorf("unsupported proxyHeaderMode %q", tunnel.ProxyHeaderMode)
+		}
+
+		if tunnel.ProxyHeaderMode == "custom" && tunnel.ProxyHeaderHost == "" {
+			return fmt.Errorf("proxyHeaderMode 'custom' requires proxyHeaderHost to be set")
+		}
+
+		if (u.Scheme == "unix" || u.Scheme == "winio") && tunnel.ProxyHeaderMode == "target" {
+			return fmt.Errorf("proxyHeaderMode 'target' is not valid for pipe targets; use 'hostname' or 'custom'")
 		}
 		c.Tunnels[i].parsed = u
 	}

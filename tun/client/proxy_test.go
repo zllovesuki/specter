@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"runtime"
 	"testing"
@@ -20,6 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/zhangyunhao116/skipmap"
+	"go.uber.org/atomic"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -270,4 +272,116 @@ func TestPipeTCP(t *testing.T) {
 	as.NoError(err)
 	as.Equal(2, n)
 	as.Equal("hi", string(buf))
+}
+
+func TestHTTPProxyHostHeaderDefault(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s", r.Host)
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	as.NoError(err)
+
+	c := &Client{
+		ClientConfig: ClientConfig{
+			Logger: logger,
+		},
+		rootDomain: atomic.NewString(testApex),
+		proxies:    skipmap.NewString[*httpProxy](),
+	}
+
+	r := route{
+		parsed: u,
+	}
+
+	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+
+	req := httptest.NewRequest("GET", "http://example/", nil)
+	rr := httptest.NewRecorder()
+	hp.forwarder.Handler.ServeHTTP(rr, req)
+	resp := rr.Result()
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+	as.Equal(u.Host, string(body))
+}
+
+func TestHTTPProxyHostHeaderHostnameMode(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s", r.Host)
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	as.NoError(err)
+
+	c := &Client{
+		ClientConfig: ClientConfig{
+			Logger: logger,
+		},
+		rootDomain: atomic.NewString(testApex),
+		proxies:    skipmap.NewString[*httpProxy](),
+	}
+
+	r := route{
+		parsed:          u,
+		proxyHeaderMode: "hostname",
+	}
+
+	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+
+	req := httptest.NewRequest("GET", "http://example/", nil)
+	rr := httptest.NewRecorder()
+	hp.forwarder.Handler.ServeHTTP(rr, req)
+	resp := rr.Result()
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+	as.Equal(fmt.Sprintf("%s.%s", testHostname, testApex), string(body))
+}
+
+func TestHTTPProxyHostHeaderCustomMode(t *testing.T) {
+	as := require.New(t)
+	logger := zaptest.NewLogger(t)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s", r.Host)
+	}))
+	defer ts.Close()
+
+	u, err := url.Parse(ts.URL)
+	as.NoError(err)
+
+	c := &Client{
+		ClientConfig: ClientConfig{
+			Logger: logger,
+		},
+		rootDomain: atomic.NewString(testApex),
+		proxies:    skipmap.NewString[*httpProxy](),
+	}
+
+	customHost := "custom.example.com"
+	r := route{
+		parsed:          u,
+		proxyHeaderMode: "custom",
+		proxyHeaderHost: customHost,
+	}
+
+	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+
+	req := httptest.NewRequest("GET", "http://example/", nil)
+	rr := httptest.NewRecorder()
+	hp.forwarder.Handler.ServeHTTP(rr, req)
+	resp := rr.Result()
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	as.NoError(err)
+	as.Equal(customHost, string(body))
 }

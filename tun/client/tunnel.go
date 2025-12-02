@@ -230,7 +230,11 @@ func diffTunnels(old, new []Tunnel) []Tunnel {
 	// if new != old
 	for hostname, tunnel := range newMap {
 		oldTunnel, ok := oldMap[hostname]
-		if ok && (oldTunnel.Target != tunnel.Target || oldTunnel.Insecure != tunnel.Insecure) {
+		if ok && (oldTunnel.Target != tunnel.Target ||
+			oldTunnel.Insecure != tunnel.Insecure ||
+			oldTunnel.ProxyHeaderTimeout != tunnel.ProxyHeaderTimeout ||
+			oldTunnel.ProxyHeaderHost != tunnel.ProxyHeaderHost ||
+			oldTunnel.ProxyHeaderMode != tunnel.ProxyHeaderMode) {
 			diff = append(diff, oldTunnel)
 		}
 	}

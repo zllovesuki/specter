@@ -51,6 +51,12 @@ func Generate() *cli.Command {
 				Action: cmdTunnel,
 			},
 			{
+				Name:      "config-example",
+				ArgsUsage: " ",
+				Usage:     "Print an example client configuration in YAML format",
+				Action:    cmdConfigExample,
+			},
+			{
 				Name:      "connect",
 				ArgsUsage: "[hostname of the tunnel]",
 				Usage:     "Connect to target via stdin/stdout, usually for connecting to TCP endpoint",

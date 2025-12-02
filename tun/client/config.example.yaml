@@ -1,0 +1,92 @@
+# Example Specter client configuration
+#
+# Copy this file to something like client.yaml and tweak it for your own
+# machine. In most cases you only need to:
+#   1) point `apex` at your Specter server, and
+#   2) add or edit entries under `tunnels`.
+
+# Config format version. Always use 2.
+version: 2
+
+# Address of the Specter server you connect to (host:port).
+# You usually get this from whoever runs the Specter server.
+# Examples:
+#   specter.im:443
+#   gateway.your-domain.com:443
+apex: specter.im:443
+
+# After the first successful run of `specter client tunnel`, Specter will
+# write your client certificate and private key into this file.
+# Leave these commented out when starting from this example.
+#
+# certificate: |
+#   -----BEGIN CERTIFICATE-----
+#   ...
+#   -----END CERTIFICATE-----
+#
+# privKey: |
+#   -----BEGIN PRIVATE KEY-----
+#   ...
+#   -----END PRIVATE KEY-----
+
+# Each item under `tunnels` exposes one local service to the outside world.
+# Hostnames are usually either generated for you, or a custom domain you own
+# that you have validated via ACME.
+#
+# Minimum you need:
+#   - target   : where traffic should go
+#                (http://, https://, tcp://, unix://, or \\.\pipe\... )
+#   - hostname : optional
+#       * leave empty to have Specter generate a random name under the default
+#         domain
+#       * or set to your own domain (for example app.example.com) after you've
+#         set up ACME / custom hostname
+#
+# Advanced HTTP options (you can usually ignore these):
+#   - insecure      : for https targets; skip TLS verification (useful in dev).
+#   - headerTimeout : how long to wait for upstream HTTP response headers
+#                     (for example 10s, 30s).
+#   - headerMode    : how to set the HTTP Host header:
+#       ""          : default; use target host:port unless headerHost is set.
+#       "hostname"  : use this tunnel's hostname (or hostname.apex).
+#       "custom"    : always use headerHost.
+#       "target"    : use target host:port (not valid for unix/pipe targets).
+#   - headerHost    : custom Host value used with headerMode "custom",
+#                     or to override the default Host when headerMode is empty.
+#
+# Unix sockets / Windows named pipes:
+#   - use target: unix:///path/to/socket or \\.\pipe\name
+#   - do not use headerMode: "target" for these; prefer "hostname" or "custom".
+
+tunnels:
+  # Local HTTP server; Specter will pick a random public hostname.
+  - target: http://127.0.0.1:8080
+    # hostname: ""          # leave out or empty to let Specter generate one
+    # headerMode: target    # send 127.0.0.1:8080 as the Host header
+    # headerTimeout: 15s    # wait up to 15s for upstream headers
+
+  # HTTP API reachable as api.<apex> (for example api.specter.im).
+  - target: http://127.0.0.1:9000
+    hostname: api
+    headerMode: hostname      # use api.<apex> as Host header
+
+  # HTTPS service with self-signed certificate (development only).
+  - target: https://127.0.0.1:9443
+    hostname: web
+    insecure: true            # skip TLS verification to this upstream
+    headerMode: hostname
+
+  # HTTP service behind a custom domain you've validated via ACME.
+  - target: http://127.0.0.1:3000
+    hostname: app.custom.example.com
+    headerMode: hostname
+
+  # HTTP service on a Unix socket with a custom Host header.
+  - target: unix:///var/run/app.sock
+    hostname: app-sock
+    headerMode: custom
+    headerHost: app.internal   # Host header sent to the upstream
+
+  # Raw TCP service (for example SSH). HTTP-only options do not apply.
+  - target: tcp://127.0.0.1:22
+    # hostname omitted => random name will be generated under the apex
