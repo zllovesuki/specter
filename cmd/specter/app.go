@@ -28,13 +28,6 @@ var (
 				Value: false,
 				Usage: "enable verbose logging",
 			},
-
-			&cli.BoolFlag{
-				Name:    "doh",
-				Hidden:  true,
-				Value:   true,
-				EnvVars: []string{"DOH"},
-			},
 		},
 		Commands: []*cli.Command{
 			dns.Generate(),
@@ -70,9 +63,6 @@ func ConfigLogger(ctx *cli.Context) error {
 
 func ConfigApp(ctx *cli.Context) error {
 	logger := ctx.App.Metadata["logger"].(*zap.Logger)
-	if errata.ConfigDNS(ctx.Bool("doh")) {
-		logger.Debug("errata: net.DefaultResolver configured with DoH dialer")
-	}
 	if errata.ConfigUDPRecvBuffer() {
 		logger.Debug("errata: net.core.rmem_max is set to 33554432 (32MiB)")
 	}

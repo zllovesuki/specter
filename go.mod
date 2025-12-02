@@ -21,7 +21,6 @@ require (
 	github.com/mholt/acmez/v3 v3.1.4
 	github.com/miekg/dns v1.1.68
 	github.com/montanaflynn/stats v0.7.1
-	github.com/ncruces/go-dns v1.2.7
 	github.com/ncruces/go-sqlite3 v0.30.2
 	github.com/ncruces/go-sqlite3/gormlite v0.30.2
 	github.com/pires/go-proxyproto v0.8.1
