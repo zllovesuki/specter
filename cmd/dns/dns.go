@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"go.miragespace.co/specter/acme"
+	cmdlisten "go.miragespace.co/specter/cmd/internal/listen"
 	acmeSpec "go.miragespace.co/specter/spec/acme"
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/protocol"
@@ -39,15 +40,17 @@ func Generate() *cli.Command {
 				Value:   fmt.Sprintf("%s:53", ip.String()),
 				Usage:   `Address and port to listen for incoming acme dns queries. This port will serve both TCP and UDP (unless overridden).`,
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for TCP",
+				Usage:       "Override the listen address and port for TCP (repeatable)",
+				EnvVars:     []string{"DNS_LISTEN_TCP"},
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+				Usage:       "Override the listen address and port for UDP (repeatable). Required if environment needs a specific address, such as on fly.io",
+				EnvVars:     []string{"DNS_LISTEN_UDP"},
 			},
 			&cli.StringFlag{
 				Name:     "rpc",
@@ -120,24 +123,18 @@ func cmdDNS(ctx *cli.Context) error {
 		return fmt.Errorf("unable to obtain logger from app context")
 	}
 
-	var (
-		listenTcp = ctx.String("listen-addr")
-		listenUdp = ctx.String("listen-addr")
-		err       error
+	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
+		ctx.String("listen-addr"),
+		ctx.StringSlice("listen-tcp"),
 	)
-
-	if ctx.IsSet("listen-tcp") {
-		listenTcp = ctx.String("listen-tcp")
-	}
-	_, _, err = net.SplitHostPort(listenTcp)
 	if err != nil {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
 	}
 
-	if ctx.IsSet("listen-udp") {
-		listenUdp = ctx.String("listen-udp")
-	}
-	_, _, err = net.SplitHostPort(listenUdp)
+	udpAddrs, err := cmdlisten.ParseAddresses("udp",
+		ctx.String("listen-addr"),
+		ctx.StringSlice("listen-udp"),
+	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
 	}
@@ -164,18 +161,6 @@ func cmdDNS(ctx *cli.Context) error {
 	listenCfg := &net.ListenConfig{
 		Control: reuse.Control,
 	}
-
-	dnsTcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listenTcp)
-	if err != nil {
-		return fmt.Errorf("error setting up dns tcp listener: %w", err)
-	}
-	defer dnsTcpListener.Close()
-
-	dnsUdpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listenUdp)
-	if err != nil {
-		return fmt.Errorf("error setting up dns udp listener: %w", err)
-	}
-	defer dnsUdpListener.Close()
 
 	dialer := &net.Dialer{}
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -207,33 +192,56 @@ func cmdDNS(ctx *cli.Context) error {
 	dnsMux.Handle(acmeDomain, acmeDNS)
 	dnsMux.Handle(".", dns.HandlerFunc(Chaos(ctx.App.Version)))
 
-	dnsTcpServer := &dns.Server{
-		Listener: dnsTcpListener,
-		Handler:  dnsMux,
-		NotifyStartedFunc: func() {
-			logger.Info("ACME DNS started", zap.String("proto", "tcp"), zap.String("listen", listenTcp))
-		},
+	var tcpServers []*dns.Server
+	for _, addr := range tcpAddrs {
+		ln, err := listenCfg.Listen(ctx.Context, addr.Network, addr.Address)
+		if err != nil {
+			return fmt.Errorf("error setting up dns tcp listener on %s: %w", addr.Address, err)
+		}
+		listenAddr := addr.Address
+		server := &dns.Server{
+			Listener: ln,
+			Handler:  dnsMux,
+			NotifyStartedFunc: func() {
+				logger.Info("ACME DNS started", zap.String("proto", "tcp"), zap.String("listen", listenAddr))
+			},
+		}
+		tcpServers = append(tcpServers, server)
+		go server.ActivateAndServe()
 	}
 
-	pconn := dnsUdpListener
-	if runtime.GOOS == "illumos" {
-		// needed to force net.PacketConn path instead of *net.UDPConn path
-		// because of dual stack not working on illumos
-		pconn = &squashed{PacketConn: dnsUdpListener}
-	}
-	dnsUdpServer := &dns.Server{
-		PacketConn: pconn,
-		Handler:    dnsMux,
-		NotifyStartedFunc: func() {
-			logger.Info("ACME DNS started", zap.String("proto", "udp"), zap.String("listen", listenUdp))
-		},
+	var udpServers []*dns.Server
+	for _, addr := range udpAddrs {
+		pconn, err := listenCfg.ListenPacket(ctx.Context, addr.Network, addr.Address)
+		if err != nil {
+			return fmt.Errorf("error setting up dns udp listener on %s: %w", addr.Address, err)
+		}
+		listenAddr := addr.Address
+		var packetConn net.PacketConn = pconn
+		if runtime.GOOS == "illumos" {
+			// needed to force net.PacketConn path instead of *net.UDPConn path
+			// because of dual stack not working on illumos
+			packetConn = &squashed{PacketConn: pconn}
+		}
+		server := &dns.Server{
+			PacketConn: packetConn,
+			Handler:    dnsMux,
+			NotifyStartedFunc: func() {
+				logger.Info("ACME DNS started", zap.String("proto", "udp"), zap.String("listen", listenAddr))
+			},
+		}
+		udpServers = append(udpServers, server)
+		go server.ActivateAndServe()
 	}
 
-	go dnsTcpServer.ActivateAndServe()
-	go dnsUdpServer.ActivateAndServe()
-
-	defer dnsTcpServer.Shutdown()
-	defer dnsUdpServer.Shutdown()
+	defer func() {
+		for _, srv := range tcpServers {
+			srv.Shutdown()
+		}
+		for _, srv := range udpServers {
+			srv.Shutdown()
+		}
+	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

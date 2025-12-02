@@ -1,7 +1,9 @@
 package overlay
 
 import (
+	"context"
 	"crypto/tls"
+	"net"
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rtt"
@@ -21,9 +23,13 @@ type nodeConnection struct {
 	version   string
 }
 
+type QuicDialer interface {
+	DialEarly(ctx context.Context, addr net.Addr, tlsConf *tls.Config, config *quic.Config) (*quic.Conn, error)
+}
+
 type TransportConfig struct {
 	Logger                 *zap.Logger
-	QuicTransport          *quic.Transport
+	QuicTransport          QuicDialer
 	Endpoint               *protocol.Node
 	ServerTLS              *tls.Config
 	ClientTLS              *tls.Config

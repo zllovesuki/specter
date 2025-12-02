@@ -17,6 +17,7 @@ import (
 
 	"go.miragespace.co/specter/acme"
 	chordImpl "go.miragespace.co/specter/chord"
+	cmdlisten "go.miragespace.co/specter/cmd/internal/listen"
 	"go.miragespace.co/specter/gateway"
 	"go.miragespace.co/specter/overlay"
 	"go.miragespace.co/specter/pki"
@@ -27,6 +28,7 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
 	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/spec/transport/q"
 	"go.miragespace.co/specter/spec/tun"
 	"go.miragespace.co/specter/timing"
 	"go.miragespace.co/specter/tun/server"
@@ -75,17 +77,19 @@ func Generate() *cli.Command {
 			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
 				Category: "Network Options",
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for TCP",
+				Usage:       "Override the listen address and port for TCP (repeatable)",
 				Category:    "Network Options",
+				EnvVars:     []string{"LISTEN_TCP"},
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
-				Usage:       "Override the listen address and port for UDP. Required if environment needs a specific address, such as on fly.io",
+				Usage:       "Override the listen address and port for UDP (repeatable). Required if environment needs a specific address, such as on fly.io",
 				Category:    "Network Options",
+				EnvVars:     []string{"LISTEN_UDP"},
 			},
 			&cli.BoolFlag{
 				Name:     "proxy-protocol",
@@ -456,27 +460,23 @@ func cmdServer(ctx *cli.Context) error {
 		defer logger.Sync()
 	}
 
-	var (
-		listenTcp = ctx.String("listen-addr")
-		listenUdp = ctx.String("listen-addr")
-		advertise = ctx.String("listen-addr")
+	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
+		ctx.String("listen-addr"),
+		ctx.StringSlice("listen-tcp"),
 	)
-
-	if ctx.IsSet("listen-tcp") {
-		listenTcp = ctx.String("listen-tcp")
-	}
-	tcpHost, _, err := net.SplitHostPort(listenTcp)
 	if err != nil {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
 	}
 
-	if ctx.IsSet("listen-udp") {
-		listenUdp = ctx.String("listen-udp")
-	}
-	_, _, err = net.SplitHostPort(listenUdp)
+	udpAddrs, err := cmdlisten.ParseAddresses("udp",
+		ctx.String("listen-addr"),
+		ctx.StringSlice("listen-udp"),
+	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
 	}
+
+	advertise := ctx.String("listen-addr")
 
 	if ctx.IsSet("advertise-addr") {
 		advertise = ctx.String("advertise-addr")
@@ -529,54 +529,99 @@ func cmdServer(ctx *cli.Context) error {
 		defer rpcListener.Close()
 	}
 
-	// TODO: implement SNI proxy so specter can share port with another webserver
-	tcpListener, err := listenCfg.Listen(ctx.Context, "tcp", listenTcp)
-	if err != nil {
-		return fmt.Errorf("error setting up gateway tcp listener: %w", err)
-	}
-	if ctx.Bool("proxy-protocol") {
-		tcpListener = &proxyproto.Listener{
-			Listener:          tcpListener,
-			ReadHeaderTimeout: time.Second * 3,
-			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
-				return proxyproto.REQUIRE, nil
-			},
-		}
-	}
-	defer tcpListener.Close()
-
-	udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", listenUdp)
-	if err != nil {
-		return fmt.Errorf("error setting up gateway udp listener: %w", err)
-	}
-	defer udpListener.Close()
-
-	var httpListener net.Listener
-	if advertisePort == 443 || ctx.IsSet("listen-http") {
-		httpListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:%d", tcpHost, ctx.Int("listen-http")))
+	tcpListeners := make([]net.Listener, 0, len(tcpAddrs))
+	for _, addr := range tcpAddrs {
+		l, err := listenCfg.Listen(ctx.Context, addr.Network, addr.Address)
 		if err != nil {
-			return fmt.Errorf("error setting up http listener: %w", err)
+			return fmt.Errorf("error setting up gateway tcp listener on %s: %w", addr.Address, err)
 		}
 		if ctx.Bool("proxy-protocol") {
-			httpListener = &proxyproto.Listener{
-				Listener:          httpListener,
+			l = &proxyproto.Listener{
+				Listener:          l,
 				ReadHeaderTimeout: time.Second * 3,
 				Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
 					return proxyproto.REQUIRE, nil
 				},
 			}
 		}
-		defer httpListener.Close()
+		tcpListeners = append(tcpListeners, l)
+	}
+	if len(tcpListeners) == 0 {
+		return fmt.Errorf("no tcp listeners configured")
 	}
 
-	qTr := &quic.Transport{Conn: udpListener}
-	defer qTr.Close()
-
-	alpnMux, err := overlay.NewMux(qTr)
-	if err != nil {
-		return fmt.Errorf("error setting up quic alpn muxer: %w", err)
+	// TODO: implement SNI proxy so specter can share port with another webserver
+	tcpListener := tcpListeners[0]
+	if len(tcpListeners) > 1 {
+		tcpListener = newMultiListener(tcpListeners)
 	}
-	defer alpnMux.Close()
+	defer tcpListener.Close()
+
+	udpBindings := make([]udpBinding, 0, len(udpAddrs))
+	for _, addr := range udpAddrs {
+		pconn, err := listenCfg.ListenPacket(ctx.Context, addr.Network, addr.Address)
+		if err != nil {
+			return fmt.Errorf("error setting up gateway udp listener on %s: %w", addr.Address, err)
+		}
+		tr := &quic.Transport{Conn: pconn}
+		udpBindings = append(udpBindings, udpBinding{
+			listen:     addr,
+			packetConn: pconn,
+			transport:  tr,
+		})
+	}
+	if len(udpBindings) == 0 {
+		return fmt.Errorf("no udp listeners configured")
+	}
+	for i := range udpBindings {
+		defer udpBindings[i].transport.Close()
+		defer udpBindings[i].packetConn.Close()
+	}
+
+	var httpListener net.Listener
+	if advertisePort == 443 || ctx.IsSet("listen-http") {
+		httpListeners := make([]net.Listener, 0, len(tcpAddrs))
+		seenHost := make(map[string]struct{}, len(tcpAddrs))
+		for _, addr := range tcpAddrs {
+			if _, ok := seenHost[addr.Host]; ok {
+				continue
+			}
+			seenHost[addr.Host] = struct{}{}
+			httpAddr := net.JoinHostPort(addr.Host, strconv.Itoa(ctx.Int("listen-http")))
+			l, err := listenCfg.Listen(ctx.Context, cmdlisten.NetworkForVersion("tcp", addr.Version), httpAddr)
+			if err != nil {
+				return fmt.Errorf("error setting up http listener on %s: %w", httpAddr, err)
+			}
+			if ctx.Bool("proxy-protocol") {
+				l = &proxyproto.Listener{
+					Listener:          l,
+					ReadHeaderTimeout: time.Second * 3,
+					Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+						return proxyproto.REQUIRE, nil
+					},
+				}
+			}
+			httpListeners = append(httpListeners, l)
+		}
+
+		if len(httpListeners) > 0 {
+			httpListener = httpListeners[0]
+			if len(httpListeners) > 1 {
+				httpListener = newMultiListener(httpListeners)
+			}
+			defer httpListener.Close()
+		}
+	}
+
+	alpnMuxes := make([]*overlay.ALPNMux, 0, len(udpBindings))
+	for _, binding := range udpBindings {
+		mux, err := overlay.NewMux(binding.transport)
+		if err != nil {
+			return fmt.Errorf("error setting up quic alpn muxer for %s: %w", binding.listen.Address, err)
+		}
+		alpnMuxes = append(alpnMuxes, mux)
+		defer mux.Close()
+	}
 
 	chordName := fmt.Sprintf("chord://%s", advertise)
 	tunnelName := fmt.Sprintf("tunnel://%s", advertise)
@@ -588,16 +633,21 @@ func cmdServer(ctx *cli.Context) error {
 	})
 
 	// handles specter-chord/1
-	chordListener := alpnMux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD))
+	chordListeners := make([]q.Listener, 0, len(alpnMuxes))
+	for _, mux := range alpnMuxes {
+		chordListeners = append(chordListeners, mux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD)))
+	}
+	chordListener := newMultiQuicListener(ctx.Context, chordListeners)
 	defer chordListener.Close()
 
 	chordRTT := rtt.NewInstrumentation(20)
+	dialer := newMultiDialer(udpBindings)
 	chordTransport := overlay.NewQUIC(overlay.TransportConfig{
 		Logger:           logger.With(zapsentry.NewScope()).With(zap.String("component", "chordTransport")),
 		VirtualTransport: true,
 		ClientTLS:        chordTLS,
 		RTTRecorder:      chordRTT,
-		QuicTransport:    qTr,
+		QuicTransport:    dialer,
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
@@ -611,6 +661,7 @@ func cmdServer(ctx *cli.Context) error {
 		Endpoint: &protocol.Node{
 			Address: advertise,
 		},
+		QuicTransport: dialer,
 	})
 	defer tunnelTransport.Stop()
 
@@ -671,7 +722,9 @@ func cmdServer(ctx *cli.Context) error {
 
 	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
 	go streamRouter.Accept(ctx.Context)
-	go alpnMux.Accept(ctx.Context)
+	for _, mux := range alpnMuxes {
+		go mux.Accept(ctx.Context)
+	}
 
 	if !ctx.IsSet("join") {
 		if err := rootNode.Create(); err != nil {
@@ -715,12 +768,20 @@ func cmdServer(ctx *cli.Context) error {
 	defer gwH2Listener.Close()
 
 	// handles h3, h3-29, and specter-tcp/1
-	gwH3Listener := alpnMux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...)
+	gwH3Listeners := make([]q.Listener, 0, len(alpnMuxes))
+	for _, mux := range alpnMuxes {
+		gwH3Listeners = append(gwH3Listeners, mux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...))
+	}
+	gwH3Listener := newMultiQuicListener(ctx.Context, gwH3Listeners)
 	defer gwH3Listener.Close()
 
 	// handles specter-client/1
 	clientTLSConf := cipher.GetClientTLSConfig(bundle.clientCa, certProvider.GetCertificate, []string{tun.ALPN(protocol.Link_SPECTER_CLIENT)})
-	clientListener := alpnMux.With(clientTLSConf, tun.ALPN(protocol.Link_SPECTER_CLIENT))
+	clientListeners := make([]q.Listener, 0, len(alpnMuxes))
+	for _, mux := range alpnMuxes {
+		clientListeners = append(clientListeners, mux.With(clientTLSConf, tun.ALPN(protocol.Link_SPECTER_CLIENT)))
+	}
+	clientListener := newMultiQuicListener(ctx.Context, clientListeners)
 	defer clientListener.Close()
 
 	tunnelIdentity := &protocol.Node{
