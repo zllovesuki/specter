@@ -12,7 +12,7 @@ Field notes for running the Specter server (edge/gateway) and the ACME DNS solve
 - Bring up more servers with `--join <seed-advertise-addr>` using the same CA bundle and `--apex` list.
 
 ## Addresses, listeners, and identity
-- `--listen-addr` supplies the default TCP+UDP bind; override per-protocol with repeatable `--listen-tcp` / `--listen-udp` (env: `LISTEN_TCP`, `LISTEN_UDP`). QUIC needs UDP reachability on the advertised port.
+- `--listen-addr` (repeatable or comma-separated env `LISTEN_ADDR`) supplies the shared TCP+UDP binds; override per-protocol with repeatable `--listen-tcp` / `--listen-udp` (env: `LISTEN_TCP`, `LISTEN_UDP`). QUIC needs UDP reachability on the advertised port.
 - `--advertise-addr` is the routable address clients dial and is hashed into the node identity; changing it effectively introduces a new node. Keep it stable across restarts.
 - HTTP/1.1 CONNECT + HTTPS redirect (`--listen-http`, default 80) only starts when the advertised port is 443 **or** `--listen-http` is explicitly set. Hostnames reuse the TCP listen hosts.
 - PROXY protocol is honored only on the TCP listeners when `--proxy-protocol` is set. QUIC/UDP has no PROXY support; your load balancer must pass the real UDP source or accept that the gateway sees the LB address.

@@ -29,20 +29,15 @@ type Address struct {
 }
 
 // ParseAddresses normalizes listen addresses and expands per-family networks.
-func ParseAddresses(proto, base string, overrides []string) ([]Address, error) {
-	addrs := []string{base}
-	if len(overrides) > 0 {
-		addrs = make([]string, 0, len(overrides))
-		for _, o := range overrides {
-			v := strings.TrimSpace(o)
-			if v == "" {
-				continue
-			}
-			addrs = append(addrs, v)
-		}
-		if len(addrs) == 0 {
-			addrs = []string{base}
-		}
+// baseAddrs is the shared list (e.g. listen-addr). If overrides are provided
+// and non-empty after trimming, they replace the base list.
+func ParseAddresses(proto string, baseAddrs []string, overrides []string) ([]Address, error) {
+	addrs := coalesceAddrs(baseAddrs)
+	if trimmed := coalesceAddrs(overrides); len(trimmed) > 0 {
+		addrs = trimmed
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no listen addresses provided for %s", proto)
 	}
 
 	seen := make(map[string]struct{}, len(addrs))
@@ -69,6 +64,19 @@ func ParseAddresses(proto, base string, overrides []string) ([]Address, error) {
 	}
 
 	return out, nil
+}
+
+// coalesceAddrs trims whitespace and drops empties.
+func coalesceAddrs(addrs []string) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		v := strings.TrimSpace(a)
+		if v == "" {
+			continue
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 func ClassifyIPVersion(host string) IPVersion {

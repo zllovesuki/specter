@@ -34,23 +34,24 @@ func Generate() *cli.Command {
 		Description: `Handle ACME DNS challenge`,
 		ArgsUsage:   " ",
 		Flags: []cli.Flag{
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
-				Value:   fmt.Sprintf("%s:53", ip.String()),
-				Usage:   `Address and port to listen for incoming acme dns queries. This port will serve both TCP and UDP (unless overridden).`,
+				Value:   cli.NewStringSlice(fmt.Sprintf("%s:53", ip.String())),
+				Usage:   `Repeatable address:port to listen for incoming acme dns queries. Each entry serves both TCP and UDP unless overridden.`,
+				EnvVars: []string{"LISTEN_ADDR"},
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for TCP (repeatable)",
-				EnvVars:     []string{"DNS_LISTEN_TCP"},
+				EnvVars:     []string{"LISTEN_TCP"},
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for UDP (repeatable). Required if environment needs a specific address, such as on fly.io",
-				EnvVars:     []string{"DNS_LISTEN_UDP"},
+				EnvVars:     []string{"LISTEN_UDP"},
 			},
 			&cli.StringFlag{
 				Name:     "rpc",
@@ -123,8 +124,9 @@ func cmdDNS(ctx *cli.Context) error {
 		return fmt.Errorf("unable to obtain logger from app context")
 	}
 
+	listenBase := ctx.StringSlice("listen-addr")
 	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
-		ctx.String("listen-addr"),
+		listenBase,
 		ctx.StringSlice("listen-tcp"),
 	)
 	if err != nil {
@@ -132,12 +134,29 @@ func cmdDNS(ctx *cli.Context) error {
 	}
 
 	udpAddrs, err := cmdlisten.ParseAddresses("udp",
-		ctx.String("listen-addr"),
+		listenBase,
 		ctx.StringSlice("listen-udp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
 	}
+
+	if len(listenBase) == 0 {
+		return fmt.Errorf("at least one listen-addr must be provided")
+	}
+
+	addrStrings := func(addrs []cmdlisten.Address) []string {
+		out := make([]string, 0, len(addrs))
+		for _, a := range addrs {
+			out = append(out, a.Address)
+		}
+		return out
+	}
+
+	logger.Info("acme dns listener configuration",
+		zap.Strings("tcp", addrStrings(tcpAddrs)),
+		zap.Strings("udp", addrStrings(udpAddrs)),
+	)
 
 	var (
 		dialNetwork string

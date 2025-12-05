@@ -69,13 +69,14 @@ func Generate() *cli.Command {
 			Note that specter will use advertised address to derive its Identity hash.`,
 				Category: "Network Options",
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
-				Value:   fmt.Sprintf("%s:443", ip.String()),
-				Usage: `Address and port to listen for specter server, specter client and gateway connections. This port will serve both TCP and UDP (unless overridden).
+				Value:   cli.NewStringSlice(fmt.Sprintf("%s:443", ip.String())),
+				Usage: `Repeatable address:port to listen for specter server, specter client and gateway connections. Each entry serves both TCP and UDP unless overridden.
 			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
 				Category: "Network Options",
+				EnvVars:  []string{"LISTEN_ADDR"},
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
@@ -460,8 +461,9 @@ func cmdServer(ctx *cli.Context) error {
 		defer logger.Sync()
 	}
 
+	listenBase := ctx.StringSlice("listen-addr")
 	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
-		ctx.String("listen-addr"),
+		listenBase,
 		ctx.StringSlice("listen-tcp"),
 	)
 	if err != nil {
@@ -469,14 +471,31 @@ func cmdServer(ctx *cli.Context) error {
 	}
 
 	udpAddrs, err := cmdlisten.ParseAddresses("udp",
-		ctx.String("listen-addr"),
+		listenBase,
 		ctx.StringSlice("listen-udp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
 	}
 
-	advertise := ctx.String("listen-addr")
+	addrStrings := func(addrs []cmdlisten.Address) []string {
+		out := make([]string, 0, len(addrs))
+		for _, a := range addrs {
+			out = append(out, a.Address)
+		}
+		return out
+	}
+
+	logger.Info("listener configuration",
+		zap.Strings("tcp", addrStrings(tcpAddrs)),
+		zap.Strings("udp", addrStrings(udpAddrs)),
+	)
+
+	if len(listenBase) == 0 {
+		return fmt.Errorf("at least one listen-addr must be provided")
+	}
+
+	advertise := listenBase[0]
 
 	if ctx.IsSet("advertise-addr") {
 		advertise = ctx.String("advertise-addr")

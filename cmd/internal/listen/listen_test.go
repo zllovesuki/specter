@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseAddressesUsesBaseWhenOverridesEmpty(t *testing.T) {
-	addrs, err := ParseAddresses("udp", "0.0.0.0:53", nil)
+	addrs, err := ParseAddresses("udp", []string{"0.0.0.0:53"}, nil)
 	require.NoError(t, err)
 	require.Len(t, addrs, 1)
 
@@ -20,7 +20,7 @@ func TestParseAddressesUsesBaseWhenOverridesEmpty(t *testing.T) {
 }
 
 func TestParseAddressesDedupAndTrims(t *testing.T) {
-	addrs, err := ParseAddresses("tcp", "127.0.0.1:80", []string{" 127.0.0.1:80 ", "[::1]:80", "127.0.0.1:80"})
+	addrs, err := ParseAddresses("tcp", []string{"127.0.0.1:80"}, []string{" 127.0.0.1:80 ", "[::1]:80", "127.0.0.1:80"})
 	require.NoError(t, err)
 	require.Len(t, addrs, 2)
 
@@ -33,16 +33,36 @@ func TestParseAddressesDedupAndTrims(t *testing.T) {
 	require.Equal(t, IPV6, addrs[1].Version)
 }
 
+func TestParseAddressesMultipleBase(t *testing.T) {
+	addrs, err := ParseAddresses("udp", []string{"0.0.0.0:53", "[::]:53"}, nil)
+	require.NoError(t, err)
+	require.Len(t, addrs, 2)
+	require.Equal(t, "udp4", addrs[0].Network)
+	require.Equal(t, "udp6", addrs[1].Network)
+}
+
+func TestParseAddressesOverridesReplaceBase(t *testing.T) {
+	addrs, err := ParseAddresses("tcp", []string{"0.0.0.0:80", "[::]:80"}, []string{"127.0.0.1:8080"})
+	require.NoError(t, err)
+	require.Len(t, addrs, 1)
+	require.Equal(t, "127.0.0.1:8080", addrs[0].Address)
+}
+
 func TestParseAddressesInvalid(t *testing.T) {
-	_, err := ParseAddresses("tcp", "127.0.0.1:80", []string{"missing-port"})
+	_, err := ParseAddresses("tcp", []string{"127.0.0.1:80"}, []string{"missing-port"})
 	require.Error(t, err)
 
 	require.Equal(t, IPAny, ClassifyIPVersion("example.com"))
 	require.Equal(t, IPV4, ClassifyIPVersion(net.IPv4(127, 0, 0, 1).String()))
 }
 
+func TestParseAddressesRejectsEmptyAfterTrim(t *testing.T) {
+	_, err := ParseAddresses("udp", []string{"   "}, nil)
+	require.Error(t, err)
+}
+
 func TestParseAddressesFlyGlobalServicesForcesIPv4(t *testing.T) {
-	addrs, err := ParseAddresses("udp", FlyGlobalServicesHost+":53", nil)
+	addrs, err := ParseAddresses("udp", []string{FlyGlobalServicesHost + ":53"}, nil)
 	require.NoError(t, err)
 	require.Len(t, addrs, 1)
 
@@ -53,6 +73,6 @@ func TestParseAddressesFlyGlobalServicesForcesIPv4(t *testing.T) {
 }
 
 func TestParseAddressesRejectsHostname(t *testing.T) {
-	_, err := ParseAddresses("tcp", "example.com:80", nil)
+	_, err := ParseAddresses("tcp", []string{"example.com:80"}, nil)
 	require.Error(t, err)
 }
