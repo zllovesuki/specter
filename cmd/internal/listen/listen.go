@@ -50,7 +50,7 @@ func ParseAddresses(proto string, baseAddrs []string, overrides []string) ([]Add
 		if err != nil {
 			return nil, err
 		}
-		if net.ParseIP(host) == nil && host != FlyGlobalServicesHost {
+		if host != "" && net.ParseIP(host) == nil && host != FlyGlobalServicesHost {
 			return nil, fmt.Errorf("listen host must be an IP address (got %q)", host)
 		}
 		seen[a] = struct{}{}

@@ -56,6 +56,18 @@ func TestParseAddressesInvalid(t *testing.T) {
 	require.Equal(t, IPV4, ClassifyIPVersion(net.IPv4(127, 0, 0, 1).String()))
 }
 
+func TestParseAddressesAllowsWildcardHost(t *testing.T) {
+	addrs, err := ParseAddresses("tcp", []string{":443"}, nil)
+	require.NoError(t, err)
+	require.Len(t, addrs, 1)
+
+	addr := addrs[0]
+	require.Equal(t, ":443", addr.Address)
+	require.Equal(t, "", addr.Host)
+	require.Equal(t, IPAny, addr.Version)
+	require.Equal(t, "tcp", addr.Network)
+}
+
 func TestParseAddressesRejectsEmptyAfterTrim(t *testing.T) {
 	_, err := ParseAddresses("udp", []string{"   "}, nil)
 	require.Error(t, err)
