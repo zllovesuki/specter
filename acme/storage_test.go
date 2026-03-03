@@ -2,7 +2,6 @@ package acme
 
 import (
 	"bytes"
-	"context"
 	"testing"
 	"time"
 
@@ -30,8 +29,7 @@ func TestStorageLocker(t *testing.T) {
 	})
 	as.NoError(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	acquireCall := kv.On("Acquire", mock.Anything, mock.MatchedBy(func(name []byte) bool {
 		return bytes.Equal(name, []byte(kvKeyName(testLockKey)))
@@ -70,8 +68,7 @@ func TestStorageLockerRenewLockLease(t *testing.T) {
 	})
 	as.NoError(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	acquireCall := kv.On("Acquire", mock.Anything, mock.MatchedBy(func(name []byte) bool {
 		return bytes.Equal(name, []byte(kvKeyName(testLockKey)))

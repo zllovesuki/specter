@@ -2,7 +2,6 @@ package acme
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net"
 	"testing"
@@ -39,8 +38,7 @@ func TestStaticQuery(t *testing.T) {
 	kv := new(mocks.VNode)
 	defer kv.AssertExpectations(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	h := NewDNS(ctx, logger, kv, testEmail, testDomain, map[string][]string{
 		testNSName: {testNSContentA, testNSContentAAAA},
@@ -104,8 +102,7 @@ func TestDynamicQuery(t *testing.T) {
 	kv := new(mocks.VNode)
 	defer kv.AssertExpectations(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	h := NewDNS(ctx, logger, kv, testEmail, testDomain, map[string][]string{
 		testNSName: {testNSContentA, testNSContentAAAA},

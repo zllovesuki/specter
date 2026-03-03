@@ -29,8 +29,7 @@ func TestRPC(t *testing.T) {
 
 	logger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller()))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	t1, t2 := mocks.PipeTransport()
 
@@ -135,8 +134,7 @@ func TestRemoteRPCContext(t *testing.T) {
 	key := []byte("key")
 	val := []byte("val")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	m := new(mocks.ChordClient)
 	m.On("Put", mock.MatchedBy(func(ctx context.Context) bool {

@@ -81,7 +81,7 @@ func (r *Rate) rate() float64 {
 	var num = min(len(r.samples), r.sampleCount.Load())
 	var now = time.Now()
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		if now.Sub(r.samples[i].stored) <= r.observe {
 			c += r.samples[i].count
 			d += r.samples[i].duration

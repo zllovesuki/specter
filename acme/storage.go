@@ -192,12 +192,12 @@ func (c *ChordStorage) List(ctx context.Context, prefix string, recursive bool) 
 				continue
 			}
 			sub := strings.TrimPrefix(string(key.GetKey()), prefix)
-			n := strings.Index(sub, "/")
+			before, _, ok := strings.Cut(sub, "/")
 
-			if n == -1 {
+			if !ok {
 				newKey = string(key.GetKey())
 			} else {
-				newKey = prefix + sub[:n]
+				newKey = prefix + before
 			}
 			newKey = strings.TrimPrefix(newKey, kvKeyPrefix)
 

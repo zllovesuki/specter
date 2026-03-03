@@ -32,7 +32,7 @@ func (s *SqliteKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 		// single statement compare-and-set was collaborated with OpenAI GPT o1
 		resp := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "owner"}},
-			DoUpdates: clause.Assignments(map[string]interface{}{
+			DoUpdates: clause.Assignments(map[string]any{
 				"token": next,
 			}),
 			Where: clause.Where{

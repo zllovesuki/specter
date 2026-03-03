@@ -54,7 +54,7 @@ func TestAllKeys(t *testing.T) {
 	value := make([]byte, 8)
 
 	num := 1000
-	for i := 0; i < num; i++ {
+	for range num {
 		rand.Read(key)
 		rand.Read(value)
 		err := kv.Put(context.Background(), key, value)
@@ -74,7 +74,7 @@ func TestOrderedKeys(t *testing.T) {
 	value := make([]byte, 8)
 
 	num := 1000
-	for i := 0; i < num; i++ {
+	for range num {
 		rand.Read(key)
 		rand.Read(value)
 		err := kv.Put(context.Background(), key, value)
@@ -223,7 +223,7 @@ func TestConcurrentOps(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		for _, key := range keys {
 			wg.Add(1)
 			go testOperations(ctx, key, i)

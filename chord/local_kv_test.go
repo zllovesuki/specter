@@ -25,7 +25,7 @@ func makeKV(as *require.Assertions, num int, length int) (keys [][]byte, values 
 	for i := range keys {
 		keys[i] = make([]byte, length)
 		values[i] = make([]byte, length)
-		l := copy(keys[i], []byte(fmt.Sprintf("key %d: ", i)))
+		l := copy(keys[i], fmt.Appendf(nil, "key %d: ", i))
 		_, err = rand.Read(keys[i][l:])
 		as.NoError(err)
 		_, err = rand.Read(values[i])
@@ -315,7 +315,6 @@ func TestConcurrentJoinKV(t *testing.T) {
 	}
 
 	for _, tc := range concurrentParams {
-		tc := tc
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
 			t.Parallel()
 			concurrentJoinKVOps(t, tc.numNodes, tc.numKeys)
@@ -391,7 +390,7 @@ func concurrentJoinKVOps(t *testing.T, numNodes, numKeys int) {
 
 	// can't use makeRing here as we need to manually control joining
 	nodes := make([]*LocalNode, numNodes)
-	for i := 0; i < numNodes; i++ {
+	for i := range numNodes {
 		node := NewLocalNode(devConfig(t, as))
 		nodes[i] = node
 	}
@@ -497,7 +496,6 @@ func TestConcurrentLeaveKV(t *testing.T) {
 	}
 
 	for _, tc := range concurrentParams {
-		tc := tc
 		t.Run(fmt.Sprintf("test with %d nodes and %d keys", tc.numNodes, tc.numKeys), func(t *testing.T) {
 			t.Parallel()
 			concurrentLeaveKVOps(t, tc.numNodes, tc.numKeys)

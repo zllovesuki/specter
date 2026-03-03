@@ -701,9 +701,9 @@ func cmdServer(ctx *cli.Context) error {
 
 	k := ctx.Int("virtual")
 	cacheDir := filepath.Join(ctx.String("data-dir"), "cache")
-	for i := 0; i < k; i++ {
+	for i := range k {
 		nodeIdentity := &protocol.Node{
-			Id:      chord.Hash([]byte(fmt.Sprintf("%s/%d", chordName, i))),
+			Id:      chord.Hash(fmt.Appendf(nil, "%s/%d", chordName, i)),
 			Address: advertise,
 		}
 		kvProvider, stopFn, err := getKVProvider(

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -35,8 +34,7 @@ func TestKeylessSign(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),

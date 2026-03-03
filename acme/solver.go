@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	acmeSpec "go.miragespace.co/specter/spec/acme"
 	"go.miragespace.co/specter/spec/chord"
@@ -20,12 +21,7 @@ type ChordSolver struct {
 var _ acmez.Solver = (*ChordSolver)(nil)
 
 func (s *ChordSolver) isManaged(zone string) bool {
-	for _, d := range s.ManagedDomains {
-		if zone == d {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.ManagedDomains, zone)
 }
 
 func (s *ChordSolver) getSubdomain(ctx context.Context, zone string) (string, error) {

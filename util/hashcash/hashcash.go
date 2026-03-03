@@ -220,7 +220,7 @@ func verifyBits(hash []byte, bits, n int) bool {
 		return true
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if bits > 8 {
 			bits -= 8
 			if 0 != hash[i] {

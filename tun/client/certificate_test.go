@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"os"
@@ -27,8 +26,7 @@ func TestRegister_PerformsRenewalWhenNearExpiry(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),
@@ -127,8 +125,7 @@ func TestCertificateMaintainer_RenewsInBackground(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"crypto/ed25519"
 	"fmt"
 	"io"
@@ -32,8 +31,7 @@ func TestAcmeInstruction(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),
@@ -117,8 +115,7 @@ func TestAcmeValidation(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),

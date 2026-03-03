@@ -141,18 +141,19 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 			}
 		}
 
-		proxy := httputil.NewSingleHostReverseProxy(u)
-		d := proxy.Director
-		// https://stackoverflow.com/a/53007606
-		// need to overwrite Host field
-		proxy.Director = func(req *http.Request) {
-			d(req)
+		proxy := &httputil.ReverseProxy{}
+		proxy.Rewrite = func(preq *httputil.ProxyRequest) {
 			if isPipe {
-				req.URL.Host = "pipe"
-				req.URL.Scheme = "http"
-				req.URL.Path = strings.ReplaceAll(req.URL.Path, u.Path, "")
+				preq.Out.URL.Scheme = "http"
+				preq.Out.URL.Host = "pipe"
+				preq.Out.URL.Path = preq.In.URL.Path
+				preq.Out.URL.RawPath = preq.In.URL.RawPath
+				preq.Out.URL.RawQuery = preq.In.URL.RawQuery
+			} else {
+				preq.SetURL(u)
 			}
-			req.Host = hostHeader
+			preq.Out.Host = hostHeader
+			preq.SetXForwarded()
 		}
 		proxy.Transport = tp
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {

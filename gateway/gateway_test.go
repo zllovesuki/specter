@@ -534,8 +534,7 @@ func TestH2TCPNotFound(t *testing.T) {
 	session, err := yamux.Client(conn, cfg, nil)
 	as.NoError(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := session.OpenStream(ctx)
 	as.NoError(err)
 
@@ -655,8 +654,7 @@ func TestH2TCPFound(t *testing.T) {
 	session, err := yamux.Client(conn, cfg, nil)
 	as.NoError(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	stream, err := session.OpenStream(ctx)
 	as.NoError(err)
 

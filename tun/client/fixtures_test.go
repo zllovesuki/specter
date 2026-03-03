@@ -123,7 +123,6 @@ func setupFakeNodes(rr *mocks.Measurement, s *mocks.TunnelService, expectGenerat
 	}
 
 	for i, n := range fakeNodes {
-		n := n
 		// inject fake nodes. Dial target is available in delegation.Identity because PipeTransport()
 		rr.On("Snapshot", mock.MatchedBy(func(key string) bool {
 			return rtt.MakeMeasurementKey(n) == key

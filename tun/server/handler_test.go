@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"net"
 	"net/http"
@@ -55,8 +54,7 @@ func TestHandlerListConnectedClients(t *testing.T) {
 	clientT.On("ListConnected").Return(fakeClients)
 	clientT.On("Identity").Return(&protocol.Node{})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamRouter := transport.NewStreamRouter(logger, nil, clientT)
 	go streamRouter.Accept(ctx)
@@ -134,8 +132,7 @@ func TestHandlerListClientTunnels(t *testing.T) {
 		resp.Write(c2)
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamRouter := transport.NewStreamRouter(logger, nil, clientT)
 	go streamRouter.Accept(ctx)

@@ -1,5 +1,4 @@
 //go:build !no_mocks
-// +build !no_mocks
 
 package mocks
 

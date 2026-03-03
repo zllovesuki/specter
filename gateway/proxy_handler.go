@@ -203,27 +203,36 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	return nil
 }
 
-func (g *Gateway) proxyDirector(req *http.Request) {
-	req.URL.Scheme = "https"
-	// most browsers' connection coalescing behavior for http3 is the same as http2,
+func (g *Gateway) proxyRewrite(preq *httputil.ProxyRequest) {
+	in := preq.In
+	out := preq.Out
+
+	out.URL.Scheme = "https"
+	// Most browsers' connection coalescing behavior for http3 is the same as http2,
 	// as they could be reusing the same tcp/quic connection for different hosts.
 	// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
 	// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
-	if req.ProtoAtLeast(2, 0) {
-		req.URL.Host = req.Host
+	if in.ProtoAtLeast(2, 0) {
+		out.URL.Host = in.Host
+	} else if in.TLS != nil {
+		out.URL.Host = in.TLS.ServerName
 	} else {
-		req.URL.Host = req.TLS.ServerName
+		out.URL.Host = in.Host
 	}
-	req.URL.Host = req.URL.Hostname()
+	out.URL.Host = out.URL.Hostname()
+	out.Host = out.URL.Host
+
 	for _, header := range delHeaders {
-		req.Header.Del(header)
+		out.Header.Del(header)
 	}
+
+	preq.SetXForwarded()
 	if g.GatewayPort == 443 {
-		req.Header.Set("X-Forwarded-Host", req.URL.Host)
+		out.Header.Set("X-Forwarded-Host", out.URL.Host)
 	} else {
-		req.Header.Set("X-Forwarded-Host", fmt.Sprintf("%s:%d", req.URL.Host, g.GatewayPort))
+		out.Header.Set("X-Forwarded-Host", fmt.Sprintf("%s:%d", out.URL.Host, g.GatewayPort))
 	}
-	req.Header.Set("X-Forwarded-Proto", "https")
+	out.Header.Set("X-Forwarded-Proto", "https")
 }
 
 func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
@@ -254,7 +263,7 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 
 	bufPool := util.NewBufferPool(g.Options.ProxyBufferSize)
 	proxy := &httputil.ReverseProxy{
-		Director:       g.proxyDirector,
+		Rewrite:        g.proxyRewrite,
 		Transport:      proxyTransport,
 		BufferPool:     bufPool,
 		ErrorHandler:   g.errorHandler,

@@ -33,8 +33,7 @@ func TestJustHTTPProxy(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ok")
@@ -106,8 +105,7 @@ func TestPipeHTTP(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var (
 		target string
@@ -198,8 +196,7 @@ func TestPipeTCP(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var (
 		target string

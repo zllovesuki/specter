@@ -101,8 +101,7 @@ func TestInternalProxy(t *testing.T) {
 	_, tcpPort, mockS, done := setupGatewayWithRouter(t, as, logger, streamRouter)
 	defer done()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go streamRouter.Accept(ctx)
 

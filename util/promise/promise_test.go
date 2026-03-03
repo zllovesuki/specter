@@ -25,7 +25,6 @@ func TestConcurrent(t *testing.T) {
 
 	jobs := make([]func(context.Context) (time.Duration, error), 0)
 	for _, d := range wait {
-		d := d
 		jobs = append(jobs, func(ctx context.Context) (time.Duration, error) {
 			time.Sleep(d)
 			return d, nil
@@ -58,8 +57,6 @@ func TestConcurrentError(t *testing.T) {
 
 	jobs := make([]func(context.Context) (time.Duration, error), 0)
 	for i, d := range wait {
-		i := i
-		d := d
 		jobs = append(jobs, func(ctx context.Context) (time.Duration, error) {
 			time.Sleep(d)
 			if i == 1 {
@@ -100,7 +97,6 @@ func TestWaitReturn(t *testing.T) {
 
 	jobs := make([]func(context.Context) (time.Duration, error), 0)
 	for _, d := range wait {
-		d := d
 		jobs = append(jobs, func(ctx context.Context) (time.Duration, error) {
 			select {
 			case <-ctx.Done():

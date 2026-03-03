@@ -147,7 +147,7 @@ Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q
 The following should be installed on your machine:
 
 - Docker with buildx support
-- Go 1.24+
+- Go 1.26+
 - [protoc](https://grpc.io/docs/protoc-installation)
 - [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
 - [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)

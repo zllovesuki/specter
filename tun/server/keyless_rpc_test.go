@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -37,8 +36,7 @@ func TestKeylessGetCertificate(t *testing.T) {
 
 	serv.Config.CertProvider = certProvider
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -149,8 +147,7 @@ func TestKeylessGetCertificateUsesCache(t *testing.T) {
 
 	serv.Config.CertProvider = certProvider
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -271,8 +268,7 @@ func TestKeylessSign(t *testing.T) {
 
 	serv.Config.CertProvider = certProvider
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{

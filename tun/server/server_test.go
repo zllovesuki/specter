@@ -243,8 +243,7 @@ func TestHandleRemoteConnection(t *testing.T) {
 		Hostname:          "test",
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	syncA := make(chan struct{})
 	syncB := make(chan struct{})

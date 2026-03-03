@@ -67,7 +67,7 @@ func TestMultiListenerAcceptsAcrossListeners(t *testing.T) {
 	l2.conns <- serverConn2
 
 	got := make(map[net.Conn]struct{})
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		conn, err := ml.Accept()
 		require.NoError(t, err)
 		got[conn] = struct{}{}

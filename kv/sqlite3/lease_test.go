@@ -183,7 +183,7 @@ func TestLeaseRenewalWithParallelLoad(t *testing.T) {
 	const numWorkers = 50
 	errChan := make(chan error, numWorkers)
 	tokenChan := make(chan uint64, numWorkers)
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go func(tokenSnapshot uint64) {
 			token, err := kv.Renew(ctx, leaseID, ttl, tokenSnapshot)
 			tokenChan <- token
@@ -193,7 +193,7 @@ func TestLeaseRenewalWithParallelLoad(t *testing.T) {
 
 	// Collect results
 	var successCount int
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		err := <-errChan
 		token := <-tokenChan
 		if err == nil && token > 0 {
@@ -222,7 +222,7 @@ func TestLeaseExpirationUnderLoad(t *testing.T) {
 	// Start concurrent access while waiting for lease expiration
 	const numWorkers = 50
 	errChan := make(chan error, numWorkers)
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go func(tokenSnapshot uint64) {
 			time.Sleep(ttl + 200*time.Millisecond) // Wait for expiration
 			_, err := kv.Renew(ctx, leaseID, ttl, tokenSnapshot)
@@ -231,7 +231,7 @@ func TestLeaseExpirationUnderLoad(t *testing.T) {
 	}
 
 	// Expect all workers to fail renewal due to expiration
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		err := <-errChan
 		if err == nil {
 			t.Errorf("Renewal should have failed, but it succeeded")
@@ -253,7 +253,7 @@ func TestConcurrentLeaseAcquisition(t *testing.T) {
 	tokenChan := make(chan uint64, numWorkers)
 	errChan := make(chan error, numWorkers)
 
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go func() {
 			token, err := kv.Acquire(ctx, leaseID, ttl)
 			tokenChan <- token
@@ -262,7 +262,7 @@ func TestConcurrentLeaseAcquisition(t *testing.T) {
 	}
 
 	var successCount int
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		err := <-errChan
 		token := <-tokenChan
 		if err == nil && token > 0 {

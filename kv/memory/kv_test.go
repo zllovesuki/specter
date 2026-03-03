@@ -21,7 +21,7 @@ func TestAllKeys(t *testing.T) {
 	value := make([]byte, 8)
 
 	num := 10000
-	for i := 0; i < num; i++ {
+	for range num {
 		rand.Read(key)
 		rand.Read(value)
 		kv.Put(context.Background(), key, value)
@@ -41,7 +41,7 @@ func TestOrderedKeys(t *testing.T) {
 	value := make([]byte, 8)
 
 	num := 10000
-	for i := 0; i < num; i++ {
+	for range num {
 		rand.Read(key)
 		rand.Read(value)
 		kv.Put(context.Background(), key, value)

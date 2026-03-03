@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
@@ -50,7 +49,7 @@ func getVNode(n *protocol.Node) chord.VNode {
 
 func makeNodes(num int) []*protocol.Node {
 	nodes := make([]*protocol.Node, 0)
-	for i := 0; i < num; i++ {
+	for range num {
 		nodes = append(nodes, &protocol.Node{
 			Address: strings.Join(generator.MustGenerate(5), "-"),
 			Id:      chord.Random(),
@@ -151,8 +150,7 @@ func TestRPCRegisterClientNewCertificateOK(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	testToken := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -196,8 +194,7 @@ func TestRPCRegisterClientFailed(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	testToken := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -251,8 +248,7 @@ func TestRPCPingOK(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientT.On("Identity").Return(tn)
 
@@ -282,8 +278,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -337,8 +332,7 @@ func TestRPCGetNodes(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -402,8 +396,7 @@ func TestRPCRequestHostnameOK(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -451,8 +444,7 @@ func TestRPCRegisteredHostnames(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -506,8 +498,7 @@ func TestRPCOtherFailed(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	node.On("Get", mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -545,8 +536,7 @@ func TestRPCPublishTunnelOK(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	nodes, _ := makeNodeList(tun.NumRedundantLinks)
 
@@ -647,8 +637,7 @@ func TestRPCPublishTunnelFailed(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
@@ -728,8 +717,7 @@ func TestUnpublishTunnel(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "test-1234"
 	token := &protocol.ClientToken{
@@ -773,7 +761,7 @@ func TestUnpublishTunnel(t *testing.T) {
 		}),
 	).Return(true, nil)
 
-	for i := 0; i < tun.NumRedundantLinks; i++ {
+	for i := range tun.NumRedundantLinks {
 		key := tun.RoutingKey(hostname, i+1)
 		node.On("Delete", mock.Anything, []byte(key)).Return(nil)
 	}
@@ -803,8 +791,7 @@ func TestReleaseTunnel(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "test-1234"
 	token := &protocol.ClientToken{
@@ -849,7 +836,7 @@ func TestReleaseTunnel(t *testing.T) {
 	).Return(true, nil)
 
 	deleteCalls := make([]*mock.Call, 0)
-	for i := 0; i < tun.NumRedundantLinks; i++ {
+	for i := range tun.NumRedundantLinks {
 		key := tun.RoutingKey(hostname, i+1)
 		deleteCall := node.On("Delete", mock.Anything, []byte(key)).Return(nil)
 		deleteCalls = append(deleteCalls, deleteCall)
@@ -898,8 +885,7 @@ func TestTokenUpgrade(t *testing.T) {
 	logger, node, clientT, chordT, serv := getFixture(t, as)
 	cli, cht, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),

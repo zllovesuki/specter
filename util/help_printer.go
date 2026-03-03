@@ -194,7 +194,7 @@ func getTermWidth(defaultWidth int) int {
 // PrettierHelpPrinter installs the templated HelpPrinter into urfave/cli.
 func PrettierHelpPrinter() {
 	original := cli.HelpPrinter
-	cli.HelpPrinter = func(w io.Writer, templ string, data interface{}) {
+	cli.HelpPrinter = func(w io.Writer, templ string, data any) {
 		d := buildHelpData(data)
 		if err := helpT.ExecuteTemplate(w, "help", d); err != nil {
 			// fallback to default on error
@@ -206,7 +206,7 @@ func PrettierHelpPrinter() {
 // wrap splits text into lines of at most width, preserving paragraph breaks.
 func wrap(text string, width int) []string {
 	var lines []string
-	for _, para := range strings.Split(text, "\n\n") {
+	for para := range strings.SplitSeq(text, "\n\n") {
 		words := strings.Fields(para)
 		if len(words) == 0 {
 			lines = append(lines, "")
@@ -232,7 +232,7 @@ func wrap(text string, width int) []string {
 // flagCategory extracts the Category field from a cli.Flag via reflection.
 func flagCategory(f cli.Flag) string {
 	v := reflect.ValueOf(f)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if fld := v.FieldByName("Category"); fld.IsValid() && fld.Kind() == reflect.String {
@@ -244,7 +244,7 @@ func flagCategory(f cli.Flag) string {
 // flagHidden extracts the Hidden field from a cli.Flag via reflection.
 func flagHidden(f cli.Flag) bool {
 	v := reflect.ValueOf(f)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if fld := v.FieldByName("Hidden"); fld.IsValid() && fld.Kind() == reflect.Bool {
@@ -254,7 +254,7 @@ func flagHidden(f cli.Flag) bool {
 }
 
 // buildHelpData extracts flags, commands, and metadata into helpData.
-func buildHelpData(data interface{}) *helpData {
+func buildHelpData(data any) *helpData {
 	var (
 		flags     []cli.Flag
 		cmds      []*cli.Command

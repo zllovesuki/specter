@@ -11,7 +11,7 @@ var alpnNameMap map[int32]string = make(map[int32]string)
 func init() {
 	m := &protocol.Link{}
 	len := m.GetAlpn().Enum().Descriptor().Values().Len()
-	for i := 0; i < len; i++ {
+	for i := range len {
 		num := m.GetAlpn().Enum().Descriptor().Values().Get(i).Number()
 		name := proto.GetExtension(m.GetAlpn().Descriptor().Values().ByNumber(num).Options(), protocol.E_AlpnName).(string)
 		alpnNameMap[int32(num)] = name

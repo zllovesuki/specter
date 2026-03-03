@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -18,8 +17,7 @@ func TestIdentitiesRoutine(t *testing.T) {
 	_, node, clientT, chordT, serv := getFixture(t, as)
 	_, cht, tn := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	chordT.On("Identity").Return(cht)
 	clientT.On("Identity").Return(tn)

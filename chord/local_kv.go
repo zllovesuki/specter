@@ -253,7 +253,6 @@ func (n *LocalNode) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.Ke
 	}()
 
 	for _, node := range nodes {
-		node := node
 		g.Go(func() error {
 			k, err := node.ListKeys(listCtx, prefix)
 			if err != nil {

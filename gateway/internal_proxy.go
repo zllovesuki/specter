@@ -21,10 +21,11 @@ const (
 )
 
 func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+	targetURL := &url.URL{
 		Scheme: "http",
 		Host:   g.RootDomains[0],
-	})
+	}
+	proxy := &httputil.ReverseProxy{}
 	proxy.Transport = &http.Transport{
 		DisableKeepAlives:   true,
 		MaxIdleConnsPerHost: -1,
@@ -42,11 +43,12 @@ func (g *Gateway) getInternalProxyHandler() func(http.Handler) http.Handler {
 			return g.TunnelServer.DialInternal(ctx, target)
 		},
 	}
-	director := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		director(r)
-		r.Header.Set(internalProxyForwarded, "true")
-		r.Header.Del(internalProxyNodeAddress)
+	proxy.Rewrite = func(preq *httputil.ProxyRequest) {
+		preq.SetURL(targetURL)
+		preq.Out.Host = preq.Out.URL.Host
+		preq.SetXForwarded()
+		preq.Out.Header.Set(internalProxyForwarded, "true")
+		preq.Out.Header.Del(internalProxyNodeAddress)
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		w.WriteHeader(http.StatusBadGateway)

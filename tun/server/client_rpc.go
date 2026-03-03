@@ -292,7 +292,6 @@ func (s *Server) PublishTunnel(ctx context.Context, req *protocol.PublishTunnelR
 
 	publishJobs := make([]func(context.Context) (*protocol.Node, error), len(destinations))
 	for i, destination := range destinations {
-		i := i
 		dst := destination
 		publishJobs[i] = func(fnCtx context.Context) (*protocol.Node, error) {
 			bundle := &protocol.TunnelRoute{
@@ -400,8 +399,7 @@ func (s *Server) unadvertiseTunnel(ctx context.Context, token *protocol.ClientTo
 	}
 
 	unpublishJobs := make([]func(context.Context) (int, error), tun.NumRedundantLinks)
-	for i := 0; i < tun.NumRedundantLinks; i++ {
-		i := i
+	for i := range tun.NumRedundantLinks {
 		unpublishJobs[i] = func(fnCtx context.Context) (int, error) {
 			key := tun.RoutingKey(hostname, i+1)
 			err := s.Chord.Delete(fnCtx, []byte(key))

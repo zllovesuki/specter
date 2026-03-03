@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -147,10 +148,8 @@ func (m *Manager) isManaged(subject string) bool {
 }
 
 func (m *Manager) getConfig(c certmagic.Certificate) (*certmagic.Config, error) {
-	for _, d := range c.Names {
-		if m.isManaged(d) {
-			return m.managedConfig, nil
-		}
+	if slices.ContainsFunc(c.Names, m.isManaged) {
+		return m.managedConfig, nil
 	}
 	return m.dynamicConfig, nil
 }

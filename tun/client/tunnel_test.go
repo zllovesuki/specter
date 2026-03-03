@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -30,8 +29,7 @@ func TestPublishHostnameReuse(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	token := &protocol.ClientToken{
 		Token: []byte("test"),
@@ -87,8 +85,7 @@ func TestRegisterAndProxy(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	tcpListener, err := net.Listen("tcp", "127.0.0.1:0")
 	as.NoError(err)
@@ -172,8 +169,7 @@ func TestUnpublishTunnel(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ok")
@@ -233,8 +229,7 @@ func TestReleaseTunnel(t *testing.T) {
 	as.NoError(err)
 	defer os.Remove(file.Name())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ok")

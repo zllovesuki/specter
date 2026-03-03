@@ -77,7 +77,7 @@ func waitRingLong(as *require.Assertions, nodes []*LocalNode) {
 
 func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func()) {
 	nodes := make([]*LocalNode, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		node := NewLocalNode(devConfig(t, as))
 		nodes[i] = node
 	}
@@ -95,7 +95,7 @@ func makeRing(t *testing.T, as *require.Assertions, num int) ([]*LocalNode, func
 	RingCheck(t, as, nodes, true)
 
 	return nodes, func() {
-		for i := 0; i < num; i++ {
+		for i := range num {
 			nodes[i].Leave()
 		}
 	}
@@ -181,7 +181,7 @@ func TestRandomNodes(t *testing.T) {
 	nodes, done := makeRing(t, as, num)
 	defer done()
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		nodes[i].fingers[1].computeView(func(node chord.VNode) {
 			as.Equal(nodes[i].getSuccessor().ID(), node.ID())
 		})
@@ -199,7 +199,7 @@ func TestLotsOfNodes(t *testing.T) {
 	nodes, done := makeRing(t, as, num)
 	defer done()
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		nodes[i].fingers[1].computeView(func(node chord.VNode) {
 			as.Equal(nodes[i].getSuccessor().ID(), node.ID())
 		})

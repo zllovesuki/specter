@@ -71,7 +71,7 @@ func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
 			ctx.App.Metadata["logger"] = observedLogger
 			return nil
 		},
-		Metadata: make(map[string]interface{}),
+		Metadata: make(map[string]any),
 	}, observedLogs
 }
 
@@ -143,8 +143,7 @@ func TestIntegrationTunnel(t *testing.T) {
 	as.NoError(err)
 	as.NoError(file.Close())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	serverReturnCtx, serverStopped := context.WithCancel(ctx)
 	defer serverStopped()

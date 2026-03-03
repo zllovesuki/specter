@@ -255,8 +255,8 @@ func AcmeManagerHandler(m *Manager) http.Handler {
 // unsafeName converts a safe storage key name back to the original domain
 // e.g., "wildcard_.example.com" -> "*.example.com"
 func unsafeName(name string) string {
-	if strings.HasPrefix(name, "wildcard_") {
-		return "*" + strings.TrimPrefix(name, "wildcard_")
+	if after, ok := strings.CutPrefix(name, "wildcard_"); ok {
+		return "*" + after
 	}
 	return name
 }

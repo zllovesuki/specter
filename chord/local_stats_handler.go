@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,9 +48,7 @@ func (n *LocalNode) fingerTrace() map[string]string {
 	for k := range ftMap {
 		keys = append(keys, k)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
+	slices.Sort(keys)
 
 	f := make(map[string]string)
 	for _, k := range keys {

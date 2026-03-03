@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"crypto/ed25519"
 	"fmt"
 	"testing"
@@ -25,8 +24,7 @@ func TestAcmeInstruction(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as)
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -93,8 +91,7 @@ func TestAcmeValidationSuccess(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as, withResolver(resolver))
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -178,8 +175,7 @@ func TestAcmeValidationAlready(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as, withResolver(resolver))
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -268,8 +264,7 @@ func TestAcmeValidationIncorrect(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as, withResolver(resolver))
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
@@ -335,8 +330,7 @@ func TestAcmeValidationError(t *testing.T) {
 	logger, node, _, _, serv := getFixture(t, as, withResolver(resolver))
 	cli, _, _ := getIdentities()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	hostname := "external.example.com"
 	token := &protocol.ClientToken{
