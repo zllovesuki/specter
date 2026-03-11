@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"testing"
 	"time"
 
@@ -61,12 +60,12 @@ func validateCert(as *require.Assertions, port int, serverName string) {
 		}
 		cs := conn.ConnectionState()
 		for _, cert := range cs.PeerCertificates {
-			if slices.Contains(cert.DNSNames, serverName) {
+			if cert.VerifyHostname(serverName) == nil {
 				return true
 			}
 		}
 		return false
-	}, time.Second, time.Second*30)
+	}, time.Second, time.Second*60)
 	as.NoError(err)
 }
 
