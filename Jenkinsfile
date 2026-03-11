@@ -3,7 +3,7 @@ pipeline{
         label 'container-agent'
     }
     tools {
-        go 'go1.26.0'
+        go 'go1.26.1'
     }
     stages{
         stage("Short Tests with Race Detector"){
