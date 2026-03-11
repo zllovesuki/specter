@@ -181,27 +181,31 @@ func TestLeaseRenewalWithParallelLoad(t *testing.T) {
 
 	// Start multiple goroutines that try to renew the lease concurrently
 	const numWorkers = 50
-	errChan := make(chan error, numWorkers)
-	tokenChan := make(chan uint64, numWorkers)
+	type result struct {
+		token uint64
+		err   error
+	}
+	resultChan := make(chan result, numWorkers)
 	for range numWorkers {
 		go func(tokenSnapshot uint64) {
 			token, err := kv.Renew(ctx, leaseID, ttl, tokenSnapshot)
-			tokenChan <- token
-			errChan <- err
+			resultChan <- result{
+				token: token,
+				err:   err,
+			}
 		}(token)
 	}
 
 	// Collect results
 	var successCount int
 	for range numWorkers {
-		err := <-errChan
-		token := <-tokenChan
-		if err == nil && token > 0 {
+		result := <-resultChan
+		if result.err == nil && result.token > 0 {
 			t.Log("success")
 			successCount++
 		} else {
-			t.Logf("token: %d; err: %+v\n", token, err)
-			as.ErrorIs(err, chord.ErrKVLeaseExpired)
+			t.Logf("token: %d; err: %+v\n", result.token, result.err)
+			as.ErrorIs(result.err, chord.ErrKVLeaseExpired)
 		}
 	}
 	as.Equal(1, successCount, "Only one renewal should succeed")
@@ -250,27 +254,31 @@ func TestConcurrentLeaseAcquisition(t *testing.T) {
 	ttl := 1 * time.Second
 
 	const numWorkers = 50
-	tokenChan := make(chan uint64, numWorkers)
-	errChan := make(chan error, numWorkers)
+	type result struct {
+		token uint64
+		err   error
+	}
+	resultChan := make(chan result, numWorkers)
 
 	for range numWorkers {
 		go func() {
 			token, err := kv.Acquire(ctx, leaseID, ttl)
-			tokenChan <- token
-			errChan <- err
+			resultChan <- result{
+				token: token,
+				err:   err,
+			}
 		}()
 	}
 
 	var successCount int
 	for range numWorkers {
-		err := <-errChan
-		token := <-tokenChan
-		if err == nil && token > 0 {
+		result := <-resultChan
+		if result.err == nil && result.token > 0 {
 			t.Log("success")
 			successCount++
 		} else {
-			t.Logf("token: %d; err: %+v\n", token, err)
-			as.ErrorIs(err, chord.ErrKVLeaseConflict) // Ensure others fail
+			t.Logf("token: %d; err: %+v\n", result.token, result.err)
+			as.ErrorIs(result.err, chord.ErrKVLeaseConflict) // Ensure others fail
 		}
 	}
 
