@@ -52,3 +52,27 @@ func TestEmpty(t *testing.T) {
 	as.NoError(err)
 	as.NotNil(val)
 }
+
+func TestEmptyValueTransferRoundTrip(t *testing.T) {
+	as := assert.New(t)
+	kv := testGetKV(t)
+
+	key := make([]byte, 6)
+	rand.Read(key)
+
+	err := kv.Put(context.Background(), key, []byte{})
+	as.NoError(err)
+
+	keys, err := kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	exp, err := kv.Export(context.Background(), keys)
+	as.NoError(err)
+
+	kv2 := testGetKV(t)
+	as.NoError(kv2.Import(context.Background(), keys, exp))
+
+	val, err := kv2.Get(context.Background(), key)
+	as.NoError(err)
+	as.NotNil(val)
+	as.Len(val, 0)
+}

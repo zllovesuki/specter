@@ -3,6 +3,7 @@ package sqlite3
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"os"
 	"sync"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"gorm.io/gorm"
 )
 
 func testGetKV(t *testing.T) *SqliteKV {
@@ -32,18 +32,79 @@ func testGetKV(t *testing.T) *SqliteKV {
 
 	cfg := Config{
 		Logger:  logger,
-		HasnFn:  chord.Hash,
+		HashFn:  chord.Hash,
 		DataDir: dir,
 	}
 
 	kv, err := New(cfg)
 	as.NoError(err)
+	t.Cleanup(kv.Close)
 
 	return kv
 }
 
 func TestInitialize(t *testing.T) {
 	require.NoError(t, Initialize("cache"))
+}
+
+func TestCloseClosesDBHandles(t *testing.T) {
+	as := require.New(t)
+	kv := testGetKV(t)
+
+	kv.Close()
+
+	as.Error(kv.reader.PingContext(context.Background()))
+	as.Error(kv.writer.PingContext(context.Background()))
+
+	kv.Close()
+}
+
+func TestPrepareStatementsReuseReaderExportStatements(t *testing.T) {
+	as := require.New(t)
+	kv := testGetKV(t)
+
+	as.Same(kv.stmts.simpleGet, kv.stmts.exportSimpleGet)
+	as.Same(kv.stmts.prefixList, kv.stmts.exportPrefixList)
+	as.NotSame(kv.stmts.leaseGet, kv.stmts.exportLeaseGet)
+}
+
+func TestImportRejectsLengthMismatch(t *testing.T) {
+	as := require.New(t)
+	kv := testGetKV(t)
+
+	err := kv.Import(context.Background(), [][]byte{[]byte("a")}, nil)
+	as.Error(err)
+	as.ErrorContains(err, "length mismatch")
+}
+
+func TestImportRejectsNilValue(t *testing.T) {
+	as := require.New(t)
+	kv := testGetKV(t)
+
+	err := kv.Import(context.Background(), [][]byte{[]byte("a")}, []*protocol.KVTransfer{nil})
+	as.Error(err)
+	as.ErrorContains(err, "values[0] is nil")
+}
+
+func TestRemoveKeysBatched(t *testing.T) {
+	as := require.New(t)
+	kv := testGetKV(t)
+
+	keys := make([][]byte, removeKeysBatchSize+25)
+	for i := range keys {
+		key := make([]byte, 16)
+		value := make([]byte, 8)
+		rand.Read(key)
+		rand.Read(value)
+		keys[i] = key
+		as.NoError(kv.Put(context.Background(), key, value))
+	}
+
+	as.NoError(kv.RemoveKeys(context.Background(), keys))
+
+	remaining, err := kv.RangeKeys(context.Background(), 0, 0)
+	as.NoError(err)
+	as.Empty(remaining)
 }
 
 func TestAllKeys(t *testing.T) {
@@ -233,11 +294,9 @@ func TestConcurrentOps(t *testing.T) {
 	wg.Wait()
 
 	for _, key := range keys {
-		tracker := KeyTracker{
-			Key: key,
-		}
-		resp := kv.reader.Where("key = ?", key).Take(&tracker)
-		as.ErrorIs(resp.Error, gorm.ErrRecordNotFound)
+		var flags uint8
+		err := kv.reader.QueryRow("SELECT `flags` FROM `key_trackers` WHERE `key` = ?", key).Scan(&flags)
+		as.ErrorIs(err, sql.ErrNoRows)
 	}
 
 }

@@ -1,52 +1,51 @@
 package sqlite3
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"go.miragespace.co/specter/spec/chord"
 
 	"go.uber.org/zap"
-	"gorm.io/gorm"
-	"moul.io/zapgorm2"
 )
 
 type SimpleEntry struct {
-	Key   []byte `gorm:"primaryKey"`
+	Key   []byte
 	Value []byte
 }
 
 type PrefixEntry struct {
-	Prefix []byte `gorm:"primaryKey"`
-	Child  []byte `gorm:"primaryKey"`
+	Prefix []byte
+	Child  []byte
 }
 
 type LeaseEntry struct {
-	Owner []byte `gorm:"primaryKey"`
+	Owner []byte
 	Token uint64
 }
 
 type Config struct {
 	Logger  *zap.Logger
-	HasnFn  chord.HashFn
+	HashFn  chord.HashFn
 	DataDir string
 }
 
 type SqliteKV struct {
 	logger *zap.Logger
 	hashFn chord.HashFn
-	reader *gorm.DB
-	writer *gorm.DB
+	reader *sql.DB
+	writer *sql.DB
+	stmts  *statements
 }
 
 func (c Config) validate() error {
 	if c.Logger == nil {
 		return fmt.Errorf("nil Logger is invalid")
 	}
-	if c.HasnFn == nil {
+	if c.HashFn == nil {
 		return fmt.Errorf("nil HashFn is invalid")
 	}
 	if c.DataDir == "" {
@@ -66,62 +65,72 @@ func New(cfg Config) (*SqliteKV, error) {
 	}
 	dbPath := filepath.Join(dbDir, "db")
 
-	readDb, err := openSQLite(cfg.Logger, dbPath)
+	var (
+		reader *sql.DB
+		writer *sql.DB
+		stmts  *statements
+		err    error
+	)
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		if stmts != nil {
+			stmts.close()
+		}
+		if reader != nil {
+			_ = reader.Close()
+		}
+		if writer != nil {
+			_ = writer.Close()
+		}
+	}()
+
+	reader, err = openSQLite(cfg.Logger, dbPath)
 	if err != nil {
 		return nil, err
 	}
-	writeDb, err := openSQLite(cfg.Logger, dbPath)
+	writer, err = openSQLite(cfg.Logger, dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	logger := zapgorm2.New(cfg.Logger)
-	logger.IgnoreRecordNotFoundError = true
-	logger.SlowThreshold = time.Millisecond * 500
-
-	reader, err := gorm.Open(readDb, &gorm.Config{
-		Logger:         logger,
-		PrepareStmt:    false,
-		TranslateError: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	writer, err := gorm.Open(writeDb, &gorm.Config{
-		Logger:         logger,
-		PrepareStmt:    false,
-		TranslateError: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	readerDb, err := reader.DB()
-	if err != nil {
-		return nil, err
-	}
-	readerDb.SetMaxOpenConns(max(4, runtime.NumCPU()))
+	reader.SetMaxOpenConns(max(4, runtime.NumCPU()))
 	// prevent SQLITE_BUSY
-	writerDb, err := writer.DB()
-	if err != nil {
-		return nil, err
-	}
-	writerDb.SetMaxOpenConns(1)
+	writer.SetMaxOpenConns(1)
 
-	if err := writer.AutoMigrate(&KeyTracker{}); err != nil {
-		return nil, err
+	if err := migrate(writer); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
 	}
-	if err := writer.AutoMigrate(&SimpleEntry{}, &PrefixEntry{}, &LeaseEntry{}); err != nil {
-		return nil, err
+
+	stmts, err = prepareStatements(reader, writer)
+	if err != nil {
+		return nil, fmt.Errorf("preparing statements: %w", err)
 	}
 
 	return &SqliteKV{
 		logger: cfg.Logger,
-		hashFn: cfg.HasnFn,
+		hashFn: cfg.HashFn,
 		reader: reader,
 		writer: writer,
+		stmts:  stmts,
 	}, nil
+}
+
+func (s *SqliteKV) Close() {
+	if s == nil {
+		return
+	}
+	if s.stmts != nil {
+		s.stmts.close()
+	}
+	if s.reader != nil {
+		_ = s.reader.Close()
+	}
+	if s.writer != nil {
+		_ = s.writer.Close()
+	}
 }
 
 var _ chord.KVProvider = (*SqliteKV)(nil)

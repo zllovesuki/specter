@@ -22,7 +22,6 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/montanaflynn/stats v0.7.1
 	github.com/ncruces/go-sqlite3 v0.30.5
-	github.com/ncruces/go-sqlite3/gormlite v0.30.2
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/planetscale/vtprotobuf v0.6.0
 	github.com/quic-go/quic-go v0.59.0
@@ -45,9 +44,7 @@ require (
 	golang.org/x/term v0.40.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.31.1
 	moul.io/zapfilter v1.7.0
-	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -103,8 +100,6 @@ require (
 	github.com/caddyserver/zerossl v0.1.5 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/libdns/libdns v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

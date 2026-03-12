@@ -2,12 +2,10 @@ package sqlite3
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"go.miragespace.co/specter/spec/chord"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func durationGuard(t time.Duration) (time.Duration, bool) {
@@ -25,35 +23,22 @@ func (s *SqliteKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 	}
 
 	var next uint64
-	err := s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
 		now := time.Now()
 		next = uint64(now.Add(ttl).UnixNano())
 
-		// single statement compare-and-set was collaborated with OpenAI GPT o1
-		resp := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "owner"}},
-			DoUpdates: clause.Assignments(map[string]any{
-				"token": next,
-			}),
-			Where: clause.Where{
-				Exprs: []clause.Expression{
-					clause.Lte{
-						Column: "token",
-						Value:  uint64(now.UnixNano()),
-					},
-				},
-			},
-		}).Create(&LeaseEntry{
-			Owner: lease,
-			Token: next,
-		})
-		if resp.Error != nil {
-			return resp.Error
+		res, err := tx.StmtContext(ctx, s.stmts.leaseAcquire).Exec(lease, bindUint64AsInt64(next), bindUint64AsInt64(uint64(now.UnixNano())))
+		if err != nil {
+			return err
 		}
-		if resp.RowsAffected == 0 {
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
 			return chord.ErrKVLeaseConflict
 		}
-		return s.updateKeyTracker(tx, lease, LeaseFlag, 0)
+		return s.updateKeyTracker(ctx, tx, lease, LeaseFlag, 0)
 	})
 	if err != nil {
 		return 0, err
@@ -68,38 +53,36 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	}
 
 	var next uint64
-	err := s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
 		now := time.Now()
 		next = uint64(time.Now().Add(ttl).UnixNano())
 
-		// single statement compare-and-set was collaborated with OpenAI GPT o1
-		resp := tx.Model(&LeaseEntry{}).
-			Where(
-				"owner = ? AND token = ? AND token > ?",
-				lease,
-				prevToken,
-				uint64(now.UnixNano()),
-			).Update("token", next)
-		if resp.Error != nil {
-			return resp.Error
+		res, err := tx.StmtContext(ctx, s.stmts.leaseRenew).Exec(
+			bindUint64AsInt64(next),
+			lease,
+			bindUint64AsInt64(prevToken),
+			bindUint64AsInt64(uint64(now.UnixNano())),
+		)
+		if err != nil {
+			return err
 		}
-		if resp.RowsAffected == 0 {
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
 			return chord.ErrKVLeaseExpired
 		}
-		return s.updateKeyTracker(tx, lease, LeaseFlag, 0)
+		return s.updateKeyTracker(ctx, tx, lease, LeaseFlag, 0)
 	})
 	if err != nil {
 		return 0, err
 	}
 	// Post-commit check: re-read the row in a new session
-	//    If the database row’s token is no longer what we set, it means
+	//    If the database row's token is no longer what we set, it means
 	//    some other transaction updated it after we did our compare-and-set.
-	var curToken uint64
-	readErr := s.writer.WithContext(ctx).
-		Model(&LeaseEntry{}).
-		Where("owner = ?", lease).
-		Pluck("token", &curToken).
-		Error
+	var curToken int64
+	readErr := s.stmts.leaseGet.QueryRowContext(ctx, lease).Scan(&curToken)
 	if readErr != nil {
 		// If the row no longer exists or some other error,
 		// you could consider that as concurrency override or just return readErr.
@@ -107,7 +90,7 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	}
 
 	// 3. Compare the token we set (`next`) vs. what's actually in the DB now
-	if curToken != next {
+	if scanInt64AsUint64(curToken) != next {
 		// Another transaction must have updated it post-commit => concurrency lost
 		return 0, chord.ErrKVLeaseExpired
 	}
@@ -115,15 +98,18 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 }
 
 func (s *SqliteKV) Release(ctx context.Context, lease []byte, token uint64) error {
-	return s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		resp := tx.Where("owner = ? AND token = ?", lease, token).
-			Delete(&LeaseEntry{})
-		if resp.Error != nil {
-			return resp.Error
+	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
+		res, err := tx.StmtContext(ctx, s.stmts.leaseRelease).Exec(lease, bindUint64AsInt64(token))
+		if err != nil {
+			return err
 		}
-		if resp.RowsAffected == 0 {
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
 			return chord.ErrKVLeaseExpired
 		}
-		return s.updateKeyTracker(tx, lease, 0, LeaseFlag)
+		return s.updateKeyTracker(ctx, tx, lease, 0, LeaseFlag)
 	})
 }

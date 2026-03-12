@@ -1,11 +1,10 @@
 package sqlite3
 
 import (
-	"errors"
+	"context"
+	"database/sql"
 
 	"go.miragespace.co/specter/spec/chord"
-
-	"gorm.io/gorm"
 )
 
 const (
@@ -15,37 +14,36 @@ const (
 )
 
 type KeyTracker struct {
-	Key   []byte `gorm:"primaryKey"`
-	Hash  uint64 `gorm:"index:idx_hash,sort:asc"`
-	Flags uint8  // Bitmask: 1=Simple, 2=Prefix, 4=Lease
+	Key   []byte
+	Hash  uint64
+	Flags uint8 // Bitmask: 1=Simple, 2=Prefix, 4=Lease
 }
 
 // optimized by GPT 4o-mini via flags
-func (s *SqliteKV) updateKeyTracker(tx *gorm.DB, key []byte, addFlags, removeFlags uint8) error {
+func (s *SqliteKV) updateKeyTracker(ctx context.Context, tx *sql.Tx, key []byte, addFlags, removeFlags uint8) error {
 	var (
-		tracker KeyTracker
+		hash  int64
+		flags uint8
 	)
 
 	// Fetch existing tracker
-	lookupErr := tx.Take(&tracker, "key = ?", key).Error
-	if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+	lookupErr := tx.StmtContext(ctx, s.stmts.trackerLookup).QueryRow(key).Scan(&hash, &flags)
+	if lookupErr != nil && lookupErr != sql.ErrNoRows {
 		return lookupErr
 	}
 
+	found := lookupErr == nil
+
 	// consistency check: if this instance has a different hash function, refuse to modify
-	if lookupErr == nil && tracker.Hash != s.hashFn(key) {
+	if found && scanInt64AsUint64(hash) != s.hashFn(key) {
 		return chord.ErrKVHashFnChanged
 	}
 
 	// If tracker does not exist but we're adding flags, create a new entry
-	if errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+	if !found {
 		if addFlags != 0 {
-			newTracker := KeyTracker{
-				Key:   key,
-				Hash:  s.hashFn(key),
-				Flags: addFlags,
-			}
-			return tx.Create(&newTracker).Error
+			_, err := tx.StmtContext(ctx, s.stmts.trackerInsert).Exec(key, bindUint64AsInt64(s.hashFn(key)), addFlags)
+			return err
 		}
 		return nil
 	}
@@ -53,7 +51,7 @@ func (s *SqliteKV) updateKeyTracker(tx *gorm.DB, key []byte, addFlags, removeFla
 	// Check for remaining values before removing flags
 	if removeFlags&PrefixFlag != 0 {
 		var count int64
-		if err := tx.Model(&PrefixEntry{}).Where("prefix = ?", key).Count(&count).Error; err != nil {
+		if err := tx.StmtContext(ctx, s.stmts.prefixCount).QueryRow(key).Scan(&count); err != nil {
 			return err
 		}
 		if count > 0 {
@@ -62,13 +60,15 @@ func (s *SqliteKV) updateKeyTracker(tx *gorm.DB, key []byte, addFlags, removeFla
 	}
 
 	// Update bitmask flags
-	tracker.Flags = (tracker.Flags | addFlags) &^ removeFlags
+	newFlags := (flags | addFlags) &^ removeFlags
 
 	// If no values remain, delete tracker
-	if tracker.Flags == 0 {
-		return tx.Delete(&tracker).Error
+	if newFlags == 0 {
+		_, err := tx.StmtContext(ctx, s.stmts.trackerDelete).Exec(key)
+		return err
 	}
 
 	// Otherwise, update tracker
-	return tx.Save(&tracker).Error
+	_, err := tx.StmtContext(ctx, s.stmts.trackerUpdate).Exec(newFlags, key)
+	return err
 }

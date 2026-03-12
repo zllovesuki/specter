@@ -2,72 +2,64 @@ package sqlite3
 
 import (
 	"context"
+	"database/sql"
 
 	"go.miragespace.co/specter/spec/chord"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func (s *SqliteKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
-	entry := &PrefixEntry{
-		Prefix: prefix,
-		Child:  child,
-	}
-
-	return s.writer.
-		WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			resp := tx.Clauses(clause.OnConflict{
-				DoNothing: true,
-			}).Create(entry)
-			if resp.Error != nil {
-				return resp.Error
-			}
-			if resp.RowsAffected == 0 {
-				return chord.ErrKVPrefixConflict
-			}
-			return s.updateKeyTracker(tx, prefix, PrefixFlag, 0)
-		})
+	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
+		res, err := tx.StmtContext(ctx, s.stmts.prefixAppend).Exec(prefix, child)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return chord.ErrKVPrefixConflict
+		}
+		return s.updateKeyTracker(ctx, tx, prefix, PrefixFlag, 0)
+	})
 }
 
 func (s *SqliteKV) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
-	entry := &PrefixEntry{
-		Prefix: prefix,
-		Child:  child,
+	var one int
+	err := s.stmts.prefixContains.QueryRowContext(ctx, prefix, child).Scan(&one)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
 	}
-
-	tx := s.reader.WithContext(ctx)
-	resp := tx.Limit(1).Find(entry)
-	if resp.Error != nil {
-		return false, resp.Error
-	}
-
-	return resp.RowsAffected > 0, nil
+	return true, nil
 }
 
 func (s *SqliteKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
-	entries := make([][]byte, 0)
-
-	tx := s.reader.WithContext(ctx)
-	resp := tx.Model(&PrefixEntry{}).Select("child").Where("prefix = ?", prefix).Find(&entries)
-	if resp.Error != nil {
-		return nil, resp.Error
+	rows, err := s.stmts.prefixList.QueryContext(ctx, prefix)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
 
-	return entries, nil
+	entries := make([][]byte, 0)
+	for rows.Next() {
+		var child []byte
+		if err := rows.Scan(&child); err != nil {
+			return nil, err
+		}
+		entries = append(entries, child)
+	}
+	return entries, rows.Err()
 }
 
 func (s *SqliteKV) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
-	entry := &PrefixEntry{
-		Prefix: prefix,
-		Child:  child,
-	}
-
-	return s.writer.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Delete(entry).Error; err != nil {
+	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
+		_, err := tx.StmtContext(ctx, s.stmts.prefixRemove).Exec(prefix, child)
+		if err != nil {
 			return err
 		}
-		return s.updateKeyTracker(tx, prefix, 0, PrefixFlag)
+		return s.updateKeyTracker(ctx, tx, prefix, 0, PrefixFlag)
 	})
 }

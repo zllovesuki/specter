@@ -39,14 +39,14 @@ func getKVProvider(logger *zap.Logger, option string, datadir string, cachedir s
 		}
 		kv, err := sqlite3.New(sqlite3.Config{
 			Logger:  logger,
-			HasnFn:  chord.Hash,
+			HashFn:  chord.Hash,
 			DataDir: datadir,
 		})
 		if err != nil {
 			return nil, nil, err
 		}
 		logger.Info("Using SQLite storage backend")
-		return kv, noop, nil
+		return kv, kv.Close, nil
 	default:
 		return nil, nil, fmt.Errorf("unknown kv provider: %s", option)
 	}

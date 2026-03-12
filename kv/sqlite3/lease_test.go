@@ -38,11 +38,12 @@ func TestAcquireExpired(t *testing.T) {
 	rand.Read(key)
 
 	// expired 2 seconds ago
-	e := kv.writer.WithContext(context.Background()).Create(&LeaseEntry{
-		Owner: key,
-		Token: uint64(time.Now().Add(time.Duration(-2) * time.Second).UnixNano()),
-	})
-	as.NoError(e.Error)
+	expiredToken := uint64(time.Now().Add(time.Duration(-2) * time.Second).UnixNano())
+	_, err := kv.writer.Exec(
+		"INSERT INTO `lease_entries` (`owner`, `token`) VALUES (?, ?)",
+		key, bindUint64AsInt64(expiredToken),
+	)
+	as.NoError(err)
 
 	token, err := kv.Acquire(context.Background(), key, time.Second)
 	as.NoError(err)

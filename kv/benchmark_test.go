@@ -40,7 +40,7 @@ func BenchmarkSqliteKVPut(b *testing.B) {
 
 	cfg := sqlite3.Config{
 		Logger:  logger,
-		HasnFn:  chord.Hash,
+		HashFn:  chord.Hash,
 		DataDir: dir,
 	}
 

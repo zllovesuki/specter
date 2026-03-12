@@ -2,61 +2,41 @@ package sqlite3
 
 import (
 	"context"
-	"errors"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"database/sql"
 )
 
 func (s *SqliteKV) Put(ctx context.Context, key []byte, value []byte) error {
-	entry := &SimpleEntry{
-		Key:   key,
-		Value: value,
-	}
-
-	return s.writer.
-		WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			if err := tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "key"}},
-				DoUpdates: clause.AssignmentColumns([]string{"value"}),
-			}).Create(entry).Error; err != nil {
-				return err
-			}
-			return s.updateKeyTracker(tx, key, SimpleFlag, 0)
-		})
+	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
+		_, err := tx.StmtContext(ctx, s.stmts.simplePut).Exec(key, value)
+		if err != nil {
+			return err
+		}
+		return s.updateKeyTracker(ctx, tx, key, SimpleFlag, 0)
+	})
 }
 
 func (s *SqliteKV) Get(ctx context.Context, key []byte) ([]byte, error) {
-	entry := &SimpleEntry{
-		Key: key,
-	}
-	tx := s.reader.WithContext(ctx)
-	resp := tx.Select("value").Take(entry)
-	if resp.Error != nil {
-		if errors.Is(resp.Error, gorm.ErrRecordNotFound) {
+	var value []byte
+	err := s.stmts.simpleGet.QueryRowContext(ctx, key).Scan(&value)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, resp.Error
+		return nil, err
 	}
-	// errata: gorm library doesn't distinguish between nil and empty byte slice
-	if entry.Value == nil {
-		entry.Value = []byte{}
+	// Preserve behavior: distinguish between NULL (missing) and empty blob
+	if value == nil {
+		value = []byte{}
 	}
-	return entry.Value, nil
+	return value, nil
 }
 
 func (s *SqliteKV) Delete(ctx context.Context, key []byte) error {
-	entry := &SimpleEntry{
-		Key: key,
-	}
-
-	return s.writer.
-		WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			if err := tx.Delete(entry).Error; err != nil {
-				return err
-			}
-			return s.updateKeyTracker(tx, key, 0, SimpleFlag)
-		})
+	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
+		_, err := tx.StmtContext(ctx, s.stmts.simpleDel).Exec(key)
+		if err != nil {
+			return err
+		}
+		return s.updateKeyTracker(ctx, tx, key, 0, SimpleFlag)
+	})
 }
