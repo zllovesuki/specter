@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -24,6 +25,28 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap/zaptest"
 )
+
+func randomPipeTarget(t *testing.T, pattern string) (string, string) {
+	t.Helper()
+
+	file, err := os.CreateTemp("", pattern)
+	require.NoError(t, err)
+
+	name := file.Name()
+	require.NoError(t, file.Close())
+	require.NoError(t, os.Remove(name))
+
+	if runtime.GOOS == "windows" {
+		path := `\\.\pipe\` + filepath.Base(name)
+		return path, path
+	}
+
+	t.Cleanup(func() {
+		_ = os.Remove(name)
+	})
+
+	return name, "unix://" + name
+}
 
 func TestJustHTTPProxy(t *testing.T) {
 	as := require.New(t)
@@ -107,17 +130,7 @@ func TestPipeHTTP(t *testing.T) {
 
 	ctx := t.Context()
 
-	var (
-		target string
-		path   string
-	)
-	if runtime.GOOS == "windows" {
-		path = "\\\\.\\pipe\\specterhttp"
-		target = path
-	} else {
-		path = "/tmp/specterhttp.sock"
-		target = "unix://" + path
-	}
+	path, target := randomPipeTarget(t, "specterhttp-*")
 
 	pipeListener, err := pipe.ListenPipe(path)
 	as.NoError(err)
@@ -198,17 +211,7 @@ func TestPipeTCP(t *testing.T) {
 
 	ctx := t.Context()
 
-	var (
-		target string
-		path   string
-	)
-	if runtime.GOOS == "windows" {
-		path = "\\\\.\\pipe\\spectertcp"
-		target = path
-	} else {
-		path = "/tmp/spectertcp.sock"
-		target = "unix://" + path
-	}
+	path, target := randomPipeTarget(t, "spectertcp-*")
 
 	pipeListener, err := pipe.ListenPipe(path)
 	as.NoError(err)
