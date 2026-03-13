@@ -1,0 +1,15 @@
+#!/bin/sh
+
+. /etc/rc.subr
+
+name=specter_server
+rcvar=${name}_enable
+pidfile=/var/run/${name}.pid
+command=/usr/sbin/daemon
+command_args="-P ${pidfile} /usr/local/libexec/specter/server-launch"
+required_files="/usr/local/etc/specter/server.env"
+
+load_rc_config $name
+: ${specter_server_enable:=NO}
+
+run_rc_command "$1"

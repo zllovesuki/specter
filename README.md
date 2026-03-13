@@ -29,7 +29,7 @@ Specter has these improvements over t:
 
 Similar to t, specter also:
 
-1. Uses [quic](https://github.com/lucas-clemente/quic-go) and _only_ quic for inter-nodes/node-client transport. However the transport (see `spec/transport`) is easily extensible;
+1. Uses [QUIC](https://github.com/quic-go/quic-go) for inter-node and tunnel-client transport. The transport layer (see `spec/transport`) is extensible, and the direct `connect`/`listen` helpers can fall back to TLS/TCP with `--tcp`;
 2. Supports tunneling _L7_(HTTP/S)/_L4_(TCP) traffic over a single TLS port;
 3. Manages Let's Encrypt certificate via dns01 challenge for gateway hostname.
 
@@ -83,7 +83,7 @@ For a complete example including all supported options, see:
 
 ### API
 
-To manage custom hostnames, unpublish, release, or list tunnels, the `specter client tunnel` subcommand accepts an optional argument to start a local API server.
+To manage custom hostnames, unpublish, release, or list tunnels while `specter client tunnel` is running, pass `--server [host]:[port]` to start the local management API and UI.
 
 ## Keyless TLS
 
@@ -147,20 +147,23 @@ Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q
 The following should be installed on your machine:
 
 - Docker with buildx support
-- Go 1.26+
-- [protoc](https://grpc.io/docs/protoc-installation)
-- [protoc-gen-go](https://developers.google.com/protocol-buffers/docs/reference/go-generated)
-- [protoc-gen-go-vtproto](https://github.com/planetscale/vtprotobuf#Usage)
+- Go 1.26.x
+- Node.js 22.x with npm (for `make ui`)
+- [protoc](https://grpc.io/docs/protoc-installation) if you plan to work on protobufs directly
 
 Windows development support is limited, you may have to run `go test` manually instead of `make test`. However WSL is a great environment.
 
-Run `make dev-server-acme` to compile binary for your architecture via buildx, bring up Let's Encrypt test server `pebble`, and a 5-node specter cluster.
+Run `make dev-server-acme` to build the dev image, bring up Let's Encrypt test server `pebble`, and start a 5-node specter cluster.
+
+Run `make dev-server` to start the same dev cluster without ACME enabled.
 
 Run `make dev-validate` to verify that all nodes have the same certificate (validate atomic ring maintenance).
 
 Run `make dev-client` to start a demo nginx server as proxy target, and a specter client connected to the cluster.
 
-For changes unrelated to KV, `make test` should be sufficient. Any changes to KV must pass `make concurrency_test`.
+Run `make proto` to regenerate protobuf and Twirp artifacts; it bootstraps the required generator binaries via `make dep` and needs network access.
+
+For changes unrelated to KV or routing, `make test` should be sufficient. Changes to Chord/KV/routing should pass `make full_test`, and Chord concurrency changes should also pass `make concurrency_test`.
 
 ## References
 

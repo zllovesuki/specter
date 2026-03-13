@@ -1,5 +1,6 @@
 dep/
 bin/
+dist/
 .vscode/
 /certs
 /data

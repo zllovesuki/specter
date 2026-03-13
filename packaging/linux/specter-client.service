@@ -1,0 +1,18 @@
+[Unit]
+Description=Specter client tunnel
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/specter/client.yaml
+ConditionPathExists=/etc/specter/client.env
+
+[Service]
+Type=simple
+User=specter
+Group=specter
+ExecStart=/usr/libexec/specter/client-launch
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

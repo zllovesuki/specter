@@ -10,13 +10,15 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build & Publish Edge Release
+  verify:
+    name: Verify Edge Release
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
     steps:
-      # 1) Make sure 'edge' actually points at this SHA:
       - name: Check `edge` tag matches CI commit
+        id: check
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -30,18 +32,23 @@ jobs:
             const ciSha   = context.payload.workflow_run.head_sha;
             if (edgeSha !== ciSha) {
               console.log(`⚠️ edge tag (${edgeSha}) ≠ CI commit (${ciSha}); skipping release.`);
-              // exit 78 = neutral (job is skipped)
-              process.exit(78);
+              core.setOutput('should_release', 'false');
+              return;
             }
+            core.setOutput('should_release', 'true');
             console.log('✅ edge tag matches; proceeding with release.');
 
-      # 2) Checkout the exact commit the CI tested:
+  build:
+    name: Build Binaries and Linux Packages
+    needs: verify
+    if: ${{ needs.verify.outputs.should_release == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout CI-tested commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      # 3) Your usual release steps:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -63,6 +70,30 @@ jobs:
       - name: Build compatibility binaries
         run: make -j$(nproc) compat
 
+      - name: Build Linux packages
+        run: make package-linux
+
+      - name: Upload release binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-release-binaries
+          if-no-files-found: error
+          path: |
+            bin/**
+            dist/pkg/linux/**/*.deb
+            dist/pkg/linux/**/*.rpm
+
+  publish:
+    name: Publish Edge Release
+    needs: [verify, build]
+    if: ${{ needs.verify.outputs.should_release == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
       - name: Publish rolling “edge” release
         uses: softprops/action-gh-release@v1
         with:
@@ -73,4 +104,4 @@ jobs:
             `edge` tag is moved.
           prerelease: true
           tag_name: edge
-          files: bin/**
+          files: release/**/*

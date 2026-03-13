@@ -1,0 +1,23 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<service_bundle type='manifest' name='specter-client'>
+  <service name='site/specter-client' type='service' version='1'>
+    <create_default_instance enabled='false'/>
+    <single_instance/>
+    <dependency name='network' grouping='require_all' restart_on='none' type='service'>
+      <service_fmri value='svc:/milestone/network:default'/>
+    </dependency>
+    <exec_method name='start' type='method' exec='/opt/local/libexec/specter/client-launch' timeout_seconds='60'/>
+    <exec_method name='stop' type='method' exec=':kill' timeout_seconds='60'/>
+    <property_group name='startd' type='framework'>
+      <propval name='duration' type='astring' value='child'/>
+      <propval name='ignore_error' type='astring' value='core,signal'/>
+    </property_group>
+    <stability value='Evolving'/>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>Specter client tunnel</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>

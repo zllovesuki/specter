@@ -14,6 +14,8 @@ GOAMD64=v3
 GOTAGS=-tags 'osusergo netgo urfave_cli_no_docs no_mocks' -trimpath
 LDFLAGS=-ldflags "-s -w -extldflags -static -X go.miragespace.co/specter/spec.BuildVersion=$(BUILD) -X go.miragespace.co/specter/spec.BuildTime=$(BUILT_TIME)"
 TIMEOUT=180s
+PACKAGE_VERSION ?= 0.0.0
+PACKAGE_RELEASE ?= edge.$(BUILD)
 
 plat_temp = $(subst /, ,$@)
 os = $(word 1, $(plat_temp))
@@ -72,6 +74,19 @@ dev-validate: buildx-validator
 all: proto test clean release
 
 release: $(PLATFORMS)
+
+package-linux: linux/amd64 linux/arm64 linux/arm
+	PACKAGE_VERSION=$(PACKAGE_VERSION) PACKAGE_RELEASE=$(PACKAGE_RELEASE) sh scripts/package-linux.sh
+
+package-freebsd:
+	@echo "freebsd packaging is currently unsupported" >&2
+	@exit 1
+
+package-illumos:
+	@echo "illumos packaging is currently unsupported" >&2
+	@exit 1
+
+packages: package-linux
 
 compat: GOAMD64 = v1
 compat: GOARM = 6
@@ -168,6 +183,7 @@ run_integration:
 
 clean:
 	-rm bin/*
+	-rm -rf dist
 	-rm cover.out
 
 certs:
@@ -222,4 +238,4 @@ licenses:
 	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt
 	-rm -rf ./licenses
 
-.PHONY: all
+.PHONY: all release compat package-linux package-freebsd package-illumos packages clean
