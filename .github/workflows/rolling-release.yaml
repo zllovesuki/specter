@@ -94,6 +94,50 @@ jobs:
         with:
           path: release
 
+      - name: Remove stale Linux package assets
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const assetPattern = /\.(deb|rpm)$/;
+            let release;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: 'edge',
+              });
+              release = response.data;
+            } catch (error) {
+              if (error.status === 404) {
+                console.log('No existing edge release found; nothing to prune.');
+                return;
+              }
+              throw error;
+            }
+
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              per_page: 100,
+            });
+
+            const staleAssets = assets.filter((asset) => assetPattern.test(asset.name));
+            if (staleAssets.length === 0) {
+              console.log('No stale .deb or .rpm assets found.');
+              return;
+            }
+
+            for (const asset of staleAssets) {
+              console.log(`Deleting stale asset: ${asset.name}`);
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+              });
+            }
+
       - name: Publish rolling “edge” release
         uses: softprops/action-gh-release@v1
         with:
