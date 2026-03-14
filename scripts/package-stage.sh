@@ -68,12 +68,12 @@ install -m 0644 "$repo_root/tun/client/config.example.yaml" "$stage_root$sysconf
 
 cat > "$stage_root$sysconfdir/specter/server.env" <<EOF
 SPECTER_GLOBAL_ARGS=
-SPECTER_SERVER_ARGS="--data-dir /var/lib/specter --cert-dir $sysconfdir/specter/cert --apex example.com --listen-rpc unix:///var/run/specter-rpc.sock"
+SPECTER_SERVER_ARGS="--data-dir /var/lib/specter --cert-dir $sysconfdir/specter/cert --apex example.com --listen-rpc unix:///run/specter/rpc.sock"
 EOF
 
 cat > "$stage_root$sysconfdir/specter/dns.env" <<EOF
 SPECTER_GLOBAL_ARGS=
-SPECTER_DNS_ARGS="--rpc unix:///var/run/specter-rpc.sock --acme acme://ops@example.net@acme-hosted.net --acme-ns ns1.acme-hosted.net/203.0.113.10"
+SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock --acme acme://ops@example.net@acme-hosted.net --acme-ns ns1.acme-hosted.net/203.0.113.10"
 EOF
 
 cat > "$stage_root$sysconfdir/specter/client.env" <<EOF

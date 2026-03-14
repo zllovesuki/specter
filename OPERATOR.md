@@ -24,6 +24,7 @@ We currently provide native packages for Linux. These packages set up the necess
 - **Launchers:** `/usr/libexec/specter/{server-launch,dns-launch,client-launch}`
 - **Configs:** `/etc/specter/*.env`, `/etc/specter/client.yaml`
 - **Certificates:** `/etc/specter/cert`
+- **Runtime RPC socket directory:** `/run/specter`
 - **Services:** `specter-server.service`, `specter-dns.service`, `specter-client.service`
 - **Service user:** `specter`
 - **Writable paths owned by `specter`:** `/var/lib/specter`, `/var/log/specter`, `/etc/specter/cert`, `/etc/specter/client.yaml`
@@ -50,7 +51,7 @@ specter --verbose server \
   --cert /etc/specter/cert \
   --apex example.com \
   --acme acme://ops@example.net@acme-hosted.net \
-  --listen-rpc unix:///var/run/specter-rpc.sock
+  --listen-rpc unix:///run/specter/rpc.sock
 ```
 
 ### 3. Start the ACME DNS Solver
@@ -60,7 +61,7 @@ The DNS solver handles Let's Encrypt (or other ACME provider) challenges. It com
 specter dns \
   --acme acme://ops@example.net@acme-hosted.net \
   --acme-ns ns1.acme-hosted.net/203.0.113.10 \
-  --rpc unix:///var/run/specter-rpc.sock
+  --rpc unix:///run/specter/rpc.sock
 ```
 
 ### 4. Configure DNS Delegation
@@ -105,24 +106,27 @@ When using packaged installs, Specter is configured via environment variable fil
 You can set `SPECTER_GLOBAL_ARGS` in any environment file to pass shared flags, such as `--verbose` for detailed logging.
 
 ### Server Configuration (`server.env`)
-The server environment file configures the main edge gateway. Add `--join` for joiner nodes, and specify `--acme` if you want the gateway to automatically manage TLS certificates.
+The server environment file configures the main edge gateway. Add `--join` for joiner nodes, and specify `--acme` if you want the gateway to automatically manage TLS certificates. You can also export process environment variables here for options that should not appear in the process list, such as internal admin credentials and the Sentry DSN.
 
 ```sh
 # /etc/specter/server.env
 SPECTER_GLOBAL_ARGS="--verbose"
+export INTERNAL_USER="admin"
+export INTERNAL_PASS="change-me"
+export SENTRY_DSN="https://public@example.ingest.sentry.io/123"
 SPECTER_SERVER_ARGS="--data-dir /var/lib/specter \
   --cert-dir /etc/specter/cert \
   --apex example.com \
-  --listen-rpc unix:///var/run/specter-rpc.sock"
+  --listen-rpc unix:///run/specter/rpc.sock"
 ```
 
 ### DNS Solver Configuration (`dns.env`)
-The DNS solver must share the same ACME configuration as the server. Using a Unix socket for `--rpc` is highly recommended if the solver is co-located with the gateway.
+The DNS solver must share the same ACME configuration as the server. Using a Unix socket for `--rpc` is highly recommended if the solver is co-located with the gateway. The packaged launcher also sources this file as a shell environment file, but the `dns` command does not currently consume `SENTRY_DSN` or internal admin credentials.
 
 ```sh
 # /etc/specter/dns.env
 SPECTER_GLOBAL_ARGS="--verbose"
-SPECTER_DNS_ARGS="--rpc unix:///var/run/specter-rpc.sock \
+SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock \
   --acme acme://ops@example.net@acme-hosted.net \
   --acme-ns ns1.acme-hosted.net/203.0.113.10"
 ```
@@ -148,6 +152,40 @@ systemctl daemon-reload
 systemctl enable --now specter-server
 systemctl enable --now specter-dns
 systemctl enable --now specter-client
+```
+
+### Post-install setup for packaged server and DNS services
+Edit the packaged environment files before enabling the services:
+
+```sh
+# /etc/specter/server.env
+SPECTER_GLOBAL_ARGS="--verbose"
+export INTERNAL_USER="admin"
+export INTERNAL_PASS="change-me"
+export SENTRY_DSN="https://public@example.ingest.sentry.io/123"
+SPECTER_SERVER_ARGS="--data-dir /var/lib/specter \
+  --cert-dir /etc/specter/cert \
+  --apex example.com \
+  --listen-rpc unix:///run/specter/rpc.sock"
+
+# add --join <seed-host:443> on non-seed nodes
+# add --acme acme://ops@example.net@acme-hosted.net if the gateway should issue certs
+```
+
+```sh
+# /etc/specter/dns.env
+SPECTER_GLOBAL_ARGS="--verbose"
+SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock \
+  --acme acme://ops@example.net@acme-hosted.net \
+  --acme-ns ns1.acme-hosted.net/203.0.113.10"
+```
+
+Then reload systemd and start the units:
+
+```sh
+systemctl daemon-reload
+systemctl enable --now specter-server
+systemctl enable --now specter-dns
 ```
 
 ---

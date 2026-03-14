@@ -1,6 +1,20 @@
 #!/bin/sh
 set -eu
 
+state_dir=/run/specter-package
+
+restart_marked_service() {
+	service=$1
+	marker="$state_dir/$service.restart"
+	if [ ! -f "$marker" ]; then
+		return
+	fi
+	if ! systemctl start "$service" >/dev/null 2>&1; then
+		echo "warning: failed to start $service after package install" >&2
+	fi
+	rm -f "$marker"
+}
+
 create_group() {
 	if getent group specter >/dev/null 2>&1; then
 		return
@@ -69,4 +83,9 @@ fi
 
 if command -v systemctl >/dev/null 2>&1; then
 	systemctl daemon-reload >/dev/null 2>&1 || true
+	restart_marked_service specter-server.service
+	restart_marked_service specter-dns.service
+	restart_marked_service specter-client.service
 fi
+
+rmdir "$state_dir" >/dev/null 2>&1 || true

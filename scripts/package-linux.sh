@@ -109,6 +109,7 @@ contents:
   - dst: /var/log/specter
     type: dir
 scripts:
+  preinstall: $runtime_repo_root/packaging/linux/preinstall.sh
   postinstall: $runtime_repo_root/packaging/linux/postinstall.sh
   postremove: $runtime_repo_root/packaging/linux/postremove.sh
 EOF
