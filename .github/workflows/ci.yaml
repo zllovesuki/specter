@@ -6,7 +6,6 @@ on:
       - main
     paths-ignore:
       - "**/*.md"
-      - "Jenkinsfile"
 
 jobs:
   testing:
@@ -16,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        go: ["1.26.1"]
+        go: ["1.26.3"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -42,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26.1"
+          go-version: "1.26.3"
 
       - run: make ui
       - run: make integration_test
@@ -57,7 +56,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26.1"
+          go-version: "1.26.3"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

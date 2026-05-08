@@ -1,0 +1,27 @@
+version: 1
+checkout:
+  depth: 1
+run:
+  workingDirectory: .
+  timeoutSeconds: 720
+  steps:
+    - name: install-go
+      run: |
+        set -eu
+        GO_VERSION=1.26.3
+        case "$(uname -m)" in
+          x86_64) GO_ARCH=amd64 ;;
+          aarch64|arm64) GO_ARCH=arm64 ;;
+          *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+        esac
+        mkdir -p .anvil-tools
+        curl -fsSLo /tmp/go.tgz "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+        rm -rf .anvil-tools/go
+        tar -C .anvil-tools -xzf /tmp/go.tgz
+        ./.anvil-tools/go/bin/go version
+    - name: go-deps
+      run: PATH="$PWD/.anvil-tools/go/bin:$PATH" go mod download
+    - name: ui
+      run: make ui
+    - name: test
+      run: PATH="$PWD/.anvil-tools/go/bin:$PATH" make test
