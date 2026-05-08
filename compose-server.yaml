@@ -12,9 +12,15 @@ version: '3.9'
 services:
   # simulate let's encrypt acme
   pebble:
-    extends:
-      file: compose-pebble.common.yaml
-      service: pebble_common
+    image: ghcr.io/letsencrypt/pebble:latest
+    command: -config /pebble/config.json
+    environment:
+      - PEBBLE_VA_NOSLEEP=1
+      - PEBBLE_VA_ALWAYS_VALID=1
+      - PEBBLE_WFE_NONCEREJECT=0
+    volumes:
+      - ./dev/pebble:/pebble:ro
+      - ./certs:/certs:ro
     ports:
       - 14000:14000  # ACME port
       - 15000:15000  # Management port
@@ -34,7 +40,7 @@ services:
       - DOH=false
     networks:
       - specter
-    command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen dns:1153 --rpc tcp://seed:1280
+    command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen :1153 --rpc tcp://seed:1280
 
   seed:
     image: specter-dev
@@ -57,7 +63,7 @@ services:
       - KV_PROVIDER=sqlite
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen seed:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --listen-rpc tcp://seed:1280
+    command: --verbose server --data /app/data --cert /certs --listen :1113 --advertise seed:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --listen-rpc tcp://:1280
 
   srva:
     image: specter-dev
@@ -80,7 +86,7 @@ services:
       - KV_PROVIDER=sqlite
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srva:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen :1113 --advertise srva:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvb:
     image: specter-dev
@@ -103,7 +109,7 @@ services:
       - KV_PROVIDER=sqlite
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvb:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen :1113 --advertise srvb:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvc:
     image: specter-dev
@@ -126,7 +132,7 @@ services:
       - KV_PROVIDER=sqlite
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvc:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen :1113 --advertise srvc:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
   srvd:
     image: specter-dev
@@ -149,7 +155,7 @@ services:
       - KV_PROVIDER=sqlite
     networks:
       - specter
-    command: --verbose server --data /app/data --cert /certs --listen srvd:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
+    command: --verbose server --data /app/data --cert /certs --listen :1113 --advertise srvd:1113 --listen-http 1112 --apex dev.con.nect.sh --virtual 3 ${SKIP:---acme acme://admin@example.com@hostedacme.com} --join seed:1113
 
 volumes:
   seed_kv:
