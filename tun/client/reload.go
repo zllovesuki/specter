@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -17,12 +18,16 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 			return
 		case <-c.ReloadSignal:
 			c.Logger.Info("Received SIGHUP, reloading config")
-			c.doReload(ctx)
+			if result := c.doReload(ctx); result.Error != "" {
+				c.Logger.Warn("Configuration reload did not fully succeed", zap.String("error", result.Error))
+			}
 		}
 	}
 }
 
-func (c *Client) doReload(ctx context.Context) {
+func (c *Client) doReload(ctx context.Context) SyncResult {
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
 	onReload := func(prev, curr []Tunnel) {
 		diff := diffTunnels(prev, curr)
 		c.closeOutdatedProxies(diff...)
@@ -32,10 +37,11 @@ func (c *Client) doReload(ctx context.Context) {
 	if err := c.Configuration.reloadFile(onReload); err != nil {
 		c.Logger.Error("Error reloading config file", zap.Error(err))
 		c.configMu.Unlock()
-		return
+		now := time.Now()
+		return SyncResult{Error: err.Error(), AttemptedAt: &now, Tunnels: []TunnelSyncResult{}}
 	}
 	c.configMu.Unlock()
-	c.SyncConfigTunnels(ctx)
+	return c.syncConfigTunnels(ctx, true)
 }
 
 func (c *Client) UpdateApex(apex string) {

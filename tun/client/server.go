@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"embed"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -74,11 +76,60 @@ func (c *Client) ListTunnels(ctx context.Context, _ *protocol.ListTunnelsRequest
 	}, nil
 }
 
-func (c *Client) startLocalServer(ctx context.Context) {
-	if c.ServerListener == nil {
-		return
-	}
+type ClientStatus struct {
+	Apex            string           `json:"apex"`
+	ConnectedNodes  []*protocol.Node `json:"connectedNodes"`
+	Synchronization SyncResult       `json:"synchronization"`
+	Pending         bool             `json:"pending"`
+	RetryAt         *time.Time       `json:"retryAt,omitempty"`
+}
 
+func (c *Client) getStatus() ClientStatus {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	c.syncStateMu.RLock()
+	defer c.syncStateMu.RUnlock()
+
+	result := c.lastSync
+	result.Tunnels = make([]TunnelSyncResult, 0, len(c.Configuration.Tunnels))
+	for _, tunnel := range c.Configuration.Tunnels {
+		outcome := TunnelSyncResult{Hostname: tunnel.Hostname, Target: tunnel.Target}
+		for _, previous := range c.lastSync.Tunnels {
+			if previous.Hostname == tunnel.Hostname && previous.Target == tunnel.Target {
+				outcome = previous
+				break
+			}
+		}
+		result.Tunnels = append(result.Tunnels, outcome)
+	}
+	status := ClientStatus{
+		Apex: c.Configuration.Apex, ConnectedNodes: c.getConnectedNodes(),
+		Synchronization: result, Pending: result.pendingPublication(),
+	}
+	if status.ConnectedNodes == nil {
+		status.ConnectedNodes = []*protocol.Node{}
+	}
+	if status.Pending {
+		next := c.nextSync
+		status.RetryAt = &next
+	}
+	return status
+}
+
+func writeJSONResult(w http.ResponseWriter, status int, result any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(result)
+}
+
+func writeActionError(w http.ResponseWriter, err error) {
+	var saveError *ConfigSaveError
+	writeJSONResult(w, http.StatusInternalServerError, SyncResult{
+		Applied: errors.As(err, &saveError), Error: err.Error(), Tunnels: []TunnelSyncResult{},
+	})
+}
+
+func (c *Client) localHandler() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Heartbeat("/healthz"))
@@ -87,8 +138,21 @@ func (c *Client) startLocalServer(ctx context.Context) {
 
 	api.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
 		c.Logger.Info("Received request from API, reloading config")
-		c.doReload(r.Context())
-		w.WriteHeader(http.StatusNoContent)
+		result := c.doReload(r.Context())
+		if result.Error == "" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		status := http.StatusInternalServerError
+		if !result.Applied {
+			status = http.StatusBadRequest
+		}
+		writeJSONResult(w, status, result)
+	})
+
+	api.Get("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSONResult(w, http.StatusOK, c.getStatus())
 	})
 
 	api.Get("/config", func(w http.ResponseWriter, r *http.Request) {
@@ -115,14 +179,11 @@ func (c *Client) startLocalServer(ctx context.Context) {
 			return
 		}
 
-		c.syncMu.Lock()
-		defer c.syncMu.Unlock()
-
 		err = c.UnpublishTunnel(r.Context(), Tunnel{
 			Hostname: hostname,
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeActionError(w, err)
 			return
 		}
 
@@ -142,14 +203,11 @@ func (c *Client) startLocalServer(ctx context.Context) {
 			return
 		}
 
-		c.syncMu.Lock()
-		defer c.syncMu.Unlock()
-
 		err = c.ReleaseTunnel(r.Context(), Tunnel{
 			Hostname: hostname,
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeActionError(w, err)
 			return
 		}
 
@@ -206,16 +264,22 @@ func (c *Client) startLocalServer(ctx context.Context) {
 	})
 
 	r.Mount("/api", api)
-
 	uiFs, err := fs.Sub(ui, "ui/build")
 	if err != nil {
 		panic(err)
 	}
-
 	r.Handle("/*", http.FileServerFS(uiFs))
 
+	return r
+}
+
+func (c *Client) startLocalServer(ctx context.Context) {
+	if c.ServerListener == nil {
+		return
+	}
+
 	srv := &http.Server{
-		Handler:           r,
+		Handler:           c.localHandler(),
 		ReadHeaderTimeout: connectTimeout,
 		ErrorLog:          util.GetStdLogger(c.Logger, "localServer"),
 		BaseContext: func(l net.Listener) context.Context {

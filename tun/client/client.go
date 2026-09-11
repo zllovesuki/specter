@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/binary"
 	"net"
 	"os"
 	"sync"
@@ -18,7 +17,6 @@ import (
 	"go.miragespace.co/specter/util/acceptor"
 
 	"github.com/Yiling-J/theine-go"
-	"github.com/zeebo/xxh3"
 	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -58,6 +56,12 @@ type Client struct {
 	configMu                sync.RWMutex
 	closeWg                 sync.WaitGroup
 	syncMu                  sync.Mutex
+	syncStateMu             sync.RWMutex
+	publication             map[string]publicationState
+	hostnameNextCandidate   uint64
+	lastSync                SyncResult
+	nextSync                time.Time
+	syncBackoff             time.Duration
 	tunnelClient            rpc.TunnelClient
 	parentCtx               context.Context
 	rootDomain              *atomic.String
@@ -112,21 +116,11 @@ func (c *Client) Initialize(ctx context.Context, syncTunnels bool) error {
 	time.Sleep(util.RandomTimeRange(rttInterval))
 
 	if syncTunnels {
-		c.SyncConfigTunnels(ctx)
+		if result := c.SyncConfigTunnels(ctx); result.Error != "" {
+			c.Logger.Warn("Initial tunnel synchronization is pending retry", zap.String("error", result.Error))
+		}
 	}
 	return nil
-}
-
-func (c *Client) hash(seed uint64, nodes []*protocol.Node) uint64 {
-	var buf [8]byte
-
-	hasher := xxh3.New()
-
-	for _, node := range nodes {
-		binary.BigEndian.PutUint64(buf[:], node.GetId())
-		hasher.Write(buf[:])
-	}
-	return hasher.Sum64()
 }
 
 func (c *Client) GetConnectedNodes() []*protocol.Node {

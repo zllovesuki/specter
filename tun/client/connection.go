@@ -159,35 +159,55 @@ func (c *Client) reBootstrap(ctx context.Context) {
 func (c *Client) periodicReconnection(ctx context.Context) {
 	defer c.closeWg.Done()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-c.closeCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-c.closeCh:
-			return
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			prev, failed := c.getAliveNodes(ctx)
-			if failed > 0 {
-				c.Logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
-			}
-			if err := c.maintainConnections(ctx); err != nil {
-				continue
-			}
-			now, _ := c.getAliveNodes(ctx)
-
-			var seed uint64 = 0
-			pH := c.hash(seed, prev)
-			nH := c.hash(seed, now)
-			c.Logger.Debug("Alive nodes delta", zap.Int("prevNum", len(prev)), zap.Uint64("prevHash", pH), zap.Int("currNum", len(now)), zap.Uint64("currHash", nH))
-
-			if failed > 0 || pH != nH {
-				c.Logger.Info("Connections with specter server have changed", zap.Int("previous", len(prev)), zap.Int("current", len(now)))
-				c.SyncConfigTunnels(ctx)
-			}
+			c.reconcileConnections(ctx)
 		}
+	}
+}
+
+func (c *Client) reconcileConnections(ctx context.Context) {
+	prev, failed := c.getAliveNodes(ctx)
+	if failed > 0 {
+		c.Logger.Info("Some connections have failed, opening more connections to specter server", zap.Int("dead", failed))
+	}
+	if err := c.maintainConnections(ctx); err != nil {
+		// A candidate lookup can fail while existing gateways still work. It
+		// must not prevent retrying previously failed tunnel publication.
+		c.Logger.Warn("Failed to maintain gateway connections", zap.Error(err))
+	}
+	now, _ := c.getAliveNodes(ctx)
+	changed := failed > 0 || endpointSignature(prev) != endpointSignature(now)
+
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
+	if ctx.Err() != nil {
+		return
+	}
+	c.syncStateMu.RLock()
+	retryPending := c.lastSync.pendingPublication() && !time.Now().Before(c.nextSync)
+	c.syncStateMu.RUnlock()
+	if changed {
+		clear(c.publication)
+	}
+	if changed || retryPending {
+		c.syncConfigTunnels(ctx, false)
 	}
 }
 

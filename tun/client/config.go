@@ -204,16 +204,20 @@ func (c *Config) readFile() error {
 	return yaml.NewDecoder(f).Decode(c)
 }
 
-func (c *Config) writeFile() error {
+func (c *Config) writeFile() (err error) {
 	f, err := os.OpenFile(c.path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("error opening config file for writing: %w", err)
 	}
-	defer f.Close()
-	defer f.Sync()
+	defer func() { err = errors.Join(err, f.Close()) }()
 
 	encoder := yaml.NewEncoder(f)
 	encoder.SetIndent(2)
-	defer encoder.Close()
-	return encoder.Encode(c)
+	if err := encoder.Encode(c); err != nil {
+		return err
+	}
+	if err := encoder.Close(); err != nil {
+		return err
+	}
+	return f.Sync()
 }

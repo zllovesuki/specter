@@ -2,8 +2,10 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
@@ -11,98 +13,239 @@ import (
 	"go.uber.org/zap"
 )
 
+// TunnelSyncResult reports the last publication acknowledgement for a configured
+// tunnel. Publication is not an end-to-end health check of its target.
+type TunnelSyncResult struct {
+	Hostname           string `json:"hostname"`
+	Target             string `json:"target"`
+	Published          bool   `json:"published"`
+	PublishedEndpoints int    `json:"publishedEndpoints"`
+	Error              string `json:"error,omitempty"`
+}
+
+type SyncResult struct {
+	Applied     bool               `json:"applied"`
+	Saved       bool               `json:"saved"`
+	Error       string             `json:"error,omitempty"`
+	AttemptedAt *time.Time         `json:"attemptedAt,omitempty"`
+	Tunnels     []TunnelSyncResult `json:"tunnels"`
+}
+
+func (r SyncResult) pendingPublication() bool {
+	for _, tunnel := range r.Tunnels {
+		if tunnel.Error != "" {
+			return true
+		}
+	}
+	return false
+}
+
+type publicationState struct {
+	endpoints string
+	published int
+}
+
+// ConfigSaveError means that the operation changed live state, but the updated
+// configuration could not be saved. Reloading the old file may undo that change.
+type ConfigSaveError struct{ Err error }
+
+func (e *ConfigSaveError) Error() string {
+	return fmt.Sprintf("change applied, but configuration was not saved: %v", e.Err)
+}
+
+func (e *ConfigSaveError) Unwrap() error { return e.Err }
+
 func (c *Client) requestHostname(ctx context.Context) (string, error) {
-	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.GenerateHostnameResponse, error) {
-		ctx = rpc.WithNode(ctx, node)
-		return c.tunnelClient.GenerateHostname(ctx, &protocol.GenerateHostnameRequest{})
-	})
+	connected := c.getConnectedNodes()
+	if len(connected) == 0 {
+		return "", fmt.Errorf("no rpc candidates available")
+	}
+	// Generation is not idempotent. After an ambiguous failure, the next sync
+	// queries registered hostnames before attempting to generate another one.
+	callCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
+	candidate := connected[c.hostnameNextCandidate%uint64(len(connected))]
+	resp, err := c.tunnelClient.GenerateHostname(rpc.WithNode(callCtx, candidate), &protocol.GenerateHostnameRequest{})
 	if err != nil {
+		c.hostnameNextCandidate++
 		return "", err
+	}
+	if resp.GetHostname() == "" {
+		c.hostnameNextCandidate++
+		return "", fmt.Errorf("server returned an empty generated hostname")
 	}
 	return resp.GetHostname(), nil
 }
 
-func (c *Client) SyncConfigTunnels(ctx context.Context) {
+func endpointSignature(nodes []*protocol.Node) string {
+	var signature strings.Builder
+	for _, node := range nodes {
+		fmt.Fprintf(&signature, "%d:%s;", node.GetId(), node.GetAddress())
+	}
+	return signature.String()
+}
+
+// SyncConfigTunnels explicitly republishes the current configuration. Automatic
+// retries use the successful acknowledgements from this attempt to retry only
+// unfinished work.
+func (c *Client) SyncConfigTunnels(ctx context.Context) SyncResult {
 	c.syncMu.Lock()
 	defer c.syncMu.Unlock()
+	return c.syncConfigTunnels(ctx, true)
+}
 
+// syncConfigTunnels requires syncMu to serialize reload, removal, and retries.
+func (c *Client) syncConfigTunnels(ctx context.Context, force bool) SyncResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if force || c.publication == nil {
+		c.publication = make(map[string]publicationState)
+	}
 	c.configMu.RLock()
 	tunnels := append([]Tunnel{}, c.Configuration.Tunnels...)
 	c.configMu.RUnlock()
 
+	now := time.Now()
+	result := SyncResult{Applied: true, AttemptedAt: &now, Tunnels: make([]TunnelSyncResult, len(tunnels))}
+	var syncErrors []error
+	for i, tunnel := range tunnels {
+		result.Tunnels[i] = TunnelSyncResult{Hostname: tunnel.Hostname, Target: tunnel.Target}
+	}
+
 	c.Logger.Info("Synchronizing tunnels in config file with specter", zap.Int("tunnels", len(tunnels)))
 
-	// reuse already assigned hostnames if possible
-	registered, err := c.GetRegisteredHostnames(ctx)
-	if err != nil {
-		c.Logger.Error("Failed to query available hostnames", zap.Error(err))
-		return
+	c.syncStateMu.RLock()
+	result.Saved = !c.lastSync.Applied || c.lastSync.Saved
+	c.syncStateMu.RUnlock()
+	hostnameAssigned := false
+	needsHostname := false
+	for _, tunnel := range tunnels {
+		needsHostname = needsHostname || tunnel.Hostname == ""
 	}
 	available := make([]string, 0)
-	inused := make(map[string]string)
-	for _, t := range tunnels {
-		inused[t.Hostname] = t.Target
-	}
-	for _, hostname := range registered {
-		// while we want to reuse hostnames, we want to reuse auto-generated hostnames only
-		// so we don't accidentally point, say, pointing bastion.customdomain.com to MySQL
-		if strings.Contains(hostname, ".") {
-			continue
-		}
-		// filter out hostnames currently in used
-		if _, ok := inused[hostname]; ok {
-			continue
-		}
-		available = append(available, hostname)
-	}
-
-	// now assign a hostname to a target if they don't have one, either a new hostname or reused
-	var name string
-	for i, tunnel := range tunnels {
-		if tunnel.Target == "" {
-			continue
-		}
-		if tunnel.Hostname == "" {
-			if len(available) > 0 {
-				name, available = available[0], available[1:]
-			} else {
-				name, err = c.requestHostname(ctx)
-				if err != nil {
-					c.Logger.Error("Failed to request new hostname", zap.String("target", tunnel.Target), zap.Error(err))
-					continue
+	var lookupErr error
+	if force || needsHostname {
+		registered, err := c.GetRegisteredHostnames(ctx)
+		if err != nil {
+			lookupErr = fmt.Errorf("querying registered hostnames: %w", err)
+			syncErrors = append(syncErrors, lookupErr)
+		} else {
+			inUse := make(map[string]bool)
+			for _, tunnel := range tunnels {
+				inUse[tunnel.Hostname] = true
+			}
+			for _, hostname := range registered {
+				if !strings.Contains(hostname, ".") && !inUse[hostname] {
+					available = append(available, hostname)
+					inUse[hostname] = true
 				}
 			}
-			tunnels[i].Hostname = name
 		}
-		// TODO: assert that the hostname was assigned
 	}
 
 	connected := c.getConnectedNodes()
-	apex := c.rootDomain.Load()
-
-	for _, tunnel := range tunnels {
+	endpoints := endpointSignature(connected)
+	var generationErr error
+	for i := range tunnels {
+		tunnel := &tunnels[i]
+		outcome := &result.Tunnels[i]
 		if tunnel.Hostname == "" {
-			continue
-		}
-		published, err := c.publishTunnel(ctx, tunnel.Hostname, connected)
-		if err != nil {
-			c.Logger.Error("Failed to publish tunnel", zap.String("hostname", tunnel.Hostname), zap.String("target", tunnel.Target), zap.Int("endpoints", len(connected)), zap.Error(err))
-			continue
+			if lookupErr != nil {
+				outcome.Error = lookupErr.Error()
+				continue
+			}
+			var err error
+			if len(available) > 0 {
+				tunnel.Hostname, available = available[0], available[1:]
+			} else if generationErr != nil {
+				err = fmt.Errorf("hostname generation deferred until registered names are reconciled: %w", generationErr)
+			} else {
+				tunnel.Hostname, err = c.requestHostname(ctx)
+				generationErr = err
+			}
+			if err != nil {
+				outcome.Error = fmt.Sprintf("requesting hostname: %v", err)
+				syncErrors = append(syncErrors, fmt.Errorf("%s: %s", tunnel.Target, outcome.Error))
+				continue
+			}
+			outcome.Hostname = tunnel.Hostname
+			hostnameAssigned = true
 		}
 
-		var fqdn string
-		if strings.Contains(tunnel.Hostname, ".") {
-			fqdn = tunnel.Hostname
-		} else {
-			fqdn = fmt.Sprintf("%s.%s", tunnel.Hostname, apex)
+		if previous, ok := c.publication[tunnel.Hostname]; !force && ok && previous.endpoints == endpoints {
+			outcome.Published = true
+			outcome.PublishedEndpoints = previous.published
+			continue
+		}
+		// A fresh attempt can partially replace the numbered routing slots.
+		// Its failure invalidates any earlier acknowledgement, even if a later
+		// retry returns to the same gateway ordering as that acknowledgement.
+		delete(c.publication, tunnel.Hostname)
+		published, err := c.publishTunnel(ctx, tunnel.Hostname, connected)
+		outcome.PublishedEndpoints = len(published)
+		outcome.Published = len(published) > 0
+		if err == nil && len(published) < len(connected) {
+			err = fmt.Errorf("published %d of %d connected gateways", len(published), len(connected))
+		}
+		if err == nil && len(published) == 0 {
+			err = fmt.Errorf("no gateways acknowledged publication")
+		}
+		if err != nil {
+			outcome.Error = err.Error()
+			syncErrors = append(syncErrors, fmt.Errorf("%s: %w", tunnel.Hostname, err))
+			c.Logger.Error("Failed to fully publish tunnel", zap.String("hostname", tunnel.Hostname), zap.Error(err))
+			continue
+		}
+		c.publication[tunnel.Hostname] = publicationState{endpoints: endpoints, published: len(published)}
+		fqdn := tunnel.Hostname
+		if !strings.Contains(fqdn, ".") {
+			fqdn = fmt.Sprintf("%s.%s", fqdn, c.rootDomain.Load())
 		}
 		c.Logger.Info("Tunnel published", zap.String("hostname", fqdn), zap.String("target", tunnel.Target), zap.Int("published", len(published)))
 	}
 
-	c.RebuildTunnels(tunnels)
+	// Retain generated hostnames in live state even when publication or saving
+	// fails, so retrying cannot generate a second name for the same tunnel.
+	// Publication-only retries must not overwrite edits waiting in the YAML
+	// file for an explicit reload.
+	if force || hostnameAssigned {
+		err := c.RebuildTunnels(tunnels)
+		result.Saved = err == nil
+		syncErrors = append(syncErrors, err)
+	} else if !result.Saved {
+		syncErrors = append(syncErrors, errors.New("configuration changes are not saved"))
+	}
+	if err := errors.Join(syncErrors...); err != nil {
+		result.Error = err.Error()
+	}
+	c.recordSyncResult(result)
+	return result
+}
+
+func (c *Client) recordSyncResult(result SyncResult) {
+	c.syncStateMu.Lock()
+	defer c.syncStateMu.Unlock()
+	c.lastSync = result
+	c.lastSync.Tunnels = append([]TunnelSyncResult{}, result.Tunnels...)
+	if !result.pendingPublication() {
+		c.syncBackoff = 0
+		c.nextSync = time.Time{}
+		return
+	}
+	if c.syncBackoff == 0 {
+		c.syncBackoff = checkInterval
+	} else {
+		c.syncBackoff *= 2
+	}
+	if c.syncBackoff > 5*time.Minute {
+		c.syncBackoff = 5 * time.Minute
+	}
+	c.nextSync = time.Now().Add(c.syncBackoff)
 }
 
 func (c *Client) publishTunnel(ctx context.Context, hostname string, connected []*protocol.Node) ([]*protocol.Node, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.PublishTunnelResponse, error) {
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.PublishTunnel(ctx, &protocol.PublishTunnelRequest{
@@ -117,6 +260,8 @@ func (c *Client) publishTunnel(ctx context.Context, hostname string, connected [
 }
 
 func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
 	resp, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.RegisteredHostnamesResponse, error) {
 		ctx = rpc.WithNode(ctx, node)
 		return c.tunnelClient.RegisteredHostnames(ctx, &protocol.RegisteredHostnamesRequest{})
@@ -127,23 +272,28 @@ func (c *Client) GetRegisteredHostnames(ctx context.Context) ([]string, error) {
 	return resp.GetHostnames(), nil
 }
 
-func (c *Client) RebuildTunnels(tunnels []Tunnel) {
+func (c *Client) RebuildTunnels(tunnels []Tunnel) error {
 	c.configMu.Lock()
 	defer c.configMu.Unlock()
 
-	diff := diffTunnels(c.Configuration.Tunnels, tunnels)
-	c.closeOutdatedProxies(diff...)
-
-	c.Configuration.Tunnels = tunnels
-	if err := c.Configuration.writeFile(); err != nil {
-		c.Logger.Error("Error saving to config file", zap.Error(err))
+	next := *c.Configuration
+	next.Tunnels = append([]Tunnel{}, tunnels...)
+	if err := next.validate(); err != nil {
+		return err
 	}
-
-	c.Configuration.validate()
+	diff := diffTunnels(c.Configuration.Tunnels, next.Tunnels)
+	c.closeOutdatedProxies(diff...)
+	c.Configuration.Tunnels = next.Tunnels
 	c.Configuration.buildRouter(diff...)
+	if err := c.Configuration.writeFile(); err != nil {
+		return &ConfigSaveError{Err: err}
+	}
+	return nil
 }
 
 func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
 	if err := fn(); err != nil {
 		return err
 	}
@@ -165,17 +315,44 @@ func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
 	c.closeOutdatedProxies(tunnel)
 
 	c.Configuration.Tunnels = append(c.Configuration.Tunnels[:index], c.Configuration.Tunnels[index+1:]...)
-	if err := c.Configuration.writeFile(); err != nil {
-		c.Logger.Error("Error saving to config file", zap.Error(err))
-	}
-
 	c.Configuration.validate()
 	c.Configuration.buildRouter(tunnel)
+	delete(c.publication, tunnel.Hostname)
 
-	return nil
+	var saveErr error
+	if err := c.Configuration.writeFile(); err != nil {
+		saveErr = &ConfigSaveError{Err: err}
+	}
+	c.syncStateMu.RLock()
+	result := c.lastSync
+	c.syncStateMu.RUnlock()
+	remaining := make([]TunnelSyncResult, 0, len(c.Configuration.Tunnels))
+	var pendingErrors []error
+	for _, tunnel := range c.Configuration.Tunnels {
+		outcome := TunnelSyncResult{Hostname: tunnel.Hostname, Target: tunnel.Target, Error: "publication pending"}
+		for _, previous := range result.Tunnels {
+			if previous.Hostname == tunnel.Hostname && previous.Target == tunnel.Target {
+				outcome = previous
+				break
+			}
+		}
+		remaining = append(remaining, outcome)
+		if outcome.Error != "" {
+			pendingErrors = append(pendingErrors, fmt.Errorf("%s: %s", tunnel.Hostname, outcome.Error))
+		}
+	}
+	pendingErrors = append(pendingErrors, saveErr)
+	result.Tunnels, result.Applied, result.Saved, result.Error = remaining, true, saveErr == nil, ""
+	if err := errors.Join(pendingErrors...); err != nil {
+		result.Error = err.Error()
+	}
+	c.recordSyncResult(result)
+	return saveErr
 }
 
 func (c *Client) UnpublishTunnel(ctx context.Context, tunnel Tunnel) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
 	err := c.tunnelRemovalWrapper(tunnel, func() error {
 		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.UnpublishTunnelResponse, error) {
 			ctx = rpc.WithNode(ctx, node)
@@ -189,6 +366,8 @@ func (c *Client) UnpublishTunnel(ctx context.Context, tunnel Tunnel) error {
 }
 
 func (c *Client) ReleaseTunnel(ctx context.Context, tunnel Tunnel) error {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
 	return c.tunnelRemovalWrapper(tunnel, func() error {
 		_, err := retryRPC(c, ctx, func(node *protocol.Node) (*protocol.ReleaseTunnelResponse, error) {
 			ctx = rpc.WithNode(ctx, node)
