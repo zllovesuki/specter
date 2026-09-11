@@ -1,5 +1,31 @@
 # Repository Guidelines
 
+## Rules To Remember
+
+"Can we do more with less code?"
+
+"Do the hard things now, or be forced to do harder things in the future."
+
+These rules are ordered, not contradictory.
+
+Start with the smallest correct implementation that preserves correctness,
+performance, security, and clarity. Prefer existing code and a local fix when
+the problem is local.
+
+If that fix creates known fragility, blurred ownership, or an architectural
+dead end, pay the structural cost now instead of layering another shortcut on
+top. A larger abstraction must solve a current problem; otherwise present it
+as an option rather than making it the default.
+
+Keep ownership explicit: startup code selects and validates providers; each
+provider owns its storage; Chord owns membership and key ownership; transports
+own connection lifecycles. UIs consume API results rather than reimplementing
+domain decisions.
+
+Keep tests tied to concrete behavior and changed boundaries. Complete required
+checks, then stop unless a new change or failure justifies more verification.
+Keep documentation proportional to what a reader needs to understand or do.
+
 ## Project Structure & Module Organization
 - `main.go` launches the `specter` CLI; `cmd/specter` wires top-level commands, and `cmd/{server,client,dns,...}` holds command entrypoints/helpers.
 - `tun/` tunnel client/server logic, `ui/` embedded client and operator frontends, `gateway/` edge handling, `overlay/` routing glue.
@@ -19,6 +45,14 @@
 - Go formatting: `gofmt`/`goimports` (tabs, 2-space alignment only when needed); keep package names short and domain-specific (`chord`, `kv`, `tun`).
 - Favor explicit contexts and deadlines for network calls; avoid global state.
 - Regenerated files live near their sources (e.g., `*.pb.go`, `*_vtproto.pb.go`, `*.twirp.go`, `*_string.go`); do not hand-edit generated code.
+
+## Frontend Guidance
+
+Use Impeccable with [PRODUCT.md](PRODUCT.md) for product intent,
+[DESIGN.md](DESIGN.md) for visual design, and
+[docs/frontend-spec.md](docs/frontend-spec.md) for frontend conventions.
+Keep these references repository-local; live code and package configuration
+remain authoritative for architecture and versions.
 
 ## Testing Guidelines
 - Use Go’s testing package; name tests `TestFeature`, benchmarks `BenchmarkX`, and table-driven where practical.

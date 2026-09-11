@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-11T10:18:12.999704+00:00",
+  "title": "Specter design system",
+  "extensions": {
+    "colorMeta": {
+      "accent-500": {
+        "role": "primary",
+        "displayName": "Muted cyan"
+      }
+    },
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform 75ms",
+        "purpose": "Button press feedback."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "description": "Shared Button variant.",
+      "html": "<button type=\"button\" class=\"ds-button-0\">Synchronize</button>",
+      "css": ".ds-button-0{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:6px 12px;border:1px solid;border-radius:6px;font:600 14px/20px \"Hanken Grotesk\",sans-serif;cursor:pointer;transition:transform 75ms;border-color:var(--color-accent-500);background:var(--color-accent-500);color:var(--color-chrome);}.ds-button-0:hover{border-color:var(--color-accent-400);background:var(--color-accent-400);}.ds-button-0:active{transform:scale(.98)}.ds-button-0:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}.ds-button-0:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button-0{transition:none}.ds-button-0:active{transform:none}}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "description": "Shared Button variant.",
+      "html": "<button type=\"button\" class=\"ds-button-1\">Refresh</button>",
+      "css": ".ds-button-1{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:6px 12px;border:1px solid;border-radius:6px;font:600 14px/20px \"Hanken Grotesk\",sans-serif;cursor:pointer;transition:transform 75ms;border-color:var(--color-zinc-500);background:var(--color-surface);color:var(--color-foreground);}.ds-button-1:hover{border-color:var(--color-muted);background:var(--color-line);}.ds-button-1:active{transform:scale(.98)}.ds-button-1:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}.ds-button-1:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button-1{transition:none}.ds-button-1:active{transform:none}}",
+      "refersTo": "button-secondary"
+    },
+    {
+      "name": "Danger button",
+      "kind": "button",
+      "description": "Shared Button variant.",
+      "html": "<button type=\"button\" class=\"ds-button-2\">Release</button>",
+      "css": ".ds-button-2{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:6px 12px;border:1px solid;border-radius:6px;font:600 14px/20px \"Hanken Grotesk\",sans-serif;cursor:pointer;transition:transform 75ms;border-color:color-mix(in oklab,var(--color-danger) 70%,transparent);background:color-mix(in oklab,var(--color-danger) 10%,transparent);color:var(--color-danger);}.ds-button-2:hover{border-color:var(--color-danger);background:color-mix(in oklab,var(--color-danger) 20%,transparent);}.ds-button-2:active{transform:scale(.98)}.ds-button-2:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}.ds-button-2:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button-2{transition:none}.ds-button-2:active{transform:none}}"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "description": "Shared Button variant.",
+      "html": "<button type=\"button\" class=\"ds-button-3\">Cancel</button>",
+      "css": ".ds-button-3{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:6px 12px;border:1px solid;border-radius:6px;font:600 14px/20px \"Hanken Grotesk\",sans-serif;cursor:pointer;transition:transform 75ms;border-color:transparent;background:transparent;color:var(--color-muted);}.ds-button-3:hover{background:var(--color-surface);color:var(--color-foreground);}.ds-button-3:active{transform:scale(.98)}.ds-button-3:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}.ds-button-3:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button-3{transition:none}.ds-button-3:active{transform:none}}"
+    },
+    {
+      "name": "Domain input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared input styling.",
+      "html": "<label class=\"ds-field\">Domain<input class=\"ds-input\" placeholder=\"app.example.com\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;color:var(--color-foreground);font:450 15px/1.5 \"Hanken Grotesk\",sans-serif}.ds-input{box-sizing:border-box;width:100%;min-height:40px;padding:8px 12px;border:1px solid var(--color-zinc-500);border-radius:6px;background:var(--color-chrome);color:var(--color-foreground);font:450 14px/20px \"Hanken Grotesk\",sans-serif}.ds-input::placeholder{color:var(--color-muted)}.ds-input:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}.ds-input:disabled{opacity:.5}"
+    },
+    {
+      "name": "Operator navigation",
+      "kind": "nav",
+      "description": "Links between operator views.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Operator\"><a href=\"#\" aria-current=\"page\">Overview</a><a href=\"#\">Clients</a></nav>",
+      "css": ".ds-nav{display:flex;flex-wrap:wrap;gap:4px}.ds-nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;border-radius:6px;color:var(--color-muted);font:500 14px/20px \"Hanken Grotesk\",sans-serif;text-decoration:none}.ds-nav a:hover{background:var(--color-surface)}.ds-nav a[aria-current]{background:var(--color-surface);color:var(--color-accent-300)}.ds-nav a:focus-visible{outline:2px solid var(--color-accent-300);outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Compact operating tools",
+    "overview": "Compact operating tools: data and actions first, optional help, concise feedback.",
+    "dos": [
+      "Keep loading, empty, failed, and stale states distinct.",
+      "Preserve useful data on refresh failure.",
+      "Show saved state and publication separately."
+    ],
+    "donts": [
+      "Do not add jump navigation for sections already visible on a short page."
+    ]
+  }
+}
