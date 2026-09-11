@@ -12,6 +12,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMissingReadsDoNotStore(t *testing.T) {
+	for _, name := range []string{"empty", "hash collision"} {
+		t.Run(name, func(t *testing.T) {
+			as := require.New(t)
+			ctx := context.Background()
+			kv := WithHashFn(func([]byte) uint64 { return 0 })
+			if name == "hash collision" {
+				as.NoError(kv.Put(ctx, []byte("existing"), []byte("value")))
+			}
+			buckets := kv.s.Len()
+			key := []byte("missing")
+
+			value, err := kv.Get(ctx, key)
+			as.NoError(err)
+			as.Nil(value)
+			children, err := kv.PrefixList(ctx, key)
+			as.NoError(err)
+			as.Equal([][]byte{}, children)
+			contains, err := kv.PrefixContains(ctx, key, []byte("child"))
+			as.NoError(err)
+			as.False(contains)
+			exported, err := kv.Export(ctx, [][]byte{key, key})
+			as.NoError(err)
+			as.Equal([]*protocol.KVTransfer{
+				{PrefixChildren: [][]byte{}},
+				{PrefixChildren: [][]byte{}},
+			}, exported)
+
+			as.Equal(buckets, kv.s.Len())
+			if bucket, ok := kv.s.Load(0); ok {
+				as.Equal(1, bucket.Len())
+				value, err := kv.Get(ctx, []byte("existing"))
+				as.NoError(err)
+				as.Equal([]byte("value"), value)
+			}
+		})
+	}
+}
+
 func TestAllKeys(t *testing.T) {
 	as := require.New(t)
 

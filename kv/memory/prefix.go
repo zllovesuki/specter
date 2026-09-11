@@ -19,9 +19,11 @@ func (m *MemoryKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte
 }
 
 func (m *MemoryKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
-	v, _ := m.fetchVal(prefix)
-
 	children := make([][]byte, 0)
+	v, ok := m.lookupVal(prefix)
+	if !ok {
+		return children, nil
+	}
 	v.children.Range(func(value string) bool {
 		children = append(children, []byte(value))
 		return true
@@ -31,7 +33,10 @@ func (m *MemoryKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, err
 }
 
 func (m *MemoryKV) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
-	v, _ := m.fetchVal(prefix)
+	v, ok := m.lookupVal(prefix)
+	if !ok {
+		return false, nil
+	}
 
 	return v.children.Contains(string(child)), nil
 }

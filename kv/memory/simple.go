@@ -20,7 +20,10 @@ func (m *MemoryKV) Put(ctx context.Context, key, value []byte) error {
 }
 
 func (m *MemoryKV) Get(ctx context.Context, key []byte) ([]byte, error) {
-	v, _ := m.fetchVal(key)
+	v, ok := m.lookupVal(key)
+	if !ok {
+		return nil, nil
+	}
 	return *v.simple.Load(), nil
 }
 

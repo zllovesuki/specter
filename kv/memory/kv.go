@@ -64,6 +64,14 @@ func (m *MemoryKV) fetchVal(key []byte) (*kvValue, bool) {
 	return kMap.LoadOrStoreLazy(sKey, newValueFunc)
 }
 
+func (m *MemoryKV) lookupVal(key []byte) (*kvValue, bool) {
+	kMap, ok := m.s.Load(m.hashFn(key))
+	if !ok {
+		return nil, false
+	}
+	return kMap.Load(string(key))
+}
+
 // delete plain and prefix keyspaces
 func (m *MemoryKV) deleteAll(key []byte) {
 	p := m.hashFn(key)
@@ -124,7 +132,11 @@ func (m *MemoryKV) ListKeys(_ context.Context, prefix []byte) ([]*protocol.KeyCo
 func (m *MemoryKV) Export(_ context.Context, keys [][]byte) ([]*protocol.KVTransfer, error) {
 	vals := make([]*protocol.KVTransfer, len(keys))
 	for i, key := range keys {
-		v, _ := m.fetchVal(key)
+		v, ok := m.lookupVal(key)
+		if !ok {
+			vals[i] = &protocol.KVTransfer{PrefixChildren: make([][]byte, 0)}
+			continue
+		}
 		plain := *v.simple.Load()
 		children, _ := m.PrefixList(context.Background(), key)
 		token := v.lease.Load()
