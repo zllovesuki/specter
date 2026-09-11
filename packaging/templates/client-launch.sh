@@ -2,7 +2,9 @@
 set -eu
 ENV_FILE="${SPECTER_CLIENT_ENV_FILE:-__SYSCONFDIR__/specter/client.env}"
 if [ -f "$ENV_FILE" ]; then
+	set -a
 	. "$ENV_FILE"
+	set +a
 fi
 : "${SPECTER_CLIENT_CONFIG:=__SYSCONFDIR__/specter/client.yaml}"
 if [ ! -f "$SPECTER_CLIENT_CONFIG" ]; then

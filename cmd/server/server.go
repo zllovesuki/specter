@@ -435,6 +435,16 @@ func cmdServer(ctx *cli.Context) error {
 		return nil
 	}
 
+	dataDir, err := filepath.Abs(ctx.Path("data-dir"))
+	if err != nil {
+		return fmt.Errorf("resolving data directory: %w", err)
+	}
+	kvOption := ctx.String("kv-provider")
+	if err := preflightKVProvider(kvOption, dataDir); err != nil {
+		return fmt.Errorf("storage preflight: %w", err)
+	}
+	logger.Info("Storage configuration", zap.String("provider", kvOption), zap.String("data_dir", dataDir))
+
 	var gwOptions gateway.Options
 	proxyBuffer, err := units.ParseStrictBytes(ctx.String("proxy-buffer"))
 	if err != nil {
@@ -700,7 +710,7 @@ func cmdServer(ctx *cli.Context) error {
 	virtualNodes := make([]*chordImpl.LocalNode, 0)
 
 	k := ctx.Int("virtual")
-	cacheDir := filepath.Join(ctx.String("data-dir"), "cache")
+	cacheDir := filepath.Join(dataDir, "cache")
 	for i := range k {
 		nodeIdentity := &protocol.Node{
 			Id:      chord.Hash(fmt.Appendf(nil, "%s/%d", chordName, i)),
@@ -708,8 +718,8 @@ func cmdServer(ctx *cli.Context) error {
 		}
 		kvProvider, stopFn, err := getKVProvider(
 			logger.With(zapsentry.NewScope()).With(zap.String("component", "kv"), zap.Object("node", nodeIdentity)),
-			ctx.String("kv-provider"),
-			filepath.Join(ctx.String("data-dir"), fmt.Sprintf("%d", i)),
+			kvOption,
+			filepath.Join(dataDir, fmt.Sprintf("%d", i)),
 			cacheDir,
 		)
 		if err != nil {

@@ -100,13 +100,15 @@ Specter uses a Chord Distributed Hash Table (DHT) to form a cluster (the "ring")
 
 ## Configuration Guide
 
-When using packaged installs, Specter is configured via environment variable files. These files allow you to pass command-line arguments to the underlying `specter` binary safely.
+Packaged services read `/etc/specter/{server,dns,client}.env` as shell files. Assignments are exported automatically; `export` is optional. File values override inherited environment values.
+
+Override the file path with `SPECTER_SERVER_ENV_FILE`, `SPECTER_DNS_ENV_FILE`, or `SPECTER_CLIENT_ENV_FILE`. `SPECTER_*_ARGS` split on whitespace; `SPECTER_CLIENT_CONFIG` supports paths containing spaces.
 
 ### Shared Configuration
 You can set `SPECTER_GLOBAL_ARGS` in any environment file to pass shared flags, such as `--verbose` for detailed logging.
 
 ### Server Configuration (`server.env`)
-The server environment file configures the main edge gateway. Add `--join` for joiner nodes, and specify `--acme` if you want the gateway to automatically manage TLS certificates. You can also export process environment variables here for options that should not appear in the process list, such as internal admin credentials and the Sentry DSN.
+Use `--join` to connect to an existing ring and `--acme` for managed TLS certificates. Keep admin credentials and the Sentry DSN in environment variables.
 
 ```sh
 # /etc/specter/server.env
@@ -209,6 +211,10 @@ Specter supports different KV backends:
 - **`aof` (Append-Only File):** The default backend. It uses a write-ahead log and flushes to disk approximately every 3 seconds.
 - **`sqlite`:** Offers single-file durability and performs well on slower disks. It uses `<data-dir>/cache` for its native cache.
 - **`memory`:** Non-persistent storage, strictly for testing.
+
+Select storage with `--kv-provider` or `KV_PROVIDER` (default: `aof`). Startup records the provider in `<data-dir>/kv-provider` and rejects conflicting or mixed stores. Matching unmarked stores are adopted; `memory` cannot open a persistent store.
+
+**Upgrade note:** Previously ignored environment assignments now take effect. If SQLite is configured over AOF data, restart with AOF to recover and transfer the keys. Use a new data directory when switching providers; do not delete existing data or the marker to bypass this check.
 
 **Important:** You must persist the entire `--data-dir`. It holds tunnel routing mappings, client tokens and hostname bindings, custom-host validation state, and ACME-related state when ACME is enabled. Using ephemeral storage will result in orphaned tunnels and force unnecessary ACME re-issuance.
 

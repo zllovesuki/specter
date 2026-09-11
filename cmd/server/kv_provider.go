@@ -18,7 +18,7 @@ func getKVProvider(logger *zap.Logger, option string, datadir string, cachedir s
 	switch option {
 	case "memory":
 		kv := memory.WithHashFn(chord.Hash)
-		logger.Warn("Using memory as storage backend with persistence")
+		logger.Warn("Using memory as storage backend without persistence")
 		return kv, noop, nil
 	case "aof":
 		kv, err := aof.New(aof.Config{
