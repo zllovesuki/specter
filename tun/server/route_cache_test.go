@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"go.miragespace.co/specter/spec/protocol"
@@ -37,30 +38,32 @@ func TestRouteCacheLoaderAllNotFound(t *testing.T) {
 	node.AssertExpectations(t)
 }
 
-func TestRouteCacheLoaderAllError(t *testing.T) {
-	as := require.New(t)
+func TestRouteCacheLoaderLookupFailure(t *testing.T) {
+	for numErrors := 1; numErrors <= tun.NumRedundantLinks; numErrors++ {
+		t.Run(fmt.Sprintf("%d_errors", numErrors), func(t *testing.T) {
+			as := require.New(t)
+			_, node, _, _, serv := getFixture(t, as)
+			hostname := "lookup-failure.example.com"
 
-	_, node, _, _, serv := getFixture(t, as)
+			for i := 1; i <= tun.NumRedundantLinks; i++ {
+				var lookupErr error
+				if i <= numErrors {
+					lookupErr = errors.New("boom")
+				}
+				node.On("Get", mock.Anything, []byte(tun.RoutingKey(hostname, i))).
+					Return(([]byte)(nil), lookupErr).Once()
+			}
 
-	hostname := "all-error.example.com"
-	link := &protocol.Link{Hostname: hostname}
-	expected := getExpected(link)
+			ret, err := serv.routeCacheLoader(context.Background(), hostname)
 
-	lookupErr := errors.New("boom")
-
-	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
-		return assertBytes(k, expected...)
-	})).Return(([]byte)(nil), lookupErr)
-
-	ret, err := serv.routeCacheLoader(context.Background(), hostname)
-
-	as.NoError(err)
-	as.ErrorIs(ret.Value.err, tun.ErrLookupFailed)
-	as.Equal(routeFailedTTL, ret.TTL)
-	as.EqualValues(int64(16), ret.Cost)
-	as.Nil(ret.Value.routes)
-
-	node.AssertExpectations(t)
+			as.NoError(err)
+			as.ErrorIs(ret.Value.err, tun.ErrLookupFailed)
+			as.Equal(routeFailedTTL, ret.TTL)
+			as.EqualValues(int64(16), ret.Cost)
+			as.Nil(ret.Value.routes)
+			node.AssertExpectations(t)
+		})
+	}
 }
 
 func TestRouteCacheLoaderSuccessPrioritizesDirect(t *testing.T) {
@@ -105,7 +108,7 @@ func TestRouteCacheLoaderSuccessPrioritizesDirect(t *testing.T) {
 
 	node.On("Get", mock.Anything, mock.MatchedBy(func(k []byte) bool {
 		return bytes.Equal(k, keys[2])
-	})).Return([]byte{}, nil)
+	})).Return(([]byte)(nil), errors.New("temporary lookup failure"))
 
 	clientT.On("Identity").Return(tn)
 

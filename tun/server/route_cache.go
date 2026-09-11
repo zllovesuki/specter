@@ -104,7 +104,7 @@ func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret the
 		return
 	}
 
-	if numLookup == numError {
+	if numLookup == numNotFound+numError {
 		ret.Value.err = tun.ErrLookupFailed
 		ret.TTL = routeFailedTTL // also cache failed result with an even shorter ttl
 		ret.Cost = 16            // use a (2 pointers) cost for failed result
