@@ -16,6 +16,7 @@ import (
 
 	"github.com/Yiling-J/theine-go"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
 
 // Gateway procedure:
@@ -42,7 +43,8 @@ type Config struct {
 
 type Server struct {
 	rpcAcceptor  *acceptor.HTTP2Acceptor
-	routeCache   *theine.LoadingCache[string, routesResult]
+	routeCache   *theine.Cache[string, *routesResult]
+	routeLoads   singleflight.Group
 	keylessCache *theine.LoadingCache[string, keylessCertResult]
 	Config
 }
@@ -155,45 +157,77 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 	}
 }
 
-func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute) (net.Conn, error) {
+func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute, link *protocol.Link) (net.Conn, error) {
 	l := s.Logger.With(
 		zap.String("hostname", route.GetHostname()),
 		zap.Uint64("client", route.GetClientDestination().GetId()),
 	)
 
-	if route.GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress() {
+	var conn net.Conn
+	var err error
+	direct := route.GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
+	if direct {
 		l.Debug("client is connected to us, opening direct stream")
-
-		return s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
+		conn, err = s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Object("chord", route.GetChordDestination()),
 			zap.Object("tunnel", route.GetTunnelDestination()))
 
-		conn, err := s.ChordTransport.DialStream(ctx, route.GetChordDestination(), protocol.Stream_PROXY)
-		if err != nil {
-			return nil, err
+		conn, err = s.ChordTransport.DialStream(ctx, route.GetChordDestination(), protocol.Stream_PROXY)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Transports may retain the dialing context for a physical connection. Keep
+	// this stream's negotiation timeout separate from that connection lifecycle.
+	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
+	defer cancel()
+
+	// Bound stream negotiation, including writes, and close failed streams before
+	// trying another route. Cancelled callers also interrupt blocked I/O.
+	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	defer stop()
+	ready := false
+	defer func() {
+		if !ready {
+			conn.Close()
 		}
+	}()
+	deadline, _ := ctx.Deadline()
+	if err := conn.SetDeadline(deadline); err != nil {
+		return nil, err
+	}
+	if !direct {
 		if err := rpc.Send(conn, route); err != nil {
 			l.Error("sending remote tunnel negotiation", zap.Error(err))
 			return nil, err
 		}
 		status := &protocol.TunnelStatus{}
-		conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 		if err := rpc.BoundedReceive(conn, status, 1024); err != nil {
 			l.Error("Error receiving remote tunnel status", zap.Error(err))
 			return nil, err
 		}
-		conn.SetReadDeadline(time.Time{})
 		switch status.GetStatus() {
 		case protocol.TunnelStatusCode_STATUS_OK:
-			return conn, nil
 		case protocol.TunnelStatusCode_NO_DIRECT:
 			return nil, tun.ErrTunnelClientNotConnected
 		default:
 			return nil, errors.New(status.GetError())
 		}
 	}
+	if err := rpc.Send(conn, link); err != nil {
+		return nil, err
+	}
+	if !stop() {
+		return nil, ctx.Err()
+	}
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return nil, err
+	}
+	ready = true
+	return conn, nil
 }
 
 func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Conn, error) {
@@ -204,52 +238,50 @@ func (s *Server) DialInternal(ctx context.Context, node *protocol.Node) (net.Con
 }
 
 func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn, error) {
-	var (
-		isNoRoute  bool
-		clientConn net.Conn
-		connError  error
-	)
-
-	// use the parent context so a prior cancelled context from DialClient won't
-	// affect route lookups that come later
-	ret, err := s.routeCache.Get(s.ParentContext, link.GetHostname())
-	if ret.err != nil {
-		return nil, ret.err
-	}
+	ret, err := s.lookupRoutes(ctx, link.GetHostname(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, route := range ret.routes {
-		l := s.Logger.With(
-			zap.String("hostname", link.GetHostname()),
-			zap.Object("chord", route.GetChordDestination()),
-			zap.Object("tunnel", route.GetTunnelDestination()),
-			zap.Object("client", route.GetClientDestination()),
-		)
-
-		clientConn, connError = s.getConn(ctx, route)
-		if connError != nil {
-			if tun.IsNoDirect(connError) {
+	var isNoRoute bool
+	for attempt := 0; attempt < 2; attempt++ {
+		if ret.err != nil {
+			return nil, ret.err
+		}
+		for _, route := range ret.routes {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			conn, err := s.getConn(ctx, route, link)
+			if err == nil {
+				return conn, nil
+			}
+			if tun.IsNoDirect(err) {
 				isNoRoute = true
 			} else {
-				l.Error("Failed to establish connection to client",
-					zap.Error(connError),
+				s.Logger.Error("Failed to establish connection to client",
+					zap.String("hostname", link.GetHostname()),
+					zap.Object("chord", route.GetChordDestination()),
+					zap.Object("tunnel", route.GetTunnelDestination()),
+					zap.Object("client", route.GetClientDestination()),
+					zap.Error(err),
 				)
 			}
-			continue
 		}
-
-		connError = rpc.Send(clientConn, link)
-		if connError != nil {
-			l.Error("Failed to send link information to client",
-				zap.Error(connError),
-			)
-			clientConn.Close()
-			continue
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-
-		return clientConn, nil
+		if attempt == 1 {
+			break
+		}
+		fresh, err := s.lookupRoutes(ctx, link.GetHostname(), ret)
+		if err != nil {
+			return nil, err
+		}
+		if fresh == ret {
+			break
+		}
+		ret = fresh
 	}
 
 	if isNoRoute {

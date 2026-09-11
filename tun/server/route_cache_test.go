@@ -27,9 +27,8 @@ func TestRouteCacheLoaderAllNotFound(t *testing.T) {
 		return assertBytes(k, expected...)
 	})).Return([]byte{}, nil)
 
-	ret, err := serv.routeCacheLoader(context.Background(), hostname)
+	ret := serv.routeCacheLoader(context.Background(), hostname)
 
-	as.NoError(err)
 	as.ErrorIs(ret.Value.err, tun.ErrDestinationNotFound)
 	as.Equal(routeNegativeTTL, ret.TTL)
 	as.EqualValues(int64(8), ret.Cost)
@@ -54,9 +53,8 @@ func TestRouteCacheLoaderLookupFailure(t *testing.T) {
 					Return(([]byte)(nil), lookupErr).Once()
 			}
 
-			ret, err := serv.routeCacheLoader(context.Background(), hostname)
+			ret := serv.routeCacheLoader(context.Background(), hostname)
 
-			as.NoError(err)
 			as.ErrorIs(ret.Value.err, tun.ErrLookupFailed)
 			as.Equal(routeFailedTTL, ret.TTL)
 			as.EqualValues(int64(16), ret.Cost)
@@ -112,9 +110,8 @@ func TestRouteCacheLoaderSuccessPrioritizesDirect(t *testing.T) {
 
 	clientT.On("Identity").Return(tn)
 
-	ret, err := serv.routeCacheLoader(context.Background(), hostname)
+	ret := serv.routeCacheLoader(context.Background(), hostname)
 
-	as.NoError(err)
 	as.NoError(ret.Value.err)
 	as.Len(ret.Value.routes, 2)
 	as.Equal(routePositiveTTL, ret.TTL)

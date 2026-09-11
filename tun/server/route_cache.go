@@ -16,8 +16,9 @@ import (
 )
 
 type routesResult struct {
-	err    error
-	routes []*protocol.TunnelRoute
+	err          error
+	routes       []*protocol.TunnelRoute
+	refreshAfter time.Time
 }
 
 const (
@@ -28,10 +29,7 @@ const (
 )
 
 func (s *Server) initRouteCache() {
-	routeCache, err := theine.NewBuilder[string, routesResult](routeCacheBytes).
-		// configure loader to fetch routes on miss
-		// TODO: make routing selection more intelligent with rtt
-		BuildWithLoader(s.routeCacheLoader)
+	routeCache, err := theine.NewBuilder[string, *routesResult](routeCacheBytes).Build()
 
 	if err != nil {
 		panic("BUG: " + err.Error())
@@ -41,10 +39,51 @@ func (s *Server) initRouteCache() {
 }
 
 func (s *Server) RoutesPreload(hostname string) {
-	s.routeCache.Get(s.ParentContext, hostname)
+	s.lookupRoutes(s.ParentContext, hostname, nil)
 }
 
-func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret theine.Loaded[routesResult], loadErr error) {
+// A stale result requests one refresh, unless another caller already replaced it
+// or the most recent refresh is still in its cooldown. Keep results immutable so
+// slow callers can identify the exact generation they exhausted.
+func (s *Server) lookupRoutes(ctx context.Context, hostname string, stale *routesResult) (*routesResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cached := func() (*routesResult, bool) {
+		ret, ok := s.routeCache.Get(hostname)
+		return ret, ok && (ret != stale || time.Now().Before(ret.refreshAfter))
+	}
+	if ret, ok := cached(); ok {
+		return ret, nil
+	}
+
+	result := s.routeLoads.DoChan(hostname, func() (any, error) {
+		// Recheck after joining the flight: a delayed caller must not refresh a
+		// newer result just because its own connection attempts took longer.
+		if ret, ok := cached(); ok {
+			return ret, nil
+		}
+		// The loader has its own timeout. A cancelled waiter must not cancel
+		// the shared lookup or poison the cache for subsequent requests.
+		loaded := s.routeCacheLoader(s.ParentContext, hostname)
+		if stale != nil {
+			loaded.Value.refreshAfter = time.Now().Add(routeFailedTTL)
+		}
+		ret := &loaded.Value
+		s.routeCache.SetWithTTL(hostname, ret, loaded.Cost, loaded.TTL)
+		return ret, nil
+	})
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-s.ParentContext.Done():
+		return nil, s.ParentContext.Err()
+	case result := <-result:
+		return result.Val.(*routesResult), nil
+	}
+}
+
+func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret theine.Loaded[routesResult]) {
 	start := time.Now()
 	defer func() {
 		s.Logger.Debug("Route cache loader invoked",
@@ -125,8 +164,10 @@ func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret the
 	}
 
 	// prioritize directly connected route
+	localAddress := s.TunnelTransport.Identity().GetAddress()
 	sort.SliceStable(filtered, func(i, j int) bool {
-		return filtered[i].GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
+		return filtered[i].GetTunnelDestination().GetAddress() == localAddress &&
+			filtered[j].GetTunnelDestination().GetAddress() != localAddress
 	})
 
 	// now we can store the routes on a longer ttl
