@@ -13,7 +13,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
-COPY --from=ui-builder /app/tun/client/ui/build /app/tun/client/ui/build
+COPY --from=ui-builder /app/ui/dist /app/ui/dist
 
 RUN cat /etc/ssl/certs/ca-certificates.crt /app/dev/pebble/certs/cert.pem > /app/ca-certificates.crt
 

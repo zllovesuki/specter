@@ -22,11 +22,22 @@ These endpoints are:
 
 ## Index
 
-`GET /_internal`
+`GET /_internal/`
 
-- Returns this documentation as plain text.
-- Useful as a quick reference to available internal endpoints.
-- Any unmatched `/_internal/*` path (for example `/_internal/stats`) also returns this document.
+Local provider, vnode states, neighbors, counters, and observation time. No key
+scans or peer RPCs; busy membership references show as unavailable.
+
+`GET /_internal/overview.json` returns the same local observation as JSON. Node
+identifiers are decimal strings; a null `last_stabilized` means it has not been
+observed. `predecessor_available` and `successors_available` distinguish an
+unavailable membership reference from an observed empty one. The observation is
+sampled across independent fields; it is not an atomic cluster snapshot.
+
+`GET /_internal/endpoints` returns this documentation as plain text. Any unmatched
+`/_internal/*` path also returns this document for compatibility. Installations
+without an overview handler continue to return the documentation at the index.
+
+Local assets at `/_internal/ui/` use the same authentication.
 
 
 ## ACME Certificate Management
@@ -68,6 +79,8 @@ Mounted under `/_internal/chord`.
   - Format handling via chi `URLFormat` middleware:
     - `/_internal/chord/stats` or `/_internal/chord/stats.txt` → plain text (`text/plain`).
     - `/_internal/chord/stats.html` → HTML page that wraps the same text output.
+  - This deeper diagnostic enumerates and exports local keys to report their
+    ownership and sizes. Use the operator overview for inexpensive local status.
   - Optional query parameter:
     - `?key=<bytes>` → returns the raw value for a specific KV key on this node (`text/plain`), or `404` if the key is not present.
 
@@ -84,19 +97,24 @@ Mounted under `/_internal/chord`.
 
 Mounted under `/_internal/tun`.
 
+These are browser views. JSON data uses `/_internal/api/tun/` and
+`/_internal/api/tun/{id}/{address}`, with the same authentication.
+
 - `GET /_internal/tun/`
   - HTML overview of connected tunnel clients:
     - Node identity/address.
     - Client identifier.
     - Version.
-    - Number of configured tunnels per client (or error string if lookup fails).
+    - Observation timestamp and a link to the client's configuration and registration details.
+  - Local connection list; no per-client Chord lookups.
   - Response: `text/html` page.
 
 - `GET /_internal/tun/{id}/{address}`
   - HTML view of tunnels for a specific client node.
-  - Performs an internal RPC to the client to list tunnels and cross-references with Chord state.
-  - Response: `text/html` page describing hostname → target mappings.
-  - Hostnames present in Chord but not reported by the client are shown with target `(unused)`.
+  - Fetches running configuration and registered hostnames within one deadline.
+  - Response: `text/html` page describing hostname → target mappings and separate
+    configured/registered states. Names returned by either source are included.
+  - Partial results remain visible; failed sources show `Unknown`.
 
 
 ## Configuration Migrator

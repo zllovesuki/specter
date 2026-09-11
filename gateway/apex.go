@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/ui"
 	"go.miragespace.co/specter/util"
 
 	"github.com/go-chi/chi/v5"
@@ -74,6 +75,16 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			a.authUser: a.authPass,
 		}))
 		r.Use(a.internalProxy)
+		r.Mount("/ui", http.StripPrefix("/_internal/ui", ui.Assets()))
+
+		if a.handlers.Overview != nil {
+			r.Handle("/", ui.OperatorPage())
+			r.Get("/overview.json", a.handlers.Overview.ServeHTTP)
+		}
+		r.Get("/endpoints", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write([]byte(endpointsDoc))
+		})
 
 		if a.handlers.Acme != nil {
 			r.Mount("/acme", a.handlers.Acme)
@@ -82,7 +93,11 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			r.Mount("/chord", a.handlers.Chord)
 		}
 		if a.handlers.TunnelServer != nil {
-			r.Mount("/tun", a.handlers.TunnelServer)
+			page := ui.OperatorPage()
+			r.Handle("/tun", page)
+			r.Handle("/tun/", page)
+			r.Handle("/tun/{id}/*", page)
+			r.Mount("/api/tun", a.handlers.TunnelServer)
 		}
 		if a.handlers.Migrator != nil {
 			r.Mount("/migrator", a.handlers.Migrator)

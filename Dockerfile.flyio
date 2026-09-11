@@ -9,7 +9,7 @@ FROM golang:1.26.3-alpine AS app-builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
-COPY --from=ui-builder /app/tun/client/ui/build /app/tun/client/ui/build
+COPY --from=ui-builder /app/ui/dist /app/ui/dist
 
 ARG GIT_HASH=head
 RUN CGO_ENABLED=0 GOARM=7 GOAMD64=v3 \

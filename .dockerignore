@@ -2,6 +2,5 @@ dep/
 bin/
 certs/
 *.yaml
-tun/client/ui/node_modules
-tun/client/ui/build
-tun/client/ui/.svelte-kit
+ui/node_modules
+ui/dist

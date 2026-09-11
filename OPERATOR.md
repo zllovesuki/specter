@@ -224,10 +224,13 @@ Specter provides a suite of administrative and observability endpoints under the
 To enable these, you must configure admin credentials by setting the `INTERNAL_USER` and `INTERNAL_PASS` environment variables (or using `--auth_user` / `--auth_pass`). Without these credentials, the `/_internal` routes are disabled. When apex handling is enabled, the same apex router is also exposed locally on `127.0.0.1:9999`.
 
 Once authenticated, you can access:
+- Server overview: `/_internal/` (JSON: `/_internal/overview.json`)
 - ACME certificate inventory
 - Chord DHT statistics and routing graphs
-- Active tunnel views
+- Connected clients: `/_internal/tun/`
 - Profiling data (`pprof`/`expvar`)
+
+The overview uses local observations; detailed ring statistics scan keys. See `/_internal/endpoints` for the endpoint reference.
 
 By default, Specter logs in JSON format to standard error. Passing the `--verbose` flag switches this to human-readable, colored development logging. For error tracking, providing a `SENTRY_DSN` (or `--sentry` flag) will automatically send errors and breadcrumbs to Sentry.
 

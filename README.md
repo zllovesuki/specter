@@ -148,7 +148,7 @@ The following should be installed on your machine:
 
 - Docker with buildx support
 - Go 1.26.x
-- Node.js 22.x with npm (for `make ui`)
+- Node.js 22.12+ with npm (for `make ui`)
 - [protoc](https://grpc.io/docs/protoc-installation) if you plan to work on protobufs directly
 
 Windows development support is limited, you may have to run `go test` manually instead of `make test`. However WSL is a great environment.

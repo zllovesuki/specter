@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 - `main.go` launches the `specter` CLI; `cmd/specter` wires top-level commands, and `cmd/{server,client,dns,...}` holds command entrypoints/helpers.
-- `tun/` tunnel client/server logic and UI (see `tun/client/ui`), `gateway/` for edge handling, `overlay/` for routing glue.
+- `tun/` tunnel client/server logic, `ui/` embedded client and operator frontends, `gateway/` edge handling, `overlay/` routing glue.
 - `chord/` and `kv/` implement the DHT and persistence; `spec/` holds protobuf definitions and generated RPC code.
 - `integrations/` and package-level `*_test.go` files cover functional and unit tests; `dev/` contains local TLS/ACME assets and docker configs; `assets/` static files.
 
@@ -11,8 +11,8 @@
 - `make full_test` — extended, long, and concurrency suites (required when touching DHT/KV/routing).
 - `make dev-server-acme` / `make dev-server` / `make dev-client` — bring up compose-based clusters and a demo client.
 - `make proto` — regenerates protobuf/Twirp artifacts and applies repo VT/Twirp patches; this target bootstraps tools via `make dep` and requires network access.
-- `make ui` — build the tunnel client UI assets.
-- Toolchain: Go `1.26.x`, Node.js `22.x` + npm (for `make ui`), and Docker with buildx for local compose/dev workflows.
+- `make ui` — check and build both embedded frontends.
+- Toolchain: Go `1.26.x`, Node.js `22.12+` + npm (for `make ui`), and Docker with buildx for local compose/dev workflows.
 - Direct Go builds: `go build ./...`; per-package testing: `go test -run TestName ./path/...`.
 
 ## Coding Style & Naming Conventions

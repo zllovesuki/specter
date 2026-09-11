@@ -11,7 +11,7 @@ FROM --platform=$BUILDPLATFORM golang:1.26.3-alpine AS app-builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /app
 COPY . .
-COPY --from=ui-builder /app/tun/client/ui/build /app/tun/client/ui/build
+COPY --from=ui-builder /app/ui/dist /app/ui/dist
 
 RUN --mount=type=cache,target=/root/go/pkg/mod \
     go mod download

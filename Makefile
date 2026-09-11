@@ -107,7 +107,7 @@ docker:
 	docker buildx build --platform linux/amd64,linux/amd64/v3,linux/arm64,linux/arm,linux/ppc64le,linux/s390x -t $(DOCKER_TAG):$(BUILD) --push -f Dockerfile .
 
 ui:
-	cd tun/client/ui && npm install && npm run build
+	cd ui && npm ci --ignore-scripts && npm run check && npm run build
 
 proto: dep
 	dep/bin/protoc \
@@ -238,4 +238,4 @@ licenses:
 	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt
 	-rm -rf ./licenses
 
-.PHONY: all release compat package-linux package-freebsd package-illumos packages clean
+.PHONY: all release compat package-linux package-freebsd package-illumos packages clean ui

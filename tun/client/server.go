@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,15 +16,13 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/rpc"
 	"go.miragespace.co/specter/spec/transport"
+	"go.miragespace.co/specter/ui"
 	"go.miragespace.co/specter/util"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
-
-//go:embed all:ui/build/*
-var ui embed.FS
 
 var _ protocol.ClientQueryService = (*Client)(nil)
 
@@ -264,11 +260,8 @@ func (c *Client) localHandler() http.Handler {
 	})
 
 	r.Mount("/api", api)
-	uiFs, err := fs.Sub(ui, "ui/build")
-	if err != nil {
-		panic(err)
-	}
-	r.Handle("/*", http.FileServerFS(uiFs))
+	r.Handle("/ui/*", http.StripPrefix("/ui", ui.Assets()))
+	r.Handle("/", ui.ClientPage())
 
 	return r
 }

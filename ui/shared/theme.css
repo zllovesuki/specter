@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/hanken-grotesk-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("./fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --color-canvas: #221f21;
+  --color-chrome: #1b181a;
+  --color-surface: #2a2729;
+  --color-line: #423f42;
+  --color-foreground: #f5f4f4;
+  --color-muted: #a3a1a8;
+  --color-success: #9bd7a7;
+  --color-warning: #e9c581;
+  --color-danger: #f9a2a2;
+  --color-zinc-50: #fafaf9;
+  --color-zinc-100: #f5f4f4;
+  --color-zinc-200: #e5e4e5;
+  --color-zinc-300: #d6d4d7;
+  --color-zinc-400: #a3a1a8;
+  --color-zinc-500: #747178;
+  --color-zinc-600: #555259;
+  --color-zinc-700: #423f42;
+  --color-zinc-800: #2a2729;
+  --color-zinc-900: #1b181a;
+  --color-zinc-950: #0c090b;
+  --color-accent-50: #eefafb;
+  --color-accent-100: #d6f2f5;
+  --color-accent-200: #ade4e9;
+  --color-accent-300: #7cd1dc;
+  --color-accent-400: #57bfcd;
+  --color-accent-500: #3bafbe;
+  --color-accent-600: #2c8795;
+  --color-accent-700: #256b77;
+  --color-accent-800: #245762;
+  --color-accent-900: #224954;
+  --default-transition-duration: 75ms;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    font-synthesis: none;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 450;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button:not(:disabled), summary, select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-300);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-accent-800);
+    color: var(--color-accent-50);
+  }
+
+  body, .overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-zinc-600) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -847,6 +847,7 @@ func cmdServer(ctx *cli.Context) error {
 		Handlers: gateway.InternalHandlers{
 			Acme:         acmeHandler,
 			Chord:        chordImpl.ChordStatsHandler(rootNode, virtualNodes),
+			Overview:     chordImpl.OverviewHandler(rootNode, virtualNodes, kvOption),
 			TunnelServer: server.TunnelServerHandler(tunServer),
 			Migrator:     migrator.ConfigMigratorHandler(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
 		},

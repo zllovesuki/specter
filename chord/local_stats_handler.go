@@ -3,6 +3,7 @@ package chord
 import (
 	"context"
 	"fmt"
+	"html"
 	"net/http"
 	"runtime"
 	"slices"
@@ -314,10 +315,24 @@ func statsHandler(virtualNodes []*LocalNode) func(w http.ResponseWriter, r *http
 			w.Header().Set("content-type", "text/html; charset=utf-8")
 			defer fmt.Fprint(w, `</pre></body></html>`)
 			fmt.Fprint(w, `<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body><pre>`)
+			w = escapedStatsWriter{ResponseWriter: w}
 		default:
 			w.Header().Set("content-type", "text/plain; charset=utf-8")
 		}
 
 		printSummary(r.Context(), w, virtualNodes)
 	}
+}
+
+// Preserve the text diagnostic's streaming behavior while treating stored keys,
+// peer addresses and errors as text inside the HTML representation.
+type escapedStatsWriter struct {
+	http.ResponseWriter
+}
+
+func (w escapedStatsWriter) Write(p []byte) (int, error) {
+	if _, err := w.ResponseWriter.Write([]byte(html.EscapeString(string(p)))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }

@@ -35,6 +35,7 @@ type DeadlineReadWriteCloser interface {
 }
 
 type InternalHandlers struct {
+	Overview     http.Handler
 	Acme         http.Handler
 	Chord        http.Handler
 	TunnelServer http.Handler
