@@ -57,7 +57,9 @@ message LeaseResponse {
 }
 
 message KVTransfer {
-    bytes simple_value = 1;
+    // Presence distinguishes an empty simple value from no simple value, even
+    // when a prefix or lease shares the key. Keep tag 1 for legacy readers.
+    optional bytes simple_value = 1;
     repeated bytes prefix_children = 2;
     uint64 lease_token = 3;
 }

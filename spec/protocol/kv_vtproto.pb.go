@@ -348,7 +348,7 @@ func (m *KVTransfer) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			dAtA[i] = 0x12
 		}
 	}
-	if len(m.SimpleValue) > 0 {
+	if m.SimpleValue != nil {
 		i -= len(m.SimpleValue)
 		copy(dAtA[i:], m.SimpleValue)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.SimpleValue)))
@@ -687,8 +687,8 @@ func (m *KVTransfer) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.SimpleValue)
-	if l > 0 {
+	if m.SimpleValue != nil {
+		l = len(m.SimpleValue)
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if len(m.PrefixChildren) > 0 {

@@ -208,13 +208,15 @@ Specter integrates tightly with ACME providers (like Let's Encrypt) to automate 
 The `--data-dir` is critical for Specter's operation. Each virtual node stores its key-value data in `<data-dir>/<index>`.
 
 Specter supports different KV backends:
-- **`aof` (Append-Only File):** The default backend. It uses a write-ahead log and flushes to disk approximately every 3 seconds.
+- **`aof` (Append-Only File):** A supported fallback backend that remains the default. It uses a write-ahead log and flushes to disk approximately every 3 seconds.
 - **`sqlite`:** Offers single-file durability and performs well on slower disks. It uses `<data-dir>/cache` for its native cache.
 - **`memory`:** Non-persistent storage, strictly for testing.
 
 Select storage with `--kv-provider` or `KV_PROVIDER` (default: `aof`). Startup records the provider in `<data-dir>/kv-provider` and rejects conflicting or mixed stores. Matching unmarked stores are adopted; `memory` cannot open a persistent store.
 
 **Upgrade note:** Previously ignored environment assignments now take effect. If SQLite is configured over AOF data, restart with AOF to recover and transfer the keys. Use a new data directory when switching providers; do not delete existing data or the marker to bypass this check.
+
+**Empty-value transfers:** Membership transfers preserve empty simple values, including keys shared with prefix or lease state. Complete the cluster upgrade before relying on this guarantee: older senders omit empty-value presence, and older nodes lose it on re-export. Older AOF nodes also omit it when logging an imported value, so it disappears after restart. Upgraded AOF nodes preserve imported empty values in the existing WAL format. This change cannot recover presence already lost by an older writer.
 
 **Important:** You must persist the entire `--data-dir`. It holds tunnel routing mappings, client tokens and hostname bindings, custom-host validation state, and ACME-related state when ACME is enabled. Using ephemeral storage will result in orphaned tunnels and force unnecessary ACME re-issuance.
 

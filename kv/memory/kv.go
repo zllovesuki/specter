@@ -103,7 +103,7 @@ func (m *MemoryKV) ListKeys(_ context.Context, prefix []byte) ([]*protocol.KeyCo
 			if !strings.HasPrefix(key, string(prefix)) {
 				return true
 			}
-			if len(*v.simple.Load()) > 0 {
+			if *v.simple.Load() != nil {
 				keys = append(keys, &protocol.KeyComposite{
 					Type: protocol.KeyComposite_SIMPLE,
 					Key:  []byte(key),

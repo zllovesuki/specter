@@ -387,10 +387,12 @@ func (x *LeaseResponse) GetToken() uint64 {
 }
 
 type KVTransfer struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	SimpleValue    []byte                 `protobuf:"bytes,1,opt,name=simple_value,json=simpleValue,proto3" json:"simple_value,omitempty"`
-	PrefixChildren [][]byte               `protobuf:"bytes,2,rep,name=prefix_children,json=prefixChildren,proto3" json:"prefix_children,omitempty"`
-	LeaseToken     uint64                 `protobuf:"varint,3,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Presence distinguishes an empty simple value from no simple value, even
+	// when a prefix or lease shares the key. Keep tag 1 for legacy readers.
+	SimpleValue    []byte   `protobuf:"bytes,1,opt,name=simple_value,json=simpleValue,proto3,oneof" json:"simple_value,omitempty"`
+	PrefixChildren [][]byte `protobuf:"bytes,2,rep,name=prefix_children,json=prefixChildren,proto3" json:"prefix_children,omitempty"`
+	LeaseToken     uint64   `protobuf:"varint,3,opt,name=lease_token,json=leaseToken,proto3" json:"lease_token,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -697,13 +699,14 @@ const file_spec_proto_kv_proto_rawDesc = "" +
 	"prev_token\x18\x03 \x01(\x04R\tprevToken\x12+\n" +
 	"\x03ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"%\n" +
 	"\rLeaseResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\x04R\x05token\"y\n" +
+	"\x05token\x18\x01 \x01(\x04R\x05token\"\x8f\x01\n" +
 	"\n" +
-	"KVTransfer\x12!\n" +
-	"\fsimple_value\x18\x01 \x01(\fR\vsimpleValue\x12'\n" +
+	"KVTransfer\x12&\n" +
+	"\fsimple_value\x18\x01 \x01(\fH\x00R\vsimpleValue\x88\x01\x01\x12'\n" +
 	"\x0fprefix_children\x18\x02 \x03(\fR\x0eprefixChildren\x12\x1f\n" +
 	"\vlease_token\x18\x03 \x01(\x04R\n" +
-	"leaseToken\"Q\n" +
+	"leaseTokenB\x0f\n" +
+	"\r_simple_value\"Q\n" +
 	"\rImportRequest\x12\x12\n" +
 	"\x04keys\x18\x01 \x03(\fR\x04keys\x12,\n" +
 	"\x06values\x18\x02 \x03(\v2\x14.protocol.KVTransferR\x06values\"\x10\n" +
@@ -807,6 +810,7 @@ func file_spec_proto_kv_proto_init() {
 	if File_spec_proto_kv_proto != nil {
 		return
 	}
+	file_spec_proto_kv_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

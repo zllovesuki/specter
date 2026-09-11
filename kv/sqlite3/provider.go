@@ -18,6 +18,9 @@ func importedSimpleValue(val *protocol.KVTransfer) ([]byte, bool) {
 	if val.SimpleValue != nil {
 		return val.SimpleValue, true
 	}
+	// Legacy senders omitted empty simple values. Retain their standalone-empty
+	// interpretation; live keys with no simple value have prefix or lease state.
+	// An empty value sharing that state needs an explicit field from the sender.
 	if len(val.PrefixChildren) == 0 && val.LeaseToken == 0 {
 		return []byte{}, true
 	}
