@@ -26,15 +26,13 @@ func main() {
 				os.Exit(1)
 			}
 			defer conn.Close()
-			cs := conn.ConnectionState()
-			for _, cert := range cs.PeerCertificates {
-				if cert.Subject.CommonName != apex {
-					continue
-				}
-				serial := cert.SerialNumber.String()
-				fmt.Printf("%s - %+v\n", node, serial)
-				serialMap[serial]++
+			serial, err := peerCertificateSerial(conn.ConnectionState(), apex)
+			if err != nil {
+				fmt.Printf("invalid certificate from %s: %v\n", node, err)
+				os.Exit(1)
 			}
+			fmt.Printf("%s - %s\n", node, serial)
+			serialMap[serial]++
 		}()
 	}
 	if len(serialMap) == 1 {
@@ -44,4 +42,15 @@ func main() {
 		fmt.Printf("validation failed: nodes do not have the same certificate")
 		os.Exit(1)
 	}
+}
+
+func peerCertificateSerial(state tls.ConnectionState, hostname string) (string, error) {
+	if len(state.PeerCertificates) == 0 {
+		return "", fmt.Errorf("peer did not present a certificate")
+	}
+	leaf := state.PeerCertificates[0]
+	if err := leaf.VerifyHostname(hostname); err != nil {
+		return "", err
+	}
+	return leaf.SerialNumber.String(), nil
 }

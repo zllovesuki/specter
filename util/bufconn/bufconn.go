@@ -68,6 +68,8 @@ type pipe struct {
 
 	wtimer *time.Timer
 	rtimer *time.Timer
+	wseq   uint64
+	rseq   uint64
 
 	closed      bool
 	writeClosed bool
@@ -220,10 +222,16 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	defer p.mu.Unlock()
 	p.rtimer.Stop()
 	p.rtimedout = false
+	p.rseq++
+	seq := p.rseq
 	if !t.IsZero() {
 		p.rtimer = time.AfterFunc(time.Until(t), func() {
 			p.mu.Lock()
 			defer p.mu.Unlock()
+			// Stop cannot prevent a callback that is already running.
+			if seq != p.rseq {
+				return
+			}
 			p.rtimedout = true
 			p.rwait.Broadcast()
 		})
@@ -237,10 +245,15 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	defer p.mu.Unlock()
 	p.wtimer.Stop()
 	p.wtimedout = false
+	p.wseq++
+	seq := p.wseq
 	if !t.IsZero() {
 		p.wtimer = time.AfterFunc(time.Until(t), func() {
 			p.mu.Lock()
 			defer p.mu.Unlock()
+			if seq != p.wseq {
+				return
+			}
 			p.wtimedout = true
 			p.wwait.Broadcast()
 		})

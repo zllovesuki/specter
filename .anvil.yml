@@ -8,7 +8,7 @@ run:
     - name: install-go
       run: |
         set -eu
-        GO_VERSION=1.26.3
+        GO_VERSION=1.27.1
         case "$(uname -m)" in
           x86_64) GO_ARCH=amd64 ;;
           aarch64|arm64) GO_ARCH=arm64 ;;

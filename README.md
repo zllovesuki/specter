@@ -147,11 +147,13 @@ Please see issues under [Roadmap](https://github.com/zllovesuki/specter/issues?q
 The following should be installed on your machine:
 
 - Docker with buildx support
-- Go 1.26.x
+- Go 1.27.x
 - Node.js 22.12+ with npm (for `make ui`)
 - [protoc](https://grpc.io/docs/protoc-installation) if you plan to work on protobufs directly
 
 Windows development support is limited, you may have to run `go test` manually instead of `make test`. However WSL is a great environment.
+
+macOS binaries require macOS 13 or later.
 
 Run `make dev-server-acme` to build the dev image, bring up Let's Encrypt test server `pebble`, and start a 5-node specter cluster.
 

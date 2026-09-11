@@ -67,7 +67,7 @@ buildx-validator:
 	docker buildx build -t validator -f Dockerfile.validator .
 
 dev-validate: buildx-validator
-	docker compose -f compose-validator.yaml up
+	docker compose -f compose-validator.yaml up --abort-on-container-exit --exit-code-from validator
 
 # ========================================================
 

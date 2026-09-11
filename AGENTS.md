@@ -38,7 +38,7 @@ Keep documentation proportional to what a reader needs to understand or do.
 - `make dev-server-acme` / `make dev-server` / `make dev-client` — bring up compose-based clusters and a demo client.
 - `make proto` — regenerates protobuf/Twirp artifacts and applies repo VT/Twirp patches; this target bootstraps tools via `make dep` and requires network access.
 - `make ui` — check and build both embedded frontends.
-- Toolchain: Go `1.26.x`, Node.js `22.12+` + npm (for `make ui`), and Docker with buildx for local compose/dev workflows.
+- Toolchain: Go `1.27.x`, Node.js `22.12+` + npm (for `make ui`), and Docker with buildx for local compose/dev workflows.
 - Direct Go builds: `go build ./...`; per-package testing: `go test -run TestName ./path/...`.
 
 ## Coding Style & Naming Conventions
