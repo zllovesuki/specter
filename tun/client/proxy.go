@@ -153,7 +153,14 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 				preq.SetURL(u)
 			}
 			preq.Out.Host = hostHeader
-			preq.SetXForwarded()
+			// This private proxy receives only authenticated server streams or
+			// the in-process gateway. Restore the visitor IP, host, and scheme
+			// sanitized by that gateway, without adding the tunnel peer.
+			for _, header := range []string{"X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
+				if value := preq.In.Header.Get(header); value != "" {
+					preq.Out.Header.Set(header, value)
+				}
+			}
 		}
 		proxy.Transport = tp
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {

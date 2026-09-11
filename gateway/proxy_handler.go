@@ -226,6 +226,9 @@ func (g *Gateway) proxyRewrite(preq *httputil.ProxyRequest) {
 		out.Header.Del(header)
 	}
 
+	// This is the public trust boundary. Rewrite has already removed Forwarded
+	// and the three X-Forwarded fields set below; never restore visitor-supplied
+	// values. The tunnel carries one visitor IP, without appending tunnel peers.
 	preq.SetXForwarded()
 	if g.GatewayPort == 443 {
 		out.Header.Set("X-Forwarded-Host", out.URL.Host)
