@@ -141,6 +141,14 @@ func (n *LocalNode) RequestToJoin(joiner chord.VNode) (chord.VNode, []chord.VNod
 	}()
 
 	prevPredecessor = n.predecessor
+	if prevPredecessor == nil {
+		// Without a predecessor, the key range owned by this node is unknown.
+		// Let stabilization restore it before accepting a retry of the join.
+		n.logger.Info("Rejecting join request because predecessor is unknown",
+			zap.Object("joiner", joiner.Identity()),
+		)
+		return nil, nil, chord.ErrJoinInvalidState
+	}
 
 	// see issue https://github.com/zllovesuki/specter/issues/23
 	if !chord.Between(prevPredecessor.ID(), joiner.ID(), n.ID(), false) {
