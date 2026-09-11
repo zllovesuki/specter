@@ -1,11 +1,12 @@
 package client
 
 import (
+	"context"
 	"fmt"
 
 	"go.miragespace.co/specter/util"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var (
@@ -26,7 +27,7 @@ func Generate() *cli.Command {
 				Usage: "disable TLS verification, useful for debugging and local development",
 			},
 		},
-		Subcommands: []*cli.Command{
+		Commands: []*cli.Command{
 			{
 				Name:      "tunnel",
 				ArgsUsage: " ",
@@ -130,11 +131,11 @@ func Generate() *cli.Command {
 				Action: cmdValidate,
 			},
 		},
-		Before: func(ctx *cli.Context) error {
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			if devApexOverride != "" {
-				ctx.App.Metadata["apexOverride"] = devApexOverride
+				cmd.Root().Metadata["apexOverride"] = devApexOverride
 			}
-			return nil
+			return ctx, nil
 		},
 	}
 }

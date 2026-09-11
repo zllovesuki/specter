@@ -17,7 +17,7 @@ func main() {
 
 	util.PrettierHelpPrinter()
 
-	if err := specter.App.RunContext(ctx, os.Args); err != nil {
+	if err := specter.App.Run(ctx, os.Args); err != nil {
 		errColor := color.New(color.FgRed, color.Bold).SprintFunc()
 		fmt.Fprintln(os.Stderr, errColor(err))
 		os.Exit(1)

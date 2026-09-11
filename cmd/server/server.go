@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -41,7 +42,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/pires/go-proxyproto"
 	"github.com/quic-go/quic-go"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -62,7 +63,7 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name:        "advertise-addr",
 				Aliases:     []string{"advertise"},
-				EnvVars:     []string{"ADVERTISE_ADDR"},
+				Sources:     cli.EnvVars("ADVERTISE_ADDR"),
 				DefaultText: "same as listen-addr",
 				Value:       fmt.Sprintf("%s:443", ip.String()),
 				Usage: `Address and port to advertise to specter servers and clients to connect to.
@@ -72,25 +73,25 @@ func Generate() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
-				Value:   cli.NewStringSlice(fmt.Sprintf("%s:443", ip.String())),
+				Value:   []string{fmt.Sprintf("%s:443", ip.String())},
 				Usage: `Repeatable address:port to listen for specter server, specter client and gateway connections. Each entry serves both TCP and UDP unless overridden.
 			Note that if specter is listening on port 443, it will also listen on port 80 to handle http connect proxy, and redirect other http requests to https`,
 				Category: "Network Options",
-				EnvVars:  []string{"LISTEN_ADDR"},
+				Sources:  cli.EnvVars("LISTEN_ADDR"),
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for TCP (repeatable)",
 				Category:    "Network Options",
-				EnvVars:     []string{"LISTEN_TCP"},
+				Sources:     cli.EnvVars("LISTEN_TCP"),
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for UDP (repeatable). Required if environment needs a specific address, such as on fly.io",
 				Category:    "Network Options",
-				EnvVars:     []string{"LISTEN_UDP"},
+				Sources:     cli.EnvVars("LISTEN_UDP"),
 			},
 			&cli.BoolFlag{
 				Name:     "proxy-protocol",
@@ -106,14 +107,14 @@ func Generate() *cli.Command {
 			NOTE: The listener is exposed without any authentication or authorization. You should only expose it to localhost or unix socket`,
 				Category: "Server Options",
 			},
-			&cli.PathFlag{
+			&cli.StringFlag{
 				Name:     "data-dir",
 				Aliases:  []string{"data"},
 				Usage:    "Path to directory that will be used for persisting non-volatile KV data",
 				Required: true,
 				Category: "Server Options",
 			},
-			&cli.PathFlag{
+			&cli.StringFlag{
 				Name:     "cert-dir",
 				Aliases:  []string{"cert"},
 				Usage:    `Path to directory containing ca.crt, client-ca.crt, client-ca.key, node.crt, and node.key for mutual TLS between specter server nodes`,
@@ -129,7 +130,7 @@ func Generate() *cli.Command {
 				Name:        "sentry",
 				DefaultText: "https://public@sentry.example.com/1",
 				Usage:       "Sentry DSN for error monitoring. Alternatively, you can set the DSN via the environment variable SENTRY_DSN",
-				EnvVars:     []string{"SENTRY_DSN"},
+				Sources:     cli.EnvVars("SENTRY_DSN"),
 				Category:    "Server Options",
 			},
 
@@ -141,7 +142,7 @@ func Generate() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:    "join",
-				EnvVars: []string{"CHORD_JOIN"},
+				Sources: cli.EnvVars("CHORD_JOIN"),
 				Usage: `A known specter server's advertise address.
 			Absent of this flag will bootstrap a new cluster with current node as the seed node`,
 				Category: "Chord Options",
@@ -150,14 +151,14 @@ func Generate() *cli.Command {
 				Name:     "kv-provider",
 				Usage:    "Backend storage provider for KV. Valid options are memory, aof, and sqlite",
 				Value:    "aof",
-				EnvVars:  []string{"KV_PROVIDER"},
+				Sources:  cli.EnvVars("KV_PROVIDER"),
 				Category: "Chord Options",
 			},
 
 			&cli.StringFlag{
 				Name:        "acme",
 				DefaultText: "acme://{ACME_EMAIL}:@acmehostedzone.com",
-				EnvVars:     []string{"ACME_URI"},
+				Sources:     cli.EnvVars("ACME_URI"),
 				Usage: `To enable acme, provide an email for the issuer, and the delegated zone for hosting challenges.
 			Absent of this flag will serve self-signed certificate.
 			Alternatively, you can set the URI via the environment variable ACME_URI.`,
@@ -172,7 +173,7 @@ func Generate() *cli.Command {
 			},
 			&cli.StringSliceFlag{
 				Name:     "apex",
-				EnvVars:  []string{"APEX"},
+				Sources:  cli.EnvVars("APEX"),
 				Usage:    "Canonical domain to be used as tunnel root domain. Tunnels will be given names under *.`APEX`. Additional canonical domains can be specified.",
 				Required: true,
 				Category: "Gateway Options",
@@ -201,7 +202,7 @@ func Generate() *cli.Command {
 				Name:    "acme_ca",
 				Hidden:  true,
 				Value:   cipher.CertCA,
-				EnvVars: []string{"ACME_CA"},
+				Sources: cli.EnvVars("ACME_CA"),
 			},
 
 			// used for acme setup internally
@@ -216,55 +217,55 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name:    "auth_user",
 				Hidden:  true,
-				EnvVars: []string{"INTERNAL_USER"},
+				Sources: cli.EnvVars("INTERNAL_USER"),
 			},
 			&cli.StringFlag{
 				Name:    "auth_pass",
 				Hidden:  true,
-				EnvVars: []string{"INTERNAL_PASS"},
+				Sources: cli.EnvVars("INTERNAL_PASS"),
 			},
 			&cli.StringFlag{
 				Name:    "env_ca",
 				Hidden:  true,
-				EnvVars: []string{"CERT_CA"},
+				Sources: cli.EnvVars("CERT_CA"),
 			},
 			&cli.StringFlag{
 				Name:    "env_node",
 				Hidden:  true,
-				EnvVars: []string{"CERT_NODE"},
+				Sources: cli.EnvVars("CERT_NODE"),
 			},
 			&cli.StringFlag{
 				Name:    "env_node_key",
 				Hidden:  true,
-				EnvVars: []string{"CERT_NODE_KEY"},
+				Sources: cli.EnvVars("CERT_NODE_KEY"),
 			},
 			&cli.StringFlag{
 				Name:    "env_client_ca",
 				Hidden:  true,
-				EnvVars: []string{"CERT_CLIENT_CA"},
+				Sources: cli.EnvVars("CERT_CLIENT_CA"),
 			},
 			&cli.StringFlag{
 				Name:    "env_client_ca_key",
 				Hidden:  true,
-				EnvVars: []string{"CERT_CLIENT_CA_KEY"},
+				Sources: cli.EnvVars("CERT_CLIENT_CA_KEY"),
 			},
 		},
-		Before: func(ctx *cli.Context) error {
-			if !ctx.IsSet("cert-dir") && !ctx.IsSet("cert-env") {
-				return fmt.Errorf("no certificate loader is specified")
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			if !cmd.IsSet("cert-dir") && !cmd.IsSet("cert-env") {
+				return ctx, fmt.Errorf("no certificate loader is specified")
 			}
-			if ctx.Int("virtual") < 1 {
-				return fmt.Errorf("minimum of 1 virtual node is required")
+			if cmd.Int("virtual") < 1 {
+				return ctx, fmt.Errorf("minimum of 1 virtual node is required")
 			}
-			if ctx.IsSet("acme") {
-				email, zone, err := acmeSpec.ParseAcmeURI(ctx.String("acme"))
+			if cmd.IsSet("acme") {
+				email, zone, err := acmeSpec.ParseAcmeURI(cmd.String("acme"))
 				if err != nil {
-					return err
+					return ctx, err
 				}
-				ctx.Set("acme_email", email)
-				ctx.Set("acme_zone", zone)
+				cmd.Set("acme_email", email)
+				cmd.Set("acme_zone", zone)
 			}
-			return nil
+			return ctx, nil
 		},
 		Action: cmdServer,
 	}
@@ -318,24 +319,24 @@ func certLoaderFilesystem(dir string) (*certBundle, error) {
 	}, nil
 }
 
-func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
-	caCert, err := base64.StdEncoding.DecodeString(ctx.String("env_ca"))
+func certLoaderEnv(cmd *cli.Command) (*certBundle, error) {
+	caCert, err := base64.StdEncoding.DecodeString(cmd.String("env_ca"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_CA: %w", err)
 	}
-	nodeCert, err := base64.StdEncoding.DecodeString(ctx.String("env_node"))
+	nodeCert, err := base64.StdEncoding.DecodeString(cmd.String("env_node"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_NODE: %w", err)
 	}
-	nodeKey, err := base64.StdEncoding.DecodeString(ctx.String("env_node_key"))
+	nodeKey, err := base64.StdEncoding.DecodeString(cmd.String("env_node_key"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_NODE_KEY: %w", err)
 	}
-	clientCaCert, err := base64.StdEncoding.DecodeString(ctx.String("env_client_ca"))
+	clientCaCert, err := base64.StdEncoding.DecodeString(cmd.String("env_client_ca"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_NODE: %w", err)
 	}
-	clientCaKey, err := base64.StdEncoding.DecodeString(ctx.String("env_client_ca_key"))
+	clientCaKey, err := base64.StdEncoding.DecodeString(cmd.String("env_client_ca_key"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to base64 decode CERT_NODE_KEY: %w", err)
 	}
@@ -363,11 +364,11 @@ func certLoaderEnv(ctx *cli.Context) (*certBundle, error) {
 	}, nil
 }
 
-func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.VNode) (cipher.CertProvider, error) {
-	rootDomains := ctx.StringSlice("apex")
+func configCertProvider(cmd *cli.Command, logger *zap.Logger, kv chord.VNode) (cipher.CertProvider, error) {
+	rootDomains := cmd.StringSlice("apex")
 	managedDomains := rootDomains
 
-	if ctx.IsSet("acme") {
+	if cmd.IsSet("acme") {
 		acmeSolver := &acme.ChordSolver{
 			KV:             kv,
 			ManagedDomains: managedDomains,
@@ -377,13 +378,13 @@ func configCertProvider(ctx *cli.Context, logger *zap.Logger, kv chord.VNode) (c
 			KV:             kv,
 			DNSSolver:      acmeSolver,
 			ManagedDomains: managedDomains,
-			CA:             ctx.String("acme_ca"),
-			Email:          ctx.String("acme_email"),
+			CA:             cmd.String("acme_ca"),
+			Email:          cmd.String("acme_email"),
 		})
 		if err != nil {
 			return nil, err
 		}
-		logger.Info("Using acme as cert provider", zap.String("email", ctx.String("acme_email")), zap.String("zone", ctx.String("acme_zone")))
+		logger.Info("Using acme as cert provider", zap.String("email", cmd.String("acme_email")), zap.String("zone", cmd.String("acme_zone")))
 		return manager, nil
 	} else {
 		logger.Info("Using self-signed as cert provider")
@@ -411,17 +412,17 @@ func modifyToSentryLogger(logger *zap.Logger, client *sentry.Client) *zap.Logger
 	return logger
 }
 
-func cmdServer(ctx *cli.Context) error {
-	logger, ok := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdServer(ctx context.Context, cmd *cli.Command) error {
+	logger, ok := cmd.Root().Metadata["logger"].(*zap.Logger)
 	if !ok || logger == nil {
 		return fmt.Errorf("unable to obtain logger from app context")
 	}
 
-	rootDomains := ctx.StringSlice("apex")
+	rootDomains := cmd.StringSlice("apex")
 	managedDomains := rootDomains
 
-	if ctx.Bool("print-acme") {
-		if !ctx.IsSet("acme") {
+	if cmd.Bool("print-acme") {
+		if !cmd.IsSet("acme") {
 			return fmt.Errorf("acme is not configured")
 		}
 		for _, d := range managedDomains {
@@ -429,38 +430,38 @@ func cmdServer(ctx *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("error normalizing domain for %s: %w", d, err)
 			}
-			name, content := acmeSpec.GenerateManagedRecord(hostname, ctx.String("acme_zone"))
+			name, content := acmeSpec.GenerateManagedRecord(hostname, cmd.String("acme_zone"))
 			logger.Info("ACME DNS Record", zap.String("name", name), zap.String("content", content), zap.String("type", "CNAME"))
 		}
 		return nil
 	}
 
-	dataDir, err := filepath.Abs(ctx.Path("data-dir"))
+	dataDir, err := filepath.Abs(cmd.String("data-dir"))
 	if err != nil {
 		return fmt.Errorf("resolving data directory: %w", err)
 	}
-	kvOption := ctx.String("kv-provider")
+	kvOption := cmd.String("kv-provider")
 	if err := preflightKVProvider(kvOption, dataDir); err != nil {
 		return fmt.Errorf("storage preflight: %w", err)
 	}
 	logger.Info("Storage configuration", zap.String("provider", kvOption), zap.String("data_dir", dataDir))
 
 	var gwOptions gateway.Options
-	proxyBuffer, err := units.ParseStrictBytes(ctx.String("proxy-buffer"))
+	proxyBuffer, err := units.ParseStrictBytes(cmd.String("proxy-buffer"))
 	if err != nil {
 		return fmt.Errorf("error parsing proxy buffer size: %w", err)
 	}
 	gwOptions.ProxyBufferSize = int(proxyBuffer)
-	transportBuffer, err := units.ParseStrictBytes(ctx.String("transport-buffer"))
+	transportBuffer, err := units.ParseStrictBytes(cmd.String("transport-buffer"))
 	if err != nil {
 		return fmt.Errorf("error parsing transport buffer size: %w", err)
 	}
 	gwOptions.TransportBufferSize = int(transportBuffer)
 
-	if ctx.IsSet("sentry") {
+	if cmd.IsSet("sentry") {
 		client, err := sentry.NewClient(sentry.ClientOptions{
-			Dsn:     ctx.String("sentry"),
-			Release: ctx.App.Version,
+			Dsn:     cmd.String("sentry"),
+			Release: cmd.Root().Version,
 		})
 		if err != nil {
 			return fmt.Errorf("initializing sentry client: %w", err)
@@ -471,10 +472,10 @@ func cmdServer(ctx *cli.Context) error {
 		defer logger.Sync()
 	}
 
-	listenBase := ctx.StringSlice("listen-addr")
+	listenBase := cmd.StringSlice("listen-addr")
 	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
 		listenBase,
-		ctx.StringSlice("listen-tcp"),
+		cmd.StringSlice("listen-tcp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
@@ -482,7 +483,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	udpAddrs, err := cmdlisten.ParseAddresses("udp",
 		listenBase,
-		ctx.StringSlice("listen-udp"),
+		cmd.StringSlice("listen-udp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
@@ -507,8 +508,8 @@ func cmdServer(ctx *cli.Context) error {
 
 	advertise := listenBase[0]
 
-	if ctx.IsSet("advertise-addr") {
-		advertise = ctx.String("advertise-addr")
+	if cmd.IsSet("advertise-addr") {
+		advertise = cmd.String("advertise-addr")
 	}
 	_, advertisePortStr, err := net.SplitHostPort(advertise)
 	if err != nil {
@@ -520,13 +521,13 @@ func cmdServer(ctx *cli.Context) error {
 	}
 
 	var bundle *certBundle
-	if ctx.IsSet("cert-dir") {
-		bundle, err = certLoaderFilesystem(ctx.Path("cert-dir"))
+	if cmd.IsSet("cert-dir") {
+		bundle, err = certLoaderFilesystem(cmd.String("cert-dir"))
 		if err != nil {
 			return fmt.Errorf("error loading certificates from directory: %w", err)
 		}
-	} else if ctx.IsSet("cert-env") {
-		bundle, err = certLoaderEnv(ctx)
+	} else if cmd.IsSet("cert-env") {
+		bundle, err = certLoaderEnv(cmd)
 		if err != nil {
 			return fmt.Errorf("error loading certificates from environment variable: %w", err)
 		}
@@ -539,16 +540,16 @@ func cmdServer(ctx *cli.Context) error {
 	var (
 		rpcListener net.Listener
 	)
-	if ctx.IsSet("listen-rpc") {
-		parsedRpc, err := url.Parse(ctx.String("listen-rpc"))
+	if cmd.IsSet("listen-rpc") {
+		parsedRpc, err := url.Parse(cmd.String("listen-rpc"))
 		if err != nil {
 			return fmt.Errorf("error parsing rpc listen address: %w", err)
 		}
 		switch parsedRpc.Scheme {
 		case "unix":
-			rpcListener, err = listenCfg.Listen(ctx.Context, "unix", parsedRpc.Path)
+			rpcListener, err = listenCfg.Listen(ctx, "unix", parsedRpc.Path)
 		case "tcp":
-			rpcListener, err = listenCfg.Listen(ctx.Context, "tcp", parsedRpc.Host)
+			rpcListener, err = listenCfg.Listen(ctx, "tcp", parsedRpc.Host)
 		default:
 			return fmt.Errorf("unknown scheme for rpc listen address: %s", parsedRpc.Scheme)
 		}
@@ -560,11 +561,11 @@ func cmdServer(ctx *cli.Context) error {
 
 	tcpListeners := make([]net.Listener, 0, len(tcpAddrs))
 	for _, addr := range tcpAddrs {
-		l, err := listenCfg.Listen(ctx.Context, addr.Network, addr.Address)
+		l, err := listenCfg.Listen(ctx, addr.Network, addr.Address)
 		if err != nil {
 			return fmt.Errorf("error setting up gateway tcp listener on %s: %w", addr.Address, err)
 		}
-		if ctx.Bool("proxy-protocol") {
+		if cmd.Bool("proxy-protocol") {
 			l = &proxyproto.Listener{
 				Listener:          l,
 				ReadHeaderTimeout: time.Second * 3,
@@ -588,7 +589,7 @@ func cmdServer(ctx *cli.Context) error {
 
 	udpBindings := make([]udpBinding, 0, len(udpAddrs))
 	for _, addr := range udpAddrs {
-		pconn, err := listenCfg.ListenPacket(ctx.Context, addr.Network, addr.Address)
+		pconn, err := listenCfg.ListenPacket(ctx, addr.Network, addr.Address)
 		if err != nil {
 			return fmt.Errorf("error setting up gateway udp listener on %s: %w", addr.Address, err)
 		}
@@ -608,7 +609,7 @@ func cmdServer(ctx *cli.Context) error {
 	}
 
 	var httpListener net.Listener
-	if advertisePort == 443 || ctx.IsSet("listen-http") {
+	if advertisePort == 443 || cmd.IsSet("listen-http") {
 		httpListeners := make([]net.Listener, 0, len(tcpAddrs))
 		seenHost := make(map[string]struct{}, len(tcpAddrs))
 		for _, addr := range tcpAddrs {
@@ -616,12 +617,12 @@ func cmdServer(ctx *cli.Context) error {
 				continue
 			}
 			seenHost[addr.Host] = struct{}{}
-			httpAddr := net.JoinHostPort(addr.Host, strconv.Itoa(ctx.Int("listen-http")))
-			l, err := listenCfg.Listen(ctx.Context, cmdlisten.NetworkForVersion("tcp", addr.Version), httpAddr)
+			httpAddr := net.JoinHostPort(addr.Host, strconv.Itoa(cmd.Int("listen-http")))
+			l, err := listenCfg.Listen(ctx, cmdlisten.NetworkForVersion("tcp", addr.Version), httpAddr)
 			if err != nil {
 				return fmt.Errorf("error setting up http listener on %s: %w", httpAddr, err)
 			}
-			if ctx.Bool("proxy-protocol") {
+			if cmd.Bool("proxy-protocol") {
 				l = &proxyproto.Listener{
 					Listener:          l,
 					ReadHeaderTimeout: time.Second * 3,
@@ -666,7 +667,7 @@ func cmdServer(ctx *cli.Context) error {
 	for _, mux := range alpnMuxes {
 		chordListeners = append(chordListeners, mux.With(chordTLS, tun.ALPN(protocol.Link_SPECTER_CHORD)))
 	}
-	chordListener := newMultiQuicListener(ctx.Context, chordListeners)
+	chordListener := newMultiQuicListener(ctx, chordListeners)
 	defer chordListener.Close()
 
 	chordRTT := rtt.NewInstrumentation(20)
@@ -695,11 +696,11 @@ func cmdServer(ctx *cli.Context) error {
 	defer tunnelTransport.Stop()
 
 	var existingNode chord.VNode
-	chordClient := rpc.DynamicChordClient(ctx.Context, chordTransport)
-	if ctx.IsSet("join") {
-		existingNode, err = chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, &protocol.Node{
+	chordClient := rpc.DynamicChordClient(ctx, chordTransport)
+	if cmd.IsSet("join") {
+		existingNode, err = chordImpl.NewRemoteNode(ctx, logger, chordClient, &protocol.Node{
 			Unknown: true,
-			Address: ctx.String("join"),
+			Address: cmd.String("join"),
 		})
 		if err != nil {
 			return fmt.Errorf("error connecting existing chord node: %w", err)
@@ -709,7 +710,7 @@ func cmdServer(ctx *cli.Context) error {
 	streamRouter := transport.NewStreamRouter(logger.With(zapsentry.NewScope()).With(zap.String("component", "router")), chordTransport, tunnelTransport)
 	virtualNodes := make([]*chordImpl.LocalNode, 0)
 
-	k := ctx.Int("virtual")
+	k := cmd.Int("virtual")
 	cacheDir := filepath.Join(dataDir, "cache")
 	for i := range k {
 		nodeIdentity := &protocol.Node{
@@ -738,24 +739,24 @@ func cmdServer(ctx *cli.Context) error {
 			NodesRTT:                 chordRTT,
 		})
 
-		virtualNode.AttachRouter(ctx.Context, streamRouter)
+		virtualNode.AttachRouter(ctx, streamRouter)
 		virtualNodes = append(virtualNodes, virtualNode)
 	}
 
 	rootNode := virtualNodes[0]
-	rootNode.AttachRoot(ctx.Context, streamRouter)
+	rootNode.AttachRoot(ctx, streamRouter)
 	if rpcListener != nil {
-		logger.Info("Exposing RPC externally", zap.String("listen", ctx.String("listen-rpc")))
-		rootNode.AttachExternal(ctx.Context, rpcListener)
+		logger.Info("Exposing RPC externally", zap.String("listen", cmd.String("listen-rpc")))
+		rootNode.AttachExternal(ctx, rpcListener)
 	}
 
-	go chordTransport.AcceptWithListener(ctx.Context, chordListener)
-	go streamRouter.Accept(ctx.Context)
+	go chordTransport.AcceptWithListener(ctx, chordListener)
+	go streamRouter.Accept(ctx)
 	for _, mux := range alpnMuxes {
-		go mux.Accept(ctx.Context)
+		go mux.Accept(ctx)
 	}
 
-	if !ctx.IsSet("join") {
+	if !cmd.IsSet("join") {
 		if err := rootNode.Create(); err != nil {
 			return fmt.Errorf("error bootstrapping chord ring: %w", err)
 		}
@@ -767,7 +768,7 @@ func cmdServer(ctx *cli.Context) error {
 	defer rootNode.Leave()
 
 	for i := 1; i < k; i++ {
-		p, err := chordImpl.NewRemoteNode(ctx.Context, logger, chordClient, rootNode.Identity())
+		p, err := chordImpl.NewRemoteNode(ctx, logger, chordClient, rootNode.Identity())
 		if err != nil {
 			return fmt.Errorf("error connecting to root node: %w", err)
 		}
@@ -777,12 +778,12 @@ func cmdServer(ctx *cli.Context) error {
 		defer virtualNodes[i].Leave()
 	}
 
-	certProvider, err := configCertProvider(ctx, logger.With(zapsentry.NewScope()), chord.WrapRetryKV(rootNode, timing.ChordStabilizeInterval/2, 5))
+	certProvider, err := configCertProvider(cmd, logger.With(zapsentry.NewScope()), chord.WrapRetryKV(rootNode, timing.ChordStabilizeInterval/2, 5))
 	if err != nil {
 		return fmt.Errorf("failed to configure cert provider: %w", err)
 	}
 
-	if err := certProvider.Initialize(ctx.Context); err != nil {
+	if err := certProvider.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize cert provider: %w", err)
 	}
 
@@ -801,7 +802,7 @@ func cmdServer(ctx *cli.Context) error {
 	for _, mux := range alpnMuxes {
 		gwH3Listeners = append(gwH3Listeners, mux.With(gwTLSConf, append([]string{tun.ALPN(protocol.Link_TCP)}, cipher.H3Protos...)...))
 	}
-	gwH3Listener := newMultiQuicListener(ctx.Context, gwH3Listeners)
+	gwH3Listener := newMultiQuicListener(ctx, gwH3Listeners)
 	defer gwH3Listener.Close()
 
 	// handles specter-client/1
@@ -810,7 +811,7 @@ func cmdServer(ctx *cli.Context) error {
 	for _, mux := range alpnMuxes {
 		clientListeners = append(clientListeners, mux.With(clientTLSConf, tun.ALPN(protocol.Link_SPECTER_CLIENT)))
 	}
-	clientListener := newMultiQuicListener(ctx.Context, clientListeners)
+	clientListener := newMultiQuicListener(ctx, clientListeners)
 	defer clientListener.Close()
 
 	tunnelIdentity := &protocol.Node{
@@ -819,21 +820,21 @@ func cmdServer(ctx *cli.Context) error {
 	}
 	tunServer := server.New(server.Config{
 		Logger:          logger.With(zapsentry.NewScope()).With(zap.String("component", "tunnelServer"), zap.Uint64("node", tunnelIdentity.GetId())),
-		ParentContext:   ctx.Context,
+		ParentContext:   ctx,
 		Chord:           chord.WrapRetryKV(rootNode, timing.ChordStabilizeInterval/2, 5),
 		TunnelTransport: tunnelTransport,
 		ChordTransport:  chordTransport,
 		Resolver:        net.DefaultResolver,
 		CertProvider:    certProvider,
 		Apex:            rootDomains[0],
-		Acme:            ctx.String("acme_zone"),
+		Acme:            cmd.String("acme_zone"),
 	})
 	defer tunServer.Stop()
 
-	tunServer.AttachRouter(ctx.Context, streamRouter)
-	tunServer.MustRegister(ctx.Context)
+	tunServer.AttachRouter(ctx, streamRouter)
+	tunServer.MustRegister(ctx)
 
-	go tunnelTransport.AcceptWithListener(ctx.Context, clientListener)
+	go tunnelTransport.AcceptWithListener(ctx, clientListener)
 
 	var acmeHandler http.Handler
 	if mgr, ok := certProvider.(*acme.Manager); ok {
@@ -859,14 +860,14 @@ func cmdServer(ctx *cli.Context) error {
 		RootDomains:       managedDomains,
 		GatewayPort:       int(advertisePort),
 		Options:           gwOptions,
-		AdminUser:         ctx.String("auth_user"),
-		AdminPass:         ctx.String("auth_pass"),
+		AdminUser:         cmd.String("auth_user"),
+		AdminPass:         cmd.String("auth_pass"),
 		HandshakeHintFunc: tunServer.RoutesPreload,
 	})
 	defer gw.Close()
 
-	gw.AttachRouter(ctx.Context, streamRouter)
-	gw.MustStart(ctx.Context)
+	gw.AttachRouter(ctx, streamRouter)
+	gw.MustStart(ctx)
 
 	certProvider.OnHandshake(gw.HandshakeEarlyHint)
 
@@ -876,8 +877,8 @@ func cmdServer(ctx *cli.Context) error {
 	select {
 	case sig := <-sigs:
 		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Context.Done():
-		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	case <-ctx.Done():
+		logger.Info("context done", zap.Error(ctx.Err()))
 	}
 
 	return nil

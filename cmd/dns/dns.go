@@ -22,7 +22,7 @@ import (
 	"go.miragespace.co/specter/util/reuse"
 
 	"github.com/miekg/dns"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
@@ -37,21 +37,21 @@ func Generate() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:    "listen-addr",
 				Aliases: []string{"listen"},
-				Value:   cli.NewStringSlice(fmt.Sprintf("%s:53", ip.String())),
+				Value:   []string{fmt.Sprintf("%s:53", ip.String())},
 				Usage:   `Repeatable address:port to listen for incoming acme dns queries. Each entry serves both TCP and UDP unless overridden.`,
-				EnvVars: []string{"LISTEN_ADDR"},
+				Sources: cli.EnvVars("LISTEN_ADDR"),
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-tcp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for TCP (repeatable)",
-				EnvVars:     []string{"LISTEN_TCP"},
+				Sources:     cli.EnvVars("LISTEN_TCP"),
 			},
 			&cli.StringSliceFlag{
 				Name:        "listen-udp",
 				DefaultText: "same as listen-addr",
 				Usage:       "Override the listen address and port for UDP (repeatable). Required if environment needs a specific address, such as on fly.io",
-				EnvVars:     []string{"LISTEN_UDP"},
+				Sources:     cli.EnvVars("LISTEN_UDP"),
 			},
 			&cli.StringFlag{
 				Name:     "rpc",
@@ -63,13 +63,13 @@ func Generate() *cli.Command {
 				Name:        "acme",
 				DefaultText: "acme://{ACME_EMAIL}:@acmehostedzone.com",
 				Required:    true,
-				EnvVars:     []string{"ACME_URI"},
+				Sources:     cli.EnvVars("ACME_URI"),
 				Usage: `To enable acme dns, provide an email for the issuer, and the delegated zone for hosting challenges.
 			Alternatively, you can set the URI via the environment variable ACME_URI.`,
 			},
 			&cli.StringSliceFlag{
 				Name:     "acme-ns",
-				EnvVars:  []string{"ACME_NS"},
+				Sources:  cli.EnvVars("ACME_NS"),
 				Required: true,
 				Usage: `If acme dns is enabled, specify the delegated zone's A/AAAA records. For example, ns1.acmehostedzone.com/93.184.216.34.
 			This is needed to delegate acme dns challenges to specter.
@@ -86,18 +86,18 @@ func Generate() *cli.Command {
 				Hidden: true,
 			},
 		},
-		Before: func(ctx *cli.Context) error {
-			email, zone, err := acmeSpec.ParseAcmeURI(ctx.String("acme"))
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			email, zone, err := acmeSpec.ParseAcmeURI(cmd.String("acme"))
 			if err != nil {
-				return err
+				return ctx, err
 			}
 
 			ns := make(map[string][]string)
-			records := ctx.StringSlice("acme-ns")
+			records := cmd.StringSlice("acme-ns")
 			for _, r := range records {
 				parts := strings.Split(r, "/")
 				if len(parts) != 2 {
-					return fmt.Errorf("unable to parse record: %s", r)
+					return ctx, fmt.Errorf("unable to parse record: %s", r)
 				}
 				domain := parts[0]
 				_, ok := ns[domain]
@@ -106,28 +106,27 @@ func Generate() *cli.Command {
 				}
 				ns[domain] = append(ns[domain], parts[1])
 			}
+			cmd.Root().Metadata["ns"] = ns
 
-			ctx.App.Metadata["ns"] = ns
+			cmd.Set("acme_email", email)
+			cmd.Set("acme_zone", zone)
 
-			ctx.Set("acme_email", email)
-			ctx.Set("acme_zone", zone)
-
-			return nil
+			return ctx, nil
 		},
 		Action: cmdDNS,
 	}
 }
 
-func cmdDNS(ctx *cli.Context) error {
-	logger, ok := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdDNS(ctx context.Context, cmd *cli.Command) error {
+	logger, ok := cmd.Root().Metadata["logger"].(*zap.Logger)
 	if !ok || logger == nil {
 		return fmt.Errorf("unable to obtain logger from app context")
 	}
 
-	listenBase := ctx.StringSlice("listen-addr")
+	listenBase := cmd.StringSlice("listen-addr")
 	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
 		listenBase,
-		ctx.StringSlice("listen-tcp"),
+		cmd.StringSlice("listen-tcp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
@@ -135,7 +134,7 @@ func cmdDNS(ctx *cli.Context) error {
 
 	udpAddrs, err := cmdlisten.ParseAddresses("udp",
 		listenBase,
-		ctx.StringSlice("listen-udp"),
+		cmd.StringSlice("listen-udp"),
 	)
 	if err != nil {
 		return fmt.Errorf("error parsing udp listen address: %w", err)
@@ -162,7 +161,7 @@ func cmdDNS(ctx *cli.Context) error {
 		dialNetwork string
 		dialAddress string
 	)
-	parsedRpc, err := url.Parse(ctx.String("rpc"))
+	parsedRpc, err := url.Parse(cmd.String("rpc"))
 	if err != nil {
 		return fmt.Errorf("error parsing rpc address: %w", err)
 	}
@@ -197,23 +196,20 @@ func cmdDNS(ctx *cli.Context) error {
 		Client: client,
 	}
 
-	acmeDomain := ctx.String("acme_zone")
-	acmeDNS := acme.NewDNS(
-		ctx.Context,
-		logger.With(zap.String("component", "acme_dns")),
+	acmeDomain := cmd.String("acme_zone")
+	acmeDNS := acme.NewDNS(ctx, logger.With(zap.String("component", "acme_dns")),
 		kv,
-		ctx.String("acme_email"),
-		acmeDomain,
-		ctx.App.Metadata["ns"].(map[string][]string),
+		cmd.String("acme_email"),
+		acmeDomain, cmd.Root().Metadata["ns"].(map[string][]string),
 	)
 
 	dnsMux := dns.NewServeMux()
 	dnsMux.Handle(acmeDomain, acmeDNS)
-	dnsMux.Handle(".", dns.HandlerFunc(Chaos(ctx.App.Version)))
+	dnsMux.Handle(".", dns.HandlerFunc(Chaos(cmd.Root().Version)))
 
 	var tcpServers []*dns.Server
 	for _, addr := range tcpAddrs {
-		ln, err := listenCfg.Listen(ctx.Context, addr.Network, addr.Address)
+		ln, err := listenCfg.Listen(ctx, addr.Network, addr.Address)
 		if err != nil {
 			return fmt.Errorf("error setting up dns tcp listener on %s: %w", addr.Address, err)
 		}
@@ -231,7 +227,7 @@ func cmdDNS(ctx *cli.Context) error {
 
 	var udpServers []*dns.Server
 	for _, addr := range udpAddrs {
-		pconn, err := listenCfg.ListenPacket(ctx.Context, addr.Network, addr.Address)
+		pconn, err := listenCfg.ListenPacket(ctx, addr.Network, addr.Address)
 		if err != nil {
 			return fmt.Errorf("error setting up dns udp listener on %s: %w", addr.Address, err)
 		}
@@ -268,8 +264,8 @@ func cmdDNS(ctx *cli.Context) error {
 	select {
 	case sig := <-sigs:
 		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Context.Done():
-		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	case <-ctx.Done():
+		logger.Info("context done", zap.Error(ctx.Err()))
 	}
 
 	return nil

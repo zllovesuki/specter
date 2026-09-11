@@ -28,7 +28,7 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
@@ -56,20 +56,20 @@ type TestWsMsg struct {
 	Message string
 }
 
-func compileApp(cmd *cli.Command) (*cli.App, *observer.ObservedLogs) {
+func compileApp(cmd *cli.Command) (*cli.Command, *observer.ObservedLogs) {
 	observedZapCore, observedLogs := observer.New(zap.DebugLevel)
 	observedLogger := zap.New(observedZapCore)
 	cmd.HideHelp = true
-	return &cli.App{
+	return &cli.Command{
 		Name:        "specter",
 		HideHelp:    true,
 		HideVersion: true,
 		Commands: []*cli.Command{
 			cmd,
 		},
-		Before: func(ctx *cli.Context) error {
-			ctx.App.Metadata["logger"] = observedLogger
-			return nil
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			cmd.Root().Metadata["logger"] = observedLogger
+			return ctx, nil
 		},
 		Metadata: make(map[string]any),
 	}, observedLogs
@@ -203,8 +203,8 @@ func TestIntegrationTunnel(t *testing.T) {
 			sApp, sLogs := compileApp(server.Generate())
 			serverLogs[i] = sLogs
 			args := args
-			go func(app *cli.App) {
-				if err := app.RunContext(ctx, args); err != nil {
+			go func(app *cli.Command) {
+				if err := app.Run(ctx, args); err != nil {
 					as.NoError(err)
 				}
 				serverStopped()
@@ -248,7 +248,7 @@ func TestIntegrationTunnel(t *testing.T) {
 		cApp, cLogs := compileApp(client.Generate())
 		cApp.Metadata["apexOverride"] = serverApex
 		go func() {
-			if err := cApp.RunContext(ctx, clientArgs); err != nil {
+			if err := cApp.Run(ctx, clientArgs); err != nil {
 				as.NoError(err)
 			}
 			close(clientReturn)
@@ -413,7 +413,7 @@ func TestIntegrationTunnel(t *testing.T) {
 				xApp.Writer = leftConn
 
 				go func() {
-					if err := xApp.RunContext(ctx, connectArgs); err != nil {
+					if err := xApp.Run(ctx, connectArgs); err != nil {
 						as.NoError(err)
 					}
 					connectReturn()

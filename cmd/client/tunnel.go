@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -18,7 +19,7 @@ import (
 	"go.miragespace.co/specter/util/reuse"
 
 	"github.com/quic-go/quic-go"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
@@ -29,15 +30,15 @@ type transportCfg struct {
 	rtt    rtt.Recorder
 }
 
-func createTransport(ctx *cli.Context, cfg transportCfg) (*tls.Config, *overlay.QUIC) {
+func createTransport(cmd *cli.Command, cfg transportCfg) (*tls.Config, *overlay.QUIC) {
 	clientTLSConf := &tls.Config{
 		ServerName:         cfg.apex.Host,
-		InsecureSkipVerify: ctx.Bool("insecure"),
+		InsecureSkipVerify: cmd.Bool("insecure"),
 		NextProtos: []string{
 			tun.ALPN(protocol.Link_SPECTER_CLIENT),
 		},
 	}
-	if v, ok := ctx.App.Metadata["apexOverride"]; ok {
+	if v, ok := cmd.Root().Metadata["apexOverride"]; ok {
 		clientTLSConf.ServerName = v.(string)
 	}
 	return clientTLSConf, overlay.NewQUIC(overlay.TransportConfig{
@@ -49,10 +50,10 @@ func createTransport(ctx *cli.Context, cfg transportCfg) (*tls.Config, *overlay.
 	})
 }
 
-func cmdTunnel(ctx *cli.Context) error {
-	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdTunnel(ctx context.Context, cmd *cli.Command) error {
+	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
 
-	cfg, err := client.NewConfig(ctx.String("config"))
+	cfg, err := client.NewConfig(cmd.String("config"))
 	if err != nil {
 		return err
 	}
@@ -73,35 +74,35 @@ func cmdTunnel(ctx *cli.Context) error {
 		keylessALPNMux      *overlay.ALPNMux
 	)
 
-	if ctx.IsSet("server") {
-		serverListener, err = listenCfg.Listen(ctx.Context, "tcp", ctx.String("server"))
+	if cmd.IsSet("server") {
+		serverListener, err = listenCfg.Listen(ctx, "tcp", cmd.String("server"))
 		if err != nil {
 			return err
 		}
 		defer serverListener.Close()
 	}
 
-	if ctx.IsSet("keyless") {
-		keylessAddr := ctx.String("keyless")
+	if cmd.IsSet("keyless") {
+		keylessAddr := cmd.String("keyless")
 		listenHost, listenPort, err := net.SplitHostPort(keylessAddr)
 		if err != nil {
 			return err
 		}
 
-		keylessTCPListener, err = listenCfg.Listen(ctx.Context, "tcp", keylessAddr)
+		keylessTCPListener, err = listenCfg.Listen(ctx, "tcp", keylessAddr)
 		if err != nil {
 			return err
 		}
 		defer keylessTCPListener.Close()
 
-		udpListener, err := listenCfg.ListenPacket(ctx.Context, "udp", keylessAddr)
+		udpListener, err := listenCfg.ListenPacket(ctx, "udp", keylessAddr)
 		if err != nil {
 			return err
 		}
 		defer udpListener.Close()
 
 		if listenPort == "443" {
-			keylessHTTPListener, err = listenCfg.Listen(ctx.Context, "tcp", fmt.Sprintf("%s:%d", listenHost, 80))
+			keylessHTTPListener, err = listenCfg.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, 80))
 			if err != nil {
 				return fmt.Errorf("error setting up http listener: %w", err)
 			}
@@ -117,7 +118,7 @@ func cmdTunnel(ctx *cli.Context) error {
 		}
 		defer keylessALPNMux.Close()
 
-		go keylessALPNMux.Accept(ctx.Context)
+		go keylessALPNMux.Accept(ctx)
 	}
 
 	listener, err := net.ListenPacket("udp", ":0")
@@ -130,7 +131,7 @@ func cmdTunnel(ctx *cli.Context) error {
 	defer quicTransport.Close()
 
 	transportRTT := rttImpl.NewInstrumentation(20)
-	tlsCfg, transport := createTransport(ctx, transportCfg{
+	tlsCfg, transport := createTransport(cmd, transportCfg{
 		logger: logger,
 		quicTp: quicTransport,
 		apex:   parsed,
@@ -143,7 +144,7 @@ func cmdTunnel(ctx *cli.Context) error {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGHUP)
 
-	c, err := client.NewClient(ctx.Context, client.ClientConfig{
+	c, err := client.NewClient(ctx, client.ClientConfig{
 		Logger:          logger,
 		Configuration:   cfg,
 		PKIClient:       pkiClient,
@@ -162,15 +163,15 @@ func cmdTunnel(ctx *cli.Context) error {
 	}
 	defer c.Close()
 
-	if err := c.Register(ctx.Context); err != nil {
+	if err := c.Register(ctx); err != nil {
 		return fmt.Errorf("failed to register client: %w", err)
 	}
 
-	if err := c.Initialize(ctx.Context, true); err != nil {
+	if err := c.Initialize(ctx, true); err != nil {
 		return fmt.Errorf("failed to initialize client: %w", err)
 	}
 
-	c.Start(ctx.Context)
+	c.Start(ctx)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -178,8 +179,8 @@ func cmdTunnel(ctx *cli.Context) error {
 	select {
 	case sig := <-sigs:
 		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Context.Done():
-		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	case <-ctx.Done():
+		logger.Info("context done", zap.Error(ctx.Err()))
 	}
 
 	return nil

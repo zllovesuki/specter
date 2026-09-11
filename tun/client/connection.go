@@ -12,7 +12,7 @@ import (
 	"go.miragespace.co/specter/spec/rtt"
 	"go.miragespace.co/specter/spec/tun"
 
-	"github.com/avast/retry-go/v4"
+	"github.com/avast/retry-go/v5"
 	"go.uber.org/zap"
 )
 
@@ -45,7 +45,14 @@ func (c *Client) openRPC(ctx context.Context, node *protocol.Node) error {
 
 func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node) (V, error)) (resp V, err error) {
 	candidates := c.getConnectedNodes()
-	err = retry.Do(func() error {
+	retrier := retry.New(
+		retry.Context(ctx),
+		retry.Attempts(2),
+		retry.LastErrorOnly(true),
+		retry.Delay(time.Millisecond*500),
+		retry.RetryIf(chord.ErrorIsRetryable),
+	)
+	err = retrier.Do(func() error {
 		var (
 			candidate *protocol.Node
 			rpcError  error
@@ -58,13 +65,7 @@ func retryRPC[V any](c *Client, ctx context.Context, fn func(node *protocol.Node
 		}
 		resp, rpcError = fn(candidate)
 		return chord.ErrorMapper(rpcError)
-	},
-		retry.Context(ctx),
-		retry.Attempts(2),
-		retry.LastErrorOnly(true),
-		retry.Delay(time.Millisecond*500),
-		retry.RetryIf(chord.ErrorIsRetryable),
-	)
+	})
 	return
 }
 

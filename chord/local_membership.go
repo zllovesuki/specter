@@ -6,7 +6,7 @@ import (
 
 	"go.miragespace.co/specter/spec/chord"
 
-	"github.com/avast/retry-go/v4"
+	"github.com/avast/retry-go/v5"
 	"go.uber.org/zap"
 )
 
@@ -76,14 +76,7 @@ func (n *LocalNode) Join(peer chord.VNode) error {
 }
 
 func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, successors []chord.VNode, err error) {
-	err = retry.Do(func() error {
-		var joinErr error
-		n.logger.Info("Joining Chord ring",
-			zap.Object("via", peer.Identity()),
-		)
-		predecessor, successors, joinErr = peer.RequestToJoin(n)
-		return joinErr
-	},
+	retrier := retry.New(
 		retry.Attempts(maxAttempts),
 		retry.Delay(n.StabilizeInterval),
 		retry.LastErrorOnly(true),
@@ -92,6 +85,14 @@ func (n *LocalNode) executeJoin(peer chord.VNode) (predecessor chord.VNode, succ
 			n.logger.Warn("Retrying on join error", zap.Uint("attempt", attempt), zap.Error(err))
 		}),
 	)
+	err = retrier.Do(func() error {
+		var joinErr error
+		n.logger.Info("Joining Chord ring",
+			zap.Object("via", peer.Identity()),
+		)
+		predecessor, successors, joinErr = peer.RequestToJoin(n)
+		return joinErr
+	})
 	return
 }
 
@@ -233,11 +234,7 @@ func (n *LocalNode) Leave() {
 		pre  chord.VNode
 		succ chord.VNode
 	)
-	err := retry.Do(func() error {
-		var leaveErr error
-		pre, succ, leaveErr = n.executeLeave()
-		return leaveErr
-	},
+	retrier := retry.New(
 		retry.Attempts(maxAttempts),
 		retry.Delay(n.StabilizeInterval),
 		retry.LastErrorOnly(true),
@@ -245,6 +242,11 @@ func (n *LocalNode) Leave() {
 			n.logger.Warn("Retrying on leave error", zap.Uint("attempt", attempt), zap.Error(err))
 		}),
 	)
+	err := retrier.Do(func() error {
+		var leaveErr error
+		pre, succ, leaveErr = n.executeLeave()
+		return leaveErr
+	})
 	if err != nil {
 		n.logger.Error("Unable to leave ring: out of attempts", zap.Error(err))
 		return

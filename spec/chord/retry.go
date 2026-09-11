@@ -7,7 +7,7 @@ import (
 
 	"go.miragespace.co/specter/spec/protocol"
 
-	"github.com/avast/retry-go/v4"
+	"github.com/avast/retry-go/v5"
 )
 
 var kvRetries = expvar.NewInt("chord.kvRetries")
@@ -41,67 +41,67 @@ func (n *retryableWrapper) retryOptions(ctx context.Context) []retry.Option {
 }
 
 func (n *retryableWrapper) Put(ctx context.Context, key []byte, value []byte) error {
-	return retry.Do(func() error {
+	return retry.New(n.retryOptions(ctx)...).Do(func() error {
 		return n.VNode.Put(ctx, key, value)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) Get(ctx context.Context, key []byte) (value []byte, err error) {
-	return retry.DoWithData(func() ([]byte, error) {
+	return retry.NewWithData[[]byte](n.retryOptions(ctx)...).Do(func() ([]byte, error) {
 		return n.VNode.Get(ctx, key)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) Delete(ctx context.Context, key []byte) error {
-	return retry.Do(func() error {
+	return retry.New(n.retryOptions(ctx)...).Do(func() error {
 		return n.VNode.Delete(ctx, key)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
-	return retry.Do(func() error {
+	return retry.New(n.retryOptions(ctx)...).Do(func() error {
 		return n.VNode.PrefixAppend(ctx, prefix, child)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) PrefixList(ctx context.Context, prefix []byte) (children [][]byte, err error) {
-	return retry.DoWithData(func() ([][]byte, error) {
+	return retry.NewWithData[[][]byte](n.retryOptions(ctx)...).Do(func() ([][]byte, error) {
 		return n.VNode.PrefixList(ctx, prefix)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
-	return retry.DoWithData(func() (bool, error) {
+	return retry.NewWithData[bool](n.retryOptions(ctx)...).Do(func() (bool, error) {
 		return n.VNode.PrefixContains(ctx, prefix, child)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
-	return retry.Do(func() error {
+	return retry.New(n.retryOptions(ctx)...).Do(func() error {
 		return n.VNode.PrefixRemove(ctx, prefix, child)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) Acquire(ctx context.Context, lease []byte, ttl time.Duration) (token uint64, err error) {
-	return retry.DoWithData(func() (uint64, error) {
+	return retry.NewWithData[uint64](n.retryOptions(ctx)...).Do(func() (uint64, error) {
 		return n.VNode.Acquire(ctx, lease, ttl)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error) {
-	return retry.DoWithData(func() (uint64, error) {
+	return retry.NewWithData[uint64](n.retryOptions(ctx)...).Do(func() (uint64, error) {
 		return n.VNode.Renew(ctx, lease, ttl, prevToken)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) Release(ctx context.Context, lease []byte, token uint64) error {
-	return retry.Do(func() error {
+	return retry.New(n.retryOptions(ctx)...).Do(func() error {
 		return n.VNode.Release(ctx, lease, token)
-	}, n.retryOptions(ctx)...)
+	})
 }
 
 func (n *retryableWrapper) ListKeys(ctx context.Context, prefix []byte) ([]*protocol.KeyComposite, error) {
-	return retry.DoWithData(func() ([]*protocol.KeyComposite, error) {
+	return retry.NewWithData[[]*protocol.KeyComposite](n.retryOptions(ctx)...).Do(func() ([]*protocol.KeyComposite, error) {
 		return n.VNode.ListKeys(ctx, prefix)
-	}, n.retryOptions(ctx)...)
+	})
 }

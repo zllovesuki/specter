@@ -20,7 +20,7 @@ import (
 	"go.miragespace.co/specter/util/atomic"
 	"go.miragespace.co/specter/util/bufconn"
 
-	"github.com/avast/retry-go/v4"
+	"github.com/avast/retry-go/v5"
 	"github.com/quic-go/quic-go"
 	"github.com/zhangyunhao116/skipmap"
 	uberAtomic "go.uber.org/atomic"
@@ -86,7 +86,18 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 		return nil, fmt.Errorf("creating a new QUIC connection to the ourselves is not allowed")
 	}
 
-	q, err := retry.DoWithData(func() (*quic.Conn, error) {
+	retrier := retry.NewWithData[*quic.Conn](
+		retry.Attempts(2),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(n uint, err error) {
+			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.Object("peer", peer), zap.Error(err))
+		}),
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), reuseErrorState)
+		}),
+	)
+	q, err := retrier.Do(func() (*quic.Conn, error) {
 		rUnlock := t.cachedMutex.RLock(qKey)
 		if cached, ok := t.cachedConnections.Load(qKey); ok {
 			rUnlock()
@@ -129,17 +140,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 		}
 
 		return t.handleOutgoing(ctx, newQ)
-	},
-		retry.Attempts(2),
-		retry.Context(ctx),
-		retry.LastErrorOnly(true),
-		retry.OnRetry(func(n uint, err error) {
-			t.Logger.Info("Potential connection reuse conflict, retrying to get previously cached connection", zap.Object("peer", peer), zap.Error(err))
-		}),
-		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), reuseErrorState)
-		}),
-	)
+	})
 	if err != nil {
 		if err != transport.ErrNoDirect {
 			t.Logger.Error("Failed to establish connection", zap.Object("peer", peer), zap.Error(err))

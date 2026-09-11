@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -10,14 +11,14 @@ import (
 	"go.miragespace.co/specter/tun/client/connector"
 	"go.miragespace.co/specter/tun/client/dialer"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
-func cmdListen(ctx *cli.Context) error {
-	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdListen(ctx context.Context, cmd *cli.Command) error {
+	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
 
-	hostname := ctx.Args().First()
+	hostname := cmd.Args().First()
 	if hostname == "" {
 		return fmt.Errorf("missing hostname in argument")
 	}
@@ -33,16 +34,16 @@ func cmdListen(ctx *cli.Context) error {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
-	if ctx.IsSet("tcp") {
-		remote, dial, err = tlsDialer(ctx, logger, parsed, false)
+	if cmd.IsSet("tcp") {
+		remote, dial, err = tlsDialer(ctx, cmd, logger, parsed, false)
 	} else {
-		remote, dial, err = quicDialer(ctx, logger, parsed, false)
+		remote, dial, err = quicDialer(ctx, cmd, logger, parsed, false)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
 	}
 
-	listener, err := net.Listen("tcp", ctx.String("listen"))
+	listener, err := net.Listen("tcp", cmd.String("listen"))
 	if err != nil {
 		return err
 	}
@@ -58,8 +59,8 @@ func cmdListen(ctx *cli.Context) error {
 	select {
 	case sig := <-sigs:
 		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Context.Done():
-		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	case <-ctx.Done():
+		logger.Info("context done", zap.Error(ctx.Err()))
 	}
 
 	return nil

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net"
 	"os"
 	"os/signal"
@@ -10,14 +11,14 @@ import (
 	"go.miragespace.co/specter/tun/client/dialer"
 
 	"github.com/quic-go/quic-go"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
-func cmdLs(ctx *cli.Context) error {
-	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdLs(ctx context.Context, cmd *cli.Command) error {
+	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
 
-	cfg, err := client.NewConfig(ctx.String("config"))
+	cfg, err := client.NewConfig(cmd.String("config"))
 	if err != nil {
 		return err
 	}
@@ -39,14 +40,14 @@ func cmdLs(ctx *cli.Context) error {
 	quicTransport := &quic.Transport{Conn: listener}
 	defer quicTransport.Close()
 
-	_, transport := createTransport(ctx, transportCfg{
+	_, transport := createTransport(cmd, transportCfg{
 		logger: logger,
 		quicTp: quicTransport,
 		apex:   parsed,
 	})
 	defer transport.Stop()
 
-	c, err := client.NewClient(ctx.Context, client.ClientConfig{
+	c, err := client.NewClient(ctx, client.ClientConfig{
 		Logger:          logger,
 		Configuration:   cfg,
 		ServerTransport: transport,
@@ -57,11 +58,11 @@ func cmdLs(ctx *cli.Context) error {
 	}
 	defer c.Close()
 
-	if err := c.Register(ctx.Context); err != nil {
+	if err := c.Register(ctx); err != nil {
 		return err
 	}
 
-	hostnames, err := c.GetRegisteredHostnames(ctx.Context)
+	hostnames, err := c.GetRegisteredHostnames(ctx)
 	if err != nil {
 		return err
 	}

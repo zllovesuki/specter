@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,14 +12,14 @@ import (
 	"go.miragespace.co/specter/tun/client/connector"
 	"go.miragespace.co/specter/tun/client/dialer"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
-func cmdConnect(ctx *cli.Context) error {
-	logger := ctx.App.Metadata["logger"].(*zap.Logger)
+func cmdConnect(ctx context.Context, cmd *cli.Command) error {
+	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
 
-	hostname := ctx.Args().First()
+	hostname := cmd.Args().First()
 	if hostname == "" {
 		return fmt.Errorf("missing hostname in argument")
 	}
@@ -34,10 +35,10 @@ func cmdConnect(ctx *cli.Context) error {
 		return fmt.Errorf("error parsing hostname: %w", err)
 	}
 
-	if ctx.IsSet("tcp") {
-		remote, dial, err = tlsDialer(ctx, logger, parsed, true)
+	if cmd.IsSet("tcp") {
+		remote, dial, err = tlsDialer(ctx, cmd, logger, parsed, true)
 	} else {
-		remote, dial, err = quicDialer(ctx, logger, parsed, true)
+		remote, dial, err = quicDialer(ctx, cmd, logger, parsed, true)
 	}
 	if err != nil {
 		return fmt.Errorf("error dialing specter gateway: %w", err)
@@ -55,14 +56,14 @@ func cmdConnect(ctx *cli.Context) error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		_, err := io.Copy(ctx.App.Writer, rw)
+		_, err := io.Copy(cmd.Root().Writer, rw)
 		if err != nil {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM
 		}
 	}()
 	go func() {
-		_, err := io.Copy(rw, ctx.App.Reader)
+		_, err := io.Copy(rw, cmd.Root().Reader)
 		if err != nil {
 			logger.Error("error piping to target", zap.Error(err))
 			sigs <- syscall.SIGTERM
@@ -72,8 +73,8 @@ func cmdConnect(ctx *cli.Context) error {
 	select {
 	case sig := <-sigs:
 		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Context.Done():
-		logger.Info("context done", zap.Error(ctx.Context.Err()))
+	case <-ctx.Done():
+		logger.Info("context done", zap.Error(ctx.Err()))
 	}
 
 	return nil

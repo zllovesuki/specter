@@ -21,7 +21,7 @@
 //   - Wrapped continuation lines of flag usage get an extra 2-space indent.
 //
 // 4. Flag Grouping & Ordering
-//   - Group flags by their `Category` field (via reflection).
+//   - Group flags by their category.
 //   - Alphabetically sort categories (empty category labeled "Global Options").
 //   - Within each category, preserve the order from the `Flags` slice.
 //
@@ -43,14 +43,13 @@ package util
 import (
 	"io"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fatih/color"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )
 
@@ -229,26 +228,18 @@ func wrap(text string, width int) []string {
 	return lines
 }
 
-// flagCategory extracts the Category field from a cli.Flag via reflection.
+// flagCategory returns the category exposed by a cli.Flag.
 func flagCategory(f cli.Flag) string {
-	v := reflect.ValueOf(f)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-	if fld := v.FieldByName("Category"); fld.IsValid() && fld.Kind() == reflect.String {
-		return fld.String()
+	if categorized, ok := f.(cli.CategorizableFlag); ok {
+		return categorized.GetCategory()
 	}
 	return ""
 }
 
-// flagHidden extracts the Hidden field from a cli.Flag via reflection.
+// flagHidden reports whether a flag should be omitted from help.
 func flagHidden(f cli.Flag) bool {
-	v := reflect.ValueOf(f)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-	if fld := v.FieldByName("Hidden"); fld.IsValid() && fld.Kind() == reflect.Bool {
-		return fld.Bool()
+	if visible, ok := f.(cli.VisibleFlag); ok {
+		return !visible.IsVisible()
 	}
 	return false
 }
@@ -263,15 +254,13 @@ func buildHelpData(data any) *helpData {
 		desc      string
 		argsUsage string
 		isApp     bool
-		app       *cli.App
+		app       *cli.Command
 	)
 
 	switch v := data.(type) {
-	case *cli.App:
-		flags, cmds, helpName, usage, desc = v.Flags, v.Commands, v.HelpName, v.Usage, v.Description
-		isApp, app = true, v
 	case *cli.Command:
-		flags, cmds, helpName, usage, desc = v.Flags, v.Subcommands, v.HelpName, v.Usage, v.Description
+		flags, cmds, helpName, usage, desc = v.Flags, v.Commands, v.FullName(), v.Usage, v.Description
+		isApp, app = v.Root() == v, v.Root()
 		argsUsage = v.ArgsUsage
 	default:
 		return &helpData{Name: helpName, Usage: usage}
@@ -317,7 +306,7 @@ func buildHelpData(data any) *helpData {
 			continue
 		}
 		d.Commands = append(d.Commands, cmdItem{
-			Name:  c.FullName(),
+			Name:  c.Name,
 			Usage: c.Usage,
 		})
 	}

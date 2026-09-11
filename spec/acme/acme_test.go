@@ -2,10 +2,11 @@ package acme
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/utf8string"
 )
 
 func TestNormalize(t *testing.T) {
@@ -79,7 +80,7 @@ func TestNormalize(t *testing.T) {
 				normalized, err := Normalize(tc.domain)
 				if tc.valid {
 					as.NoError(err)
-					as.True(utf8string.NewString(normalized).IsASCII(), "normalized hostname should be ascii only")
+					as.False(strings.ContainsFunc(normalized, func(r rune) bool { return r > unicode.MaxASCII }), "normalized hostname should be ascii only")
 				} else {
 					as.Error(err)
 				}

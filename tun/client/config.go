@@ -12,7 +12,7 @@ import (
 	"go.miragespace.co/specter/spec/pki"
 
 	"github.com/zhangyunhao116/skipmap"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type Tunnel struct {

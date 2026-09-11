@@ -1,14 +1,15 @@
 package client
 
 import (
+	"context"
 	"fmt"
 
 	"go.miragespace.co/specter/tun/client"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func cmdConfigExample(ctx *cli.Context) error {
-	fmt.Fprintf(ctx.App.Writer, "%s", client.ExampleConfigYAML())
+func cmdConfigExample(ctx context.Context, cmd *cli.Command) error {
+	fmt.Fprintf(cmd.Root().Writer, "%s", client.ExampleConfigYAML())
 	return nil
 }
