@@ -17,17 +17,17 @@ func (t *QUIC) reapPeer(q *quic.Conn, peer *protocol.Node) {
 	unlock := t.cachedMutex.Lock(qKey)
 	defer unlock()
 
-	t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
-	cached, loaded := t.cachedConnections.LoadAndDelete(qKey)
-	if loaded {
-		cached.quic.CloseWithError(401, "Gone")
+	// A delayed close callback may arrive after a replacement was cached.
+	// Only the current connection owns the cached entry and its RTT state.
+	if cached, loaded := t.cachedConnections.Load(qKey); loaded && cached.quic == q {
+		t.Logger.Debug("reaping cached QUIC connection to peer", zap.String("key", qKey))
+		t.cachedConnections.Delete(qKey)
+		t.rttMap.Delete(qKey)
+		if t.RTTRecorder != nil {
+			t.RTTRecorder.Drop(rtt.MakeMeasurementKey(peer))
+		}
 	}
 	q.CloseWithError(401, "Gone")
-
-	t.rttMap.Delete(qKey)
-	if t.RTTRecorder != nil {
-		t.RTTRecorder.Drop(rtt.MakeMeasurementKey(peer))
-	}
 }
 
 // TODO: investigate if reaper is now deprecated
