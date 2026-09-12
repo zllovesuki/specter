@@ -31,6 +31,7 @@ type ConnectedPeer struct {
 	Identity *protocol.Node
 	Addr     net.Addr
 	Version  string
+	Physical PhysicalConn `json:"-"`
 }
 
 type Transport interface {

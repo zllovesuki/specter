@@ -88,4 +88,7 @@ Revoke grants before releasing their hostname: reclaiming it can make an
 unrevoked grant usable again. After restoring older server data, revoke unwanted
 grants again.
 
+The operator's **Connected clients** page shows the hostname, **Ephemeral** or
+**Token** type, and token owner. Expand **Identity** for full identifiers.
+
 See [compatibility](lightweight-compatibility.md) for server requirements and tests.

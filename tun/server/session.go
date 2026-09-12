@@ -71,6 +71,29 @@ func newSessionRegistry() *sessionRegistry {
 	}
 }
 
+// describe joins operator observations to the exact attachment. Certificate
+// identity alone cannot distinguish a stale connection from its replacement.
+func (r *sessionRegistry) describe(conn transport.PhysicalConn) (mode, hostname, owner string) {
+	if r == nil || conn == nil {
+		return "", "", ""
+	}
+	r.mu.Lock()
+	s := r.byConn[conn]
+	r.mu.Unlock()
+	if s == nil {
+		return "", "", ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.state != active || connectionDone(s.conn) {
+		return "", "", ""
+	}
+	if s.mode == ephemeral {
+		return "ephemeral", s.hostname, ""
+	}
+	return "token", s.hostname, string(s.owner.GetToken())
+}
+
 func connectionDone(c transport.PhysicalConn) bool {
 	select {
 	case <-c.Done():

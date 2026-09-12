@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.miragespace.co/specter/spec/protocol"
@@ -18,10 +19,16 @@ import (
 )
 
 type connectedClient struct {
-	Identity string `json:"identity"`
-	Address  string `json:"address"`
-	Version  string `json:"version"`
-	URL      string `json:"url"`
+	ClientID      string `json:"clientId"`
+	Identity      string `json:"identity"`
+	Address       string `json:"address"`
+	Version       string `json:"version"`
+	URL           string `json:"url"`
+	SessionMode   string `json:"sessionMode,omitempty"`
+	Hostname      string `json:"hostname,omitempty"`
+	OwnerIdentity string `json:"ownerIdentity,omitempty"`
+	OwnerLabel    string `json:"ownerLabel,omitempty"`
+	OwnerURL      string `json:"ownerUrl,omitempty"`
 }
 
 type connectedInfo struct {
@@ -58,13 +65,30 @@ func TunnelServerHandler(s *Server) http.Handler {
 			Clients:    make([]connectedClient, 0, len(clients)),
 		}
 
+		clientURLs := make(map[string]string, len(clients))
 		for _, h := range clients {
+			mode, hostname, owner := s.sessions.describe(h.Physical)
+			if hostname != "" && !strings.Contains(hostname, ".") {
+				hostname += "." + s.Apex
+			}
+			clientURL := fmt.Sprintf("/_internal/tun/%d/%s", h.Identity.GetId(), url.PathEscape(h.Identity.GetAddress()))
+			clientURLs[h.Identity.GetAddress()] = clientURL
 			info.Clients = append(info.Clients, connectedClient{
-				Identity: fmt.Sprintf("%d/%s", h.Identity.GetId(), h.Identity.GetAddress()),
-				Address:  h.Addr.String(),
-				Version:  h.Version,
-				URL:      fmt.Sprintf("/_internal/tun/%d/%s", h.Identity.GetId(), url.PathEscape(h.Identity.GetAddress())),
+				ClientID:      strconv.FormatUint(h.Identity.GetId(), 10),
+				Identity:      fmt.Sprintf("%d/%s", h.Identity.GetId(), h.Identity.GetAddress()),
+				Address:       h.Addr.String(),
+				Version:       h.Version,
+				URL:           clientURL,
+				SessionMode:   mode,
+				Hostname:      hostname,
+				OwnerIdentity: owner,
+				OwnerLabel:    ownerDisplayLabel(owner),
 			})
+		}
+		for i := range info.Clients {
+			if owner := info.Clients[i].OwnerIdentity; owner != "" {
+				info.Clients[i].OwnerURL = clientURLs[owner]
+			}
 		}
 		sort.Slice(info.Clients, func(i, j int) bool { return info.Clients[i].Identity < info.Clients[j].Identity })
 
@@ -210,6 +234,21 @@ func TunnelServerHandler(s *Server) http.Handler {
 	})
 
 	return router
+}
+
+func ownerDisplayLabel(identity string) string {
+	if remainder, ok := strings.CutPrefix(identity, "v2:"); ok {
+		if id, _, ok := strings.Cut(remainder, ":"); ok {
+			if value, err := strconv.ParseUint(id, 10, 64); err == nil {
+				return strconv.FormatUint(value, 10)
+			}
+		}
+	}
+	label := []rune(identity)
+	if len(label) <= 24 {
+		return identity
+	}
+	return string(label[:12]) + "…" + string(label[len(label)-8:])
 }
 
 func observedStatus(present bool, err error) string {

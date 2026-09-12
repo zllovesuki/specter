@@ -128,8 +128,8 @@ func TestHandlerListConnectedClients(t *testing.T) {
 	require.JSONEq(t, `{
 		"node": "local-node",
 		"clients": [
-			{"identity":"111111/fake-address","address":"192.0.2.1:4200","version":"v1.0.0","url":"/_internal/tun/111111/fake-address"},
-			{"identity":"222222/second-client","address":"192.0.2.2:4200","version":"v2.0.0","url":"/_internal/tun/222222/second-client"}
+			{"clientId":"111111","identity":"111111/fake-address","address":"192.0.2.1:4200","version":"v1.0.0","url":"/_internal/tun/111111/fake-address"},
+			{"clientId":"222222","identity":"222222/second-client","address":"192.0.2.2:4200","version":"v2.0.0","url":"/_internal/tun/222222/second-client"}
 		]
 	}`, string(payload))
 	require.Empty(t, node.Calls, "the connected-client list must use only the local transport snapshot")
@@ -380,4 +380,107 @@ func TestHandlerClientTunnelsCancellation(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestHandlerConnectedSessionMetadata(t *testing.T) {
+	s, node, clientT, _ := sessionFixture(t)
+	physical := func() *mocks.PhysicalConn {
+		conn := mocks.NewPhysicalConn(nil)
+		t.Cleanup(func() { conn.Close("test cleanup") })
+		return conn
+	}
+	ephemeralConn := physical()
+	tokenConn := physical()
+	replacementConn := physical()
+	owner := "v2:123:public-owner-identity"
+	for i, item := range []struct {
+		conn     transport.PhysicalConn
+		mode     sessionMode
+		hostname string
+		owner    *protocol.ClientToken
+	}{
+		{
+			conn:     ephemeralConn,
+			mode:     ephemeral,
+			hostname: "test",
+		},
+		{
+			conn:     tokenConn,
+			mode:     delegated,
+			hostname: "custom.example.com",
+			owner:    &protocol.ClientToken{Token: []byte(owner)},
+		},
+	} {
+		sess := &session{
+			alias:    tun.SessionAlias([16]byte{byte(i)}),
+			hostname: item.hostname,
+			conn:     item.conn,
+			mode:     item.mode,
+			owner:    item.owner,
+		}
+		require.NoError(t, s.sessions.reserve(sess))
+		require.True(t, sess.activate(t.Context(), time.Now().Add(time.Minute)))
+	}
+	clientT.On("ListConnected").Return([]transport.ConnectedPeer{
+		{
+			Identity: &protocol.Node{
+				Id:      1,
+				Address: "ephemeral-client",
+			},
+			Addr:     &net.UDPAddr{Port: 1},
+			Physical: ephemeralConn,
+		},
+		{
+			Identity: &protocol.Node{
+				Id:      2,
+				Address: "token-client",
+			},
+			Addr:     &net.UDPAddr{Port: 2},
+			Physical: tokenConn,
+		},
+		{
+			Identity: &protocol.Node{
+				Id:      2,
+				Address: "token-client",
+			},
+			Addr:     &net.UDPAddr{Port: 3},
+			Physical: replacementConn,
+		},
+	}).Twice()
+	read := func() connectedInfo {
+		w := httptest.NewRecorder()
+		TunnelServerHandler(s).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+		require.Equal(t, http.StatusOK, w.Code)
+		var info connectedInfo
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &info))
+		require.NotContains(t, w.Body.String(), "tg1_")
+		return info
+	}
+	info := read()
+	require.Len(t, info.Clients, 3)
+	require.Equal(t, "ephemeral", info.Clients[0].SessionMode)
+	require.Equal(t, "test."+s.Apex, info.Clients[0].Hostname)
+	require.Equal(t, "1", info.Clients[0].ClientID)
+	require.Empty(t, info.Clients[0].OwnerIdentity)
+	for _, client := range info.Clients[1:] {
+		if client.Address == ":2" {
+			require.Equal(t, "token", client.SessionMode)
+			require.Equal(t, owner, client.OwnerIdentity)
+			require.Equal(t, "123", client.OwnerLabel)
+			require.Empty(t, client.OwnerURL, "an owner absent from the local snapshot has no local link")
+			require.Equal(t, "custom.example.com", client.Hostname)
+		} else {
+			require.Empty(t, client.SessionMode, "a replacement connection must not inherit session metadata")
+			require.Empty(t, client.OwnerIdentity)
+			require.Empty(t, client.Hostname)
+		}
+	}
+	tokenConn.Close("disconnected")
+	for _, client := range read().Clients[1:] {
+		require.Empty(t, client.SessionMode)
+		require.Empty(t, client.OwnerIdentity)
+		require.Empty(t, client.Hostname)
+	}
+	require.Empty(t, node.Calls, "session metadata must not query persistent registration")
+	clientT.AssertExpectations(t)
 }

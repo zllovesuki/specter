@@ -480,6 +480,7 @@ func (t *QUIC) ListConnected() []transport.ConnectedPeer {
 			Identity: value.peer,
 			Addr:     value.quic.RemoteAddr(),
 			Version:  value.version,
+			Physical: attachment{value.quic},
 		})
 		return true
 	})

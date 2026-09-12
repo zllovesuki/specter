@@ -29,10 +29,16 @@ export interface ClientList {
   node: string;
   observedAt: string;
   clients: {
+    clientId: string;
     identity: string;
     address: string;
     version: string;
     url: string;
+    sessionMode?: 'ephemeral' | 'token';
+    hostname?: string;
+    ownerIdentity?: string;
+    ownerLabel?: string;
+    ownerUrl?: string;
   }[];
 }
 
