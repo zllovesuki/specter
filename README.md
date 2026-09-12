@@ -81,6 +81,9 @@ For a complete example including all supported options, see:
 - `tun/client/config.example.yaml` in this repository, or
 - run `specter client config-example` to print the same example to stdout.
 
+For configuration-free `client expose` and token-delegated `client serve`, see the
+[lightweight tunnel guide](docs/lightweight-tunnels.md).
+
 ### API
 
 To manage custom hostnames, unpublish, release, or list tunnels while `specter client tunnel` is running, pass `--server [host]:[port]` to start the local management API and UI.

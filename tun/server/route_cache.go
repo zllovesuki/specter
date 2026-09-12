@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
 	"go.miragespace.co/specter/util/promise"
@@ -95,6 +96,10 @@ func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret the
 		)
 	}()
 
+	if home, inv, ok := tun.ParseEphemeralLabel(hostname); ok {
+		return s.ephemeralRouteLoader(ctx, hostname, home, inv)
+	}
+
 	var (
 		numNotFound = 0
 		numError    = 0
@@ -175,5 +180,63 @@ func (s *Server) routeCacheLoader(ctx context.Context, hostname string) (ret the
 	ret.TTL = routePositiveTTL
 	// cost is added atomically during lookup
 
+	return
+}
+
+func (s *Server) ephemeralRouteLoader(ctx context.Context, label string, home uint64, inv [16]byte) (ret theine.Loaded[routesResult]) {
+	ret.Cost, ret.TTL, ret.Value.err = 256, routeFailedTTL, tun.ErrLookupFailed
+	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
+	defer cancel()
+	var dst *protocol.TunnelDestination
+	if home == s.Chord.ID() {
+		dst = &protocol.TunnelDestination{
+			Chord:  s.ChordTransport.Identity(),
+			Tunnel: s.TunnelTransport.Identity(),
+		}
+	} else {
+		select {
+		case s.ephemeralLoads <- struct{}{}:
+		default:
+			return
+		}
+		type result struct {
+			node chord.VNode
+			err  error
+		}
+		done := make(chan result, 1)
+		go func() {
+			defer func() { <-s.ephemeralLoads }()
+			node, err := s.Chord.FindSuccessor(home)
+			done <- result{node, err}
+		}()
+		select {
+		case <-ctx.Done():
+			return
+		case found := <-done:
+			if found.err != nil {
+				return
+			}
+			if found.node == nil || found.node.ID() != home {
+				ret.TTL, ret.Value.err = routeNegativeTTL, tun.ErrDestinationNotFound
+				return
+			}
+			var err error
+			dst, err = s.lookupDestination(ctx, tun.DestinationByChordKey(found.node.Identity()))
+			if err != nil {
+				return
+			}
+		}
+	}
+	route := &protocol.TunnelRoute{
+		ClientDestination: &protocol.Node{
+			Address:    tun.SessionAlias(inv),
+			Rendezvous: true,
+		},
+		ChordDestination:  dst.GetChord(),
+		TunnelDestination: dst.GetTunnel(),
+		Hostname:          label,
+	}
+	ret.Cost += int64(route.SizeVT())
+	ret.Value.routes, ret.Value.err, ret.TTL = []*protocol.TunnelRoute{route}, nil, routePositiveTTL
 	return
 }

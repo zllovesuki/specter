@@ -125,28 +125,9 @@ func (c *Config) checkVersion() error {
 
 func (c *Config) validate() error {
 	for i, tunnel := range c.Tunnels {
-		u, err := url.Parse(tunnel.Target)
+		u, err := parseTarget(tunnel.Target)
 		if err != nil {
-			return fmt.Errorf("error parsing target %s: %w", tunnel.Target, err)
-		}
-		switch u.Scheme {
-		case "http", "https", "tcp", "unix":
-		default:
-			if strings.HasPrefix(u.Path, "\\\\.\\pipe") {
-				u.Scheme = "winio"
-				break
-			}
-			return fmt.Errorf("unsupported scheme. valid schemes: http, https, tcp, or unix; got %s", u.Scheme)
-		}
-		switch u.Scheme {
-		case "winio":
-			if runtime.GOOS != "windows" {
-				return errors.New("named pipe is not supported on non-Windows platform")
-			}
-		case "unix":
-			if runtime.GOOS == "windows" {
-				return errors.New("unix socket is not supported on non-Unix platform")
-			}
+			return err
 		}
 
 		switch tunnel.ProxyHeaderMode {
@@ -220,4 +201,32 @@ func (c *Config) writeFile() (err error) {
 		return err
 	}
 	return f.Sync()
+}
+
+func parseTarget(target string) (*url.URL, error) {
+	u, err := url.Parse(target)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing target %s: %w", target, err)
+	}
+	switch u.Scheme {
+	case "http", "https", "tcp", "unix":
+	default:
+		if strings.HasPrefix(u.Path, "\\\\.\\pipe") {
+			u.Scheme = "winio"
+			break
+		}
+		return nil, fmt.Errorf("unsupported scheme. valid schemes: http, https, tcp, or unix; got %s", u.Scheme)
+	}
+	switch u.Scheme {
+	case "winio":
+		if runtime.GOOS != "windows" {
+			return nil, errors.New("named pipe is not supported on non-Windows platform")
+		}
+	case "unix":
+		if runtime.GOOS == "windows" {
+			return nil, errors.New("unix socket is not supported on non-Unix platform")
+		}
+	}
+
+	return u, nil
 }

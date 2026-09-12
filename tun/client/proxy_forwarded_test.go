@@ -114,8 +114,11 @@ func TestGatewayClientForwardedContext(t *testing.T) {
 			cfg.buildRouter()
 			c := &Client{
 				ClientConfig: ClientConfig{Logger: zaptest.NewLogger(t), Configuration: cfg},
-				rootDomain:   atomic.NewString("example.com"),
-				proxies:      skipmap.NewString[*httpProxy](),
+				forwarder: &forwarder{
+					logger:     zaptest.NewLogger(t),
+					rootDomain: atomic.NewString("example.com"),
+					proxies:    skipmap.NewString[*httpProxy](),
+				},
 			}
 			t.Cleanup(func() {
 				c.proxies.Range(func(_ string, proxy *httpProxy) bool {

@@ -33,3 +33,9 @@ func ClientLeaseKey(token *protocol.ClientToken) string {
 func CustomHostnameKey(hostname string) string {
 	return fmt.Sprintf("/tunnel/client/custom/%s", hostname)
 }
+
+func DelegationKey(id string) string { return "/tunnel/delegation/" + id }
+
+func ClientDelegationsPrefix(token *protocol.ClientToken) string {
+	return fmt.Sprintf("/tunnel/client/delegations/%s", token.GetToken())
+}

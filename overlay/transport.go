@@ -203,11 +203,6 @@ func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protoco
 		return nil, fmt.Errorf("creating quic connection: %w", err)
 	}
 
-	stream, err := q.OpenStream()
-	if err != nil {
-		return nil, err
-	}
-
 	var rr protocol.Stream
 	if t.VirtualTransport {
 		rr = protocol.Stream{
@@ -221,19 +216,22 @@ func (t *QUIC) DialStream(ctx context.Context, peer *protocol.Node, kind protoco
 			Type: kind,
 		}
 	}
-	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
-	err = rpc.Send(stream, &rr)
+	return openStream(q, &rr)
+}
+
+func openStream(q *quic.Conn, rr *protocol.Stream) (net.Conn, error) {
+	stream, err := q.OpenStream()
 	if err != nil {
 		return nil, err
 	}
+	conn := WrapQuicConnection(stream, q)
+	stream.SetDeadline(time.Now().Add(quicConfig.HandshakeIdleTimeout))
+	if err := rpc.Send(stream, rr); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	stream.SetDeadline(time.Time{})
-
-	// t.Logger.Debug("Created new Stream",
-	// 	zap.String("kind", kind.String()),
-	// 	zap.String("remote", q.RemoteAddr().String()),
-	// 	zap.String("local", q.LocalAddr().String()))
-
-	return WrapQuicConnection(stream, q), nil
+	return conn, nil
 }
 
 func (t *QUIC) AcceptStream() <-chan *transport.StreamDelegate {

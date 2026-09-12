@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"io"
+	"time"
 
 	"go.miragespace.co/specter/spec/protocol"
 
@@ -74,4 +75,57 @@ func (c *Client) FormatValidate(hostname string, resp *protocol.ValidateResponse
 	encoder := json.NewEncoder(output)
 	encoder.SetIndent("", "  ")
 	encoder.Encode(&item)
+}
+
+type domainToken struct {
+	ID         string `json:"id"`
+	Hostname   string `json:"hostname"`
+	ExpiresAt  string `json:"expiresAt,omitempty"`
+	Incomplete bool   `json:"incomplete"`
+}
+
+func formatDomainToken(grant *protocol.DelegationGrant) domainToken {
+	item := domainToken{
+		ID:         grant.GetId(),
+		Hostname:   grant.GetHostname(),
+		Incomplete: grant.GetIncomplete(),
+	}
+	if grant.GetExpiresAt() != 0 {
+		item.ExpiresAt = time.Unix(grant.GetExpiresAt(), 0).UTC().Format(time.RFC3339)
+	}
+	return item
+}
+
+func formatDelegationJSON(output io.Writer, value any) error {
+	encoder := json.NewEncoder(output)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(value)
+}
+
+func (c *Client) FormatDelegations(resp *protocol.ListDelegationsResponse, output io.Writer) error {
+	items := make([]domainToken, 0, len(resp.GetGrants()))
+	for _, grant := range resp.GetGrants() {
+		items = append(items, formatDomainToken(grant))
+	}
+	return formatDelegationJSON(output, items)
+}
+
+func (c *Client) FormatMintedDelegation(resp *protocol.MintDelegationResponse, output io.Writer) error {
+	return formatDelegationJSON(output, struct {
+		Grant domainToken `json:"grant"`
+		Token string      `json:"token"`
+	}{
+		Grant: formatDomainToken(resp.GetGrant()),
+		Token: resp.GetToken(),
+	})
+}
+
+func (c *Client) FormatRevokedDelegation(resp *protocol.RevokeDelegationResponse, output io.Writer) error {
+	return formatDelegationJSON(output, struct {
+		Revoked    bool   `json:"revoked"`
+		IndexError string `json:"indexError,omitempty"`
+	}{
+		Revoked:    resp.GetRevoked(),
+		IndexError: resp.GetIndexError(),
+	})
 }

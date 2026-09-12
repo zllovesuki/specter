@@ -108,7 +108,11 @@ func (s *Server) verifyClientIdentity(ctx context.Context) (context.Context, err
 	}
 
 	switch method {
-	case "Ping", "RegisterIdentity":
+	case "Ping":
+		return ctx, nil
+	case "RegisterIdentity", "GetNodes", "OpenEphemeralSession", "OpenDelegatedSession":
+		// These handlers validate their certificate or attachment without a
+		// registered owner. All other methods retain owner authentication.
 		return ctx, nil
 	default:
 		token, verifiedClient, err := extractAuthenticated(ctx)

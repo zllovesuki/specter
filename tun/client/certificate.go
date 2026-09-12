@@ -26,7 +26,6 @@ func (c *Client) updateTransportCert() error {
 		if err := tp.WithClientCertificate(cert); err != nil {
 			return err
 		}
-		c.Logger = c.Logger.With(zap.Uint64("id", c.ServerTransport.Identity().GetId()))
 	} else {
 		return fmt.Errorf("transport does not support client certificate override")
 	}
@@ -121,6 +120,9 @@ func (c *Client) Register(ctx context.Context) error {
 	if err := c.updateTransportCert(); err != nil {
 		return fmt.Errorf("failed to update transport certificate: %w", err)
 	}
+	// Registration runs before forwarding starts; renewal keeps these loggers stable.
+	c.Logger = c.Logger.With(zap.Uint64("id", c.ServerTransport.Identity().GetId()))
+	c.forwarder.logger = c.Logger
 
 	if err := c.bootstrap(c.parentCtx, c.Configuration.Apex); err != nil {
 		return fmt.Errorf("failed to bootstrap with certificate: %w", err)

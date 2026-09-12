@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
@@ -123,4 +124,50 @@ func TestRouteCacheLoaderSuccessPrioritizesDirect(t *testing.T) {
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
+}
+
+func TestEphemeralRoutes(t *testing.T) {
+	s, n, _, _ := sessionFixture(t)
+	label, inv, err := tun.EphemeralLabel(s.Chord.ID(), []byte("key"))
+	require.NoError(t, err)
+	local := s.routeCacheLoader(t.Context(), label)
+	require.NoError(t, local.Value.err)
+	require.GreaterOrEqual(t, local.Cost, int64(256))
+	n.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+	remote := uint64(10)
+	n.On("FindSuccessor", remote).Return(getVNode(&protocol.Node{Id: remote + 1}), nil).Once()
+	missing := s.ephemeralRouteLoader(t.Context(), label, remote, inv)
+	require.ErrorIs(t, missing.Value.err, tun.ErrDestinationNotFound)
+	dst := &protocol.TunnelDestination{
+		Chord: &protocol.Node{
+			Id:      remote,
+			Address: "remote",
+		},
+		Tunnel: &protocol.Node{Address: "remote tunnel"},
+	}
+	data, _ := dst.MarshalVT()
+	n.On("FindSuccessor", remote).Return(getVNode(dst.Chord), nil).Once()
+	n.On("Get", mock.Anything, []byte(tun.DestinationByChordKey(dst.Chord))).Return(data, nil).Once()
+	found := s.ephemeralRouteLoader(t.Context(), label, remote, inv)
+	require.NoError(t, found.Value.err)
+	require.Equal(t, dst.Tunnel, found.Value.routes[0].TunnelDestination)
+	require.Equal(t, tun.SessionAlias(inv), found.Value.routes[0].ClientDestination.Address)
+	require.GreaterOrEqual(t, found.Cost, int64(256))
+	blocked, release := make(chan struct{}, 16), make(chan struct{})
+	n.On("FindSuccessor", uint64(11)).Run(func(mock.Arguments) { blocked <- struct{}{}; <-release }).Return(nil, errors.New("blocked lookup")).Times(16)
+	for i := range 16 {
+		go s.ephemeralRouteLoader(t.Context(), fmt.Sprint(i), 11, inv)
+	}
+	for range 16 {
+		<-blocked
+	}
+	exhausted := s.ephemeralRouteLoader(t.Context(), "17", 11, inv)
+	require.ErrorIs(t, exhausted.Value.err, tun.ErrLookupFailed)
+	require.Equal(t, routeFailedTTL, exhausted.TTL)
+	// Expired waiters must not free admission for still-running Chord traversals.
+	time.Sleep(lookupTimeout + 10*time.Millisecond)
+	require.Len(t, s.ephemeralLoads, 16)
+	close(release)
+	require.Eventually(t, func() bool { return len(s.ephemeralLoads) == 0 }, time.Second, time.Millisecond)
+	n.AssertExpectations(t)
 }

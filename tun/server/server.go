@@ -42,20 +42,25 @@ type Config struct {
 }
 
 type Server struct {
-	rpcAcceptor  *acceptor.HTTP2Acceptor
-	routeCache   *theine.Cache[string, *routesResult]
-	routeLoads   singleflight.Group
-	keylessCache *theine.LoadingCache[string, keylessCertResult]
+	sessions       *sessionRegistry
+	ephemeralLoads chan struct{}
+	rpcAcceptor    *acceptor.HTTP2Acceptor
+	routeCache     *theine.Cache[string, *routesResult]
+	routeLoads     singleflight.Group
+	keylessCache   *theine.LoadingCache[string, keylessCertResult]
 	Config
 }
 
 var _ tun.Server = (*Server)(nil)
+
 var _ protocol.TunnelService = (*Server)(nil)
 
 func New(cfg Config) *Server {
 	s := &Server{
-		Config:      cfg,
-		rpcAcceptor: acceptor.NewH2Acceptor(nil),
+		Config:         cfg,
+		sessions:       newSessionRegistry(),
+		ephemeralLoads: make(chan struct{}, 16),
+		rpcAcceptor:    acceptor.NewH2Acceptor(nil),
 	}
 	s.initRouteCache()
 	s.initKeylessCache()
@@ -151,7 +156,7 @@ func (s *Server) handleProxyConn(ctx context.Context, delegation *transport.Stre
 		return
 	}
 
-	clientConn, err = s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
+	clientConn, err = s.dialDirect(ctx, route)
 	if err != nil && !tun.IsNoDirect(err) {
 		l.Error("Error dialing connection to connected client", zap.Error(err))
 	}
@@ -168,7 +173,7 @@ func (s *Server) getConn(ctx context.Context, route *protocol.TunnelRoute, link 
 	direct := route.GetTunnelDestination().GetAddress() == s.TunnelTransport.Identity().GetAddress()
 	if direct {
 		l.Debug("client is connected to us, opening direct stream")
-		conn, err = s.TunnelTransport.DialStream(ctx, route.GetClientDestination(), protocol.Stream_DIRECT)
+		conn, err = s.dialDirect(ctx, route)
 	} else {
 		l.Debug("client is connected to remote node, opening proxy stream",
 			zap.Object("chord", route.GetChordDestination()),
@@ -289,4 +294,12 @@ func (s *Server) DialClient(ctx context.Context, link *protocol.Link) (net.Conn,
 	}
 
 	return nil, tun.ErrDestinationNotFound // fallback to not found
+}
+
+func (s *Server) dialDirect(ctx context.Context, route *protocol.TunnelRoute) (net.Conn, error) {
+	client := route.GetClientDestination()
+	if tun.IsSessionAlias(client.GetAddress()) {
+		return s.sessions.dial(client.GetAddress(), route.GetHostname())
+	}
+	return s.TunnelTransport.DialStream(ctx, client, protocol.Stream_DIRECT)
 }

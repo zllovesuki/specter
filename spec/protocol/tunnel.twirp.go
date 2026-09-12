@@ -26,6 +26,12 @@ const _ = twirp.TwirpPackageMinVersion_8_1_0
 // =======================
 
 type TunnelService interface {
+	MintDelegation(context.Context, *MintDelegationRequest) (*MintDelegationResponse, error)
+
+	ListDelegations(context.Context, *ListDelegationsRequest) (*ListDelegationsResponse, error)
+
+	RevokeDelegation(context.Context, *RevokeDelegationRequest) (*RevokeDelegationResponse, error)
+
 	Ping(context.Context, *ClientPingRequest) (*ClientPingResponse, error)
 
 	RegisterIdentity(context.Context, *RegisterIdentityRequest) (*RegisterIdentityResponse, error)
@@ -45,6 +51,10 @@ type TunnelService interface {
 	AcmeInstruction(context.Context, *InstructionRequest) (*InstructionResponse, error)
 
 	AcmeValidate(context.Context, *ValidateRequest) (*ValidateResponse, error)
+
+	OpenEphemeralSession(context.Context, *OpenEphemeralSessionRequest) (*OpenSessionResponse, error)
+
+	OpenDelegatedSession(context.Context, *OpenDelegatedSessionRequest) (*OpenSessionResponse, error)
 }
 
 // =============================
@@ -53,7 +63,7 @@ type TunnelService interface {
 
 type tunnelServiceProtobufClient struct {
 	client      HTTPClient
-	urls        [10]string
+	urls        [15]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -81,7 +91,10 @@ func NewTunnelServiceProtobufClient(baseURL string, client HTTPClient, opts ...t
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "TunnelService")
-	urls := [10]string{
+	urls := [15]string{
+		serviceURL + "MintDelegation",
+		serviceURL + "ListDelegations",
+		serviceURL + "RevokeDelegation",
 		serviceURL + "Ping",
 		serviceURL + "RegisterIdentity",
 		serviceURL + "GetNodes",
@@ -92,6 +105,8 @@ func NewTunnelServiceProtobufClient(baseURL string, client HTTPClient, opts ...t
 		serviceURL + "ReleaseTunnel",
 		serviceURL + "AcmeInstruction",
 		serviceURL + "AcmeValidate",
+		serviceURL + "OpenEphemeralSession",
+		serviceURL + "OpenDelegatedSession",
 	}
 
 	return &tunnelServiceProtobufClient{
@@ -100,6 +115,144 @@ func NewTunnelServiceProtobufClient(baseURL string, client HTTPClient, opts ...t
 		interceptor: twirp.ChainInterceptors(clientOpts.Interceptors...),
 		opts:        clientOpts,
 	}
+}
+
+func (c *tunnelServiceProtobufClient) MintDelegation(ctx context.Context, in *MintDelegationRequest) (*MintDelegationResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "MintDelegation")
+	caller := c.callMintDelegation
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *MintDelegationRequest) (*MintDelegationResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*MintDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*MintDelegationRequest) when calling interceptor")
+					}
+					return c.callMintDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*MintDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*MintDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callMintDelegation(ctx context.Context, in *MintDelegationRequest) (*MintDelegationResponse, error) {
+	out := new(MintDelegationResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) ListDelegations(ctx context.Context, in *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "ListDelegations")
+	caller := c.callListDelegations
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ListDelegationsRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ListDelegationsRequest) when calling interceptor")
+					}
+					return c.callListDelegations(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ListDelegationsResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ListDelegationsResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callListDelegations(ctx context.Context, in *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	out := new(ListDelegationsResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) RevokeDelegation(ctx context.Context, in *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "RevokeDelegation")
+	caller := c.callRevokeDelegation
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RevokeDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RevokeDelegationRequest) when calling interceptor")
+					}
+					return c.callRevokeDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RevokeDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RevokeDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callRevokeDelegation(ctx context.Context, in *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+	out := new(RevokeDelegationResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
 }
 
 func (c *tunnelServiceProtobufClient) Ping(ctx context.Context, in *ClientPingRequest) (*ClientPingResponse, error) {
@@ -133,7 +286,7 @@ func (c *tunnelServiceProtobufClient) Ping(ctx context.Context, in *ClientPingRe
 
 func (c *tunnelServiceProtobufClient) callPing(ctx context.Context, in *ClientPingRequest) (*ClientPingResponse, error) {
 	out := new(ClientPingResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -179,7 +332,7 @@ func (c *tunnelServiceProtobufClient) RegisterIdentity(ctx context.Context, in *
 
 func (c *tunnelServiceProtobufClient) callRegisterIdentity(ctx context.Context, in *RegisterIdentityRequest) (*RegisterIdentityResponse, error) {
 	out := new(RegisterIdentityResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -225,7 +378,7 @@ func (c *tunnelServiceProtobufClient) GetNodes(ctx context.Context, in *GetNodes
 
 func (c *tunnelServiceProtobufClient) callGetNodes(ctx context.Context, in *GetNodesRequest) (*GetNodesResponse, error) {
 	out := new(GetNodesResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -271,7 +424,7 @@ func (c *tunnelServiceProtobufClient) GenerateHostname(ctx context.Context, in *
 
 func (c *tunnelServiceProtobufClient) callGenerateHostname(ctx context.Context, in *GenerateHostnameRequest) (*GenerateHostnameResponse, error) {
 	out := new(GenerateHostnameResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -317,7 +470,7 @@ func (c *tunnelServiceProtobufClient) RegisteredHostnames(ctx context.Context, i
 
 func (c *tunnelServiceProtobufClient) callRegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	out := new(RegisteredHostnamesResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -363,7 +516,7 @@ func (c *tunnelServiceProtobufClient) PublishTunnel(ctx context.Context, in *Pub
 
 func (c *tunnelServiceProtobufClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
 	out := new(PublishTunnelResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[8], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -409,7 +562,7 @@ func (c *tunnelServiceProtobufClient) UnpublishTunnel(ctx context.Context, in *U
 
 func (c *tunnelServiceProtobufClient) callUnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
 	out := new(UnpublishTunnelResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[9], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -455,7 +608,7 @@ func (c *tunnelServiceProtobufClient) ReleaseTunnel(ctx context.Context, in *Rel
 
 func (c *tunnelServiceProtobufClient) callReleaseTunnel(ctx context.Context, in *ReleaseTunnelRequest) (*ReleaseTunnelResponse, error) {
 	out := new(ReleaseTunnelResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[10], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -501,7 +654,7 @@ func (c *tunnelServiceProtobufClient) AcmeInstruction(ctx context.Context, in *I
 
 func (c *tunnelServiceProtobufClient) callAcmeInstruction(ctx context.Context, in *InstructionRequest) (*InstructionResponse, error) {
 	out := new(InstructionResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[8], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[11], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -547,7 +700,99 @@ func (c *tunnelServiceProtobufClient) AcmeValidate(ctx context.Context, in *Vali
 
 func (c *tunnelServiceProtobufClient) callAcmeValidate(ctx context.Context, in *ValidateRequest) (*ValidateResponse, error) {
 	out := new(ValidateResponse)
-	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[9], in, out)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[12], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) OpenEphemeralSession(ctx context.Context, in *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenEphemeralSession")
+	caller := c.callOpenEphemeralSession
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenEphemeralSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenEphemeralSessionRequest) when calling interceptor")
+					}
+					return c.callOpenEphemeralSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callOpenEphemeralSession(ctx context.Context, in *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+	out := new(OpenSessionResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[13], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceProtobufClient) OpenDelegatedSession(ctx context.Context, in *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenDelegatedSession")
+	caller := c.callOpenDelegatedSession
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenDelegatedSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenDelegatedSessionRequest) when calling interceptor")
+					}
+					return c.callOpenDelegatedSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceProtobufClient) callOpenDelegatedSession(ctx context.Context, in *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+	out := new(OpenSessionResponse)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[14], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -568,7 +813,7 @@ func (c *tunnelServiceProtobufClient) callAcmeValidate(ctx context.Context, in *
 
 type tunnelServiceJSONClient struct {
 	client      HTTPClient
-	urls        [10]string
+	urls        [15]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -596,7 +841,10 @@ func NewTunnelServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "protocol", "TunnelService")
-	urls := [10]string{
+	urls := [15]string{
+		serviceURL + "MintDelegation",
+		serviceURL + "ListDelegations",
+		serviceURL + "RevokeDelegation",
 		serviceURL + "Ping",
 		serviceURL + "RegisterIdentity",
 		serviceURL + "GetNodes",
@@ -607,6 +855,8 @@ func NewTunnelServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp
 		serviceURL + "ReleaseTunnel",
 		serviceURL + "AcmeInstruction",
 		serviceURL + "AcmeValidate",
+		serviceURL + "OpenEphemeralSession",
+		serviceURL + "OpenDelegatedSession",
 	}
 
 	return &tunnelServiceJSONClient{
@@ -615,6 +865,144 @@ func NewTunnelServiceJSONClient(baseURL string, client HTTPClient, opts ...twirp
 		interceptor: twirp.ChainInterceptors(clientOpts.Interceptors...),
 		opts:        clientOpts,
 	}
+}
+
+func (c *tunnelServiceJSONClient) MintDelegation(ctx context.Context, in *MintDelegationRequest) (*MintDelegationResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "MintDelegation")
+	caller := c.callMintDelegation
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *MintDelegationRequest) (*MintDelegationResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*MintDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*MintDelegationRequest) when calling interceptor")
+					}
+					return c.callMintDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*MintDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*MintDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callMintDelegation(ctx context.Context, in *MintDelegationRequest) (*MintDelegationResponse, error) {
+	out := new(MintDelegationResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) ListDelegations(ctx context.Context, in *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "ListDelegations")
+	caller := c.callListDelegations
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ListDelegationsRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ListDelegationsRequest) when calling interceptor")
+					}
+					return c.callListDelegations(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ListDelegationsResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ListDelegationsResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callListDelegations(ctx context.Context, in *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	out := new(ListDelegationsResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) RevokeDelegation(ctx context.Context, in *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "RevokeDelegation")
+	caller := c.callRevokeDelegation
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RevokeDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RevokeDelegationRequest) when calling interceptor")
+					}
+					return c.callRevokeDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RevokeDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RevokeDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callRevokeDelegation(ctx context.Context, in *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+	out := new(RevokeDelegationResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
 }
 
 func (c *tunnelServiceJSONClient) Ping(ctx context.Context, in *ClientPingRequest) (*ClientPingResponse, error) {
@@ -648,7 +1036,7 @@ func (c *tunnelServiceJSONClient) Ping(ctx context.Context, in *ClientPingReques
 
 func (c *tunnelServiceJSONClient) callPing(ctx context.Context, in *ClientPingRequest) (*ClientPingResponse, error) {
 	out := new(ClientPingResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -694,7 +1082,7 @@ func (c *tunnelServiceJSONClient) RegisterIdentity(ctx context.Context, in *Regi
 
 func (c *tunnelServiceJSONClient) callRegisterIdentity(ctx context.Context, in *RegisterIdentityRequest) (*RegisterIdentityResponse, error) {
 	out := new(RegisterIdentityResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -740,7 +1128,7 @@ func (c *tunnelServiceJSONClient) GetNodes(ctx context.Context, in *GetNodesRequ
 
 func (c *tunnelServiceJSONClient) callGetNodes(ctx context.Context, in *GetNodesRequest) (*GetNodesResponse, error) {
 	out := new(GetNodesResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[2], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -786,7 +1174,7 @@ func (c *tunnelServiceJSONClient) GenerateHostname(ctx context.Context, in *Gene
 
 func (c *tunnelServiceJSONClient) callGenerateHostname(ctx context.Context, in *GenerateHostnameRequest) (*GenerateHostnameResponse, error) {
 	out := new(GenerateHostnameResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[3], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -832,7 +1220,7 @@ func (c *tunnelServiceJSONClient) RegisteredHostnames(ctx context.Context, in *R
 
 func (c *tunnelServiceJSONClient) callRegisteredHostnames(ctx context.Context, in *RegisteredHostnamesRequest) (*RegisteredHostnamesResponse, error) {
 	out := new(RegisteredHostnamesResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[4], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -878,7 +1266,7 @@ func (c *tunnelServiceJSONClient) PublishTunnel(ctx context.Context, in *Publish
 
 func (c *tunnelServiceJSONClient) callPublishTunnel(ctx context.Context, in *PublishTunnelRequest) (*PublishTunnelResponse, error) {
 	out := new(PublishTunnelResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[5], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[8], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -924,7 +1312,7 @@ func (c *tunnelServiceJSONClient) UnpublishTunnel(ctx context.Context, in *Unpub
 
 func (c *tunnelServiceJSONClient) callUnpublishTunnel(ctx context.Context, in *UnpublishTunnelRequest) (*UnpublishTunnelResponse, error) {
 	out := new(UnpublishTunnelResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[6], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[9], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -970,7 +1358,7 @@ func (c *tunnelServiceJSONClient) ReleaseTunnel(ctx context.Context, in *Release
 
 func (c *tunnelServiceJSONClient) callReleaseTunnel(ctx context.Context, in *ReleaseTunnelRequest) (*ReleaseTunnelResponse, error) {
 	out := new(ReleaseTunnelResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[7], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[10], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -1016,7 +1404,7 @@ func (c *tunnelServiceJSONClient) AcmeInstruction(ctx context.Context, in *Instr
 
 func (c *tunnelServiceJSONClient) callAcmeInstruction(ctx context.Context, in *InstructionRequest) (*InstructionResponse, error) {
 	out := new(InstructionResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[8], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[11], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -1062,7 +1450,99 @@ func (c *tunnelServiceJSONClient) AcmeValidate(ctx context.Context, in *Validate
 
 func (c *tunnelServiceJSONClient) callAcmeValidate(ctx context.Context, in *ValidateRequest) (*ValidateResponse, error) {
 	out := new(ValidateResponse)
-	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[9], in, out)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[12], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) OpenEphemeralSession(ctx context.Context, in *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenEphemeralSession")
+	caller := c.callOpenEphemeralSession
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenEphemeralSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenEphemeralSessionRequest) when calling interceptor")
+					}
+					return c.callOpenEphemeralSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callOpenEphemeralSession(ctx context.Context, in *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+	out := new(OpenSessionResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[13], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *tunnelServiceJSONClient) OpenDelegatedSession(ctx context.Context, in *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "protocol")
+	ctx = ctxsetters.WithServiceName(ctx, "TunnelService")
+	ctx = ctxsetters.WithMethodName(ctx, "OpenDelegatedSession")
+	caller := c.callOpenDelegatedSession
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenDelegatedSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenDelegatedSessionRequest) when calling interceptor")
+					}
+					return c.callOpenDelegatedSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *tunnelServiceJSONClient) callOpenDelegatedSession(ctx context.Context, in *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+	out := new(OpenSessionResponse)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[14], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -1174,6 +1654,15 @@ func (s *tunnelServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Requ
 	}
 
 	switch method {
+	case "MintDelegation":
+		s.serveMintDelegation(ctx, resp, req)
+		return
+	case "ListDelegations":
+		s.serveListDelegations(ctx, resp, req)
+		return
+	case "RevokeDelegation":
+		s.serveRevokeDelegation(ctx, resp, req)
+		return
 	case "Ping":
 		s.servePing(ctx, resp, req)
 		return
@@ -1204,11 +1693,557 @@ func (s *tunnelServiceServer) ServeHTTP(resp http.ResponseWriter, req *http.Requ
 	case "AcmeValidate":
 		s.serveAcmeValidate(ctx, resp, req)
 		return
+	case "OpenEphemeralSession":
+		s.serveOpenEphemeralSession(ctx, resp, req)
+		return
+	case "OpenDelegatedSession":
+		s.serveOpenDelegatedSession(ctx, resp, req)
+		return
 	default:
 		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
 		s.writeError(ctx, resp, badRouteError(msg, req.Method, req.URL.Path))
 		return
 	}
+}
+
+func (s *tunnelServiceServer) serveMintDelegation(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveMintDelegationJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveMintDelegationProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveMintDelegationJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "MintDelegation")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(MintDelegationRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.MintDelegation
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *MintDelegationRequest) (*MintDelegationResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*MintDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*MintDelegationRequest) when calling interceptor")
+					}
+					return s.TunnelService.MintDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*MintDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*MintDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *MintDelegationResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *MintDelegationResponse and nil error while calling MintDelegation. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveMintDelegationProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "MintDelegation")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(MintDelegationRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.MintDelegation
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *MintDelegationRequest) (*MintDelegationResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*MintDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*MintDelegationRequest) when calling interceptor")
+					}
+					return s.TunnelService.MintDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*MintDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*MintDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *MintDelegationResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *MintDelegationResponse and nil error while calling MintDelegation. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveListDelegations(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveListDelegationsJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveListDelegationsProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveListDelegationsJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "ListDelegations")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(ListDelegationsRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.ListDelegations
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ListDelegationsRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ListDelegationsRequest) when calling interceptor")
+					}
+					return s.TunnelService.ListDelegations(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ListDelegationsResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ListDelegationsResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *ListDelegationsResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *ListDelegationsResponse and nil error while calling ListDelegations. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveListDelegationsProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "ListDelegations")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(ListDelegationsRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.ListDelegations
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*ListDelegationsRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*ListDelegationsRequest) when calling interceptor")
+					}
+					return s.TunnelService.ListDelegations(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*ListDelegationsResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*ListDelegationsResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *ListDelegationsResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *ListDelegationsResponse and nil error while calling ListDelegations. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveRevokeDelegation(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveRevokeDelegationJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveRevokeDelegationProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveRevokeDelegationJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RevokeDelegation")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(RevokeDelegationRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.RevokeDelegation
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RevokeDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RevokeDelegationRequest) when calling interceptor")
+					}
+					return s.TunnelService.RevokeDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RevokeDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RevokeDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *RevokeDelegationResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *RevokeDelegationResponse and nil error while calling RevokeDelegation. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveRevokeDelegationProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "RevokeDelegation")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(RevokeDelegationRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.RevokeDelegation
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *RevokeDelegationRequest) (*RevokeDelegationResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*RevokeDelegationRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*RevokeDelegationRequest) when calling interceptor")
+					}
+					return s.TunnelService.RevokeDelegation(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*RevokeDelegationResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*RevokeDelegationResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *RevokeDelegationResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *RevokeDelegationResponse and nil error while calling RevokeDelegation. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
 }
 
 func (s *tunnelServiceServer) servePing(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
@@ -3011,6 +4046,366 @@ func (s *tunnelServiceServer) serveAcmeValidateProtobuf(ctx context.Context, res
 	callResponseSent(ctx, s.hooks)
 }
 
+func (s *tunnelServiceServer) serveOpenEphemeralSession(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveOpenEphemeralSessionJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveOpenEphemeralSessionProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveOpenEphemeralSessionJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenEphemeralSession")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(OpenEphemeralSessionRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.OpenEphemeralSession
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenEphemeralSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenEphemeralSessionRequest) when calling interceptor")
+					}
+					return s.TunnelService.OpenEphemeralSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *OpenSessionResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *OpenSessionResponse and nil error while calling OpenEphemeralSession. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveOpenEphemeralSessionProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenEphemeralSession")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(OpenEphemeralSessionRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.OpenEphemeralSession
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenEphemeralSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenEphemeralSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenEphemeralSessionRequest) when calling interceptor")
+					}
+					return s.TunnelService.OpenEphemeralSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *OpenSessionResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *OpenSessionResponse and nil error while calling OpenEphemeralSession. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveOpenDelegatedSession(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveOpenDelegatedSessionJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveOpenDelegatedSessionProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *tunnelServiceServer) serveOpenDelegatedSessionJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenDelegatedSession")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(OpenDelegatedSessionRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.TunnelService.OpenDelegatedSession
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenDelegatedSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenDelegatedSessionRequest) when calling interceptor")
+					}
+					return s.TunnelService.OpenDelegatedSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *OpenSessionResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *OpenSessionResponse and nil error while calling OpenDelegatedSession. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *tunnelServiceServer) serveOpenDelegatedSessionProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "OpenDelegatedSession")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(OpenDelegatedSessionRequest)
+	if err = reqContent.UnmarshalVT(buf); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.TunnelService.OpenDelegatedSession
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *OpenDelegatedSessionRequest) (*OpenSessionResponse, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*OpenDelegatedSessionRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*OpenDelegatedSessionRequest) when calling interceptor")
+					}
+					return s.TunnelService.OpenDelegatedSession(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*OpenSessionResponse)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*OpenSessionResponse) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *OpenSessionResponse
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *OpenSessionResponse and nil error while calling OpenDelegatedSession. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := respContent.MarshalVT()
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
 func (s *tunnelServiceServer) ServiceDescriptor() ([]byte, int) {
 	return twirpFileDescriptor5, 0
 }
@@ -3027,76 +4422,101 @@ func (s *tunnelServiceServer) PathPrefix() string {
 }
 
 var twirpFileDescriptor5 = []byte{
-	// 1132 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
-	0x14, 0x5e, 0xa7, 0x69, 0xb6, 0x39, 0x69, 0x12, 0x67, 0xfa, 0x97, 0x9d, 0x2d, 0xd0, 0x35, 0xa5,
-	0x5b, 0xb1, 0x90, 0xa8, 0x01, 0xc1, 0x8a, 0xd5, 0x4a, 0x94, 0x34, 0xda, 0x56, 0x5b, 0x25, 0x91,
-	0x9b, 0x76, 0x61, 0x05, 0x8a, 0x5c, 0xe7, 0x34, 0xb5, 0x9a, 0x78, 0x8c, 0x3d, 0x59, 0xe0, 0x9a,
-	0x37, 0xc8, 0x4b, 0x70, 0xc3, 0x33, 0xf4, 0x82, 0x47, 0x41, 0x3c, 0x08, 0xb2, 0x67, 0x5c, 0x3b,
-	0x8e, 0x53, 0x40, 0xe2, 0x2a, 0x9e, 0x39, 0xdf, 0xf9, 0xce, 0x37, 0xf6, 0x39, 0x5f, 0x06, 0xb6,
-	0x3c, 0x07, 0xcd, 0xba, 0xe3, 0x32, 0xce, 0xea, 0x7c, 0x62, 0xdb, 0x38, 0xaa, 0x05, 0x0b, 0xb2,
-	0x12, 0xfc, 0x98, 0x6c, 0x44, 0x37, 0x62, 0x10, 0x9b, 0x0d, 0x50, 0x00, 0xe8, 0x7a, 0x6c, 0xdb,
-	0x61, 0x3f, 0xc9, 0xdd, 0x9d, 0x21, 0x63, 0xc3, 0x11, 0x8a, 0xfd, 0xcb, 0xc9, 0x55, 0x7d, 0x80,
-	0x9e, 0xe9, 0x5a, 0x0e, 0x67, 0xae, 0x40, 0x68, 0xd3, 0x0c, 0x64, 0x4f, 0x2d, 0xfb, 0x86, 0x3c,
-	0x85, 0xac, 0x31, 0x72, 0xec, 0xaa, 0xb2, 0xa3, 0xec, 0x97, 0x1a, 0x6b, 0xb5, 0xb0, 0x60, 0xcd,
-	0x8f, 0xd6, 0x0e, 0x4f, 0xbb, 0x6d, 0x3d, 0x00, 0x10, 0x0a, 0x2b, 0xd7, 0xcc, 0xe3, 0xb6, 0x31,
-	0xc6, 0x6a, 0x66, 0x47, 0xd9, 0xcf, 0xeb, 0x77, 0x6b, 0xb2, 0x09, 0x39, 0x17, 0xc7, 0x8c, 0x63,
-	0x75, 0x29, 0x88, 0xc8, 0x95, 0xf6, 0xbb, 0x02, 0x59, 0x9f, 0x82, 0x14, 0xe0, 0xe1, 0x79, 0xfb,
-	0x75, 0xbb, 0xf3, 0xa6, 0xad, 0x3e, 0x20, 0x7b, 0x50, 0x3c, 0xeb, 0xb6, 0x9a, 0xbd, 0x96, 0xde,
-	0x6f, 0x1e, 0x77, 0xf4, 0x23, 0x55, 0xa1, 0x6b, 0xd3, 0x5b, 0x5a, 0xf6, 0x8f, 0xc2, 0xd1, 0xfd,
-	0xd4, 0xbc, 0x66, 0xee, 0xa0, 0x7e, 0x40, 0xf6, 0xa1, 0x74, 0x87, 0x3b, 0x3d, 0x69, 0xb5, 0x7b,
-	0x6a, 0x86, 0xae, 0x4f, 0x6f, 0xa9, 0x7a, 0x07, 0x1c, 0x59, 0x68, 0xf3, 0xfa, 0x01, 0xa9, 0xc0,
-	0xf2, 0x71, 0xaf, 0xd7, 0x6d, 0xa8, 0x79, 0x9a, 0x9b, 0xde, 0xd2, 0xcc, 0x75, 0x83, 0x6c, 0x42,
-	0xd6, 0xdf, 0x52, 0x81, 0xae, 0x4e, 0x6f, 0xe9, 0xca, 0x35, 0xe7, 0x4e, 0xfd, 0xa0, 0x76, 0x40,
-	0x28, 0x2c, 0xf5, 0x9a, 0x5d, 0xb5, 0x40, 0x2b, 0xd3, 0x5b, 0x5a, 0x0c, 0x99, 0xb8, 0xe9, 0xd4,
-	0x0f, 0xb4, 0x5f, 0x15, 0x28, 0x35, 0x27, 0x1e, 0x67, 0xe3, 0xe3, 0xf0, 0x64, 0x5f, 0x42, 0x59,
-	0x54, 0xe9, 0x5b, 0x03, 0xb4, 0xb9, 0xc5, 0x7f, 0x09, 0xde, 0x54, 0xa1, 0x51, 0x8a, 0xde, 0x54,
-	0x9b, 0x0d, 0x50, 0x2f, 0x09, 0xd8, 0x89, 0x44, 0x91, 0xe7, 0xb0, 0x2a, 0x13, 0x39, 0xbb, 0x41,
-	0x3b, 0x78, 0x65, 0x85, 0xc6, 0x46, 0x94, 0xd5, 0x0c, 0xa2, 0x3d, 0x3f, 0xa8, 0x17, 0xcc, 0x68,
-	0xa1, 0xfd, 0xa5, 0x40, 0xa1, 0x17, 0x34, 0x81, 0xce, 0x26, 0x1c, 0xc9, 0x4b, 0x20, 0x92, 0x69,
-	0x80, 0x1e, 0xb7, 0x6c, 0x83, 0x5b, 0xcc, 0x5e, 0xa0, 0xa2, 0x22, 0x90, 0x47, 0x11, 0x90, 0xbc,
-	0x80, 0x4a, 0xf0, 0x42, 0x67, 0xb2, 0x33, 0xa9, 0xd9, 0x6a, 0x00, 0x8c, 0x27, 0xbf, 0x04, 0x22,
-	0xfa, 0x71, 0x26, 0x7b, 0x29, 0xbd, 0xb6, 0x40, 0xc6, 0xd3, 0xe3, 0x3d, 0x03, 0xb3, 0x3d, 0xa3,
-	0x19, 0x50, 0xe9, 0xcd, 0x25, 0xec, 0xc2, 0x72, 0xa0, 0x61, 0xc1, 0xf1, 0x44, 0x90, 0xec, 0x41,
-	0x4e, 0xd4, 0x5a, 0x70, 0x0e, 0x19, 0xd5, 0xbe, 0x85, 0x55, 0x51, 0xe2, 0x8c, 0x1b, 0x7c, 0xe2,
-	0x91, 0x06, 0xe4, 0xbc, 0xe0, 0x29, 0xc8, 0x2b, 0x35, 0x68, 0x94, 0x17, 0xc7, 0x35, 0x03, 0x0e,
-	0x81, 0x24, 0xeb, 0xb0, 0x8c, 0xae, 0xcb, 0x5c, 0xd9, 0xd9, 0x62, 0xa1, 0x7d, 0x08, 0x85, 0xd8,
-	0xf7, 0xf3, 0x41, 0xe2, 0x2b, 0xfb, 0xb2, 0x57, 0x75, 0xb1, 0xd0, 0xd6, 0xa0, 0x22, 0x40, 0x5d,
-	0xcb, 0x1e, 0xea, 0xf8, 0xe3, 0x04, 0x3d, 0xae, 0x9d, 0x02, 0x89, 0x6f, 0x7a, 0x0e, 0xb3, 0x3d,
-	0x24, 0x1a, 0x64, 0xfd, 0xa1, 0x5e, 0x70, 0xec, 0x20, 0x46, 0x08, 0x64, 0x0d, 0x07, 0x7f, 0x96,
-	0xc3, 0x17, 0x3c, 0x6b, 0x8f, 0x60, 0x4b, 0xc7, 0xa1, 0xe5, 0x71, 0x74, 0xc3, 0xce, 0x0b, 0x0b,
-	0xd5, 0xa0, 0x3a, 0x1f, 0x92, 0xe5, 0xd2, 0xa8, 0x2a, 0x50, 0x7e, 0x85, 0xdc, 0xaf, 0xe7, 0x85,
-	0x14, 0xcf, 0x41, 0x8d, 0xb6, 0x64, 0xea, 0x2e, 0x2c, 0xfb, 0x6a, 0xbc, 0xaa, 0xb2, 0xb3, 0x94,
-	0xf6, 0x85, 0x82, 0xa0, 0xaf, 0xeb, 0x15, 0xda, 0xe8, 0x1a, 0x1c, 0xc3, 0x51, 0x0a, 0x49, 0xbf,
-	0x80, 0xea, 0x7c, 0x48, 0x92, 0xc7, 0xfb, 0x45, 0x49, 0xf4, 0xcb, 0x36, 0xd0, 0xf0, 0x3c, 0x38,
-	0x08, 0x33, 0xef, 0xa4, 0xbe, 0x80, 0xc7, 0xa9, 0x51, 0x49, 0xbc, 0x0d, 0xf9, 0x90, 0x48, 0x28,
-	0xcf, 0xeb, 0xd1, 0x86, 0xf6, 0x3d, 0xac, 0x77, 0x27, 0x97, 0x23, 0xcb, 0xbb, 0x96, 0x73, 0x27,
-	0x48, 0xef, 0x93, 0x43, 0xf6, 0xe1, 0xa1, 0x87, 0xee, 0x3b, 0x74, 0xfd, 0x66, 0x4a, 0x7b, 0x13,
-	0x61, 0x58, 0x6b, 0xc1, 0x46, 0x82, 0x5d, 0x8a, 0xfa, 0x04, 0xf2, 0x8e, 0x08, 0xe0, 0x60, 0xc1,
-	0xeb, 0x8c, 0x00, 0xda, 0xe7, 0xb0, 0x79, 0x6e, 0x3b, 0xff, 0x51, 0xa6, 0xff, 0x21, 0xe6, 0xb2,
-	0x44, 0x79, 0xad, 0x01, 0xeb, 0x3a, 0x8e, 0xd0, 0xf0, 0xf0, 0xdf, 0xd3, 0x6d, 0xc1, 0x46, 0x22,
-	0x47, 0x92, 0xfd, 0x00, 0xe4, 0xc4, 0xf6, 0xb8, 0x3b, 0x31, 0xfd, 0x39, 0x0e, 0xa9, 0x9e, 0xc1,
-	0xb2, 0xe3, 0x32, 0x76, 0x25, 0xfb, 0x3a, 0xe6, 0x7e, 0x5d, 0x7f, 0xbb, 0x73, 0xf5, 0x86, 0xb9,
-	0x37, 0xba, 0xc0, 0xdc, 0xf7, 0x07, 0xa3, 0x35, 0x61, 0x6d, 0x86, 0x3e, 0xea, 0xe3, 0x98, 0xcc,
-	0xe0, 0x99, 0x54, 0xe1, 0xa1, 0xc9, 0x6c, 0x8e, 0x36, 0x97, 0x2c, 0xe1, 0x52, 0x7b, 0x0b, 0xe5,
-	0x0b, 0x63, 0x64, 0x0d, 0x0c, 0x8e, 0xff, 0xbb, 0xc0, 0x3d, 0x50, 0x23, 0xee, 0xc4, 0x94, 0x29,
-	0xd1, 0x94, 0x7d, 0xdc, 0x04, 0x35, 0x69, 0x35, 0xa4, 0x08, 0xf9, 0xb3, 0xde, 0x61, 0xef, 0xfc,
-	0xac, 0xdf, 0x79, 0xad, 0x3e, 0x20, 0x15, 0x28, 0xca, 0xff, 0xca, 0x7e, 0x4b, 0xd7, 0x3b, 0xba,
-	0xaa, 0xf8, 0x88, 0x76, 0xa7, 0x7f, 0x74, 0xa2, 0xb7, 0x9a, 0x3d, 0x35, 0xd3, 0xf8, 0x23, 0x07,
-	0x45, 0xc9, 0x82, 0xee, 0x3b, 0xcb, 0x44, 0x72, 0x08, 0x59, 0xdf, 0x4f, 0xc8, 0xe3, 0xe4, 0xff,
-	0x4b, 0xcc, 0x7a, 0xe8, 0x76, 0x7a, 0x50, 0xaa, 0xfd, 0x0e, 0xd4, 0xa4, 0x5f, 0x90, 0x27, 0x51,
-	0xc6, 0x02, 0x9b, 0xa1, 0xda, 0x7d, 0x10, 0x49, 0x7d, 0x08, 0x2b, 0xa1, 0x8f, 0x90, 0x47, 0x11,
-	0x3e, 0x61, 0x37, 0x94, 0xa6, 0x85, 0x22, 0x75, 0x49, 0xd7, 0x88, 0xab, 0x5b, 0x60, 0x36, 0x71,
-	0x75, 0x0b, 0x4d, 0xe7, 0x12, 0xd6, 0x52, 0xac, 0x83, 0xec, 0xce, 0x1f, 0x6c, 0xde, 0x77, 0xe8,
-	0x47, 0xff, 0x80, 0x92, 0x35, 0xba, 0x50, 0x9c, 0xf1, 0x00, 0xf2, 0x7e, 0xac, 0xd3, 0x52, 0x66,
-	0x9a, 0x7e, 0xb0, 0x30, 0x2e, 0x19, 0x2f, 0xa0, 0x9c, 0x18, 0x6c, 0xb2, 0x13, 0xe5, 0xa4, 0x3b,
-	0x05, 0x7d, 0x72, 0x0f, 0x22, 0x52, 0x3a, 0x33, 0xe1, 0x71, 0xa5, 0x69, 0x76, 0x11, 0x57, 0x9a,
-	0x6a, 0x0d, 0xa4, 0x0d, 0xe5, 0x43, 0x73, 0x8c, 0xb1, 0xf9, 0x25, 0xb1, 0x4e, 0x9c, 0x77, 0x0d,
-	0xfa, 0xde, 0x82, 0xa8, 0xe4, 0x6b, 0xc1, 0xaa, 0xcf, 0x17, 0x8e, 0x5b, 0xbc, 0xa3, 0x12, 0xe3,
-	0x1d, 0xef, 0xa8, 0xe4, 0x74, 0x7e, 0xf5, 0x35, 0xe4, 0xfd, 0x7b, 0x6d, 0x5f, 0xb6, 0x92, 0xb8,
-	0x31, 0xd7, 0xc2, 0x1b, 0x73, 0xad, 0x65, 0x4f, 0xc6, 0x17, 0xc6, 0x68, 0x82, 0x1d, 0xc7, 0xaf,
-	0xee, 0x55, 0xff, 0xfc, 0x4d, 0xdc, 0x00, 0x56, 0xfc, 0xac, 0xb6, 0x31, 0xc6, 0x6f, 0x9e, 0x1d,
-	0x2b, 0x6f, 0x9f, 0x0e, 0x59, 0x6d, 0x6c, 0xb9, 0xc6, 0x10, 0x3d, 0xc7, 0x30, 0xb1, 0x66, 0xb2,
-	0xba, 0xbc, 0x53, 0xd6, 0xa3, 0x9b, 0xb9, 0xc9, 0x46, 0x97, 0xb9, 0xe0, 0xe9, 0xb3, 0xbf, 0x03,
-	0x00, 0x00, 0xff, 0xff, 0xba, 0x52, 0xae, 0x59, 0xeb, 0x0b, 0x00, 0x00,
+	// 1524 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0xed, 0x6e, 0xdb, 0x36,
+	0x17, 0xae, 0x1c, 0x3b, 0xb1, 0x8f, 0x63, 0x47, 0x66, 0xbe, 0x5c, 0xb6, 0x69, 0x52, 0xbd, 0x7d,
+	0xdb, 0x6c, 0xdd, 0x6c, 0xc4, 0x1b, 0xb6, 0x62, 0x45, 0x81, 0x65, 0x8e, 0xd1, 0x04, 0xcd, 0x6c,
+	0x43, 0x71, 0xda, 0xad, 0xe8, 0x60, 0x28, 0x12, 0xeb, 0x08, 0x91, 0x45, 0x4d, 0xa2, 0xdb, 0x0e,
+	0xd8, 0xbf, 0x01, 0xbb, 0x80, 0xdc, 0xc2, 0x06, 0xec, 0xcf, 0xae, 0x21, 0x17, 0x33, 0xec, 0x42,
+	0x06, 0x89, 0x54, 0xf4, 0x61, 0xd9, 0xed, 0x80, 0xfd, 0x8a, 0xc9, 0xf3, 0x9c, 0xe7, 0x3c, 0x24,
+	0x0f, 0x0f, 0x4f, 0x04, 0x9b, 0x9e, 0x43, 0xf4, 0xa6, 0xe3, 0x52, 0x46, 0x9b, 0x6c, 0x62, 0xdb,
+	0xc4, 0x6a, 0x04, 0x03, 0x54, 0x0c, 0xfe, 0xe8, 0xd4, 0xc2, 0xeb, 0x31, 0x88, 0x4d, 0x0d, 0xc2,
+	0x01, 0x78, 0x2d, 0x36, 0xed, 0xd0, 0xb7, 0x62, 0x76, 0x67, 0x44, 0xe9, 0xc8, 0x22, 0x7c, 0xfe,
+	0x6c, 0xf2, 0xba, 0x69, 0x10, 0x4f, 0x77, 0x4d, 0x87, 0x51, 0x97, 0x23, 0x94, 0xcb, 0x1c, 0xe4,
+	0x8f, 0x4d, 0xfb, 0x02, 0x3d, 0x80, 0xbc, 0x66, 0x39, 0x76, 0x5d, 0xda, 0x91, 0x76, 0xab, 0xad,
+	0xd5, 0x46, 0x18, 0xb0, 0xe1, 0x5b, 0x1b, 0xfb, 0xc7, 0xfd, 0xae, 0x1a, 0x00, 0x10, 0x86, 0xe2,
+	0x39, 0xf5, 0x98, 0xad, 0x8d, 0x49, 0x3d, 0xb7, 0x23, 0xed, 0x96, 0xd4, 0xeb, 0x31, 0xda, 0x80,
+	0x45, 0x97, 0x8c, 0x29, 0x23, 0xf5, 0x85, 0xc0, 0x22, 0x46, 0xca, 0x9f, 0x12, 0xe4, 0x7d, 0x0a,
+	0x54, 0x86, 0xa5, 0xd3, 0xee, 0xb3, 0x6e, 0xef, 0x45, 0x57, 0xbe, 0x81, 0xee, 0x43, 0xe5, 0xa4,
+	0xdf, 0x69, 0x0f, 0x3a, 0xea, 0xb0, 0x7d, 0xd8, 0x53, 0x0f, 0x64, 0x09, 0xaf, 0x5e, 0x5e, 0xe1,
+	0x15, 0x7f, 0x29, 0x8c, 0xb8, 0x9f, 0xea, 0xe7, 0xd4, 0x35, 0x9a, 0x7b, 0x68, 0x17, 0xaa, 0xd7,
+	0xb8, 0xe3, 0xa3, 0x4e, 0x77, 0x20, 0xe7, 0xf0, 0xda, 0xe5, 0x15, 0x96, 0xaf, 0x81, 0x96, 0x49,
+	0x6c, 0xd6, 0xdc, 0x43, 0x35, 0x28, 0x1c, 0x0e, 0x06, 0xfd, 0x96, 0x5c, 0xc2, 0x8b, 0x97, 0x57,
+	0x38, 0x77, 0xde, 0x42, 0x1b, 0x90, 0xf7, 0xa7, 0x64, 0xc0, 0xcb, 0x97, 0x57, 0xb8, 0x78, 0xce,
+	0x98, 0xd3, 0xdc, 0x6b, 0xec, 0x21, 0x0c, 0x0b, 0x83, 0x76, 0x5f, 0x2e, 0xe3, 0xda, 0xe5, 0x15,
+	0xae, 0x84, 0x4c, 0x4c, 0x77, 0x9a, 0x7b, 0xca, 0x2f, 0x12, 0x54, 0xdb, 0x13, 0x8f, 0xd1, 0xf1,
+	0x61, 0xb8, 0xb2, 0x2f, 0x61, 0x85, 0x47, 0x19, 0x9a, 0x06, 0xb1, 0x99, 0xc9, 0x7e, 0x0a, 0x76,
+	0xaa, 0xdc, 0xaa, 0x46, 0x3b, 0xd5, 0xa5, 0x06, 0x51, 0xab, 0x1c, 0x76, 0x24, 0x50, 0xe8, 0x11,
+	0x2c, 0x0b, 0x47, 0x46, 0x2f, 0x88, 0x1d, 0x6c, 0x59, 0xb9, 0xb5, 0x1e, 0x79, 0xb5, 0x03, 0xeb,
+	0xc0, 0x37, 0xaa, 0x65, 0x3d, 0x1a, 0x28, 0x7f, 0x4b, 0x50, 0x1e, 0x04, 0x49, 0xa0, 0xd2, 0x09,
+	0x23, 0xe8, 0x09, 0x20, 0xc1, 0x64, 0x10, 0x8f, 0x99, 0xb6, 0xc6, 0x4c, 0x6a, 0xcf, 0x50, 0x51,
+	0xe3, 0xc8, 0x83, 0x08, 0x88, 0x1e, 0x43, 0x2d, 0xd8, 0xd0, 0x84, 0x77, 0x2e, 0xd3, 0x5b, 0x0e,
+	0x80, 0x71, 0xe7, 0x27, 0x80, 0x78, 0x3e, 0x26, 0xbc, 0x17, 0xb2, 0x63, 0x73, 0x64, 0xdc, 0x3d,
+	0x9e, 0x33, 0x90, 0xcc, 0x19, 0x45, 0x83, 0xda, 0x60, 0xca, 0xe1, 0x1e, 0x14, 0x02, 0x0d, 0x33,
+	0x96, 0xc7, 0x8d, 0xe8, 0x3e, 0x2c, 0xf2, 0x58, 0x33, 0xd6, 0x21, 0xac, 0xca, 0x77, 0xb0, 0xcc,
+	0x43, 0x9c, 0x30, 0x8d, 0x4d, 0x3c, 0xd4, 0x82, 0x45, 0x2f, 0xf8, 0x15, 0xf8, 0x55, 0x5b, 0x38,
+	0xf2, 0x8b, 0xe3, 0xda, 0x01, 0x07, 0x47, 0xa2, 0x35, 0x28, 0x10, 0xd7, 0xa5, 0xae, 0xc8, 0x6c,
+	0x3e, 0x50, 0xfe, 0x07, 0xe5, 0xd8, 0xf9, 0xf9, 0x20, 0x7e, 0xca, 0xbe, 0xec, 0x65, 0x95, 0x0f,
+	0x94, 0x55, 0xa8, 0x71, 0x50, 0xdf, 0xb4, 0x47, 0x2a, 0xf9, 0x71, 0x42, 0x3c, 0xa6, 0x1c, 0x03,
+	0x8a, 0x4f, 0x7a, 0x0e, 0xb5, 0x3d, 0x82, 0x14, 0xc8, 0xfb, 0x97, 0x7a, 0xc6, 0xb2, 0x03, 0x1b,
+	0x42, 0x90, 0xd7, 0x1c, 0xf2, 0x4e, 0x5c, 0xbe, 0xe0, 0xb7, 0x72, 0x13, 0x36, 0x55, 0x32, 0x32,
+	0x3d, 0x46, 0xdc, 0x30, 0xf3, 0xc2, 0x40, 0x0d, 0xa8, 0x4f, 0x9b, 0x44, 0xb8, 0x2c, 0xaa, 0x1a,
+	0xac, 0x3c, 0x25, 0xcc, 0x8f, 0xe7, 0x85, 0x14, 0x8f, 0x40, 0x8e, 0xa6, 0x84, 0xeb, 0x3d, 0x28,
+	0xf8, 0x6a, 0xbc, 0xba, 0xb4, 0xb3, 0x90, 0x75, 0x42, 0x81, 0xd1, 0xd7, 0xf5, 0x94, 0xd8, 0xc4,
+	0xd5, 0x18, 0x09, 0xaf, 0x52, 0x48, 0xfa, 0x05, 0xd4, 0xa7, 0x4d, 0x82, 0x3c, 0x9e, 0x2f, 0x52,
+	0x2a, 0x5f, 0x6e, 0x03, 0x0e, 0xd7, 0x43, 0x8c, 0xd0, 0xf3, 0x5a, 0xea, 0x63, 0xb8, 0x95, 0x69,
+	0x15, 0xc4, 0xb7, 0xa1, 0x14, 0x12, 0x71, 0xe5, 0x25, 0x35, 0x9a, 0x50, 0x5e, 0xc1, 0x5a, 0x7f,
+	0x72, 0x66, 0x99, 0xde, 0xb9, 0xb8, 0x77, 0x9c, 0x74, 0x9e, 0x1c, 0xb4, 0x0b, 0x4b, 0x1e, 0x71,
+	0xdf, 0x10, 0xd7, 0x4f, 0xa6, 0xac, 0x9d, 0x08, 0xcd, 0x4a, 0x07, 0xd6, 0x53, 0xec, 0x42, 0xd4,
+	0x27, 0x50, 0x72, 0xb8, 0x81, 0x18, 0x33, 0xb6, 0x33, 0x02, 0x28, 0x9f, 0xc3, 0xc6, 0xa9, 0xed,
+	0xfc, 0x4b, 0x99, 0xfe, 0x41, 0x4c, 0x79, 0xf1, 0xf0, 0x4a, 0x0b, 0xd6, 0x54, 0x62, 0x11, 0xcd,
+	0x23, 0x1f, 0x4e, 0xb7, 0x09, 0xeb, 0x29, 0x1f, 0x41, 0xf6, 0x03, 0xa0, 0x23, 0xdb, 0x63, 0xee,
+	0x44, 0xf7, 0xef, 0x71, 0x48, 0xf5, 0x10, 0x0a, 0x8e, 0x4b, 0xe9, 0xeb, 0xba, 0x94, 0xae, 0x7e,
+	0x7d, 0x7f, 0xba, 0xf7, 0xfa, 0x05, 0x75, 0x2f, 0x54, 0x8e, 0x99, 0xf7, 0xc0, 0x28, 0x6d, 0x58,
+	0x4d, 0xd0, 0x47, 0x79, 0x1c, 0x93, 0x19, 0xfc, 0x46, 0x75, 0x58, 0xd2, 0xa9, 0xcd, 0x88, 0xcd,
+	0x04, 0x4b, 0x38, 0x54, 0x5e, 0xc2, 0xca, 0x73, 0xcd, 0x32, 0x0d, 0x8d, 0x91, 0xff, 0x5c, 0xe0,
+	0x7d, 0x90, 0x23, 0xee, 0xd4, 0x2d, 0x93, 0x62, 0xb7, 0xec, 0x77, 0x09, 0xe4, 0x03, 0x62, 0x91,
+	0x91, 0xc6, 0x17, 0xa2, 0xfb, 0xf5, 0xac, 0x0e, 0x4b, 0x7e, 0xa6, 0x84, 0x65, 0xbd, 0xa2, 0x86,
+	0x43, 0x54, 0x85, 0x9c, 0x69, 0x88, 0x60, 0x39, 0xd3, 0xf0, 0xf5, 0xd2, 0xb7, 0x36, 0x71, 0xeb,
+	0x0b, 0x69, 0xbd, 0xf1, 0xe7, 0x84, 0x63, 0x12, 0x7a, 0xf3, 0xa9, 0xf4, 0xdd, 0x02, 0x20, 0xef,
+	0x1c, 0xd3, 0x25, 0xde, 0x50, 0x63, 0xf5, 0xc2, 0x8e, 0xb4, 0xbb, 0xa0, 0x96, 0xc4, 0xcc, 0x3e,
+	0x53, 0x7e, 0x86, 0x95, 0x48, 0xe5, 0x53, 0x57, 0xb3, 0x99, 0x90, 0x22, 0x5d, 0x4b, 0x99, 0xd7,
+	0x0f, 0x24, 0xd9, 0x17, 0x52, 0xec, 0xe8, 0x0e, 0x80, 0x69, 0xeb, 0x74, 0xec, 0x58, 0x84, 0x71,
+	0x69, 0x45, 0x35, 0x36, 0xa3, 0xa8, 0xb0, 0xfe, 0xad, 0x69, 0xb3, 0x48, 0xc1, 0x87, 0x5c, 0xc8,
+	0x64, 0xcc, 0x5c, 0x7a, 0x45, 0x43, 0xd8, 0x48, 0x73, 0x8a, 0x63, 0x6a, 0x42, 0x61, 0xe4, 0xaf,
+	0x50, 0xe4, 0xc0, 0xcd, 0x68, 0x4f, 0x53, 0x5b, 0xa0, 0x72, 0x5c, 0x54, 0xed, 0xf9, 0xb2, 0xf9,
+	0x40, 0xa9, 0xc3, 0xc6, 0xb1, 0xe9, 0xc5, 0x02, 0x78, 0x51, 0xc9, 0xdf, 0x9c, 0xb2, 0x88, 0xd8,
+	0x7b, 0xb0, 0x18, 0x70, 0x86, 0xe5, 0x74, 0x4e, 0x70, 0x01, 0x54, 0x3e, 0xf2, 0x4b, 0xfe, 0x1b,
+	0x7a, 0x41, 0xa6, 0xb7, 0x27, 0x75, 0x44, 0xca, 0x29, 0xd4, 0xa7, 0xa1, 0x22, 0x72, 0x1d, 0x96,
+	0xdc, 0xc0, 0xc6, 0x1d, 0x8a, 0x6a, 0x38, 0x44, 0xdb, 0x50, 0x36, 0x6d, 0x83, 0xbc, 0x1b, 0xf2,
+	0x77, 0x8f, 0x2f, 0x12, 0x82, 0xa9, 0x4e, 0xf0, 0xf8, 0x6d, 0xc1, 0xad, 0x9e, 0x43, 0xec, 0x8e,
+	0x73, 0x4e, 0xc6, 0xc4, 0xd5, 0xac, 0x13, 0xe2, 0x79, 0x91, 0x0a, 0x45, 0xe5, 0x66, 0x11, 0x93,
+	0x18, 0x49, 0x73, 0xf2, 0xad, 0x0c, 0x77, 0xcf, 0x3f, 0x3d, 0x97, 0x4e, 0x18, 0x19, 0x7a, 0x16,
+	0xe5, 0xa7, 0x57, 0x51, 0x4b, 0xc1, 0xcc, 0x89, 0x45, 0x99, 0xf2, 0x9b, 0x04, 0xab, 0x3e, 0xe9,
+	0x35, 0xd7, 0xfb, 0x1f, 0x8c, 0xac, 0x47, 0x0e, 0xdd, 0x84, 0x62, 0xb0, 0x8d, 0x43, 0xd3, 0x10,
+	0x0f, 0xfa, 0x52, 0x30, 0x3e, 0x32, 0x52, 0xf9, 0x93, 0x4f, 0xe7, 0x6c, 0xf8, 0x42, 0x17, 0x66,
+	0xbf, 0xd0, 0x1f, 0xb7, 0x41, 0x4e, 0xf7, 0x11, 0xa8, 0x02, 0xa5, 0x93, 0xc1, 0xfe, 0xe0, 0xf4,
+	0x64, 0xd8, 0x7b, 0x26, 0xdf, 0x40, 0x35, 0xa8, 0x88, 0x46, 0x78, 0xd8, 0x51, 0xd5, 0x9e, 0x2a,
+	0x4b, 0x3e, 0xa2, 0xdb, 0x1b, 0x1e, 0x1c, 0xa9, 0x9d, 0xf6, 0x40, 0xce, 0xb5, 0x7e, 0x05, 0xa8,
+	0x08, 0x16, 0xe2, 0xbe, 0x31, 0x75, 0x82, 0x4e, 0xa0, 0x9a, 0x4c, 0x5d, 0xb4, 0x1d, 0x85, 0xcf,
+	0xbc, 0x28, 0x78, 0x67, 0x36, 0x40, 0xec, 0xdc, 0x73, 0x58, 0x49, 0x25, 0x25, 0xda, 0x89, 0x37,
+	0xff, 0x59, 0x99, 0x8c, 0xef, 0xce, 0x41, 0x08, 0xde, 0xef, 0x41, 0x4e, 0xe7, 0x1c, 0x8a, 0xb9,
+	0xcd, 0x48, 0x5d, 0xac, 0xcc, 0x83, 0x08, 0xea, 0x7d, 0xc8, 0xfb, 0x4d, 0x13, 0xba, 0x95, 0xae,
+	0x7a, 0xb1, 0xfe, 0x0a, 0xdf, 0xce, 0x36, 0xc6, 0xd5, 0x25, 0x9b, 0xa2, 0xa4, 0xba, 0xcc, 0x5e,
+	0x0a, 0x2b, 0xf3, 0x20, 0xd7, 0xea, 0x8a, 0x61, 0xb3, 0x84, 0x62, 0xd7, 0x38, 0xd5, 0x53, 0x61,
+	0x9c, 0x65, 0x8a, 0xd4, 0xa5, 0x5b, 0xa3, 0xb8, 0xba, 0x19, 0x1d, 0x15, 0x56, 0xe6, 0x41, 0x04,
+	0xf5, 0x19, 0xac, 0x66, 0xf4, 0x47, 0xe8, 0xde, 0xf4, 0xc2, 0xa6, 0x9b, 0x2b, 0xfc, 0xff, 0xf7,
+	0xa0, 0x44, 0x8c, 0x3e, 0x54, 0x12, 0x8d, 0x0e, 0xba, 0x13, 0x7b, 0x4e, 0x33, 0x1a, 0x17, 0xbc,
+	0x3d, 0xd3, 0x1e, 0x25, 0x69, 0xaa, 0x7b, 0x89, 0x27, 0x69, 0x76, 0x3b, 0x84, 0xef, 0xce, 0x41,
+	0x44, 0x4a, 0x13, 0x6d, 0x4c, 0x5c, 0x69, 0x56, 0x4f, 0x84, 0xb7, 0x67, 0xda, 0x05, 0x63, 0x17,
+	0x56, 0xf6, 0xf5, 0x31, 0x89, 0x35, 0x29, 0x28, 0x96, 0x89, 0xd3, 0xad, 0x11, 0xde, 0x9a, 0x61,
+	0x15, 0x7c, 0x1d, 0x58, 0xf6, 0xf9, 0xc2, 0x9e, 0x22, 0x9e, 0x51, 0xa9, 0x1e, 0x06, 0xe3, 0x2c,
+	0x93, 0xa0, 0x79, 0x05, 0x6b, 0x59, 0xa5, 0x1a, 0xc5, 0x4e, 0x74, 0x4e, 0x29, 0xc7, 0x5b, 0x49,
+	0x58, 0xba, 0xfa, 0x0a, 0xf6, 0x74, 0xa5, 0x4f, 0xb3, 0xcf, 0x78, 0x09, 0xde, 0xc3, 0xfe, 0xd5,
+	0xd7, 0x50, 0xf2, 0x3f, 0x3c, 0x0c, 0xc5, 0x35, 0xe0, 0x9f, 0x34, 0x1a, 0xe1, 0x27, 0x8d, 0x46,
+	0xc7, 0x9e, 0x8c, 0x9f, 0x6b, 0xd6, 0x84, 0xf4, 0x9c, 0xa0, 0x02, 0xd5, 0xff, 0xfa, 0x83, 0x57,
+	0xf4, 0xa2, 0xef, 0xd5, 0xd5, 0xc6, 0xe4, 0x9b, 0x87, 0x87, 0xd2, 0xcb, 0x07, 0x23, 0xda, 0x18,
+	0x9b, 0xae, 0x36, 0x22, 0x9e, 0xa3, 0xe9, 0xa4, 0xa1, 0xd3, 0xa6, 0xf8, 0xa7, 0xbf, 0x19, 0x7d,
+	0x3a, 0xd1, 0xa9, 0x75, 0xb6, 0x18, 0xfc, 0xfa, 0xec, 0x9f, 0x01, 0x00, 0x05, 0x15, 0x22, 0x05,
+	0x8c, 0x11, 0x00, 0x00,
 }

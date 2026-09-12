@@ -28,6 +28,7 @@ func Generate() *cli.Command {
 			},
 		},
 		Commands: []*cli.Command{
+			exposeCommand(), serveCommand(), tokenCommand(),
 			{
 				Name:      "tunnel",
 				ArgsUsage: " ",

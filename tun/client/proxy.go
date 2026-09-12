@@ -43,14 +43,14 @@ func injectStartTime(proxy http.Handler) http.Handler {
 	})
 }
 
-func (c *Client) forwardStream(ctx context.Context, hostname string, remote net.Conn, r route) {
+func (f *forwarder) forwardStream(ctx context.Context, hostname string, remote net.Conn, r route) {
 	var (
 		u      *url.URL = r.parsed
 		target string
 		local  net.Conn
 		err    error
 	)
-	logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
+	logger := f.logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
 	switch u.Scheme {
 	case "tcp":
 		dialer := &net.Dialer{
@@ -74,14 +74,14 @@ func (c *Client) forwardStream(ctx context.Context, hostname string, remote net.
 	tun.Pipe(remote, local)
 }
 
-func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *httpProxy {
-	proxy, loaded := c.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
+func (f *forwarder) getHTTPProxy(_ context.Context, hostname string, r route) *httpProxy {
+	proxy, loaded := f.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
 		var (
 			u      *url.URL = r.parsed
 			isPipe          = false
 		)
 
-		logger := c.Logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
+		logger := f.logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
 		logger.Info("Creating new proxy")
 
 		readHeaderTimeout := defaultProxyHeaderTimeout
@@ -109,7 +109,7 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 
 		// determine Host header behavior based on ProxyHeaderMode
 		mode := strings.ToLower(r.proxyHeaderMode)
-		root := c.rootDomain.Load()
+		root := f.rootDomain.Load()
 		fqdn := hostname
 		if !strings.Contains(fqdn, ".") && root != "" {
 			fqdn = fmt.Sprintf("%s.%s", fqdn, root)
@@ -184,7 +184,7 @@ func (c *Client) getHTTPProxy(_ context.Context, hostname string, r route) *http
 			acceptor: acceptor.NewH2Acceptor(nil),
 			forwarder: &http.Server{
 				Handler:           injectStartTime(proxy),
-				ErrorLog:          zap.NewStdLog(c.Logger),
+				ErrorLog:          zap.NewStdLog(f.logger),
 				ReadHeaderTimeout: readHeaderTimeout,
 			},
 		}

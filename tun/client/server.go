@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
 )
 
@@ -131,6 +132,63 @@ func (c *Client) localHandler() http.Handler {
 	r.Use(middleware.Heartbeat("/healthz"))
 
 	api := chi.NewRouter()
+
+	api.Route("/tokens", func(tokens chi.Router) {
+		tokens.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-store")
+				w.Header().Set("Content-Type", "application/json")
+				next.ServeHTTP(w, r)
+			})
+		})
+		tokens.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			resp, err := c.ListDelegations(r.Context())
+			if err != nil {
+				writeDelegationError(w, err)
+				return
+			}
+			c.FormatDelegations(resp, w)
+		})
+		tokens.With(util.LimitBody(1<<10)).Post("/", func(w http.ResponseWriter, r *http.Request) {
+			var body struct {
+				Hostname  string `json:"hostname"`
+				ExpiresAt string `json:"expiresAt"`
+			}
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&body); err != nil {
+				writeDelegationError(w, twirp.InvalidArgument.Error("invalid token request body"))
+				return
+			}
+			if err := decoder.Decode(new(any)); err != io.EOF {
+				writeDelegationError(w, twirp.InvalidArgument.Error("invalid token request body"))
+				return
+			}
+			var expiry time.Time
+			if body.ExpiresAt != "" {
+				parsed, err := time.Parse(time.RFC3339, body.ExpiresAt)
+				if err != nil {
+					writeDelegationError(w, twirp.InvalidArgument.Error("expiresAt must be RFC3339"))
+					return
+				}
+				expiry = parsed
+			}
+			resp, err := c.MintDelegation(r.Context(), body.Hostname, expiry)
+			if err != nil {
+				writeDelegationError(w, err)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			c.FormatMintedDelegation(resp, w)
+		})
+		tokens.Post("/{id}/revoke", func(w http.ResponseWriter, r *http.Request) {
+			resp, err := c.RevokeDelegation(r.Context(), chi.URLParam(r, "id"))
+			if err != nil {
+				writeDelegationError(w, err)
+				return
+			}
+			c.FormatRevokedDelegation(resp, w)
+		})
+	})
 
 	api.Post("/reload", func(w http.ResponseWriter, r *http.Request) {
 		c.Logger.Info("Received request from API, reloading config")
@@ -283,4 +341,28 @@ func (c *Client) startLocalServer(ctx context.Context) {
 	c.Logger.Info("Local server started", zap.String("listen", c.ServerListener.Addr().String()))
 
 	go srv.Serve(c.ServerListener)
+}
+
+func writeDelegationError(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	var te twirp.Error
+	if errors.Is(err, ErrDelegationUnsupported) {
+		status = http.StatusNotImplemented
+	} else if errors.As(err, &te) {
+		switch te.Code() {
+		case twirp.InvalidArgument:
+			status = http.StatusBadRequest
+		case twirp.PermissionDenied:
+			status = http.StatusForbidden
+		case twirp.Unauthenticated:
+			status = http.StatusUnauthorized
+		case twirp.NotFound:
+			status = http.StatusNotFound
+		case twirp.ResourceExhausted:
+			status = http.StatusTooManyRequests
+		}
+	}
+	writeJSONResult(w, status, struct {
+		Error string `json:"error"`
+	}{err.Error()})
 }

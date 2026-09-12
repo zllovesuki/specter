@@ -290,8 +290,11 @@ func TestHTTPProxyHostHeaderDefault(t *testing.T) {
 		ClientConfig: ClientConfig{
 			Logger: logger,
 		},
-		rootDomain: atomic.NewString(testApex),
-		proxies:    skipmap.NewString[*httpProxy](),
+		forwarder: &forwarder{
+			logger:     zaptest.NewLogger(t),
+			rootDomain: atomic.NewString(testApex),
+			proxies:    skipmap.NewString[*httpProxy](),
+		},
 	}
 
 	r := route{
@@ -326,8 +329,11 @@ func TestHTTPProxyHostHeaderHostnameMode(t *testing.T) {
 		ClientConfig: ClientConfig{
 			Logger: logger,
 		},
-		rootDomain: atomic.NewString(testApex),
-		proxies:    skipmap.NewString[*httpProxy](),
+		forwarder: &forwarder{
+			logger:     zaptest.NewLogger(t),
+			rootDomain: atomic.NewString(testApex),
+			proxies:    skipmap.NewString[*httpProxy](),
+		},
 	}
 
 	r := route{
@@ -363,8 +369,11 @@ func TestHTTPProxyHostHeaderCustomMode(t *testing.T) {
 		ClientConfig: ClientConfig{
 			Logger: logger,
 		},
-		rootDomain: atomic.NewString(testApex),
-		proxies:    skipmap.NewString[*httpProxy](),
+		forwarder: &forwarder{
+			logger:     zaptest.NewLogger(t),
+			rootDomain: atomic.NewString(testApex),
+			proxies:    skipmap.NewString[*httpProxy](),
+		},
 	}
 
 	customHost := "custom.example.com"

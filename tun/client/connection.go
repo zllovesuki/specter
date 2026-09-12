@@ -129,34 +129,6 @@ func (c *Client) getAliveNodes(ctx context.Context) (alive []*protocol.Node, dea
 	return
 }
 
-func (c *Client) reBootstrap(ctx context.Context) {
-	defer c.closeWg.Done()
-
-	ticker := time.NewTicker(checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-c.closeCh:
-			return
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			connected := c.getConnectedNodes()
-			if len(connected) > 0 {
-				continue
-			}
-			c.Logger.Info("No connected nodes, re-bootstrapping using apex")
-			c.configMu.RLock()
-			apex := c.ClientConfig.Configuration.Apex
-			c.configMu.RUnlock()
-			if err := c.bootstrap(ctx, apex); err != nil {
-				c.Logger.Error("Failed to rebootstrap connection to specter", zap.Error(err))
-			}
-		}
-	}
-}
-
 func (c *Client) periodicReconnection(ctx context.Context) {
 	defer c.closeWg.Done()
 
@@ -170,15 +142,47 @@ func (c *Client) periodicReconnection(ctx context.Context) {
 		}
 	}()
 
+	runReconnectLoop(ctx, nil, func(ctx context.Context) (time.Duration, error) {
+		c.reconcileConnections(ctx)
+		return 0, nil
+	})
+}
+
+// runReconnectLoop serializes maintenance and preserves the full client's ticker
+// cadence. A positive retry delay takes precedence over ticks and wakeups until
+// it fires, avoiding duplicate attempts during a complete outage.
+func runReconnectLoop(ctx context.Context, wake <-chan struct{}, reconcile func(context.Context) (time.Duration, error)) error {
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
-
+	retry := time.NewTimer(checkInterval)
+	retry.Stop()
+	defer retry.Stop()
+	var retryC <-chan time.Time
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case <-ticker.C:
-			c.reconcileConnections(ctx)
+			if retryC != nil {
+				continue
+			}
+		case <-wake:
+			if retryC != nil {
+				continue
+			}
+		case <-retryC:
+			retryC = nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		delay, err := reconcile(ctx)
+		if err != nil {
+			return err
+		}
+		if delay > 0 {
+			retry.Reset(delay)
+			retryC = retry.C
 		}
 	}
 }
@@ -213,6 +217,16 @@ func (c *Client) reconcileConnections(ctx context.Context) {
 }
 
 func (c *Client) maintainConnections(ctx context.Context) error {
+	if c.connections.Len() == 0 {
+		c.Logger.Info("No connected nodes, re-bootstrapping using apex")
+		c.configMu.RLock()
+		apex := c.ClientConfig.Configuration.Apex
+		c.configMu.RUnlock()
+		if err := c.bootstrap(ctx, apex); err != nil {
+			return fmt.Errorf("rebootstrapping connection to specter: %w", err)
+		}
+	}
+
 	callCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 

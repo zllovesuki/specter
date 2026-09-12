@@ -50,3 +50,16 @@ type ClientTransport interface {
 	Transport
 	WithClientCertificate(cert tls.Certificate) error
 }
+
+// PhysicalConn binds stream operations and lifetime to one physical connection.
+// Implementations must be comparable so handles can be used as registry keys.
+type PhysicalConn interface {
+	Done() <-chan struct{}
+	Err() error
+	OpenStream(kind protocol.Stream_Type) (net.Conn, error)
+	Close(reason string) error
+}
+
+type PhysicalConnProvider interface {
+	PhysicalConn() PhysicalConn
+}

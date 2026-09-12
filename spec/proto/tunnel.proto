@@ -10,6 +10,9 @@ import "spec/proto/pow.proto";
 import "google/protobuf/descriptor.proto";
 
 service TunnelService {
+    rpc MintDelegation(MintDelegationRequest) returns (MintDelegationResponse);
+    rpc ListDelegations(ListDelegationsRequest) returns (ListDelegationsResponse);
+    rpc RevokeDelegation(RevokeDelegationRequest) returns (RevokeDelegationResponse);
     rpc Ping(ClientPingRequest) returns (ClientPingResponse);
     rpc RegisterIdentity(RegisterIdentityRequest) returns (RegisterIdentityResponse);
     rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
@@ -21,6 +24,9 @@ service TunnelService {
 
     rpc AcmeInstruction(InstructionRequest) returns (InstructionResponse);
     rpc AcmeValidate(ValidateRequest) returns (ValidateResponse);
+
+    rpc OpenEphemeralSession(OpenEphemeralSessionRequest) returns (OpenSessionResponse);
+    rpc OpenDelegatedSession(OpenDelegatedSessionRequest) returns (OpenSessionResponse);
 }
 
 extend google.protobuf.EnumValueOptions {
@@ -148,4 +154,60 @@ message ValidateRequest {
 
 message ValidateResponse {
     string apex = 1;
+}
+
+message DelegationRecord {
+    uint32 version = 1;
+    string id = 2;
+    ClientToken owner = 3;
+    string hostname = 4;
+    int64 expires_at = 5;
+}
+
+message DelegationGrant {
+    string id = 1;
+    string hostname = 2;
+    int64 expires_at = 3;
+    bool incomplete = 4;
+}
+
+message MintDelegationRequest {
+    string hostname = 1;
+    int64 expires_at = 2;
+}
+
+message MintDelegationResponse {
+    DelegationGrant grant = 1;
+    string token = 2;
+}
+
+message ListDelegationsRequest {}
+
+message ListDelegationsResponse {
+    repeated DelegationGrant grants = 1;
+}
+
+message RevokeDelegationRequest {
+    string id = 1;
+}
+
+message RevokeDelegationResponse {
+    bool revoked = 1;
+    string index_error = 2;
+}
+
+message OpenEphemeralSessionRequest {}
+
+message OpenDelegatedSessionRequest {
+    string token = 1;
+    // Each attachment publishes exactly one of the three numbered routes.
+    uint32 route_slot = 2;
+}
+
+message OpenSessionResponse {
+    string hostname = 1;
+    string apex = 2;
+    string grant_id = 3;
+    int64 expires_at = 4;
+    Node node = 5;
 }

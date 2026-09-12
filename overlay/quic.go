@@ -4,6 +4,8 @@ import (
 	"net"
 	"time"
 
+	"go.miragespace.co/specter/spec/protocol"
+	"go.miragespace.co/specter/spec/transport"
 	"go.miragespace.co/specter/timing"
 
 	"github.com/quic-go/quic-go"
@@ -49,3 +51,20 @@ func WrapQuicConnection(s *quic.Stream, q *quic.Conn) net.Conn {
 		q:      q,
 	}
 }
+
+// attachment identifies the QUIC connection itself, not its reusable cache key.
+type attachment struct {
+	q *quic.Conn
+}
+
+func (a attachment) Done() <-chan struct{} { return a.q.Context().Done() }
+
+func (a attachment) Err() error { return a.q.Context().Err() }
+
+func (a attachment) Close(reason string) error { return a.q.CloseWithError(410, reason) }
+
+func (a attachment) OpenStream(kind protocol.Stream_Type) (net.Conn, error) {
+	return openStream(a.q, &protocol.Stream{Type: kind})
+}
+
+func (c *quicConn) PhysicalConn() transport.PhysicalConn { return attachment{c.q} }

@@ -41,7 +41,7 @@ func setupRPC(ctx context.Context,
 	router *transport.StreamRouter,
 	acc *acceptor.HTTP2Acceptor,
 ) {
-	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(&twirp.ServerHooks{
+	hooks := &twirp.ServerHooks{
 		RequestRouted: func(ctx context.Context) (context.Context, error) {
 			delegation := rpc.GetDelegation(ctx)
 			if delegation.Certificate == nil {
@@ -53,20 +53,9 @@ func setupRPC(ctx context.Context,
 			logger.Error("error handling request", zap.Error(err))
 			return ctx
 		},
-	}))
-	keylessTwirp := protocol.NewKeylessServiceServer(k, twirp.WithServerHooks(&twirp.ServerHooks{
-		RequestRouted: func(ctx context.Context) (context.Context, error) {
-			delegation := rpc.GetDelegation(ctx)
-			if delegation.Certificate == nil {
-				return ctx, fmt.Errorf("missing client certificate")
-			}
-			return ctx, nil
-		},
-		Error: func(ctx context.Context, err twirp.Error) context.Context {
-			logger.Error("error handling request", zap.Error(err))
-			return ctx
-		},
-	}))
+	}
+	tunTwirp := protocol.NewTunnelServiceServer(s, twirp.WithServerHooks(hooks))
+	keylessTwirp := protocol.NewKeylessServiceServer(k, twirp.WithServerHooks(hooks))
 
 	rpcHandler := chi.NewRouter()
 	rpcHandler.Use(middleware.Recoverer)

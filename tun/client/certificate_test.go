@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -15,8 +16,49 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/zhangyunhao116/skipmap"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
+
+func TestCertificateUpdateDuringForwarding(t *testing.T) {
+	logger := zap.NewNop().With(zap.Uint64("id", 1))
+	_, cert, key := makeCertificate(require.New(t), logger, &protocol.Node{Id: 1}, &protocol.ClientToken{Token: []byte("owner")}, nil)
+	tp := mocks.SelfTransport()
+	tp.Identify = &protocol.Node{Id: 1}
+	tp.On("WithClientCertificate", mock.Anything).Return(nil)
+	c := &Client{
+		ClientConfig: ClientConfig{
+			Logger: logger,
+			Configuration: &Config{
+				Certificate: cert,
+				PrivKey:     key,
+			},
+			ServerTransport: tp,
+		},
+		forwarder: newForwarder(logger),
+	}
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			left, right := net.Pipe()
+			c.forwarder.handleLink(t.Context(), &protocol.Link{Alpn: protocol.Link_UNKNOWN}, left, route{})
+			right.Close()
+		}
+	}()
+	defer func() { close(stop); <-done }()
+	for i := 0; i < 100; i++ {
+		require.NoError(t, c.updateTransportCert())
+	}
+	require.Same(t, logger, c.Logger)
+	require.Same(t, logger, c.forwarder.logger)
+}
 
 func TestRegister_PerformsRenewalWhenNearExpiry(t *testing.T) {
 	as := require.New(t)

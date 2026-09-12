@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
 )
 
@@ -284,16 +285,6 @@ func TestRPCGetNodesUnique(t *testing.T) {
 		Token: mustGenerateToken(),
 	}
 
-	clientBuf, err := cli.MarshalVT()
-	as.NoError(err)
-
-	node.On("Get",
-		mock.Anything,
-		mock.MatchedBy(func(key []byte) bool {
-			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
-		}),
-	).Return(clientBuf, nil)
-
 	pair := &protocol.TunnelDestination{
 		Chord:  cht,
 		Tunnel: tn,
@@ -303,7 +294,7 @@ func TestRPCGetNodesUnique(t *testing.T) {
 
 	node.On("Identity").Return(cht)
 	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
-	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
+	node.On("Get", mock.Anything, []byte(tun.DestinationByChordKey(cht))).Return(pairBuf, nil)
 
 	tp := mocks.SelfTransport()
 	streamRouter := transport.NewStreamRouter(logger, nil, tp)
@@ -311,7 +302,10 @@ func TestRPCGetNodesUnique(t *testing.T) {
 
 	serv.AttachRouter(ctx, streamRouter)
 
-	cRPC := rpc.DynamicTunnelClient(ctx, tp)
+	cRPC := rpc.DynamicTunnelClient(rpc.DisablePooling(ctx), tp)
+
+	_, err = cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
+	as.Equal(twirp.Unauthenticated, err.(twirp.Error).Code())
 
 	tp.WithCertificate(toCertificate(as, logger, cli, token))
 	resp, err := cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
@@ -320,6 +314,8 @@ func TestRPCGetNodesUnique(t *testing.T) {
 	// should only have ourself
 	as.Len(resp.GetNodes(), 1)
 	as.True(assertNodes(resp.GetNodes(), []*protocol.Node{tn}))
+	node.AssertNotCalled(t, "Get", mock.Anything, []byte(tun.ClientTokenKey(token)))
+	node.AssertNotCalled(t, "Put", mock.Anything, mock.Anything, mock.Anything)
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)
@@ -337,16 +333,6 @@ func TestRPCGetNodes(t *testing.T) {
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
 	}
-
-	clientBuf, err := cli.MarshalVT()
-	as.NoError(err)
-
-	node.On("Get",
-		mock.Anything,
-		mock.MatchedBy(func(key []byte) bool {
-			return bytes.Equal(key, []byte(tun.ClientTokenKey(token)))
-		}),
-	).Return(clientBuf, nil)
 
 	node.On("Identity").Return(cht)
 
@@ -883,7 +869,7 @@ func TestTokenUpgrade(t *testing.T) {
 	as := require.New(t)
 
 	logger, node, clientT, chordT, serv := getFixture(t, as)
-	cli, cht, tn := getIdentities()
+	cli, _, _ := getIdentities()
 
 	ctx := t.Context()
 
@@ -922,16 +908,7 @@ func TestTokenUpgrade(t *testing.T) {
 		}),
 	).Return(nil).Once()
 
-	pair := &protocol.TunnelDestination{
-		Chord:  cht,
-		Tunnel: tn,
-	}
-	pairBuf, err := pair.MarshalVT()
-	as.Nil(err)
-
-	node.On("Identity").Return(cht)
-	node.On("GetSuccessors").Return([]chord.VNode{getVNode(cht)}, nil)
-	node.On("Get", mock.Anything, mock.Anything).Return(pairBuf, nil)
+	node.On("PrefixList", mock.Anything, []byte(tun.ClientHostnamesPrefix(token))).Return([][]byte{[]byte("test-host")}, nil).Once()
 
 	tp := mocks.SelfTransport()
 	streamRouter := transport.NewStreamRouter(logger, nil, tp)
@@ -942,8 +919,9 @@ func TestTokenUpgrade(t *testing.T) {
 	cRPC := rpc.DynamicTunnelClient(ctx, tp)
 
 	tp.WithCertificate(cert)
-	_, err = cRPC.GetNodes(rpc.WithNode(ctx, cli), &protocol.GetNodesRequest{})
+	resp, err := cRPC.RegisteredHostnames(rpc.WithNode(ctx, cli), &protocol.RegisteredHostnamesRequest{})
 	as.NoError(err)
+	as.Equal([]string{"test-host"}, resp.GetHostnames())
 
 	node.AssertExpectations(t)
 	clientT.AssertExpectations(t)

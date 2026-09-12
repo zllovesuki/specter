@@ -42,9 +42,12 @@ func newOutcomeTestClient(t *testing.T, tunnels []Tunnel) (*Client, *mockTunnelC
 			Configuration: cfg,
 		},
 		tunnelClient: tunnelClient,
-		rootDomain:   atomic.NewString(testApex),
-		proxies:      skipmap.NewString[*httpProxy](),
-		connections:  skipmap.NewString[*protocol.Node](),
+		forwarder: &forwarder{
+			logger:     zaptest.NewLogger(t),
+			rootDomain: atomic.NewString(testApex),
+			proxies:    skipmap.NewString[*httpProxy](),
+		},
+		connections: skipmap.NewString[*protocol.Node](),
 	}
 	c.connections.Store("gateway.example.com", &protocol.Node{
 		Id:      1,

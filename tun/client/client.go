@@ -53,6 +53,7 @@ type ClientConfig struct {
 
 type Client struct {
 	ClientConfig
+	*forwarder
 	configMu                sync.RWMutex
 	closeWg                 sync.WaitGroup
 	syncMu                  sync.Mutex
@@ -64,8 +65,6 @@ type Client struct {
 	syncBackoff             time.Duration
 	tunnelClient            rpc.TunnelClient
 	parentCtx               context.Context
-	rootDomain              *atomic.String
-	proxies                 *skipmap.StringMap[*httpProxy]
 	connections             *skipmap.StringMap[*protocol.Node]
 	rpcAcceptor             *acceptor.HTTP2Acceptor
 	keylessCertificateCache *theine.LoadingCache[string, keylessCertificateResult]
@@ -77,8 +76,7 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 	c := &Client{
 		ClientConfig: cfg,
 		parentCtx:    ctx,
-		rootDomain:   atomic.NewString(""),
-		proxies:      skipmap.NewString[*httpProxy](),
+		forwarder:    newForwarder(cfg.Logger),
 		connections:  skipmap.NewString[*protocol.Node](),
 		tunnelClient: rpc.DynamicTunnelClient(ctx, cfg.ServerTransport),
 		rpcAcceptor:  acceptor.NewH2Acceptor(nil),
@@ -92,6 +90,8 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		if err := c.updateTransportCert(); err != nil {
 			return nil, err
 		}
+		c.Logger = c.Logger.With(zap.Uint64("id", c.ServerTransport.Identity().GetId()))
+		c.forwarder.logger = c.Logger
 		if err := c.bootstrap(ctx, apex); err != nil {
 			return nil, err
 		}
@@ -130,14 +130,12 @@ func (c *Client) GetConnectedNodes() []*protocol.Node {
 func (c *Client) Start(ctx context.Context) {
 	c.Logger.Info("Listening for tunnel traffic")
 
-	c.closeWg.Add(4)
+	c.closeWg.Add(3)
 
 	streamRouter := transport.NewStreamRouter(c.Logger, nil, c.ServerTransport)
 	streamRouter.HandleTunnel(protocol.Stream_DIRECT, func(delegation *transport.StreamDelegate) {
-		link := &protocol.Link{}
-		if err := rpc.BoundedReceive(delegation, link, 1024); err != nil {
-			c.Logger.Error("Receiving link information from gateway", zap.Error(err))
-			delegation.Close()
+		link, ok := receiveLink(c.Logger, delegation)
+		if !ok {
 			return
 		}
 		c.handleIncomingDelegation(ctx, link, delegation)
@@ -147,7 +145,6 @@ func (c *Client) Start(ctx context.Context) {
 	go streamRouter.Accept(ctx)
 	go c.periodicReconnection(ctx)
 	go c.reloadOnSignal(ctx)
-	go c.reBootstrap(ctx)
 	go c.certificateMaintainer(ctx)
 	go c.startLocalServer(ctx)
 	go c.startKeylessProxy()
@@ -162,25 +159,7 @@ func (c *Client) handleIncomingDelegation(ctx context.Context, link *protocol.Li
 		return tun.ErrDestinationNotFound
 	}
 
-	c.Logger.Info("Incoming connection from gateway",
-		zap.String("protocol", link.GetAlpn().String()),
-		zap.String("hostname", link.GetHostname()),
-		zap.String("remote", link.GetRemote()))
-
-	switch link.GetAlpn() {
-	case protocol.Link_HTTP:
-		c.getHTTPProxy(ctx, hostname, u).acceptor.Handle(delegation)
-
-	case protocol.Link_TCP:
-		c.forwardStream(ctx, hostname, delegation, u)
-
-	default:
-		c.Logger.Error("Unknown alpn for forwarding", zap.String("alpn", link.GetAlpn().String()))
-		delegation.Close()
-		return tun.ErrDestinationNotFound
-	}
-
-	return nil
+	return c.handleLink(ctx, link, delegation, u)
 }
 
 func (c *Client) Close() {
@@ -188,11 +167,7 @@ func (c *Client) Close() {
 		return
 	}
 	c.rpcAcceptor.Close()
-	c.proxies.Range(func(key string, proxy *httpProxy) bool {
-		c.Logger.Info("Shutting down proxy", zap.String("hostname", key))
-		proxy.acceptor.Close()
-		return true
-	})
+	c.closeAll()
 	close(c.closeCh)
 	c.closeWg.Wait()
 }
