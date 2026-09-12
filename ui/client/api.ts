@@ -98,3 +98,20 @@ export function createAPI() {
 
   return { request, abort };
 }
+
+export interface DomainToken {
+  id: string;
+  hostname: string;
+  expiresAt?: string;
+  incomplete: boolean;
+}
+
+export interface MintedToken {
+  grant: DomainToken;
+  token: string;
+}
+
+export interface RevokeOutcome {
+  revoked: boolean;
+  indexError?: string;
+}

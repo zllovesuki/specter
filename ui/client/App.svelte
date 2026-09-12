@@ -3,6 +3,7 @@
   import Button from "../shared/Button.svelte";
   import Shell from "../shared/Shell.svelte";
   import ScrollRegion from "../shared/ScrollRegion.svelte";
+  import DomainTokens from "./DomainTokens.svelte";
   import CustomDomains from "./CustomDomains.svelte";
   import {
     APIError,
@@ -38,12 +39,14 @@
   let listCheckedAt = $state<Date | null>(null);
   let refreshing = $state(false);
   let checkingStatus = $state(false);
+  let checkingHostnames = $state(false);
   let pendingAction = $state<RemovalAction | "synchronize" | "">("");
   let confirmation = $state<Confirmation | null>(null);
   let confirmButton = $state<HTMLButtonElement>();
   let tunnelsHeading = $state<HTMLHeadingElement>();
   let tunnelNotice = $state<Notice | null>(null);
   let statusRequestID = 0;
+  let hostnameRequestID = 0;
   const api = createAPI();
 
   const synchronization = $derived(status?.synchronization);
@@ -122,21 +125,27 @@
     }
   }
 
+  async function loadHostnames(force = false) {
+    if (checkingHostnames && !force) return;
+    const requestID = ++hostnameRequestID;
+    checkingHostnames = true;
+    try {
+      const next = await api.request<RegisteredTunnel[]>("/api/ls");
+      if (requestID !== hostnameRequestID) return;
+      registered = next;
+      listCheckedAt = new Date();
+      listError = "";
+    } catch (error) {
+      if (requestID === hostnameRequestID) listError = errorMessage(error);
+    } finally {
+      if (requestID === hostnameRequestID) checkingHostnames = false;
+    }
+  }
+
   async function refresh() {
     if (refreshing || pendingAction) return;
     refreshing = true;
-    await Promise.allSettled([
-      loadStatus(true),
-      (async () => {
-        try {
-          registered = await api.request<RegisteredTunnel[]>("/api/ls");
-          listCheckedAt = new Date();
-          listError = "";
-        } catch (error) {
-          listError = errorMessage(error);
-        }
-      })(),
-    ]);
+    await Promise.allSettled([loadStatus(true), loadHostnames(true)]);
     refreshing = false;
   }
 
@@ -230,7 +239,10 @@
   onMount(() => {
     void refresh();
     const timer = setInterval(() => {
-      if (!refreshing && !pendingAction && !document.hidden) void loadStatus();
+      if (!refreshing && !pendingAction && !document.hidden) {
+        void loadStatus();
+        void loadHostnames();
+      }
     }, 15_000);
     return () => {
       clearInterval(timer);
@@ -350,6 +362,13 @@
       </details>
     </section>
   </div>
+
+  <DomainTokens
+    hostnames={registered?.map((t) => t.hostname).filter(Boolean) ?? null}
+    loadingHostnames={checkingHostnames}
+    hostnameError={listError}
+    onRefreshHostnames={() => loadHostnames(true)}
+  />
 
   <footer class="mt-6 flex justify-end border-t border-line py-3 text-xs text-muted">{statusCheckedAt ? `Checked ${timeLabel(statusCheckedAt)}` : statusError ? "Status unavailable" : "Connecting…"}</footer>
 </Shell>

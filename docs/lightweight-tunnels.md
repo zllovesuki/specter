@@ -51,7 +51,7 @@ specter client token list --config owner.yaml
 specter client token revoke --config owner.yaml GRANT_ID
 ```
 
-While the owner runs, use its local API:
+While the owner runs, use **Domain tokens** in its UI or the local API:
 
 | Method | Path | Request or result |
 | --- | --- | --- |
