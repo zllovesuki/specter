@@ -2,6 +2,7 @@ dep/
 bin/
 dist/
 .vscode/
+/.worktrees/
 /certs
 /data
 /fly
