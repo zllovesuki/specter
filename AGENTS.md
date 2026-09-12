@@ -26,6 +26,17 @@ Keep tests tied to concrete behavior and changed boundaries. Complete required
 checks, then stop unless a new change or failure justifies more verification.
 Keep documentation proportional to what a reader needs to understand or do.
 
+## Git Worktrees
+
+Create any new worktrees inside the main project checkout at
+`.worktrees/<task-name>`. Do not create sibling worktrees under `~/code` or other
+directories outside the project unless the user explicitly requests that location.
+
+When already working in a linked worktree, use `git worktree list --porcelain`
+to identify the main checkout and place additional worktrees in its `.worktrees/`
+directory, not inside the current linked worktree. Use descriptive task names.
+Do not move or remove existing worktrees as incidental cleanup.
+
 ## Project Structure & Module Organization
 - `main.go` launches the `specter` CLI; `cmd/specter` wires top-level commands, and `cmd/{server,client,dns,...}` holds command entrypoints/helpers.
 - `tun/` tunnel client/server logic, `ui/` embedded client and operator frontends, `gateway/` edge handling, `overlay/` routing glue.
