@@ -80,7 +80,6 @@ func New(h Hashcash) *Hashcash {
 		nonce := make([]byte, 16)
 		if _, err := rand.Read(nonce); nil != err {
 			panic(err)
-			return nil
 		}
 		h.Nonce = base64.RawURLEncoding.EncodeToString(nonce)
 	}
