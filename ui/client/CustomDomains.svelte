@@ -70,7 +70,7 @@
     />
     <p id="domain-hint" class="mt-1.5 mb-2.5 text-[0.8125rem] text-muted">Add the record in DNS, then verify.</p>
     <div class="flex flex-wrap items-center gap-2">
-      <Button type="submit" disabled={Boolean(pending)}>{pending === "acme" ? "Getting record…" : "Get DNS record"}</Button>
+      <Button type="submit" disabled={Boolean(pending) || !domain.trim()}>{pending === "acme" ? "Getting record…" : "Get DNS record"}</Button>
       <Button disabled={Boolean(pending) || !domain.trim()} onclick={() => domainAction("validate")}>{pending === "validate" ? "Verifying…" : "Verify ownership"}</Button>
     </div>
   </form>
