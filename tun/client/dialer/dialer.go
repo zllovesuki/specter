@@ -36,10 +36,8 @@ var rebootstrapRetry = time.Second * 5
 type bootstrapFn func() (net.Addr, error)
 
 func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDialer, error) {
-	var (
-		bootstrap bootstrapFn
-		aSession  atomic.Value
-	)
+	var bootstrap bootstrapFn
+	t := &tlsDialer{ctx: ctx}
 
 	clientTLSConf := &tls.Config{
 		ServerName:         dCfg.Parsed.Host,
@@ -75,7 +73,7 @@ func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDiale
 			return nil, err
 		}
 
-		aSession.Store(session)
+		t.aSession.Store(session)
 		if !dCfg.NoReconnection {
 			go rebootstrap(ctx, dCfg.Logger, bootstrap, session.CloseChan())
 		}
@@ -96,7 +94,7 @@ func TLSDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDiale
 		return nil, nil, err
 	}
 
-	return remote, &tlsDialer{aSession, ctx}, nil
+	return remote, t, nil
 }
 
 type tlsDialer struct {
@@ -117,10 +115,8 @@ func (t *tlsDialer) Remote() net.Addr {
 }
 
 func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDialer, error) {
-	var (
-		bootstrap bootstrapFn
-		aQuic     atomic.Value
-	)
+	var bootstrap bootstrapFn
+	d := &quicDialer{}
 
 	clientTLSConf := &tls.Config{
 		ServerName:         dCfg.Parsed.Host,
@@ -147,7 +143,7 @@ func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDial
 			return nil, err
 		}
 
-		aQuic.Store(q)
+		d.aQuic.Store(q)
 		if !dCfg.NoReconnection {
 			go rebootstrap(ctx, dCfg.Logger, bootstrap, q.Context().Done())
 		}
@@ -160,7 +156,7 @@ func QuicDialer(ctx context.Context, dCfg DialerConfig) (net.Addr, TransportDial
 		return nil, nil, err
 	}
 
-	return remote, &quicDialer{aQuic}, nil
+	return remote, d, nil
 }
 
 type quicDialer struct {
