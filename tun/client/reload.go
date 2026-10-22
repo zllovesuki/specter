@@ -28,18 +28,14 @@ func (c *Client) reloadOnSignal(ctx context.Context) {
 func (c *Client) doReload(ctx context.Context) SyncResult {
 	c.syncMu.Lock()
 	defer c.syncMu.Unlock()
-	onReload := func(prev, curr []Tunnel) {
-		diff := diffTunnels(prev, curr)
-		c.closeOutdatedProxies(diff...)
-		c.Configuration.buildRouter(diff...)
-	}
 	c.configMu.Lock()
-	if err := c.Configuration.reloadFile(onReload); err != nil {
+	if err := c.Configuration.reloadFile(); err != nil {
 		c.Logger.Error("Error reloading config file", zap.Error(err))
 		c.configMu.Unlock()
 		now := time.Now()
 		return SyncResult{Error: err.Error(), AttemptedAt: &now, Tunnels: []TunnelSyncResult{}}
 	}
+	c.setRoutes(c.Configuration.Tunnels)
 	c.configMu.Unlock()
 	return c.syncConfigTunnels(ctx, true)
 }

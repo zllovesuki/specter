@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 const v1Cfg = `apex: dev.specter.dev:1234
@@ -90,12 +91,10 @@ func TestConfig(t *testing.T) {
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", bareCfg.Apex)
 	as.NotEmpty(bareCfg.PrivKey)
-	bareCfg.buildRouter()
-	as.Equal(1, bareCfg.router.Len())
-	route, ok := bareCfg.router.Load("tcp.dev.specter.dev")
-	as.True(ok)
-	as.Equal(time.Second*60, route.proxyHeaderReadTimeout)
-	as.Equal("blah.com", route.proxyHeaderHost)
+	as.Len(bareCfg.Tunnels, 1)
+	as.Equal("tcp.dev.specter.dev", bareCfg.Tunnels[0].Hostname)
+	as.Equal(time.Second*60, bareCfg.Tunnels[0].ProxyHeaderTimeout)
+	as.Equal("blah.com", bareCfg.Tunnels[0].ProxyHeaderHost)
 
 	// new header* names only
 	headerFile, err := os.CreateTemp("", "client")
@@ -108,12 +107,9 @@ func TestConfig(t *testing.T) {
 
 	headerCfg, err := NewConfig(headerFile.Name())
 	as.NoError(err)
-	headerCfg.buildRouter()
-	as.Equal(1, headerCfg.router.Len())
-	route, ok = headerCfg.router.Load("tcp.dev.specter.dev")
-	as.True(ok)
-	as.Equal(time.Second*45, route.proxyHeaderReadTimeout)
-	as.Equal("header.com", route.proxyHeaderHost)
+	as.Len(headerCfg.Tunnels, 1)
+	as.Equal(time.Second*45, headerCfg.Tunnels[0].ProxyHeaderTimeout)
+	as.Equal("header.com", headerCfg.Tunnels[0].ProxyHeaderHost)
 
 	// mixed legacy and new names: new should win
 	mixedFile, err := os.CreateTemp("", "client")
@@ -126,14 +122,11 @@ func TestConfig(t *testing.T) {
 
 	mixedCfg, err := NewConfig(mixedFile.Name())
 	as.NoError(err)
-	mixedCfg.buildRouter()
-	as.Equal(1, mixedCfg.router.Len())
-	route, ok = mixedCfg.router.Load("tcp.dev.specter.dev")
-	as.True(ok)
+	as.Len(mixedCfg.Tunnels, 1)
 	// headerTimeout 30s should override proxyHeaderTimeout 60s
-	as.Equal(time.Second*30, route.proxyHeaderReadTimeout)
+	as.Equal(time.Second*30, mixedCfg.Tunnels[0].ProxyHeaderTimeout)
 	// headerHost new.com should override proxyHeaderHost old.com
-	as.Equal("new.com", route.proxyHeaderHost)
+	as.Equal("new.com", mixedCfg.Tunnels[0].ProxyHeaderHost)
 
 	regFile, err := os.CreateTemp("", "client")
 	as.NoError(err)
@@ -147,8 +140,7 @@ func TestConfig(t *testing.T) {
 	as.NoError(err)
 	as.Equal("dev.specter.dev:1234", regCfg.Apex)
 	as.Contains(regCfg.PrivKey, testPrivateKey)
-	regCfg.buildRouter()
-	as.Equal(2, regCfg.router.Len())
+	as.Len(regCfg.Tunnels, 2)
 
 	as.NoError(err)
 	regCfg.Tunnels = append(regCfg.Tunnels, Tunnel{
@@ -159,8 +151,7 @@ func TestConfig(t *testing.T) {
 
 	regCfg, err = NewConfig(regFile.Name())
 	as.NoError(err)
-	regCfg.buildRouter()
-	as.Equal(3, regCfg.router.Len())
+	as.Len(regCfg.Tunnels, 3)
 }
 
 func TestPipeOrSocket(t *testing.T) {
@@ -177,11 +168,8 @@ func TestPipeOrSocket(t *testing.T) {
 	pipeCfg, err := NewConfig(pipeFile.Name())
 	if runtime.GOOS == "windows" {
 		as.NoError(err)
-		pipeCfg.buildRouter()
-		as.Equal(1, pipeCfg.router.Len())
-		r, ok := pipeCfg.router.Load("pipe")
-		as.True(ok)
-		u := r.parsed
+		as.Len(pipeCfg.Tunnels, 1)
+		u := pipeCfg.Tunnels[0].parsed
 		as.Equal("winio", u.Scheme)
 		as.Equal("\\\\.\\pipe\\something", u.Path)
 	} else {
@@ -201,11 +189,8 @@ func TestPipeOrSocket(t *testing.T) {
 		as.Error(err)
 	} else {
 		as.NoError(err)
-		sockCfg.buildRouter()
-		as.Equal(1, sockCfg.router.Len())
-		r, ok := sockCfg.router.Load("unix")
-		as.True(ok)
-		u := r.parsed
+		as.Len(sockCfg.Tunnels, 1)
+		u := sockCfg.Tunnels[0].parsed
 		as.Equal("unix", u.Scheme)
 		as.Equal("/tmp/nginx.sock", u.Path)
 	}
@@ -225,33 +210,42 @@ func TestRebuild(t *testing.T) {
 	regCfg, err := NewConfig(regFile.Name())
 	as.NoError(err)
 	as.NoError(regCfg.validate())
-	regCfg.buildRouter()
-	as.Equal(2, regCfg.router.Len())
+	f := newForwarder(zaptest.NewLogger(t))
+	defer f.closeAll()
+	f.setRoutes(regCfg.Tunnels)
+	as.Equal(2, f.routes.Len())
+	unchanged, ok := f.routes.Load(regCfg.Tunnels[0].Hostname)
+	as.True(ok)
+	as.NoError(regCfg.validate())
+	f.setRoutes(regCfg.Tunnels)
+	reused, ok := f.routes.Load(regCfg.Tunnels[0].Hostname)
+	as.True(ok)
+	as.Same(unchanged, reused)
 
 	drop := 1
 	dropTunnel := regCfg.Tunnels[drop]
 
 	// drop
-	_, ok := regCfg.router.Load(dropTunnel.Hostname)
+	_, ok = f.routes.Load(dropTunnel.Hostname)
 	as.True(ok)
 	regCfg.Tunnels = append(regCfg.Tunnels[:drop], regCfg.Tunnels[drop+1:]...)
 	as.NoError(regCfg.validate())
-	regCfg.buildRouter(dropTunnel)
-	as.Equal(1, regCfg.router.Len())
-	_, ok = regCfg.router.Load(dropTunnel.Hostname)
+	f.setRoutes(regCfg.Tunnels)
+	as.Equal(1, f.routes.Len())
+	_, ok = f.routes.Load(dropTunnel.Hostname)
 	as.False(ok)
 
 	// update
 	prev := regCfg.Tunnels[0]
-	r, ok := regCfg.router.Load(prev.Hostname)
+	r, ok := f.routes.Load(prev.Hostname)
 	as.True(ok)
 	as.Equal(prev.Target, r.parsed.String())
 	newTarget := "http://127.0.0.1:8080"
 	regCfg.Tunnels[0].Target = newTarget
 	as.NoError(regCfg.validate())
-	regCfg.buildRouter(prev)
-	as.Equal(1, regCfg.router.Len())
-	r, ok = regCfg.router.Load(prev.Hostname)
+	f.setRoutes(regCfg.Tunnels)
+	as.Equal(1, f.routes.Len())
+	r, ok = f.routes.Load(prev.Hostname)
 	as.True(ok)
 	as.Equal(newTarget, r.parsed.String())
 }

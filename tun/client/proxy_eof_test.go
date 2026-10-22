@@ -32,8 +32,8 @@ func TestHTTPProxyUpstreamEOF(t *testing.T) {
 	u, err := url.Parse(upstream.URL)
 	require.NoError(t, err)
 	f := newForwarder(zap.NewNop())
-	defer f.closeAll()
-	hp := f.getHTTPProxy(t.Context(), "eof", route{parsed: u})
+	hp := f.newHTTPProxy("eof", Tunnel{parsed: u})
+	defer hp.close()
 	proxy := httptest.NewServer(hp.forwarder.Handler)
 	defer proxy.Close()
 
@@ -50,8 +50,8 @@ func TestHTTPProxyUpstreamEOF(t *testing.T) {
 
 func TestHTTPProxyCanceledRequest(t *testing.T) {
 	f := newForwarder(zap.NewNop())
-	defer f.closeAll()
-	hp := f.getHTTPProxy(t.Context(), "canceled", route{parsed: &url.URL{Scheme: "http", Host: "upstream.invalid"}})
+	hp := f.newHTTPProxy("canceled", Tunnel{parsed: &url.URL{Scheme: "http", Host: "upstream.invalid"}})
+	defer hp.close()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()

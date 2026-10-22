@@ -281,10 +281,8 @@ func (c *Client) RebuildTunnels(tunnels []Tunnel) error {
 	if err := next.validate(); err != nil {
 		return err
 	}
-	diff := diffTunnels(c.Configuration.Tunnels, next.Tunnels)
-	c.closeOutdatedProxies(diff...)
 	c.Configuration.Tunnels = next.Tunnels
-	c.Configuration.buildRouter(diff...)
+	c.setRoutes(next.Tunnels)
 	if err := c.Configuration.writeFile(); err != nil {
 		return &ConfigSaveError{Err: err}
 	}
@@ -312,11 +310,9 @@ func (c *Client) tunnelRemovalWrapper(tunnel Tunnel, fn func() error) error {
 		return nil
 	}
 
-	c.closeOutdatedProxies(tunnel)
-
 	c.Configuration.Tunnels = append(c.Configuration.Tunnels[:index], c.Configuration.Tunnels[index+1:]...)
 	c.Configuration.validate()
-	c.Configuration.buildRouter(tunnel)
+	c.setRoutes(c.Configuration.Tunnels)
 	delete(c.publication, tunnel.Hostname)
 
 	var saveErr error
@@ -377,51 +373,4 @@ func (c *Client) ReleaseTunnel(ctx context.Context, tunnel Tunnel) error {
 		})
 		return err
 	})
-}
-
-func (c *Client) closeOutdatedProxies(tunnels ...Tunnel) {
-	for _, t := range tunnels {
-		proxy, loaded := c.proxies.LoadAndDelete(t.Hostname)
-		if loaded {
-			c.Logger.Info("Shutting down proxy", zap.String("hostname", t.Hostname), zap.String("target", t.Target))
-			proxy.acceptor.Close()
-			proxy.forwarder.Close()
-		}
-	}
-}
-
-func diffTunnels(old, new []Tunnel) []Tunnel {
-	diff := make([]Tunnel, 0)
-	oldMap := map[string]Tunnel{}
-	newMap := map[string]Tunnel{}
-	for _, o := range old {
-		if o.Hostname == "" {
-			continue
-		}
-		oldMap[o.Hostname] = o
-	}
-	for _, n := range new {
-		if n.Hostname == "" {
-			continue
-		}
-		newMap[n.Hostname] = n
-	}
-	// if new != old
-	for hostname, tunnel := range newMap {
-		oldTunnel, ok := oldMap[hostname]
-		if ok && (oldTunnel.Target != tunnel.Target ||
-			oldTunnel.Insecure != tunnel.Insecure ||
-			oldTunnel.ProxyHeaderTimeout != tunnel.ProxyHeaderTimeout ||
-			oldTunnel.ProxyHeaderHost != tunnel.ProxyHeaderHost ||
-			oldTunnel.ProxyHeaderMode != tunnel.ProxyHeaderMode) {
-			diff = append(diff, oldTunnel)
-		}
-	}
-	// if old is gone
-	for hostname, tunnel := range oldMap {
-		if _, ok := newMap[hostname]; !ok {
-			diff = append(diff, tunnel)
-		}
-	}
-	return diff
 }

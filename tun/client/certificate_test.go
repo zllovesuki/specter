@@ -15,7 +15,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
@@ -48,7 +47,7 @@ func TestCertificateUpdateDuringForwarding(t *testing.T) {
 			default:
 			}
 			left, right := net.Pipe()
-			c.forwarder.handleLink(t.Context(), &protocol.Link{Alpn: protocol.Link_UNKNOWN}, left, route{})
+			c.forwarder.handleLink(t.Context(), &protocol.Link{Alpn: protocol.Link_UNKNOWN}, left, nil)
 			right.Close()
 		}
 	}()
@@ -89,7 +88,6 @@ func TestRegister_PerformsRenewalWhenNearExpiry(t *testing.T) {
 
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: oldCert,
 		PrivKey:     key,
@@ -188,7 +186,6 @@ func TestCertificateMaintainer_RenewsInBackground(t *testing.T) {
 
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: oldCert,
 		PrivKey:     key,

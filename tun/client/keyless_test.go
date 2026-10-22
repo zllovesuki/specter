@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -51,7 +50,6 @@ func TestKeylessSign(t *testing.T) {
 
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,

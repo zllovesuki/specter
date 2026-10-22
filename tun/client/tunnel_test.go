@@ -17,7 +17,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -41,7 +40,6 @@ func TestPublishHostnameReuse(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,
@@ -106,9 +104,8 @@ func TestRegisterAndProxy(t *testing.T) {
 
 	// no token
 	cfg := &Config{
-		path:   file.Name(),
-		router: skipmap.NewString[route](),
-		Apex:   testApex,
+		path: file.Name(),
+		Apex: testApex,
 		Tunnels: []Tunnel{
 			{
 				Target: fmt.Sprintf("tcp://%s", tcpListener.Addr()),
@@ -186,7 +183,6 @@ func TestUnpublishTunnel(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,
@@ -246,7 +242,6 @@ func TestReleaseTunnel(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,

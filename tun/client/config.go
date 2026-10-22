@@ -11,7 +11,6 @@ import (
 
 	"go.miragespace.co/specter/spec/pki"
 
-	"github.com/zhangyunhao116/skipmap"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -55,7 +54,6 @@ func (t *Tunnel) UnmarshalYAML(value *yaml.Node) error {
 }
 
 type Config struct {
-	router      *skipmap.StringMap[route]
 	path        string
 	Version     int      `yaml:"version" json:"version"`
 	Apex        string   `yaml:"apex" json:"apex"`
@@ -64,18 +62,9 @@ type Config struct {
 	Tunnels     []Tunnel `yaml:"tunnels,omitempty" json:"tunnels,omitempty"`
 }
 
-type route struct {
-	parsed                 *url.URL
-	insecure               bool
-	proxyHeaderReadTimeout time.Duration
-	proxyHeaderHost        string
-	proxyHeaderMode        string
-}
-
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{
-		path:   path,
-		router: skipmap.NewString[route](),
+		path: path,
 	}
 	if err := cfg.readFile(); err != nil {
 		return nil, err
@@ -91,7 +80,6 @@ func NewConfig(path string) (*Config, error) {
 
 func (c *Config) clone() *Config {
 	cfg := *c
-	cfg.router = skipmap.NewString[route]()
 	cfg.Tunnels = make([]Tunnel, len(c.Tunnels))
 	for i := range c.Tunnels {
 		cfg.Tunnels[i] = c.Tunnels[i]
@@ -99,21 +87,6 @@ func (c *Config) clone() *Config {
 	}
 	cfg.validate()
 	return &cfg
-}
-
-func (c *Config) buildRouter(drop ...Tunnel) {
-	for _, tunnel := range drop {
-		c.router.Delete(tunnel.Hostname)
-	}
-	for _, tunnel := range c.Tunnels {
-		c.router.Store(tunnel.Hostname, route{
-			parsed:                 tunnel.parsed,
-			insecure:               tunnel.Insecure,
-			proxyHeaderReadTimeout: tunnel.ProxyHeaderTimeout,
-			proxyHeaderHost:        tunnel.ProxyHeaderHost,
-			proxyHeaderMode:        tunnel.ProxyHeaderMode,
-		})
-	}
 }
 
 func (c *Config) checkVersion() error {
@@ -151,7 +124,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (c *Config) reloadFile(callbacks ...func(prev, curr []Tunnel)) error {
+func (c *Config) reloadFile() error {
 	f, err := os.Open(c.path)
 	if err != nil {
 		return fmt.Errorf("error opening config file for reading: %w", err)
@@ -167,12 +140,7 @@ func (c *Config) reloadFile(callbacks ...func(prev, curr []Tunnel)) error {
 		return fmt.Errorf("error validating config file: %w", err)
 	}
 
-	prev := c.clone()
 	c.Tunnels = next.Tunnels
-
-	for _, cb := range callbacks {
-		cb(prev.Tunnels, next.Tunnels)
-	}
 	return nil
 }
 

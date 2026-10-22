@@ -35,8 +35,8 @@ type LightweightConfig struct {
 
 type LightweightClient struct {
 	LightweightConfig
-	fwd   *forwarder
-	route route
+	fwd    *forwarder
+	target Tunnel
 	// The first Open response preserves the URL and home across disconnections.
 	initialSession *protocol.OpenSessionResponse
 }
@@ -68,7 +68,7 @@ func NewLightweightClient(cfg LightweightConfig) (*LightweightClient, error) {
 	return &LightweightClient{
 		LightweightConfig: cfg,
 		fwd:               newForwarder(cfg.Logger),
-		route:             route{parsed: target},
+		target:            Tunnel{Target: cfg.Target, parsed: target},
 	}, nil
 }
 
@@ -109,12 +109,14 @@ func (l *LightweightClient) Run(ctx context.Context) error {
 	}
 	ctx, cancel = context.WithDeadline(ctx, notAfter)
 	defer cancel()
-	defer l.fwd.closeAll()
+	// Traffic can arrive before Open replies with the assigned hostname.
+	r := l.fwd.newRoute("", l.target)
+	defer r.proxy.close()
 	router := transport.NewStreamRouter(l.Logger, nil, l.Transport)
 	router.HandleTunnel(protocol.Stream_DIRECT, func(d *transport.StreamDelegate) {
 		link, ok := receiveLink(l.Logger, d)
 		if ok {
-			l.fwd.handleLink(ctx, link, d, l.route)
+			l.fwd.handleLink(ctx, link, d, r)
 		}
 	})
 	go router.Accept(ctx)

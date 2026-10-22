@@ -12,7 +12,6 @@ import (
 	"go.miragespace.co/specter/spec/rpc"
 	"go.miragespace.co/specter/spec/rtt"
 	"go.miragespace.co/specter/spec/transport"
-	"go.miragespace.co/specter/spec/tun"
 	"go.miragespace.co/specter/util"
 	"go.miragespace.co/specter/util/acceptor"
 
@@ -148,18 +147,6 @@ func (c *Client) Start(ctx context.Context) {
 	go c.certificateMaintainer(ctx)
 	go c.startLocalServer(ctx)
 	go c.startKeylessProxy()
-}
-
-func (c *Client) handleIncomingDelegation(ctx context.Context, link *protocol.Link, delegation net.Conn) error {
-	hostname := link.GetHostname()
-	u, ok := c.Configuration.router.Load(hostname)
-	if !ok {
-		c.Logger.Error("Unknown hostname in connection", zap.String("hostname", hostname))
-		delegation.Close()
-		return tun.ErrDestinationNotFound
-	}
-
-	return c.handleLink(ctx, link, delegation, u)
 }
 
 func (c *Client) Close() {

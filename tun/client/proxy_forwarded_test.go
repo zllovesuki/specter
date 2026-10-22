@@ -109,24 +109,18 @@ func TestGatewayClientForwardedContext(t *testing.T) {
 			if mode == "legacy-override" {
 				tunnel.ProxyHeaderMode = ""
 			}
-			cfg := &Config{router: skipmap.NewString[route](), Tunnels: []Tunnel{tunnel}}
+			cfg := &Config{Tunnels: []Tunnel{tunnel}}
 			as.NoError(cfg.validate())
-			cfg.buildRouter()
 			c := &Client{
 				ClientConfig: ClientConfig{Logger: zaptest.NewLogger(t), Configuration: cfg},
 				forwarder: &forwarder{
 					logger:     zaptest.NewLogger(t),
 					rootDomain: atomic.NewString("example.com"),
-					proxies:    skipmap.NewString[*httpProxy](),
+					routes:     skipmap.NewString[*route](),
 				},
 			}
-			t.Cleanup(func() {
-				c.proxies.Range(func(_ string, proxy *httpProxy) bool {
-					proxy.acceptor.Close()
-					proxy.forwarder.Close()
-					return true
-				})
-			})
+			c.setRoutes(cfg.Tunnels)
+			t.Cleanup(c.closeAll)
 
 			listener, err := tls.Listen("tcp", "127.0.0.1:0", tlsConfig)
 			as.NoError(err)

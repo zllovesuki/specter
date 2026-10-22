@@ -26,13 +26,11 @@ func newOutcomeTestClient(t *testing.T, tunnels []Tunnel) (*Client, *mockTunnelC
 
 	cfg := &Config{
 		path:    filepath.Join(t.TempDir(), "client.yml"),
-		router:  skipmap.NewString[route](),
 		Version: 2,
 		Apex:    testApex,
 		Tunnels: tunnels,
 	}
 	require.NoError(t, cfg.validate())
-	cfg.buildRouter()
 	require.NoError(t, cfg.writeFile())
 
 	tunnelClient := new(mockTunnelClient)
@@ -45,7 +43,7 @@ func newOutcomeTestClient(t *testing.T, tunnels []Tunnel) (*Client, *mockTunnelC
 		forwarder: &forwarder{
 			logger:     zaptest.NewLogger(t),
 			rootDomain: atomic.NewString(testApex),
-			proxies:    skipmap.NewString[*httpProxy](),
+			routes:     skipmap.NewString[*route](),
 		},
 		connections: skipmap.NewString[*protocol.Node](),
 	}
@@ -53,6 +51,8 @@ func newOutcomeTestClient(t *testing.T, tunnels []Tunnel) (*Client, *mockTunnelC
 		Id:      1,
 		Address: "gateway.example.com",
 	})
+	c.setRoutes(cfg.Tunnels)
+	t.Cleanup(c.closeAll)
 	t.Cleanup(func() { tunnelClient.TunnelService.AssertExpectations(t) })
 	return c, tunnelClient
 }
@@ -89,7 +89,7 @@ func TestLocalReloadRejectsInvalidConfiguration(t *testing.T) {
 			require.Len(t, c.Configuration.Tunnels, 1)
 			require.Equal(t, original.Hostname, c.Configuration.Tunnels[0].Hostname)
 			require.Equal(t, original.Target, c.Configuration.Tunnels[0].Target)
-			route, found := c.Configuration.router.Load(original.Hostname)
+			route, found := c.routes.Load(original.Hostname)
 			require.True(t, found)
 			require.Equal(t, original.Target, route.parsed.String())
 			tunnelClient.TunnelService.AssertNotCalled(t, "PublishTunnel", mock.Anything, mock.Anything)
@@ -184,7 +184,7 @@ func TestLocalTunnelRemovalReportsPersistenceFailure(t *testing.T) {
 			require.True(t, result.Applied, "successful network removal must be distinguished from persistence failure")
 			require.False(t, result.Saved)
 			require.Empty(t, c.GetCurrentConfig().Tunnels)
-			_, found := c.Configuration.router.Load("existing")
+			_, found := c.routes.Load("existing")
 			require.False(t, found, "a successful network removal must also remove the live route")
 			contents, err := os.ReadFile(originalPath)
 			require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestLocalTunnelRemovalReportsPersistenceFailure(t *testing.T) {
 			require.Equal(t, http.StatusNoContent, reloadResponse.Code)
 			require.Equal(t, "existing", c.GetCurrentConfig().Tunnels[0].Hostname)
 			require.True(t, c.getStatus().Synchronization.Saved)
-			_, found = c.Configuration.router.Load("existing")
+			_, found = c.routes.Load("existing")
 			require.True(t, found)
 		})
 	}
@@ -353,7 +353,7 @@ func TestGatewayChangePreservesUnreloadedConfigurationEdits(t *testing.T) {
 	require.Equal(t, 2, status.Synchronization.Tunnels[0].PublishedEndpoints)
 	require.Equal(t, originalTarget, status.Synchronization.Tunnels[0].Target)
 	require.Equal(t, originalTarget, c.GetCurrentConfig().Tunnels[0].Target)
-	route, found := c.Configuration.router.Load("existing")
+	route, found := c.routes.Load("existing")
 	require.True(t, found)
 	require.Equal(t, originalTarget, route.parsed.String())
 	onDisk, err := NewConfig(edited.path)

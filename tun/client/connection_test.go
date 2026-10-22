@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zhangyunhao116/skipmap"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -37,7 +36,6 @@ func TestPublishPreferenceRTT(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,

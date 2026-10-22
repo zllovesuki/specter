@@ -73,7 +73,6 @@ func TestJustHTTPProxy(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,
@@ -154,7 +153,6 @@ func TestPipeHTTP(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,
@@ -233,7 +231,6 @@ func TestPipeTCP(t *testing.T) {
 	der, cert, key := makeCertificate(as, logger, cl, token, nil)
 	cfg := &Config{
 		path:        file.Name(),
-		router:      skipmap.NewString[route](),
 		Apex:        testApex,
 		Certificate: cert,
 		PrivKey:     key,
@@ -293,15 +290,16 @@ func TestHTTPProxyHostHeaderDefault(t *testing.T) {
 		forwarder: &forwarder{
 			logger:     zaptest.NewLogger(t),
 			rootDomain: atomic.NewString(testApex),
-			proxies:    skipmap.NewString[*httpProxy](),
+			routes:     skipmap.NewString[*route](),
 		},
 	}
 
-	r := route{
+	r := Tunnel{
 		parsed: u,
 	}
 
-	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+	hp := c.newHTTPProxy(testHostname, r)
+	defer hp.close()
 
 	req := httptest.NewRequest("GET", "http://example/", nil)
 	rr := httptest.NewRecorder()
@@ -332,16 +330,17 @@ func TestHTTPProxyHostHeaderHostnameMode(t *testing.T) {
 		forwarder: &forwarder{
 			logger:     zaptest.NewLogger(t),
 			rootDomain: atomic.NewString(testApex),
-			proxies:    skipmap.NewString[*httpProxy](),
+			routes:     skipmap.NewString[*route](),
 		},
 	}
 
-	r := route{
+	r := Tunnel{
 		parsed:          u,
-		proxyHeaderMode: "hostname",
+		ProxyHeaderMode: "hostname",
 	}
 
-	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+	hp := c.newHTTPProxy(testHostname, r)
+	defer hp.close()
 
 	req := httptest.NewRequest("GET", "http://example/", nil)
 	rr := httptest.NewRecorder()
@@ -372,18 +371,19 @@ func TestHTTPProxyHostHeaderCustomMode(t *testing.T) {
 		forwarder: &forwarder{
 			logger:     zaptest.NewLogger(t),
 			rootDomain: atomic.NewString(testApex),
-			proxies:    skipmap.NewString[*httpProxy](),
+			routes:     skipmap.NewString[*route](),
 		},
 	}
 
 	customHost := "custom.example.com"
-	r := route{
+	r := Tunnel{
 		parsed:          u,
-		proxyHeaderMode: "custom",
-		proxyHeaderHost: customHost,
+		ProxyHeaderMode: "custom",
+		ProxyHeaderHost: customHost,
 	}
 
-	hp := c.getHTTPProxy(context.Background(), testHostname, r)
+	hp := c.newHTTPProxy(testHostname, r)
+	defer hp.close()
 
 	req := httptest.NewRequest("GET", "http://example/", nil)
 	rr := httptest.NewRecorder()

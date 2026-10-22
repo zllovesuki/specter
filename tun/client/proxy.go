@@ -23,8 +23,15 @@ import (
 )
 
 type httpProxy struct {
+	logger    *zap.Logger
 	acceptor  *acceptor.HTTP2Acceptor
 	forwarder *http.Server
+}
+
+func (p *httpProxy) close() {
+	p.logger.Info("Shutting down proxy")
+	p.acceptor.Close()
+	p.forwarder.Close()
 }
 
 type httpReqCtxKey string
@@ -43,7 +50,7 @@ func injectStartTime(proxy http.Handler) http.Handler {
 	})
 }
 
-func (f *forwarder) forwardStream(ctx context.Context, hostname string, remote net.Conn, r route) {
+func (f *forwarder) forwardStream(ctx context.Context, hostname string, remote net.Conn, r Tunnel) {
 	var (
 		u      *url.URL = r.parsed
 		target string
@@ -74,126 +81,121 @@ func (f *forwarder) forwardStream(ctx context.Context, hostname string, remote n
 	tun.Pipe(remote, local)
 }
 
-func (f *forwarder) getHTTPProxy(_ context.Context, hostname string, r route) *httpProxy {
-	proxy, loaded := f.proxies.LoadOrStoreLazy(hostname, func() *httpProxy {
-		var (
-			u      *url.URL = r.parsed
-			isPipe          = false
-		)
+func (f *forwarder) newHTTPProxy(hostname string, r Tunnel) *httpProxy {
+	var (
+		u      *url.URL = r.parsed
+		isPipe          = false
+	)
 
-		logger := f.logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
-		logger.Info("Creating new proxy")
+	logger := f.logger.With(zap.String("hostname", hostname), zap.String("target", u.String()))
+	logger.Info("Creating new proxy")
 
-		readHeaderTimeout := defaultProxyHeaderTimeout
-		if r.proxyHeaderReadTimeout > 0 {
-			readHeaderTimeout = r.proxyHeaderReadTimeout
-		}
-
-		tp := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				ServerName:         u.Hostname(),
-				InsecureSkipVerify: r.insecure,
-			},
-			MaxIdleConns:          10,
-			IdleConnTimeout:       time.Second * 30,
-			ResponseHeaderTimeout: readHeaderTimeout,
-			ForceAttemptHTTP2:     true,
-		}
-		switch u.Scheme {
-		case "unix", "winio":
-			isPipe = true
-			tp.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return pipe.DialPipe(ctx, u.Path)
-			}
-		}
-
-		// determine Host header behavior based on ProxyHeaderMode
-		mode := strings.ToLower(r.proxyHeaderMode)
-		root := f.rootDomain.Load()
-		fqdn := hostname
-		if !strings.Contains(fqdn, ".") && root != "" {
-			fqdn = fmt.Sprintf("%s.%s", fqdn, root)
-		}
-
-		hostHeader := u.Host
-		if isPipe {
-			hostHeader = "pipe"
-		}
-
-		switch mode {
-		case "":
-			// legacy behavior: optional override only
-			if len(r.proxyHeaderHost) > 0 {
-				hostHeader = r.proxyHeaderHost
-			}
-		case "hostname":
-			hostHeader = fqdn
-		case "target":
-			if !isPipe {
-				hostHeader = u.Host
-			} else {
-				// validate() should have prevented this; fall back to hostname for safety
-				hostHeader = fqdn
-			}
-		case "custom":
-			if len(r.proxyHeaderHost) > 0 {
-				hostHeader = r.proxyHeaderHost
-			}
-		}
-
-		proxy := &httputil.ReverseProxy{}
-		proxy.Rewrite = func(preq *httputil.ProxyRequest) {
-			if isPipe {
-				preq.Out.URL.Scheme = "http"
-				preq.Out.URL.Host = "pipe"
-				preq.Out.URL.Path = preq.In.URL.Path
-				preq.Out.URL.RawPath = preq.In.URL.RawPath
-				preq.Out.URL.RawQuery = preq.In.URL.RawQuery
-			} else {
-				preq.SetURL(u)
-			}
-			preq.Out.Host = hostHeader
-			// This private proxy receives only authenticated server streams or
-			// the in-process gateway. Restore the visitor IP, host, and scheme
-			// sanitized by that gateway, without adding the tunnel peer.
-			for _, header := range []string{"X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
-				if value := preq.In.Header.Get(header); value != "" {
-					preq.Out.Header.Set(header, value)
-				}
-			}
-		}
-		proxy.Transport = tp
-		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
-			if errors.Is(e, context.Canceled) {
-				// this is expected
-				return
-			}
-			if !errors.Is(e, io.EOF) {
-				logger.Error("Error forwarding http/https request", zap.Object("request", (*encRequest)(r)), zap.Error(e))
-			}
-			rw.WriteHeader(http.StatusBadGateway)
-			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
-		}
-		proxy.ModifyResponse = func(r *http.Response) error {
-			logger.Debug("Access Log", zap.Object("request", (*encRequest)(r.Request)), zap.Object("response", (*encResponse)(r)))
-			return nil
-		}
-		proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
-		proxy.BufferPool = util.NewBufferPool(1024 * 16)
-
-		return &httpProxy{
-			acceptor: acceptor.NewH2Acceptor(nil),
-			forwarder: &http.Server{
-				Handler:           injectStartTime(proxy),
-				ErrorLog:          zap.NewStdLog(f.logger),
-				ReadHeaderTimeout: readHeaderTimeout,
-			},
-		}
-	})
-	if !loaded {
-		go proxy.forwarder.Serve(proxy.acceptor)
+	readHeaderTimeout := defaultProxyHeaderTimeout
+	if r.ProxyHeaderTimeout > 0 {
+		readHeaderTimeout = r.ProxyHeaderTimeout
 	}
-	return proxy
+
+	tp := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName:         u.Hostname(),
+			InsecureSkipVerify: r.Insecure,
+		},
+		MaxIdleConns:          10,
+		IdleConnTimeout:       time.Second * 30,
+		ResponseHeaderTimeout: readHeaderTimeout,
+		ForceAttemptHTTP2:     true,
+	}
+	switch u.Scheme {
+	case "unix", "winio":
+		isPipe = true
+		tp.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return pipe.DialPipe(ctx, u.Path)
+		}
+	}
+
+	// determine Host header behavior based on ProxyHeaderMode
+	mode := strings.ToLower(r.ProxyHeaderMode)
+	root := f.rootDomain.Load()
+	fqdn := hostname
+	if !strings.Contains(fqdn, ".") && root != "" {
+		fqdn = fmt.Sprintf("%s.%s", fqdn, root)
+	}
+
+	hostHeader := u.Host
+	if isPipe {
+		hostHeader = "pipe"
+	}
+
+	switch mode {
+	case "":
+		// legacy behavior: optional override only
+		if len(r.ProxyHeaderHost) > 0 {
+			hostHeader = r.ProxyHeaderHost
+		}
+	case "hostname":
+		hostHeader = fqdn
+	case "target":
+		if !isPipe {
+			hostHeader = u.Host
+		} else {
+			// validate() should have prevented this; fall back to hostname for safety
+			hostHeader = fqdn
+		}
+	case "custom":
+		if len(r.ProxyHeaderHost) > 0 {
+			hostHeader = r.ProxyHeaderHost
+		}
+	}
+
+	proxy := &httputil.ReverseProxy{}
+	proxy.Rewrite = func(preq *httputil.ProxyRequest) {
+		if isPipe {
+			preq.Out.URL.Scheme = "http"
+			preq.Out.URL.Host = "pipe"
+			preq.Out.URL.Path = preq.In.URL.Path
+			preq.Out.URL.RawPath = preq.In.URL.RawPath
+			preq.Out.URL.RawQuery = preq.In.URL.RawQuery
+		} else {
+			preq.SetURL(u)
+		}
+		preq.Out.Host = hostHeader
+		// This private proxy receives only authenticated server streams or
+		// the in-process gateway. Restore the visitor IP, host, and scheme
+		// sanitized by that gateway, without adding the tunnel peer.
+		for _, header := range []string{"X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
+			if value := preq.In.Header.Get(header); value != "" {
+				preq.Out.Header.Set(header, value)
+			}
+		}
+	}
+	proxy.Transport = tp
+	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
+		if errors.Is(e, context.Canceled) {
+			// this is expected
+			return
+		}
+		if !errors.Is(e, io.EOF) {
+			logger.Error("Error forwarding http/https request", zap.Object("request", (*encRequest)(r)), zap.Error(e))
+		}
+		rw.WriteHeader(http.StatusBadGateway)
+		fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
+	}
+	proxy.ModifyResponse = func(r *http.Response) error {
+		logger.Debug("Access Log", zap.Object("request", (*encRequest)(r.Request)), zap.Object("response", (*encResponse)(r)))
+		return nil
+	}
+	proxy.ErrorLog = util.GetStdLogger(logger, "targetProxy")
+	proxy.BufferPool = util.NewBufferPool(1024 * 16)
+
+	return &httpProxy{
+		logger:   logger,
+		acceptor: acceptor.NewH2Acceptor(nil),
+		forwarder: &http.Server{
+			Handler:           injectStartTime(proxy),
+			ErrorLog:          zap.NewStdLog(f.logger),
+			ReadHeaderTimeout: readHeaderTimeout,
+		},
+	}
 }
 
 type encRequest http.Request
