@@ -91,7 +91,7 @@ func (f *forwarder) getHTTPProxy(_ context.Context, hostname string, r route) *h
 
 		tp := &http.Transport{
 			TLSClientConfig: &tls.Config{
-				ServerName:         u.Host,
+				ServerName:         u.Hostname(),
 				InsecureSkipVerify: r.insecure,
 			},
 			MaxIdleConns:          10,
