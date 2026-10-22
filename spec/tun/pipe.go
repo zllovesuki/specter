@@ -25,33 +25,42 @@ func IsTimeout(err error) bool {
 	return false
 }
 
-func Pipe(src, dst io.ReadWriteCloser) <-chan error {
-	err := make(chan error, 2)
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
+func Pipe(a, b io.ReadWriteCloser) <-chan error {
+	errChan := make(chan error, 2)
+	var wg sync.WaitGroup
+	var closeOnce sync.Once
 
-	go pipe(wg, err, src, dst)
-	go pipe(wg, err, dst, src)
+	copyOneWay := func(src, dst io.ReadWriteCloser) {
+		defer wg.Done()
+
+		buf := pool.Get(BufferSize)
+		defer pool.Put(buf)
+
+		_, err := io.CopyBuffer(dst, src, buf)
+
+		// The first completion owns teardown. In particular, the reverse copy's
+		// cancellation must not abort a successfully completed destination write.
+		closeOnce.Do(func() {
+			if conn, ok := dst.(interface{ CloseGracefully() error }); ok && err == nil {
+				conn.CloseGracefully()
+			} else {
+				dst.Close()
+			}
+			src.Close()
+		})
+
+		if err != nil {
+			errChan <- err
+		}
+	}
+
+	wg.Add(2)
+	go copyOneWay(a, b)
+	go copyOneWay(b, a)
 	go func() {
 		wg.Wait()
-		close(err)
+		close(errChan)
 	}()
 
-	return err
-}
-
-func pipe(wg *sync.WaitGroup, errChan chan<- error, dst, src io.ReadWriteCloser) {
-	defer wg.Done()
-
-	buf := pool.Get(BufferSize)
-	defer pool.Put(buf)
-
-	_, err := io.CopyBuffer(src, dst, buf)
-
-	src.Close()
-	dst.Close()
-
-	if err != nil {
-		errChan <- err
-	}
+	return errChan
 }

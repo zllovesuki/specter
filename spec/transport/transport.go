@@ -22,6 +22,14 @@ type StreamDelegate struct {
 	Kind        protocol.Stream_Type // Type of the bytes stream of the delegation
 }
 
+// CloseGracefully preserves completed writes when the backing connection supports it.
+func (s *StreamDelegate) CloseGracefully() error {
+	if conn, ok := s.Conn.(interface{ CloseGracefully() error }); ok {
+		return conn.CloseGracefully()
+	}
+	return s.Conn.Close()
+}
+
 type DatagramDelegate struct {
 	Identity *protocol.Node
 	Buffer   []byte

@@ -41,6 +41,12 @@ func (q *quicConn) Close() error {
 		time.Sleep(time.Second)
 		q.Stream.CancelWrite(409)
 	}()
+	return q.CloseGracefully()
+}
+
+// CloseGracefully stops reading and lets QUIC deliver completed writes.
+// It must only be called after the writer has finished; Close remains abortive.
+func (q *quicConn) CloseGracefully() error {
 	q.Stream.CancelRead(409)
 	return q.Stream.Close()
 }
