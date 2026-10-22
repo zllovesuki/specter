@@ -298,8 +298,7 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	if errors.Is(e, context.Canceled) ||
-		errors.Is(e, io.EOF) {
+	if errors.Is(e, context.Canceled) {
 		// this is expected
 		return
 	}
@@ -314,7 +313,9 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	logger.Error("error forwarding to client", zap.Error(e))
+	if !errors.Is(e, io.EOF) {
+		logger.Error("error forwarding to client", zap.Error(e))
+	}
 	w.WriteHeader(http.StatusBadGateway)
 	fmt.Fprint(w, "An unexpected error has occurred while attempting to forward to destination.")
 }

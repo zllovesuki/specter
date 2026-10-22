@@ -164,12 +164,13 @@ func (f *forwarder) getHTTPProxy(_ context.Context, hostname string, r route) *h
 		}
 		proxy.Transport = tp
 		proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, e error) {
-			if errors.Is(e, context.Canceled) ||
-				errors.Is(e, io.EOF) {
+			if errors.Is(e, context.Canceled) {
 				// this is expected
 				return
 			}
-			logger.Error("Error forwarding http/https request", zap.Object("request", (*encRequest)(r)), zap.Error(e))
+			if !errors.Is(e, io.EOF) {
+				logger.Error("Error forwarding http/https request", zap.Object("request", (*encRequest)(r)), zap.Error(e))
+			}
 			rw.WriteHeader(http.StatusBadGateway)
 			fmt.Fprintf(rw, "Forwarding target returned error: %s", e.Error())
 		}
