@@ -1,10 +1,12 @@
 package aof
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc64"
 
 	"go.miragespace.co/specter/kv/aof/proto"
+	"go.miragespace.co/specter/spec/chord"
 
 	bufPool "github.com/libp2p/go-buffer-pool"
 	"go.uber.org/zap"
@@ -32,7 +34,11 @@ func (d *DiskKV) replayLogs() error {
 			return fmt.Errorf("error decoding entry to mutation at index %d: %w", i, err)
 		}
 		if err := d.handleMutation(mut); err != nil {
-			return fmt.Errorf("error apply mutation to memory state at index %d: %w", i, err)
+			// A rejected duplicate append may survive a crash before rollback.
+			// Its child already exists, so replaying it leaves the state unchanged.
+			if mut.GetType() != proto.MutationType_PREFIX_APPEND || !errors.Is(err, chord.ErrKVPrefixConflict) {
+				return fmt.Errorf("error apply mutation to memory state at index %d: %w", i, err)
+			}
 		}
 		entry.Reset()
 		mut.Reset()

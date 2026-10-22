@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"go.miragespace.co/specter/kv/aof/proto"
 	"go.miragespace.co/specter/spec/chord"
 
 	"github.com/stretchr/testify/require"
@@ -348,6 +349,36 @@ func TestConflictRollback(t *testing.T) {
 	as.True(has)
 
 	kv.Stop()
+}
+
+func TestReplayDuplicatePrefixAppend(t *testing.T) {
+	as := require.New(t)
+	cfg := Config{
+		Logger:        zaptest.NewLogger(t, zaptest.WrapOptions(zap.AddCaller())),
+		HasnFn:        chord.Hash,
+		DataDir:       t.TempDir(),
+		FlushInterval: time.Millisecond * 500,
+	}
+	kv, err := New(cfg)
+	as.NoError(err)
+
+	// A crash before rollback can leave two valid appends for the same child.
+	mut := &proto.Mutation{
+		Type:  proto.MutationType_PREFIX_APPEND,
+		Key:   []byte("prefix"),
+		Value: []byte("child"),
+	}
+	as.NoError(kv.appendLog(mut))
+	as.NoError(kv.appendLog(mut))
+	as.NoError(kv.log.Close())
+
+	kv, err = New(cfg)
+	as.NoError(err)
+	go kv.Start()
+	defer kv.Stop()
+	children, err := kv.PrefixList(context.Background(), []byte("prefix"))
+	as.NoError(err)
+	as.Equal([][]byte{[]byte("child")}, children)
 }
 
 func TestCorruptedLog(t *testing.T) {
