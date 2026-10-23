@@ -89,7 +89,7 @@ func (s *SqliteKV) Import(ctx context.Context, keys [][]byte, values []*protocol
 			}
 
 			if simpleValue, ok := importedSimpleValue(val); ok {
-				_, err := tx.StmtContext(ctx, s.stmts.simplePut).Exec(key, simpleValue)
+				_, err := tx.StmtContext(ctx, s.stmts.simplePut).Exec(bindBytesAsBlob(key), bindBytesAsBlob(simpleValue))
 				if err != nil {
 					return err
 				}
@@ -99,7 +99,7 @@ func (s *SqliteKV) Import(ctx context.Context, keys [][]byte, values []*protocol
 			// there's no point to override prefix values, but we need to handle conflict
 			children := val.GetPrefixChildren()
 			for _, child := range children {
-				_, err := tx.StmtContext(ctx, s.stmts.prefixAppend).Exec(key, child)
+				_, err := tx.StmtContext(ctx, s.stmts.prefixAppend).Exec(bindBytesAsBlob(key), bindBytesAsBlob(child))
 				if err != nil {
 					return err
 				}
@@ -110,7 +110,7 @@ func (s *SqliteKV) Import(ctx context.Context, keys [][]byte, values []*protocol
 
 			// override lease token when importing
 			if val.GetLeaseToken() != 0 {
-				_, err := tx.StmtContext(ctx, s.stmts.leaseImport).Exec(key, bindUint64AsInt64(val.GetLeaseToken()))
+				_, err := tx.StmtContext(ctx, s.stmts.leaseImport).Exec(bindBytesAsBlob(key), bindUint64AsInt64(val.GetLeaseToken()))
 				if err != nil {
 					return err
 				}
@@ -135,7 +135,7 @@ func (s *SqliteKV) Export(ctx context.Context, keys [][]byte) ([]*protocol.KVTra
 			)
 
 			// simple value
-			simpleErr := tx.StmtContext(ctx, s.stmts.exportSimpleGet).QueryRow(key).Scan(&simpleValue)
+			simpleErr := tx.StmtContext(ctx, s.stmts.exportSimpleGet).QueryRow(bindBytesAsBlob(key)).Scan(&simpleValue)
 			if simpleErr != nil && simpleErr != sql.ErrNoRows {
 				return simpleErr
 			}
@@ -145,7 +145,7 @@ func (s *SqliteKV) Export(ctx context.Context, keys [][]byte) ([]*protocol.KVTra
 			}
 
 			// prefix children
-			prefixRows, err := tx.StmtContext(ctx, s.stmts.exportPrefixList).Query(key)
+			prefixRows, err := tx.StmtContext(ctx, s.stmts.exportPrefixList).Query(bindBytesAsBlob(key))
 			if err != nil {
 				return err
 			}
@@ -165,7 +165,7 @@ func (s *SqliteKV) Export(ctx context.Context, keys [][]byte) ([]*protocol.KVTra
 			prefixRows.Close()
 
 			// lease token
-			leaseErr := tx.StmtContext(ctx, s.stmts.exportLeaseGet).QueryRow(key).Scan(&leaseToken)
+			leaseErr := tx.StmtContext(ctx, s.stmts.exportLeaseGet).QueryRow(bindBytesAsBlob(key)).Scan(&leaseToken)
 			if leaseErr != nil && leaseErr != sql.ErrNoRows {
 				return leaseErr
 			}
@@ -197,7 +197,7 @@ func (s *SqliteKV) RemoveKeys(ctx context.Context, keys [][]byte) error {
 			ph := placeholders(len(batch))
 			args := make([]any, len(batch))
 			for i, k := range batch {
-				args[i] = k
+				args[i] = bindBytesAsBlob(k)
 			}
 
 			if _, err := tx.Exec("DELETE FROM `simple_entries` WHERE `key` IN ("+ph+")", args...); err != nil {

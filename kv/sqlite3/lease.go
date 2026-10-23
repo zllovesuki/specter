@@ -27,7 +27,7 @@ func (s *SqliteKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 		now := time.Now()
 		next = uint64(now.Add(ttl).UnixNano())
 
-		res, err := tx.StmtContext(ctx, s.stmts.leaseAcquire).Exec(lease, bindUint64AsInt64(next), bindUint64AsInt64(uint64(now.UnixNano())))
+		res, err := tx.StmtContext(ctx, s.stmts.leaseAcquire).Exec(bindBytesAsBlob(lease), bindUint64AsInt64(next), bindUint64AsInt64(uint64(now.UnixNano())))
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 
 		res, err := tx.StmtContext(ctx, s.stmts.leaseRenew).Exec(
 			bindUint64AsInt64(next),
-			lease,
+			bindBytesAsBlob(lease),
 			bindUint64AsInt64(prevToken),
 			bindUint64AsInt64(uint64(now.UnixNano())),
 		)
@@ -82,7 +82,7 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	//    If the database row's token is no longer what we set, it means
 	//    some other transaction updated it after we did our compare-and-set.
 	var curToken int64
-	readErr := s.stmts.leaseGet.QueryRowContext(ctx, lease).Scan(&curToken)
+	readErr := s.stmts.leaseGet.QueryRowContext(ctx, bindBytesAsBlob(lease)).Scan(&curToken)
 	if readErr != nil {
 		// If the row no longer exists or some other error,
 		// you could consider that as concurrency override or just return readErr.
@@ -99,7 +99,7 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 
 func (s *SqliteKV) Release(ctx context.Context, lease []byte, token uint64) error {
 	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
-		res, err := tx.StmtContext(ctx, s.stmts.leaseRelease).Exec(lease, bindUint64AsInt64(token))
+		res, err := tx.StmtContext(ctx, s.stmts.leaseRelease).Exec(bindBytesAsBlob(lease), bindUint64AsInt64(token))
 		if err != nil {
 			return err
 		}

@@ -138,6 +138,8 @@ github.com/montanaflynn/stats v0.13.0 h1:qqY7uKUbPffViAAuGxe4uLma24DGJeD/jpj3Bmt
 github.com/montanaflynn/stats v0.13.0/go.mod h1:xmkP2Ib5njMgVeJreDr/tf5J0G+/i/ijWpSH/3IBRsE=
 github.com/ncruces/go-sqlite3 v0.35.6 h1:0JGlMne89YzKNP2CJBuiH21EEzSQNuB7pfvCbKBn0Jg=
 github.com/ncruces/go-sqlite3 v0.35.6/go.mod h1:6MfWBOFbHJVSJxmTCIUKCJdLl4TKkgO895RHerlDVo8=
+github.com/ncruces/go-sqlite3 v0.35.7-0.20261021105247-485c645834a0 h1:dt6B5cmmdUiGBu22t6pYvf6qU83paC6Ta8Yi54II+Bk=
+github.com/ncruces/go-sqlite3 v0.35.7-0.20261021105247-485c645834a0/go.mod h1:o64oALFVBC9qoLvVDcQ3x/n6gZTXCWl1e36UQaLfOvE=
 github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35401 h1:oaZQ/7pA15HbXFZygnqJ8P/2fy10DG0ExWNm2KiJDuI=
 github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35401/go.mod h1:KG11ycVocsrsZ6OoNm4j2T7SKyzb/6ELHo0M+bAX50A=
 github.com/ncruces/julianday v1.0.0 h1:fH0OKwa7NWvniGQtxdJRxAgkBMolni2BjDHaWTxqt7M=

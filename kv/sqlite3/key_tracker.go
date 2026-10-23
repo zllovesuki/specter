@@ -27,7 +27,7 @@ func (s *SqliteKV) updateKeyTracker(ctx context.Context, tx *sql.Tx, key []byte,
 	)
 
 	// Fetch existing tracker
-	lookupErr := tx.StmtContext(ctx, s.stmts.trackerLookup).QueryRow(key).Scan(&hash, &flags)
+	lookupErr := tx.StmtContext(ctx, s.stmts.trackerLookup).QueryRow(bindBytesAsBlob(key)).Scan(&hash, &flags)
 	if lookupErr != nil && lookupErr != sql.ErrNoRows {
 		return lookupErr
 	}
@@ -42,7 +42,7 @@ func (s *SqliteKV) updateKeyTracker(ctx context.Context, tx *sql.Tx, key []byte,
 	// If tracker does not exist but we're adding flags, create a new entry
 	if !found {
 		if addFlags != 0 {
-			_, err := tx.StmtContext(ctx, s.stmts.trackerInsert).Exec(key, bindUint64AsInt64(s.hashFn(key)), addFlags)
+			_, err := tx.StmtContext(ctx, s.stmts.trackerInsert).Exec(bindBytesAsBlob(key), bindUint64AsInt64(s.hashFn(key)), addFlags)
 			return err
 		}
 		return nil
@@ -51,7 +51,7 @@ func (s *SqliteKV) updateKeyTracker(ctx context.Context, tx *sql.Tx, key []byte,
 	// Check for remaining values before removing flags
 	if removeFlags&PrefixFlag != 0 {
 		var count int64
-		if err := tx.StmtContext(ctx, s.stmts.prefixCount).QueryRow(key).Scan(&count); err != nil {
+		if err := tx.StmtContext(ctx, s.stmts.prefixCount).QueryRow(bindBytesAsBlob(key)).Scan(&count); err != nil {
 			return err
 		}
 		if count > 0 {
@@ -64,11 +64,11 @@ func (s *SqliteKV) updateKeyTracker(ctx context.Context, tx *sql.Tx, key []byte,
 
 	// If no values remain, delete tracker
 	if newFlags == 0 {
-		_, err := tx.StmtContext(ctx, s.stmts.trackerDelete).Exec(key)
+		_, err := tx.StmtContext(ctx, s.stmts.trackerDelete).Exec(bindBytesAsBlob(key))
 		return err
 	}
 
 	// Otherwise, update tracker
-	_, err := tx.StmtContext(ctx, s.stmts.trackerUpdate).Exec(newFlags, key)
+	_, err := tx.StmtContext(ctx, s.stmts.trackerUpdate).Exec(newFlags, bindBytesAsBlob(key))
 	return err
 }

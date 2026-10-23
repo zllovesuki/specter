@@ -7,7 +7,7 @@ import (
 
 func (s *SqliteKV) Put(ctx context.Context, key []byte, value []byte) error {
 	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
-		_, err := tx.StmtContext(ctx, s.stmts.simplePut).Exec(key, value)
+		_, err := tx.StmtContext(ctx, s.stmts.simplePut).Exec(bindBytesAsBlob(key), bindBytesAsBlob(value))
 		if err != nil {
 			return err
 		}
@@ -17,7 +17,7 @@ func (s *SqliteKV) Put(ctx context.Context, key []byte, value []byte) error {
 
 func (s *SqliteKV) Get(ctx context.Context, key []byte) ([]byte, error) {
 	var value []byte
-	err := s.stmts.simpleGet.QueryRowContext(ctx, key).Scan(&value)
+	err := s.stmts.simpleGet.QueryRowContext(ctx, bindBytesAsBlob(key)).Scan(&value)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -33,7 +33,7 @@ func (s *SqliteKV) Get(ctx context.Context, key []byte) ([]byte, error) {
 
 func (s *SqliteKV) Delete(ctx context.Context, key []byte) error {
 	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
-		_, err := tx.StmtContext(ctx, s.stmts.simpleDel).Exec(key)
+		_, err := tx.StmtContext(ctx, s.stmts.simpleDel).Exec(bindBytesAsBlob(key))
 		if err != nil {
 			return err
 		}

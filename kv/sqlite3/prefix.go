@@ -9,7 +9,7 @@ import (
 
 func (s *SqliteKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte) error {
 	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
-		res, err := tx.StmtContext(ctx, s.stmts.prefixAppend).Exec(prefix, child)
+		res, err := tx.StmtContext(ctx, s.stmts.prefixAppend).Exec(bindBytesAsBlob(prefix), bindBytesAsBlob(child))
 		if err != nil {
 			return err
 		}
@@ -26,7 +26,7 @@ func (s *SqliteKV) PrefixAppend(ctx context.Context, prefix []byte, child []byte
 
 func (s *SqliteKV) PrefixContains(ctx context.Context, prefix []byte, child []byte) (bool, error) {
 	var one int
-	err := s.stmts.prefixContains.QueryRowContext(ctx, prefix, child).Scan(&one)
+	err := s.stmts.prefixContains.QueryRowContext(ctx, bindBytesAsBlob(prefix), bindBytesAsBlob(child)).Scan(&one)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
@@ -37,7 +37,7 @@ func (s *SqliteKV) PrefixContains(ctx context.Context, prefix []byte, child []by
 }
 
 func (s *SqliteKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, error) {
-	rows, err := s.stmts.prefixList.QueryContext(ctx, prefix)
+	rows, err := s.stmts.prefixList.QueryContext(ctx, bindBytesAsBlob(prefix))
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *SqliteKV) PrefixList(ctx context.Context, prefix []byte) ([][]byte, err
 
 func (s *SqliteKV) PrefixRemove(ctx context.Context, prefix []byte, child []byte) error {
 	return withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
-		_, err := tx.StmtContext(ctx, s.stmts.prefixRemove).Exec(prefix, child)
+		_, err := tx.StmtContext(ctx, s.stmts.prefixRemove).Exec(bindBytesAsBlob(prefix), bindBytesAsBlob(child))
 		if err != nil {
 			return err
 		}

@@ -40,6 +40,14 @@ func placeholders(n int) string {
 	return strings.Repeat("?,", n-1) + "?"
 }
 
+// bindBytesAsBlob preserves the store's nil-as-empty BLOB behavior.
+func bindBytesAsBlob(v []byte) []byte {
+	if v == nil {
+		return []byte{}
+	}
+	return v
+}
+
 // bindUint64AsInt64 converts a uint64 to int64 for SQLite INTEGER binding.
 // SQLite stores all integers as signed 64-bit. Values derived from
 // chord.Hash (48-bit) and lease tokens (positive UnixNano) fit safely.
