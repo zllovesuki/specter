@@ -1,0 +1,30 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "go.miragespace.co/specter/spec/protocol";
+
+// Each physical server provides keyed reads of its local configuration replica.
+// Snapshot exchange is exposed only on authenticated Chord CONFIG streams.
+service ConfigService {
+    rpc Exchange(ConfigSnapshot) returns (ConfigSnapshot);
+    rpc Get(ConfigGetRequest) returns (ConfigRecord);
+}
+
+message ConfigSnapshot {
+    // The shared configuration snapshot format, bounded to 8 MiB. Keeping it
+    // opaque here lets storage and replication use the same bounded codec.
+    bytes data = 1;
+}
+
+message ConfigGetRequest {
+    string name = 1;
+}
+
+message ConfigRecord {
+    string name = 1;
+    // The opaque 48-byte version used by configuration storage and replication.
+    bytes version = 2;
+    // Complete document bytes, including schemas unknown to this server.
+    bytes value = 3;
+}

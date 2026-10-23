@@ -16,6 +16,7 @@ import (
 
 	"go.miragespace.co/specter/acme"
 	chordImpl "go.miragespace.co/specter/chord"
+	"go.miragespace.co/specter/config"
 	"go.miragespace.co/specter/gateway"
 	"go.miragespace.co/specter/internal/listen"
 	"go.miragespace.co/specter/overlay"
@@ -105,6 +106,11 @@ func Run(ctx context.Context, options Options) error {
 		return fmt.Errorf("storage preflight: %w", err)
 	}
 	logger.Info("Storage configuration", zap.String("provider", kvOption), zap.String("data_dir", dataDir))
+	configStore, err := config.Open(filepath.Join(dataDir, "config"))
+	if err != nil {
+		return fmt.Errorf("opening shared configuration: %w", err)
+	}
+	defer configStore.Close()
 
 	var gwOptions gateway.Options
 	proxyBuffer, err := units.ParseStrictBytes(options.ProxyBuffer)
@@ -409,9 +415,28 @@ func Run(ctx context.Context, options Options) error {
 
 	rootNode := virtualNodes[0]
 	rootNode.AttachRoot(ctx, streamRouter)
+	var configJoin *protocol.Node
+	if existingNode != nil {
+		configJoin = existingNode.Identity()
+	}
+	configCtx, stopConfig := context.WithCancel(ctx)
+	configSync := config.NewSyncer(configStore, chordTransport, func() []*protocol.Node {
+		return sharedConfigPeers(chordTransport, virtualNodes, configJoin)
+	}, logger.With(zap.String("component", "shared_config")))
+	configSync.Bind(configCtx, streamRouter)
+	configDone := make(chan struct{})
+	go func() {
+		defer close(configDone)
+		configSync.Run(configCtx)
+	}()
+	defer func() {
+		stopConfig()
+		<-configDone
+	}()
 	if rpcListener != nil {
 		logger.Info("Exposing RPC externally", zap.String("listen", *options.RPCListen))
-		rootNode.AttachExternal(ctx, rpcListener)
+		stopRPC := startLocalRPC(ctx, rpcListener, rootNode.RPCHandler(ctx), configSync, logger)
+		defer stopRPC()
 	}
 
 	go chordTransport.AcceptWithListener(ctx, chordListener)

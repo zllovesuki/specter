@@ -34,6 +34,14 @@ index ab7202e..2b5d6c3 100644
  import twirp "github.com/twitchtv/twirp"
  import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
 
+diff --git a/spec/protocol/config.twirp.go b/spec/protocol/config.twirp.go
+--- a/spec/protocol/config.twirp.go
++++ b/spec/protocol/config.twirp.go
+@@ -15,4 +15,3 @@
+ import protojson "google.golang.org/protobuf/encoding/protojson"
+-import proto "google.golang.org/protobuf/proto"
+ import twirp "github.com/twitchtv/twirp"
+ import ctxsetters "github.com/twitchtv/twirp/ctxsetters"
 diff --git a/spec/protocol/kv.twirp.go b/spec/protocol/kv.twirp.go
 index bc9a25d..22e8da2 100644
 --- a/spec/protocol/kv.twirp.go

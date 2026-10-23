@@ -13,6 +13,7 @@ message Stream {
         DIRECT = 2; // used for establishing the reverse proxy from the tunneling node to client
         PROXY = 3; // used when client is not directly connected to the tunneling node
         INTERNAL = 4; // used for /_internal endpoint proxying between nodes
+        CONFIG = 5; // used for shared configuration between authenticated physical Chord peers
     }
 
     Type type = 1;

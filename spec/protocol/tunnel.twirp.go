@@ -4407,7 +4407,7 @@ func (s *tunnelServiceServer) serveOpenDelegatedSessionProtobuf(ctx context.Cont
 }
 
 func (s *tunnelServiceServer) ServiceDescriptor() ([]byte, int) {
-	return twirpFileDescriptor5, 0
+	return twirpFileDescriptor6, 0
 }
 
 func (s *tunnelServiceServer) ProtocGenTwirpVersion() string {
@@ -4421,7 +4421,7 @@ func (s *tunnelServiceServer) PathPrefix() string {
 	return baseServicePath(s.pathPrefix, "protocol", "TunnelService")
 }
 
-var twirpFileDescriptor5 = []byte{
+var twirpFileDescriptor6 = []byte{
 	// 1524 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0xed, 0x6e, 0xdb, 0x36,
 	0x17, 0xae, 0x1c, 0x3b, 0xb1, 0x8f, 0x63, 0x47, 0x66, 0xbe, 0x5c, 0xb6, 0x69, 0x52, 0xbd, 0x7d,

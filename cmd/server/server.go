@@ -69,14 +69,14 @@ func Generate() *cli.Command {
 			&cli.StringFlag{
 				Name:  "listen-rpc",
 				Value: "tcp://127.0.0.1:11180",
-				Usage: `Expose chord's RPC for VNode and KV to an external program. This is required to use with specter's acme dns.
+				Usage: `Expose chord's VNode/KV RPC and read-only shared configuration snapshots to an external program. This is required to use with specter's acme dns.
 			NOTE: The listener is exposed without any authentication or authorization. You should only expose it to localhost or unix socket`,
 				Category: "Server Options",
 			},
 			&cli.StringFlag{
 				Name:     "data-dir",
 				Aliases:  []string{"data"},
-				Usage:    "Path to directory that will be used for persisting non-volatile KV data",
+				Usage:    "Path to directory that will be used for persisting KV data and shared configuration",
 				Required: true,
 				Category: "Server Options",
 			},

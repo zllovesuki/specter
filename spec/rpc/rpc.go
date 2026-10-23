@@ -43,13 +43,16 @@ type TunnelClient interface {
 	protocol.KeylessService
 }
 
-func getDynamicDialer(baseCtx context.Context, transport transport.Transport) func(reqCtx context.Context, _, _ string) (net.Conn, error) {
+// StreamDialer adapts an overlay stream to an HTTP transport. The request
+// context selects the peer; baseCtx bounds the dial lifetime because net/http
+// detaches its dial context from the request's cancellation and deadline.
+func StreamDialer(baseCtx context.Context, transport transport.Transport, kind protocol.Stream_Type) func(reqCtx context.Context, _, _ string) (net.Conn, error) {
 	return func(reqCtx context.Context, _, _ string) (net.Conn, error) {
 		peer := GetNode(reqCtx)
 		if peer == nil {
 			return nil, fmt.Errorf("node not found in context")
 		}
-		return transport.DialStream(baseCtx, peer, protocol.Stream_RPC)
+		return transport.DialStream(baseCtx, peer, kind)
 	}
 }
 
@@ -86,7 +89,7 @@ func DynamicChordClient(baseContext context.Context, chordTransport transport.Tr
 	t.MaxIdleConnsPerHost = 5
 	t.DisableCompression = true
 	t.IdleConnTimeout = timing.RPCIdleTimeout
-	t.DialTLSContext = getDynamicDialer(baseContext, chordTransport)
+	t.DialTLSContext = StreamDialer(baseContext, chordTransport, protocol.Stream_RPC)
 	c := &http.Client{
 		Transport: t,
 	}
@@ -128,7 +131,7 @@ func DynamicTunnelClient(baseContext context.Context, tunnelTransport transport.
 	t.MaxIdleConnsPerHost = 1
 	t.DisableCompression = true
 	t.IdleConnTimeout = timing.RPCIdleTimeout
-	t.DialTLSContext = getDynamicDialer(baseContext, tunnelTransport)
+	t.DialTLSContext = StreamDialer(baseContext, tunnelTransport, protocol.Stream_RPC)
 	c := &http.Client{
 		Transport: t,
 	}

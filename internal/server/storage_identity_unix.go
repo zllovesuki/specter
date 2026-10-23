@@ -8,52 +8,6 @@ import (
 	"path/filepath"
 )
 
-func prepareKVProviderDirectory(dir string) error {
-	dir = filepath.Clean(dir)
-	info, err := os.Stat(dir)
-	if err == nil {
-		if !info.IsDir() {
-			return fmt.Errorf("data path %q is not a directory", dir)
-		}
-		return nil
-	}
-	if !os.IsNotExist(err) {
-		return err
-	}
-	parent := filepath.Dir(dir)
-	if parent == dir {
-		return err
-	}
-	if err := prepareKVProviderDirectory(parent); err != nil {
-		return err
-	}
-	err = os.Mkdir(dir, 0750)
-	created := err == nil
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-	if !created {
-		info, err := os.Stat(dir)
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("data path %q is not a directory", dir)
-		}
-	}
-	// Persist each new directory's name before creating a child or marker.
-	// Existing ancestors need only traversal permission and are left alone.
-	if err := syncKVProviderIdentity(parent); err != nil {
-		if created {
-			// Only remove this initialization's empty directory. A retry must
-			// not mistake a failed creation flush for an established directory.
-			_ = os.Remove(dir)
-		}
-		return err
-	}
-	return nil
-}
-
 func publishKVProviderMarker(tempPath, dir string) error {
 	// A hard link publishes the complete, synced marker atomically and never
 	// overwrites an identity established by a concurrent startup.

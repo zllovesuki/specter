@@ -42,8 +42,11 @@ func NewQUIC(conf TransportConfig) *QUIC {
 	if conf.VirtualTransport && conf.UseCertificateIdentity {
 		panic("cannot enable UseCertificateIdentity and VirtualTransport in the same transport")
 	}
+	backgroundCtx, stopBackground := context.WithCancel(context.Background())
 	return &QUIC{
 		TransportConfig: conf,
+		backgroundCtx:   backgroundCtx,
+		stopBackground:  stopBackground,
 
 		cachedConnections: skipmap.NewString[*nodeConnection](),
 		cachedMutex:       atomic.NewKeyedRWMutex(),
@@ -113,6 +116,8 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 
 		dialCtx, dialCancel := context.WithTimeout(ctx, transport.ConnectTimeout)
 		defer dialCancel()
+		stopShutdown := context.AfterFunc(t.backgroundCtx, dialCancel)
+		defer stopShutdown()
 
 		peerAddr := peer.GetAddress()
 
@@ -139,7 +144,15 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 			return nil, err
 		}
 
-		return t.handleOutgoing(ctx, newQ)
+		// Until negotiation adopts this connection into the cache, the dial
+		// owns it. Canceling setup must also release its pending QUIC I/O.
+		stopSetup := context.AfterFunc(dialCtx, func() { newQ.CloseWithError(406, "Connection setup canceled") })
+		defer stopSetup()
+		connected, err := t.handleOutgoing(dialCtx, newQ)
+		if err != nil {
+			newQ.CloseWithError(406, err.Error())
+		}
+		return connected, err
 	})
 	if err != nil {
 		if err != transport.ErrNoDirect {
@@ -148,7 +161,7 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 		return nil, err
 	}
 
-	t.background(ctx)
+	t.background()
 
 	return q, nil
 }
@@ -278,7 +291,7 @@ func (t *QUIC) handleIncoming(ctx context.Context, q *quic.Conn) (*quic.Conn, er
 	}
 
 	if !reused {
-		t.handlePeer(ctx, c.quic, c.peer, directionIncoming)
+		t.handlePeer(c.quic, c.peer, directionIncoming)
 	}
 
 	return c.quic, nil
@@ -300,13 +313,21 @@ func (t *QUIC) handleOutgoing(ctx context.Context, q *quic.Conn) (*quic.Conn, er
 	}
 
 	if !reused {
-		t.handlePeer(ctx, c.quic, c.peer, directionOutgoing)
+		t.handlePeer(c.quic, c.peer, directionOutgoing)
 	}
 
 	return c.quic, nil
 }
 
-func (t *QUIC) handlePeer(ctx context.Context, q *quic.Conn, peer *protocol.Node, dir direction) {
+func (t *QUIC) handlePeer(q *quic.Conn, peer *protocol.Node, dir direction) {
+	if t.closed.Load() {
+		// Stop may have raced the connection's publication into the cache.
+		t.reapPeer(q, peer)
+		return
+	}
+	// A cached peer serves many calls. Its receivers belong to the physical
+	// connection, independently of the request that first dialed it.
+	ctx := q.Context()
 	l := t.Logger.With(
 		zap.String("remote", q.RemoteAddr().String()),
 		zap.Object("peer", peer),
@@ -326,17 +347,17 @@ func (t *QUIC) handlePeer(ctx context.Context, q *quic.Conn, peer *protocol.Node
 	}(q)
 }
 
-func (t *QUIC) background(ctx context.Context) {
-	if !t.started.CompareAndSwap(false, true) {
+func (t *QUIC) background() {
+	if t.closed.Load() || !t.started.CompareAndSwap(false, true) {
 		return
 	}
-	go t.reaper(ctx)
-	go t.handleRTTAck(ctx)
+	go t.reaper(t.backgroundCtx)
+	go t.handleRTTAck(t.backgroundCtx)
 }
 
 func (t *QUIC) AcceptWithListener(ctx context.Context, listener q.Listener) error {
 	t.Logger.Info("Accepting connections", zap.String("listen", listener.Addr().String()))
-	t.background(ctx)
+	t.background()
 	for {
 		q, err := listener.Accept(ctx)
 		if err != nil {
@@ -491,6 +512,7 @@ func (t *QUIC) Stop() {
 	if !t.closed.CompareAndSwap(false, true) {
 		return
 	}
+	t.stopBackground()
 	t.started.Store(false)
 	t.cachedConnections.Range(func(key string, value *nodeConnection) bool {
 		value.quic.CloseWithError(0, "Transport closed")

@@ -8,10 +8,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func prepareKVProviderDirectory(dir string) error {
-	return os.MkdirAll(dir, 0750)
-}
-
 func publishKVProviderMarker(tempPath, dir string) error {
 	from, err := windows.UTF16PtrFromString(tempPath)
 	if err != nil {

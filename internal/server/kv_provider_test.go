@@ -208,7 +208,7 @@ func TestKVProviderPreflightSyncsNewDirectoryBeforeMarker(t *testing.T) {
 	// durable is not. Failure must happen before publishing a provider marker.
 	require.NoError(t, os.Chmod(parent, 0330))
 	t.Cleanup(func() { _ = os.Chmod(parent, 0750) })
-	require.ErrorContains(t, preflightKVProvider("aof", dir), "opening directory to sync storage identity")
+	require.ErrorContains(t, preflightKVProvider("aof", dir), "opening directory to sync")
 	_, err := os.Stat(dir)
 	require.ErrorIs(t, err, os.ErrNotExist, "remove only the new empty directory after its creation cannot be synced")
 	require.NoError(t, os.Chmod(parent, 0750))

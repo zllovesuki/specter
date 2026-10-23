@@ -39,6 +39,9 @@ type TransportConfig struct {
 }
 
 type QUIC struct {
+	backgroundCtx  context.Context
+	stopBackground context.CancelFunc
+
 	cachedConnections *skipmap.StringMap[*nodeConnection]
 	cachedMutex       *atomic.KeyedRWMutex
 

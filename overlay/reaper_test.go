@@ -85,8 +85,12 @@ func TestReapPeerPreservesReplacement(t *testing.T) {
 	require.Nil(t, recorder.Snapshot(measurementKey, time.Minute))
 }
 
-func newReaperTestListener(t *testing.T, ctx context.Context) func() (*quic.Conn, *quic.Conn) {
+func newReaperTestListener(t *testing.T, ctx context.Context, configs ...*quic.Config) func() (*quic.Conn, *quic.Conn) {
 	t.Helper()
+	var config *quic.Config
+	if len(configs) != 0 {
+		config = configs[0]
+	}
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 	template := &x509.Certificate{
@@ -106,7 +110,7 @@ func newReaperTestListener(t *testing.T, ctx context.Context) func() (*quic.Conn
 	listener, err := quic.ListenAddr("127.0.0.1:0", &tls.Config{
 		Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: privateKey}},
 		NextProtos:   []string{"specter-reaper-test"},
-	}, nil)
+	}, config)
 	require.NoError(t, err)
 	t.Cleanup(func() { listener.Close() })
 
@@ -116,7 +120,7 @@ func newReaperTestListener(t *testing.T, ctx context.Context) func() (*quic.Conn
 			ServerName: "localhost",
 			RootCAs:    roots,
 			NextProtos: []string{"specter-reaper-test"},
-		}, nil)
+		}, config)
 		require.NoError(t, err)
 		t.Cleanup(func() { local.CloseWithError(0, "test cleanup") })
 		remote, err := listener.Accept(ctx)

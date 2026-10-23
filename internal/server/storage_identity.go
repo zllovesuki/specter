@@ -6,9 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"go.miragespace.co/specter/util"
 )
 
 const kvProviderMarker = "kv-provider"
+
+func prepareKVProviderDirectory(dir string) error {
+	return util.MkdirAllDurable(dir, 0750)
+}
 
 // preflightKVProvider establishes identity for the entire server data directory
 // before any provider opens files or any vnode joins the ring. Layout knowledge

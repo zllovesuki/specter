@@ -53,7 +53,9 @@ func (n *LocalNode) getIncrementor(rate *ratecounter.Rate) func(ctx context.Cont
 	}
 }
 
-func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
+// RPCHandler exposes the existing vnode and KV RPC routes so startup can compose
+// the local listener with other physical-server services.
+func (n *LocalNode) RPCHandler(ctx context.Context) http.Handler {
 	n.rpcHandlerOnce.Do(func() {
 		r := &Server{
 			LocalNode: n,
@@ -89,7 +91,7 @@ func (n *LocalNode) getRPCHandler(ctx context.Context) http.Handler {
 func (n *LocalNode) AttachRouter(ctx context.Context, router *transport.StreamRouter) {
 	n.stopWg.Add(1)
 
-	rpcHandler := n.getRPCHandler(ctx)
+	rpcHandler := n.RPCHandler(ctx)
 	srv := &http.Server{
 		BaseContext: func(l net.Listener) context.Context {
 			return ctx
@@ -119,17 +121,4 @@ func (n *LocalNode) AttachRoot(ctx context.Context, router *transport.StreamRout
 	router.HandleChord(protocol.Stream_RPC, nil, func(delegate *transport.StreamDelegate) {
 		n.rpcAcceptor.Handle(delegate)
 	})
-}
-
-func (n *LocalNode) AttachExternal(ctx context.Context, listener net.Listener) {
-	rpcHandler := n.getRPCHandler(ctx)
-	srv := &http.Server{
-		BaseContext: func(l net.Listener) context.Context {
-			return ctx
-		},
-		ReadHeaderTimeout: rpcTimeout,
-		Handler:           rpcHandler,
-		ErrorLog:          util.GetStdLogger(n.logger, "rpc_external"),
-	}
-	go srv.Serve(listener)
 }
