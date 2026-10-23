@@ -7,14 +7,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -30,7 +29,7 @@ type pebbleEnv struct {
 	container    testcontainers.Container
 }
 
-// Stop terminates the Pebble container
+// Stop terminates the Pebble container, if this fixture started one.
 func (p *pebbleEnv) Stop(ctx context.Context) error {
 	if p.container != nil {
 		return testcontainers.TerminateContainer(p.container)
@@ -38,8 +37,9 @@ func (p *pebbleEnv) Stop(ctx context.Context) error {
 	return nil
 }
 
-// StartPebble starts a Pebble ACME test server in a container.
-// It requires the following files to exist (run `make certs` first):
+// StartPebble connects to SPECTER_TEST_ACME_URL when set, or starts a container.
+// Both paths trust dev/pebble/certs/cert.pem. The container also requires the
+// following files to exist (run `make certs` first):
 //   - dev/pebble/config.json
 //   - dev/pebble/certs/cert.pem (Pebble CA)
 //   - certs/pebble.pem (Pebble server cert)
@@ -49,12 +49,12 @@ func StartPebble(t *testing.T) *pebbleEnv {
 	as := require.New(t)
 	ctx := t.Context()
 
-	// Resolve paths relative to this test file
-	devPebblePath := path.Join(basepath, "..", "dev", "pebble")
-	certsPath := path.Join(basepath, "..", "certs")
+	// Go tests and the native VM runner execute from the package directory.
+	devPebblePath := filepath.Join("..", "dev", "pebble")
+	certsPath := filepath.Join("..", "certs")
 
 	// Read Pebble CA for trusted roots
-	pebbleCaPath := path.Join(devPebblePath, "certs", "cert.pem")
+	pebbleCaPath := filepath.Join(devPebblePath, "certs", "cert.pem")
 	pebbleCa, err := os.ReadFile(pebbleCaPath)
 	as.NoError(err, "failed to read Pebble CA; run 'make certs' first")
 
@@ -62,16 +62,21 @@ func StartPebble(t *testing.T) *pebbleEnv {
 	ok := trustedRoots.AppendCertsFromPEM(pebbleCa)
 	as.True(ok, "failed to parse Pebble CA certificate")
 
+	if acmeURL := os.Getenv("SPECTER_TEST_ACME_URL"); acmeURL != "" {
+		t.Logf("Using external Pebble ACME server at %s", acmeURL)
+		return &pebbleEnv{ACMEURL: acmeURL, TrustedRoots: trustedRoots}
+	}
+
 	// Read files to copy into the container
-	configPath := path.Join(devPebblePath, "config.json")
+	configPath := filepath.Join(devPebblePath, "config.json")
 	configData, err := os.ReadFile(configPath)
 	as.NoError(err, "failed to read Pebble config.json")
 
-	pebblePemPath := path.Join(certsPath, "pebble.pem")
+	pebblePemPath := filepath.Join(certsPath, "pebble.pem")
 	pebblePem, err := os.ReadFile(pebblePemPath)
 	as.NoError(err, "failed to read certs/pebble.pem; run 'make certs' first")
 
-	pebbleKeyPath := path.Join(certsPath, "pebble.key")
+	pebbleKeyPath := filepath.Join(certsPath, "pebble.key")
 	pebbleKey, err := os.ReadFile(pebbleKeyPath)
 	as.NoError(err, "failed to read certs/pebble.key; run 'make certs' first")
 

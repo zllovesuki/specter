@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -22,11 +20,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
-)
-
-var (
-	_, b, _, _ = runtime.Caller(0)
-	basepath   = filepath.Dir(b)
 )
 
 type handshakeHook struct {
@@ -78,7 +71,7 @@ func TestIntegrationACME(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	ctx := t.Context()
 
-	// Start Pebble ACME server in a container
+	// Use a provided Pebble server or start one in a container.
 	pebbleEnv := StartPebble(t)
 	defer pebbleEnv.Stop(ctx)
 
