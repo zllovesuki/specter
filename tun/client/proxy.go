@@ -26,12 +26,14 @@ type httpProxy struct {
 	logger    *zap.Logger
 	acceptor  *acceptor.HTTP2Acceptor
 	forwarder *http.Server
+	transport *http.Transport
 }
 
 func (p *httpProxy) close() {
 	p.logger.Info("Shutting down proxy")
 	p.acceptor.Close()
 	p.forwarder.Close()
+	p.transport.CloseIdleConnections()
 }
 
 type httpReqCtxKey string
@@ -188,8 +190,9 @@ func (f *forwarder) newHTTPProxy(hostname string, r Tunnel) *httpProxy {
 	proxy.BufferPool = util.NewBufferPool(1024 * 16)
 
 	return &httpProxy{
-		logger:   logger,
-		acceptor: acceptor.NewH2Acceptor(nil),
+		logger:    logger,
+		acceptor:  acceptor.NewH2Acceptor(nil),
+		transport: tp,
 		forwarder: &http.Server{
 			Handler:           injectStartTime(proxy),
 			ErrorLog:          zap.NewStdLog(f.logger),
