@@ -4,18 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
-	"go.miragespace.co/specter/tun/client"
-	"go.miragespace.co/specter/tun/client/dialer"
+	clientruntime "go.miragespace.co/specter/internal/client"
 
-	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v3"
-	"go.uber.org/zap"
 )
 
 func lightweightFlags() []cli.Flag {
@@ -58,37 +52,11 @@ func runLightweight(ctx context.Context, cmd *cli.Command, token string) error {
 	if cmd.Args().Len() != 1 {
 		return fmt.Errorf("expected exactly one target URL")
 	}
-	apex, err := dialer.ParseApex(cmd.String("apex"))
-	if err != nil {
-		return err
-	}
-	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-	listener, err := net.ListenPacket("udp", ":0")
-	if err != nil {
-		return err
-	}
-	defer listener.Close()
-	quicTransport := &quic.Transport{Conn: listener}
-	defer quicTransport.Close()
-	tlsCfg, tp := createTransport(cmd, transportCfg{
-		logger: logger,
-		quicTp: quicTransport,
-		apex:   apex,
+	return clientruntime.RunLightweight(ctx, clientruntime.LightweightOptions{
+		Options: runtimeOptions(cmd),
+		Apex:    cmd.String("apex"),
+		Target:  cmd.Args().First(),
+		Token:   token,
+		Output:  cmd.Root().Writer,
 	})
-	defer tp.Stop()
-	l, err := client.NewLightweightClient(client.LightweightConfig{
-		Logger:    logger,
-		Transport: tp,
-		PKIClient: dialer.GetPKIClient(tlsCfg.Clone(), apex),
-		Apex:      apex,
-		Target:    cmd.Args().First(),
-		Token:     token,
-		Output:    cmd.Root().Writer,
-	})
-	if err != nil {
-		return err
-	}
-	return l.Run(ctx)
 }

@@ -4,9 +4,10 @@ import (
 	"net"
 	"testing"
 
+	"go.miragespace.co/specter/internal/listen"
+
 	"github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/require"
-	cmdlisten "go.miragespace.co/specter/cmd/internal/listen"
 )
 
 type stubAddr string
@@ -89,14 +90,14 @@ func TestMultiDialerPickPrefersMatchingIPVersion(t *testing.T) {
 	any := &quic.Transport{}
 
 	bindings := []udpBinding{
-		{listen: cmdlisten.Address{Version: cmdlisten.IPV4}, transport: v4},
-		{listen: cmdlisten.Address{Version: cmdlisten.IPV6}, transport: v6},
-		{listen: cmdlisten.Address{Version: cmdlisten.IPAny}, transport: any},
+		{listen: listen.Address{Version: listen.IPV4}, transport: v4},
+		{listen: listen.Address{Version: listen.IPV6}, transport: v6},
+		{listen: listen.Address{Version: listen.IPAny}, transport: any},
 	}
 
 	md := newMultiDialer(bindings)
 
-	require.Equal(t, v4, md.pick(cmdlisten.IPV4))
-	require.Equal(t, v6, md.pick(cmdlisten.IPV6))
-	require.Equal(t, v4, md.pick(cmdlisten.IPAny))
+	require.Equal(t, v4, md.pick(listen.IPV4))
+	require.Equal(t, v6, md.pick(listen.IPV6))
+	require.Equal(t, v4, md.pick(listen.IPAny))
 }

@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	cmdlisten "go.miragespace.co/specter/cmd/internal/listen"
+	"go.miragespace.co/specter/internal/listen"
 	"go.miragespace.co/specter/spec/transport/q"
 
 	"github.com/quic-go/quic-go"
@@ -186,7 +186,7 @@ func (m *multiQuicListener) Addr() net.Addr {
 }
 
 type udpBinding struct {
-	listen     cmdlisten.Address
+	listen     listen.Address
 	packetConn net.PacketConn
 	transport  *quic.Transport
 }
@@ -200,12 +200,12 @@ func newMultiDialer(bindings []udpBinding) *multiDialer {
 }
 
 func (m *multiDialer) DialEarly(ctx context.Context, addr net.Addr, tlsConf *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
-	target := cmdlisten.IPAny
+	target := listen.IPAny
 	if udpAddr, ok := addr.(*net.UDPAddr); ok && udpAddr.IP != nil {
 		if udpAddr.IP.To4() != nil {
-			target = cmdlisten.IPV4
+			target = listen.IPV4
 		} else if udpAddr.IP.To16() != nil {
-			target = cmdlisten.IPV6
+			target = listen.IPV6
 		}
 	}
 
@@ -216,8 +216,8 @@ func (m *multiDialer) DialEarly(ctx context.Context, addr net.Addr, tlsConf *tls
 	return nil, errors.New("no udp listeners configured for quic transport")
 }
 
-func (m *multiDialer) pick(target cmdlisten.IPVersion) *quic.Transport {
-	if target != cmdlisten.IPAny {
+func (m *multiDialer) pick(target listen.IPVersion) *quic.Transport {
+	if target != listen.IPAny {
 		for _, b := range m.bindings {
 			if b.listen.Version == target {
 				return b.transport

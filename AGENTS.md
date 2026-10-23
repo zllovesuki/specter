@@ -38,7 +38,8 @@ directory, not inside the current linked worktree. Use descriptive task names.
 Do not move or remove existing worktrees as incidental cleanup.
 
 ## Project Structure & Module Organization
-- `main.go` launches the `specter` CLI; `cmd/specter` wires top-level commands, and `cmd/{server,client,dns,...}` holds command entrypoints/helpers.
+- `main.go` launches the `specter` CLI; `cmd/specter` wires top-level commands, and `cmd/{server,client,dns,...}` parses command inputs and formats output.
+- `internal/{server,client,dns}` assembles and runs services with typed startup options; `internal/listen` holds shared listener address parsing.
 - `tun/` tunnel client/server logic, `ui/` embedded client and operator frontends, `gateway/` edge handling, `overlay/` routing glue.
 - `chord/` and `kv/` implement the DHT and persistence; `spec/` holds protobuf definitions and generated RPC code.
 - `integrations/` and package-level `*_test.go` files cover functional and unit tests; `dev/` contains local TLS/ACME assets and docker configs; `assets/` static files.
@@ -54,6 +55,7 @@ Do not move or remove existing worktrees as incidental cleanup.
 
 ## Coding Style & Naming Conventions
 - Go formatting: `gofmt`/`goimports` (tabs, 2-space alignment only when needed); keep package names short and domain-specific (`chord`, `kv`, `tun`).
+- Group Go imports as standard library, Specter packages (`go.miragespace.co/specter`), then third-party packages, with a blank line between groups.
 - Favor explicit contexts and deadlines for network calls; avoid global state.
 - Regenerated files live near their sources (e.g., `*.pb.go`, `*_vtproto.pb.go`, `*.twirp.go`, `*_string.go`); do not hand-edit generated code.
 

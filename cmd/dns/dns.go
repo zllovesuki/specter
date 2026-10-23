@@ -3,25 +3,14 @@ package dns
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
 	"net/url"
-	"os"
-	"os/signal"
-	"runtime"
 	"strings"
-	"syscall"
-	"time"
 
-	"go.miragespace.co/specter/acme"
-	cmdlisten "go.miragespace.co/specter/cmd/internal/listen"
+	dnsruntime "go.miragespace.co/specter/internal/dns"
+	"go.miragespace.co/specter/internal/listen"
 	acmeSpec "go.miragespace.co/specter/spec/acme"
-	"go.miragespace.co/specter/spec/chord"
-	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/util"
-	"go.miragespace.co/specter/util/reuse"
 
-	"github.com/miekg/dns"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
@@ -124,7 +113,7 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	listenBase := cmd.StringSlice("listen-addr")
-	tcpAddrs, err := cmdlisten.ParseAddresses("tcp",
+	tcpAddrs, err := listen.ParseAddresses("tcp",
 		listenBase,
 		cmd.StringSlice("listen-tcp"),
 	)
@@ -132,7 +121,7 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error parsing tcp listen address: %w", err)
 	}
 
-	udpAddrs, err := cmdlisten.ParseAddresses("udp",
+	udpAddrs, err := listen.ParseAddresses("udp",
 		listenBase,
 		cmd.StringSlice("listen-udp"),
 	)
@@ -143,19 +132,6 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 	if len(listenBase) == 0 {
 		return fmt.Errorf("at least one listen-addr must be provided")
 	}
-
-	addrStrings := func(addrs []cmdlisten.Address) []string {
-		out := make([]string, 0, len(addrs))
-		for _, a := range addrs {
-			out = append(out, a.Address)
-		}
-		return out
-	}
-
-	logger.Info("acme dns listener configuration",
-		zap.Strings("tcp", addrStrings(tcpAddrs)),
-		zap.Strings("udp", addrStrings(udpAddrs)),
-	)
 
 	var (
 		dialNetwork string
@@ -176,142 +152,15 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("unknown scheme for rpc address: %s", parsedRpc.Scheme)
 	}
 
-	listenCfg := &net.ListenConfig{
-		Control: reuse.Control,
-	}
-
-	dialer := &net.Dialer{}
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxConnsPerHost = 100
-	t.MaxIdleConnsPerHost = 5
-	t.DisableCompression = true
-	t.IdleConnTimeout = time.Minute
-	t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return dialer.DialContext(ctx, dialNetwork, dialAddress)
-	}
-	client := protocol.NewKVServiceProtobufClient("http://rpc", &http.Client{
-		Transport: t,
+	return dnsruntime.Run(ctx, dnsruntime.Options{
+		Logger:          logger,
+		Version:         cmd.Root().Version,
+		TCPAddresses:    tcpAddrs,
+		UDPAddresses:    udpAddrs,
+		RPCNetwork:      dialNetwork,
+		RPCAddress:      dialAddress,
+		ACMEEmail:       cmd.String("acme_email"),
+		ACMEZone:        cmd.String("acme_zone"),
+		ACMENameservers: cmd.Root().Metadata["ns"].(map[string][]string),
 	})
-	kv := &RemoteKV{
-		Client: client,
-	}
-
-	acmeDomain := cmd.String("acme_zone")
-	acmeDNS := acme.NewDNS(ctx, logger.With(zap.String("component", "acme_dns")),
-		kv,
-		cmd.String("acme_email"),
-		acmeDomain, cmd.Root().Metadata["ns"].(map[string][]string),
-	)
-
-	dnsMux := dns.NewServeMux()
-	dnsMux.Handle(acmeDomain, acmeDNS)
-	dnsMux.Handle(".", dns.HandlerFunc(Chaos(cmd.Root().Version)))
-
-	var tcpServers []*dns.Server
-	for _, addr := range tcpAddrs {
-		ln, err := listenCfg.Listen(ctx, addr.Network, addr.Address)
-		if err != nil {
-			return fmt.Errorf("error setting up dns tcp listener on %s: %w", addr.Address, err)
-		}
-		listenAddr := addr.Address
-		server := &dns.Server{
-			Listener: ln,
-			Handler:  dnsMux,
-			NotifyStartedFunc: func() {
-				logger.Info("ACME DNS started", zap.String("proto", "tcp"), zap.String("listen", listenAddr))
-			},
-		}
-		tcpServers = append(tcpServers, server)
-		go server.ActivateAndServe()
-	}
-
-	var udpServers []*dns.Server
-	for _, addr := range udpAddrs {
-		pconn, err := listenCfg.ListenPacket(ctx, addr.Network, addr.Address)
-		if err != nil {
-			return fmt.Errorf("error setting up dns udp listener on %s: %w", addr.Address, err)
-		}
-		listenAddr := addr.Address
-		var packetConn net.PacketConn = pconn
-		if runtime.GOOS == "illumos" {
-			// needed to force net.PacketConn path instead of *net.UDPConn path
-			// because of dual stack not working on illumos
-			packetConn = &squashed{PacketConn: pconn}
-		}
-		server := &dns.Server{
-			PacketConn: packetConn,
-			Handler:    dnsMux,
-			NotifyStartedFunc: func() {
-				logger.Info("ACME DNS started", zap.String("proto", "udp"), zap.String("listen", listenAddr))
-			},
-		}
-		udpServers = append(udpServers, server)
-		go server.ActivateAndServe()
-	}
-
-	defer func() {
-		for _, srv := range tcpServers {
-			srv.Shutdown()
-		}
-		for _, srv := range udpServers {
-			srv.Shutdown()
-		}
-	}()
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case sig := <-sigs:
-		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Done():
-		logger.Info("context done", zap.Error(ctx.Err()))
-	}
-
-	return nil
-}
-
-type RemoteKV struct {
-	chord.KV
-	Client protocol.KVService
-}
-
-func (r *RemoteKV) PrefixList(ctx context.Context, prefix []byte) (children [][]byte, err error) {
-	resp, err := r.Client.List(ctx, &protocol.PrefixRequest{
-		Prefix: prefix,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetChildren(), nil
-}
-
-func Chaos(version string) dns.HandlerFunc {
-	return func(w dns.ResponseWriter, r *dns.Msg) {
-		m := new(dns.Msg)
-		m.SetReply(r)
-
-		q := r.Question[0]
-		if q.Name == "version.bind." && q.Qtype == dns.TypeTXT && q.Qclass == dns.ClassCHAOS {
-			m.Answer = []dns.RR{
-				&dns.TXT{
-					Hdr: dns.RR_Header{
-						Name:   q.Name,
-						Rrtype: dns.TypeTXT,
-						Class:  dns.ClassCHAOS,
-						Ttl:    3600,
-					},
-					Txt: []string{version},
-				},
-			}
-		} else {
-			m.MsgHdr.Rcode = dns.RcodeRefused
-		}
-
-		w.WriteMsg(m)
-	}
-}
-
-type squashed struct {
-	net.PacketConn
 }

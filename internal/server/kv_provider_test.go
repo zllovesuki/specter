@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
 
@@ -245,18 +244,13 @@ func TestServerRejectsConflictingStorageBeforeSetup(t *testing.T) {
 
 	// Deliberately unusable later configuration proves preflight runs before
 	// further startup work, even for stored vnodes outside the configured count.
-	cmd := &cli.Command{
-		Name:     "specter-test",
-		Metadata: map[string]any{"logger": zap.NewNop()},
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "data-dir", Value: dir},
-			&cli.StringFlag{Name: "kv-provider", Value: "sqlite"},
-			&cli.IntFlag{Name: "virtual", Value: 1},
-			&cli.StringFlag{Name: "proxy-buffer", Value: "invalid"},
-		},
-		Action: cmdServer,
-	}
-	err = cmd.Run(t.Context(), []string{cmd.Name})
+	err = Run(t.Context(), Options{
+		Logger:       zap.NewNop(),
+		DataDir:      dir,
+		KVProvider:   "sqlite",
+		VirtualNodes: 1,
+		ProxyBuffer:  "invalid",
+	})
 	require.ErrorContains(t, err, "storage preflight")
 	require.ErrorContains(t, err, "aof")
 	require.ErrorContains(t, err, "sqlite")

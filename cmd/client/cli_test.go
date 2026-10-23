@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,32 +13,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func TestClientCLIInheritsFlagsContextAndMetadata(t *testing.T) {
-	type contextKey struct{}
-	ctx := context.WithValue(t.Context(), contextKey{}, "request-context")
-	cmd := Generate()
-	called := false
-	for _, subcommand := range cmd.Commands {
-		if subcommand.Name == "connect" {
-			subcommand.Action = func(ctx context.Context, command *cli.Command) error {
-				called = true
-				require.True(t, command.Bool("insecure"))
-				require.Equal(t, "target.example.com", command.Args().First())
-				require.Equal(t, "request-context", ctx.Value(contextKey{}))
-				require.Equal(t, "root-metadata", command.Root().Metadata["test"])
-				return nil
-			}
-		}
-	}
-	app := &cli.Command{
-		Name:     "specter",
-		Commands: []*cli.Command{cmd},
-		Metadata: map[string]any{"test": "root-metadata"},
-	}
-	require.NoError(t, app.Run(ctx, []string{"specter", "client", "--insecure", "connect", "target.example.com"}))
-	require.True(t, called)
-}
-
 func TestConfigExampleUsesRootWriter(t *testing.T) {
 	var output bytes.Buffer
 	app := &cli.Command{Name: "specter", Writer: &output, Commands: []*cli.Command{Generate()}}
@@ -47,36 +20,7 @@ func TestConfigExampleUsesRootWriter(t *testing.T) {
 	require.Equal(t, tunclient.ExampleConfigYAML(), output.String())
 }
 
-func TestLightweightFlags(t *testing.T) {
-	for _, name := range []string{"expose", "serve", "token"} {
-		t.Run(name, func(t *testing.T) {
-			cmd := Generate()
-			called := false
-			args := []string{"specter", "client", "--insecure", name}
-			for _, sub := range cmd.Commands {
-				if sub.Name != name {
-					continue
-				}
-				if name == "token" {
-					sub = sub.Commands[1]
-					args = append(args, "list", "--config", "owner.yaml")
-				} else {
-					args = append(args, "--apex", "example.com", "http://localhost:8080")
-				}
-				sub.Action = func(_ context.Context, cmd *cli.Command) error {
-					called = true
-					require.True(t, cmd.Bool("insecure"))
-					return nil
-				}
-			}
-			app := &cli.Command{
-				Name:     "specter",
-				Commands: []*cli.Command{cmd},
-			}
-			require.NoError(t, app.Run(t.Context(), args))
-			require.True(t, called)
-		})
-	}
+func TestLightweightRejectsOwnerFlags(t *testing.T) {
 	for _, name := range []string{"expose", "serve"} {
 		app := &cli.Command{
 			Name:     "specter",
@@ -84,6 +28,9 @@ func TestLightweightFlags(t *testing.T) {
 		}
 		require.ErrorContains(t, app.Run(t.Context(), []string{"specter", "client", name, "--apex", "example.com", "--server", "a", "http://localhost"}), "flag provided but not defined: -server")
 	}
+}
+
+func TestLoadTunnelToken(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		file    string

@@ -3,15 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
-	"net"
 	"time"
 
-	"go.miragespace.co/specter/tun/client"
-	"go.miragespace.co/specter/tun/client/dialer"
+	clientruntime "go.miragespace.co/specter/internal/client"
 
-	"github.com/quic-go/quic-go"
 	"github.com/urfave/cli/v3"
-	"go.uber.org/zap"
 )
 
 func tokenCommand() *cli.Command {
@@ -71,40 +67,11 @@ func cmdToken(ctx context.Context, cmd *cli.Command) error {
 		}
 		expiry = parsed
 	}
-	cfg, err := client.NewConfig(cmd.String("config"))
+	c, closeClient, err := clientruntime.OpenOwner(ctx, cmd.String("config"), runtimeOptions(cmd))
 	if err != nil {
 		return err
 	}
-	apex, err := dialer.ParseApex(cfg.Apex)
-	if err != nil {
-		return err
-	}
-	listener, err := net.ListenPacket("udp", ":0")
-	if err != nil {
-		return err
-	}
-	defer listener.Close()
-	quicTransport := &quic.Transport{Conn: listener}
-	defer quicTransport.Close()
-	logger := cmd.Root().Metadata["logger"].(*zap.Logger)
-	_, tp := createTransport(cmd, transportCfg{
-		logger: logger,
-		quicTp: quicTransport,
-		apex:   apex,
-	})
-	defer tp.Stop()
-	c, err := client.NewClient(ctx, client.ClientConfig{
-		Logger:          logger,
-		Configuration:   cfg,
-		ServerTransport: tp,
-	})
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-	if err := c.Register(ctx); err != nil {
-		return err
-	}
+	defer closeClient()
 	switch cmd.Name {
 	case "mint":
 		resp, err := c.MintDelegation(ctx, cmd.Args().First(), expiry)
