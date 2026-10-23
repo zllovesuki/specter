@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
+	"os/signal"
+	"syscall"
 
 	dnsruntime "go.miragespace.co/specter/internal/dns"
 	"go.miragespace.co/specter/internal/listen"
@@ -18,10 +19,11 @@ import (
 func Generate() *cli.Command {
 	ip := util.GetOutboundIP()
 	return &cli.Command{
-		Name:        "dns",
-		Usage:       "start acme dns on the edge",
-		Description: `Handle ACME DNS challenge`,
-		ArgsUsage:   " ",
+		Name:  "dns",
+		Usage: "start acme dns on the edge",
+		Description: `Handle ACME DNS challenges using shared DNS configuration from the local server.
+		Initialize the first server with "specter config init --data-dir DIR --file FILE" before upgrading DNS.`,
+		ArgsUsage: " ",
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
 				Name:    "listen-addr",
@@ -46,7 +48,7 @@ func Generate() *cli.Command {
 				Name:     "rpc",
 				Value:    "tcp://127.0.0.1:11180",
 				Required: true,
-				Usage:    `Specter server's listen-rpc endpoint. This is required to lookup acme challenge on the chord network.`,
+				Usage:    `Local Specter server's listen-rpc endpoint, used to read shared DNS configuration and look up ACME challenges.`,
 			},
 			&cli.StringFlag{
 				Name:        "acme",
@@ -57,12 +59,9 @@ func Generate() *cli.Command {
 			Alternatively, you can set the URI via the environment variable ACME_URI.`,
 			},
 			&cli.StringSliceFlag{
-				Name:     "acme-ns",
-				Sources:  cli.EnvVars("ACME_NS"),
-				Required: true,
-				Usage: `If acme dns is enabled, specify the delegated zone's A/AAAA records. For example, ns1.acmehostedzone.com/93.184.216.34.
-			This is needed to delegate acme dns challenges to specter.
-			Multiple records can be separated with a comma.`,
+				Name:    "acme-ns",
+				Sources: cli.EnvVars("ACME_NS"),
+				Usage:   `Deprecated and ignored. Import DNS records once with "specter config init --data-dir DIR --file FILE"; DNS reads shared configuration from the local server.`,
 			},
 
 			// used for acme setup internally
@@ -81,22 +80,6 @@ func Generate() *cli.Command {
 				return ctx, err
 			}
 
-			ns := make(map[string][]string)
-			records := cmd.StringSlice("acme-ns")
-			for _, r := range records {
-				parts := strings.Split(r, "/")
-				if len(parts) != 2 {
-					return ctx, fmt.Errorf("unable to parse record: %s", r)
-				}
-				domain := parts[0]
-				_, ok := ns[domain]
-				if !ok {
-					ns[domain] = make([]string, 0)
-				}
-				ns[domain] = append(ns[domain], parts[1])
-			}
-			cmd.Root().Metadata["ns"] = ns
-
 			cmd.Set("acme_email", email)
 			cmd.Set("acme_zone", zone)
 
@@ -110,6 +93,11 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 	logger, ok := cmd.Root().Metadata["logger"].(*zap.Logger)
 	if !ok || logger == nil {
 		return fmt.Errorf("unable to obtain logger from app context")
+	}
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if len(cmd.StringSlice("acme-ns")) > 0 {
+		logger.Warn("--acme-ns is deprecated and ignored; DNS records come from shared configuration")
 	}
 
 	listenBase := cmd.StringSlice("listen-addr")
@@ -153,14 +141,13 @@ func cmdDNS(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	return dnsruntime.Run(ctx, dnsruntime.Options{
-		Logger:          logger,
-		Version:         cmd.Root().Version,
-		TCPAddresses:    tcpAddrs,
-		UDPAddresses:    udpAddrs,
-		RPCNetwork:      dialNetwork,
-		RPCAddress:      dialAddress,
-		ACMEEmail:       cmd.String("acme_email"),
-		ACMEZone:        cmd.String("acme_zone"),
-		ACMENameservers: cmd.Root().Metadata["ns"].(map[string][]string),
+		Logger:       logger,
+		Version:      cmd.Root().Version,
+		TCPAddresses: tcpAddrs,
+		UDPAddresses: udpAddrs,
+		RPCNetwork:   dialNetwork,
+		RPCAddress:   dialAddress,
+		ACMEEmail:    cmd.String("acme_email"),
+		ACMEZone:     cmd.String("acme_zone"),
 	})
 }

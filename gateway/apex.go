@@ -74,12 +74,22 @@ func (a *apexServer) Mount(r *chi.Mux) {
 		r.Use(middleware.BasicAuth("internal", map[string]string{
 			a.authUser: a.authPass,
 		}))
+		// Check the original browser request before an internal proxy can change
+		// its destination authority. Non-browser authenticated API calls remain
+		// usable without introducing another session or CSRF-token store.
+		r.Use(http.NewCrossOriginProtection().Handler)
 		r.Use(a.internalProxy)
 		r.Mount("/ui", http.StripPrefix("/_internal/ui", ui.Assets()))
 
 		if a.handlers.Overview != nil {
 			r.Handle("/", ui.OperatorPage())
 			r.Get("/overview.json", a.handlers.Overview.ServeHTTP)
+		}
+		if a.handlers.Configuration != nil {
+			page := ui.OperatorPage()
+			r.Handle("/config/dns", page)
+			r.Handle("/config/dns/", page)
+			r.Mount("/api/config", a.handlers.Configuration)
 		}
 		r.Get("/endpoints", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")

@@ -16,8 +16,9 @@ configuring tunnels or investigating an unreliable connection.
 The client manager helps users understand their configured tunnels and complete
 hostname, publication, and custom-domain actions. The operator interface makes
 local server observations available during normal operation and partial failure,
-with links to detailed diagnostics. Reliability and enjoyment both matter;
-improvements should remain bounded and understandable.
+with links to detailed diagnostics and an editor for shared DNS settings.
+Reliability and enjoyment both matter; improvements should remain bounded and
+understandable.
 
 ## Brand Personality
 

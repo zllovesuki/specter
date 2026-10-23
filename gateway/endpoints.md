@@ -18,6 +18,8 @@ These endpoints are:
   - `https://<INTERNAL_USER>:<INTERNAL_PASS>@<apex-domain>/_internal/...`
 - Requests without valid credentials receive `401 Unauthorized`.
 - If credentials are not configured, the `/_internal` tree is disabled and requests return `404 Not Found`.
+- Browser requests that change state must originate from the same origin;
+  cross-origin writes receive `403 Forbidden` before internal proxying.
 
 
 ## Index
@@ -38,6 +40,30 @@ sampled across independent fields; it is not an atomic cluster snapshot.
 without an overview handler continue to return the documentation at the index.
 
 Local assets at `/_internal/ui/` use the same authentication.
+
+
+## Shared DNS Configuration
+
+`GET /_internal/config/dns` opens the DNS nameserver/address editor. Use its
+Refresh button to check for newer saved values while preserving unsaved edits.
+
+`GET /_internal/api/config/dns` returns the locally stored configuration,
+its opaque version, the reporting server, and observation time. An optional
+`after` version requires this server to have reached that version; a lagging
+server returns `503` immediately.
+Unsupported DNS schemas remain stored but cannot be edited by this binary.
+
+`PUT /_internal/api/config/dns` accepts JSON with `expected_version` and `config`
+(the zone and nameserver/address list). A stale version receives `409`; invalid
+settings receive `400`. The hosted zone cannot be changed through this editor.
+A successful save is durable on this server; peer replication and DNS
+application follow independently. An uncertain persistence result returns
+`503`; retry with the original `expected_version` or refresh to inspect saved
+values. A committed save can make the retry return `409`.
+
+The separate local RPC listener exposes `POST /twirp/protocol.ConfigService/Get`
+to read one document by name (for example, `{"name":"dns"}` with the JSON
+encoding). It does not mount peer `Exchange` or this operator mutation API.
 
 
 ## ACME Certificate Management

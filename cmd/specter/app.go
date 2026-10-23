@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"go.miragespace.co/specter/cmd/client"
+	"go.miragespace.co/specter/cmd/config"
 	"go.miragespace.co/specter/cmd/dns"
 	"go.miragespace.co/specter/cmd/server"
 	"go.miragespace.co/specter/spec"
@@ -31,6 +32,7 @@ var (
 			},
 		},
 		Commands: []*cli.Command{
+			config.Generate(),
 			dns.Generate(),
 			server.Generate(),
 			client.Generate(),

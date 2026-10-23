@@ -29,6 +29,9 @@ ext = $(word 3, $(plat_temp))
 build-dev: certs
 	docker build -t specter-dev -f Dockerfile.dev .
 
+dev-init-config: build-dev
+	docker compose -f compose-server.yaml run --rm --no-deps -v ./dev/shared-config.json:/shared-config.json:ro seed config init --data-dir /app/data --file /shared-config.json
+
 dev-server: build-dev
 	SKIP=" " docker compose -f compose-server.yaml up
 
@@ -238,4 +241,4 @@ licenses:
 	find ./licenses -type f -exec tail -n +1 {} + > ThirdPartyLicenses.txt
 	-rm -rf ./licenses
 
-.PHONY: all release compat package-linux package-freebsd package-illumos packages clean ui
+.PHONY: all release compat package-linux package-freebsd package-illumos packages clean ui dev-init-config

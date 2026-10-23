@@ -47,6 +47,7 @@ Do not move or remove existing worktrees as incidental cleanup.
 ## Build, Test, and Development Commands
 - `make test` — short and race-tested Go suite for most changes.
 - `make full_test` — extended, long, and concurrency suites (required when touching DHT/KV/routing).
+- `make dev-init-config` — initialize shared DNS configuration in the Compose seed volume before its first start.
 - `make dev-server-acme` / `make dev-server` / `make dev-client` — bring up compose-based clusters and a demo client.
 - `make proto` — regenerates protobuf/Twirp artifacts and applies repo VT/Twirp patches; this target bootstraps tools via `make dep` and requires network access.
 - `make ui` — check and build both embedded frontends.

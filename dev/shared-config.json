@@ -1,0 +1,15 @@
+[
+  {
+    "name": "dns",
+    "schema": 1,
+    "value": {
+      "zone": "hostedacme.com",
+      "nameservers": [
+        {
+          "host": "ns.hostedacme.com",
+          "addresses": ["127.0.0.1"]
+        }
+      ]
+    }
+  }
+]

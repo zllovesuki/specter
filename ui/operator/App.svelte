@@ -5,21 +5,25 @@
   import Overview from './Overview.svelte';
   import Clients from './Clients.svelte';
   import ClientTunnels from './ClientTunnels.svelte';
+  import DNSConfiguration from './DNSConfiguration.svelte';
   import type { ClientList, Overview as OverviewData, Snapshot, TunnelDetail } from './types';
 
   const path = window.location.pathname;
-  const kind = /^\/_internal\/tun\/.+/.test(path)
-    ? 'tunnels'
-    : /^\/_internal\/tun\/?$/.test(path)
-      ? 'clients'
-      : 'overview';
+  const kind = /^\/_internal\/config\/dns\/?$/.test(path)
+    ? 'dns'
+    : /^\/_internal\/tun\/.+/.test(path)
+      ? 'tunnels'
+      : /^\/_internal\/tun\/?$/.test(path)
+        ? 'clients'
+        : 'overview';
   const endpoint = kind === 'overview'
     ? '/_internal/overview.json'
     : path.replace(/^\/_internal\/tun/, '/_internal/api/tun');
-  const title = kind === 'overview' ? 'Server overview' : kind === 'clients' ? 'Connected clients' : 'Client tunnels';
+  const title = kind === 'dns' ? 'ACME DNS' : kind === 'overview' ? 'Server overview' : kind === 'clients' ? 'Connected clients' : 'Client tunnels';
   const navigation = [
     { label: 'Overview', href: '/_internal/', active: kind === 'overview' },
-    { label: 'Clients', href: '/_internal/tun/', active: kind !== 'overview' },
+    { label: 'Clients', href: '/_internal/tun/', active: kind === 'clients' || kind === 'tunnels' },
+    { label: 'ACME DNS', href: '/_internal/config/dns', active: kind === 'dns' },
     { label: 'Endpoint reference', href: '/_internal/endpoints' },
   ];
 
@@ -29,6 +33,7 @@
   let pending: AbortController | undefined;
 
   async function refresh() {
+    if (kind === 'dns') return;
     pending?.abort();
     const controller = new AbortController();
     pending = controller;
@@ -85,6 +90,9 @@
 <svelte:head><title>{title} · Specter</title></svelte:head>
 
 <Shell label="Operator" home="/_internal/" {navigation}>
+  {#if kind === 'dns'}
+    <DNSConfiguration />
+  {:else}
   {#if kind === 'tunnels'}
     <a class="mb-2 inline-flex min-h-10 items-center text-accent-300 underline underline-offset-4 hover:text-accent-100" href="/_internal/tun/">← Back to clients</a>
   {/if}
@@ -121,4 +129,5 @@
       </div>
     {/if}
   </div>
+  {/if}
 </Shell>

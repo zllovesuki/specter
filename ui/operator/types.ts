@@ -62,3 +62,16 @@ export type Snapshot =
   | { kind: 'overview'; data: Overview }
   | { kind: 'clients'; data: ClientList }
   | { kind: 'tunnels'; data: TunnelDetail };
+
+export interface DNSConfig {
+  zone: string;
+  nameservers: { host: string; addresses: string[] }[];
+}
+
+export interface DNSConfigSnapshot {
+  version: string;
+  config: DNSConfig | null;
+  server: Identity;
+  observed_at: string;
+  error?: string;
+}

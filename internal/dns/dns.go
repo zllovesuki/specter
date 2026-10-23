@@ -2,39 +2,41 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"go.miragespace.co/specter/acme"
+	"go.miragespace.co/specter/config"
 	"go.miragespace.co/specter/internal/listen"
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/util/reuse"
 
+	"github.com/avast/retry-go/v5"
 	"github.com/miekg/dns"
+	"github.com/twitchtv/twirp"
 	"go.uber.org/zap"
 )
 
 type Options struct {
-	Logger          *zap.Logger
-	Version         string
-	TCPAddresses    []listen.Address
-	UDPAddresses    []listen.Address
-	RPCNetwork      string
-	RPCAddress      string
-	ACMEEmail       string
-	ACMEZone        string
-	ACMENameservers map[string][]string
+	Logger       *zap.Logger
+	Version      string
+	TCPAddresses []listen.Address
+	UDPAddresses []listen.Address
+	RPCNetwork   string
+	RPCAddress   string
+	ACMEEmail    string
+	ACMEZone     string
 }
 
-// Run serves the ACME challenge zone until cancellation or a termination signal.
+// Run serves the ACME challenge zone until ctx is canceled.
 func Run(ctx context.Context, options Options) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	logger := options.Logger
 
 	addrStrings := func(addrs []listen.Address) []string {
@@ -72,11 +74,31 @@ func Run(ctx context.Context, options Options) error {
 	}
 
 	acmeDomain := options.ACMEZone
-	acmeDNS := acme.NewDNS(ctx, logger.With(zap.String("component", "acme_dns")),
+	configClient := config.NewClient("http://rpc", httpClient)
+	loadConfig := func(ctx context.Context) (config.Record, error) {
+		return loadDNSConfig(ctx, configClient)
+	}
+	record, err := waitDNSConfig(ctx, logger, loadConfig, acmeDomain, dnsConfigPollInterval)
+	if err != nil {
+		return err
+	}
+	acmeDNS, err := acme.NewDNS(ctx, logger.With(zap.String("component", "acme_dns")),
 		kv,
 		options.ACMEEmail,
-		acmeDomain, options.ACMENameservers,
+		acmeDomain, record,
 	)
+	if err != nil {
+		return fmt.Errorf("configure ACME DNS: %w", err)
+	}
+	refreshDone := make(chan struct{})
+	go func() {
+		defer close(refreshDone)
+		refreshDNSConfig(ctx, logger, loadConfig, acmeDNS, dnsConfigPollInterval)
+	}()
+	defer func() {
+		cancel()
+		<-refreshDone
+	}()
 
 	dnsMux := dns.NewServeMux()
 	dnsMux.Handle(acmeDomain, acmeDNS)
@@ -134,18 +156,65 @@ func Run(ctx context.Context, options Options) error {
 		go server.ActivateAndServe()
 	}
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigs)
-
-	select {
-	case sig := <-sigs:
-		logger.Info("received signal to stop", zap.String("signal", sig.String()))
-	case <-ctx.Done():
-		logger.Info("context done", zap.Error(ctx.Err()))
-	}
+	<-ctx.Done()
+	logger.Info("ACME DNS stopping", zap.Error(ctx.Err()))
 
 	return nil
+}
+
+const (
+	dnsConfigPollInterval = 5 * time.Second
+	dnsConfigTimeout      = 3 * time.Second
+)
+
+func loadDNSConfig(ctx context.Context, client *config.Client) (config.Record, error) {
+	ctx, cancel := context.WithTimeout(ctx, dnsConfigTimeout)
+	defer cancel()
+	record, err := client.Get(ctx, acme.DNSConfigName)
+	var rpcError twirp.Error
+	if errors.As(err, &rpcError) && rpcError.Code() == twirp.NotFound {
+		return config.Record{}, fmt.Errorf("shared DNS configuration is missing; initialize the first server with specter config init --data-dir DIR --file FILE")
+	}
+	return record, err
+}
+
+func waitDNSConfig(ctx context.Context, logger *zap.Logger, load func(context.Context) (config.Record, error), localZone string, interval time.Duration) (config.Record, error) {
+	return retry.NewWithData[config.Record](
+		retry.Context(ctx),
+		retry.UntilSucceeded(),
+		retry.Delay(interval),
+		retry.DelayType(retry.FixedDelay),
+		retry.OnRetry(func(_ uint, err error) {
+			if ctx.Err() == nil {
+				logger.Warn("Waiting for shared DNS configuration", zap.Error(err))
+			}
+		}),
+	).Do(func() (config.Record, error) {
+		record, err := load(ctx)
+		if err == nil {
+			_, err = acme.DecodeDNSConfig(record, localZone)
+		}
+		return record, err
+	})
+}
+
+func refreshDNSConfig(ctx context.Context, logger *zap.Logger, load func(context.Context) (config.Record, error), handler *acme.DNS, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			record, err := load(ctx)
+			if err == nil {
+				err = handler.ApplyConfig(record)
+			}
+			if err != nil && ctx.Err() == nil {
+				logger.Warn("Unable to refresh shared DNS configuration; retaining the active version", zap.String("version", handler.ConfigVersion()), zap.Error(err))
+			}
+		}
+	}
 }
 
 type remoteKV struct {

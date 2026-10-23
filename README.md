@@ -39,6 +39,12 @@ specter also has some interesting features:
 2. When connecting to the tunnel from gateway, error is propagated from the client.
 </details>
 
+## Server Configuration
+
+See the [operator guide](OPERATOR.md) for deployment and the
+[shared configuration guide](docs/shared-configuration.md) for DNS initialization
+and rolling upgrades.
+
 ## Client Configuration
 
 ### CLI
@@ -158,7 +164,10 @@ Windows development support is limited, you may have to run `go test` manually i
 
 macOS binaries require macOS 13 or later.
 
-Run `make dev-server-acme` to build the dev image, bring up Let's Encrypt test server `pebble`, and start a 5-node specter cluster.
+Run `make dev-init-config` once to initialize DNS in the seed volume. Then run
+`make dev-server-acme` to bring up Let's Encrypt test server `pebble` and a 5-node
+Specter cluster. Keep the volumes between runs; initialize again only after
+removing the cluster's configuration data.
 
 Run `make dev-server` to start the same dev cluster without ACME enabled.
 
@@ -168,7 +177,11 @@ Run `make dev-client` to start a demo nginx server as proxy target, and a specte
 
 Run `make proto` to regenerate protobuf and Twirp artifacts; it bootstraps the required generator binaries via `make dep` and needs network access.
 
-For changes unrelated to KV or routing, `make test` should be sufficient. Changes to Chord/KV/routing should pass `make full_test`, and Chord concurrency changes should also pass `make concurrency_test`.
+For changes unrelated to KV or routing, `make test` should be sufficient.
+Changes to Chord/KV/routing should pass `make full_test`, which already includes
+the concurrency tests.
+
+For native FreeBSD or SmartOS checks, see the [development VM guide](dev/vm/README.md).
 
 ## References
 

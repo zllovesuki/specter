@@ -4,15 +4,13 @@ package acme
 import (
 	"context"
 	"net"
-	"sort"
-	"strconv"
 	"strings"
-	"time"
+	"sync"
+	"sync/atomic"
 
-	"go.miragespace.co/specter/spec"
+	"go.miragespace.co/specter/config"
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/timing"
-	"go.miragespace.co/specter/util"
 
 	"github.com/miekg/dns"
 	"go.uber.org/zap"
@@ -22,93 +20,109 @@ type DNS struct {
 	parentCtx context.Context
 	logger    *zap.Logger
 	storage   chord.KV
-	soa       *dns.SOA
-	records   map[string][]dns.RR
 	domain    string
+	email     string
+	updateMu  sync.Mutex
+	view      atomic.Pointer[dnsView]
+}
+
+// dnsView is immutable after publication. Every question and the negative
+// response SOA in one DNS response use the same view.
+type dnsView struct {
+	version string
+	soa     *dns.SOA
+	records map[string][]dns.RR
 }
 
 var _ dns.Handler = (*DNS)(nil)
 
-func NewDNS(ctx context.Context, logger *zap.Logger, kv chord.KV, email, domain string, ns map[string][]string) *DNS {
-	if !strings.HasSuffix(domain, ".") {
-		domain = domain + "."
-	}
+func NewDNS(ctx context.Context, logger *zap.Logger, kv chord.KV, email, domain string, record config.Record) (*DNS, error) {
 	server := &DNS{
 		parentCtx: ctx,
 		logger:    logger,
 		storage:   kv,
-		domain:    strings.ToLower(domain),
-		records: map[string][]dns.RR{
-			domain: make([]dns.RR, 0),
-		},
+		domain:    dns.CanonicalName(domain),
+		email:     email,
 	}
-	server.initStatic(email, ns)
-
-	logger.Info("ACME DNS configured", zap.String("domain", server.domain), zap.String("mbox", server.soa.Mbox), zap.Any("ns", ns))
-
-	return server
+	if err := server.ApplyConfig(record); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
-func (d *DNS) initStatic(email string, ns map[string][]string) {
-	nameservers := make([]string, 0)
-	for ns, ips := range ns {
-		ns = dns.Fqdn(ns)
+// ApplyConfig publishes a complete validated view, retaining the current one
+// if decoding or validation fails. Older or repeated versions are a no-op, so a
+// local server recovering from stale storage cannot roll back a running DNS view.
+func (d *DNS) ApplyConfig(record config.Record) error {
+	d.updateMu.Lock()
+	defer d.updateMu.Unlock()
+
+	dnsConfig, err := DecodeDNSConfig(record, d.domain)
+	if err != nil {
+		return err
+	}
+	version := record.Token()
+	if previous := d.view.Load(); previous != nil {
+		order, err := record.CompareVersion(previous.version)
+		if err != nil {
+			return err
+		}
+		if order <= 0 {
+			return nil
+		}
+	}
+	view := &dnsView{
+		version: version,
+		records: make(map[string][]dns.RR, len(dnsConfig.Nameservers)+1),
+	}
+	for _, ns := range dnsConfig.Nameservers {
 
 		nsRR := new(dns.NS)
 		nsRR.Hdr = dns.RR_Header{Name: d.domain, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 3600}
-		nsRR.Ns = ns
-		d.records[d.domain] = append(d.records[d.domain], nsRR)
-
-		if _, ok := d.records[ns]; !ok {
-			d.records[ns] = make([]dns.RR, 0)
+		nsRR.Ns = ns.Host
+		view.records[d.domain] = append(view.records[d.domain], nsRR)
+		if !dns.IsSubDomain(d.domain, ns.Host) {
+			continue
 		}
 
-		for _, ip := range ips {
+		for _, ip := range ns.Addresses {
 			parsed := net.ParseIP(ip)
-			if parsed == nil {
-				continue
-			}
 
 			if strings.Contains(ip, ":") {
 				aaaaRR := new(dns.AAAA)
-				aaaaRR.Hdr = dns.RR_Header{Name: dns.Fqdn(ns), Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600}
+				aaaaRR.Hdr = dns.RR_Header{Name: ns.Host, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600}
 				aaaaRR.AAAA = parsed
-				d.records[ns] = append(d.records[ns], aaaaRR)
+				view.records[ns.Host] = append(view.records[ns.Host], aaaaRR)
 			} else {
 				aRR := new(dns.A)
-				aRR.Hdr = dns.RR_Header{Name: dns.Fqdn(ns), Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
+				aRR.Hdr = dns.RR_Header{Name: ns.Host, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
 				aRR.A = parsed
-				d.records[ns] = append(d.records[ns], aRR)
+				view.records[ns.Host] = append(view.records[ns.Host], aRR)
 			}
 		}
-		nameservers = append(nameservers, ns)
 	}
-	sort.Strings(nameservers)
 
-	mbox := dns.CanonicalName(strings.ReplaceAll(email, "@", "."))
-
-	var (
-		unix   int64
-		serial uint32
-	)
-	unix, err := strconv.ParseInt(spec.BuildTime, 10, 64)
-	if err != nil {
-		unix = time.Now().Unix()
-	}
-	serial = uint32(util.Must(strconv.ParseUint(time.Unix(unix, 0).UTC().Format("2006010215"), 10, 32)))
-
-	soaRR := &dns.SOA{
+	// The replicated revision supplies an RFC 1982 serial, including uint32
+	// wraparound. Concurrent versions at one revision can share a serial; this
+	// server does not provide AXFR/IXFR and does not use SOA serials for merging.
+	view.soa = &dns.SOA{
 		Hdr:     dns.RR_Header{Name: d.domain, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 3600},
-		Ns:      nameservers[0],
-		Mbox:    mbox,
-		Serial:  serial,
+		Ns:      dnsConfig.Nameservers[0].Host,
+		Mbox:    dns.CanonicalName(strings.ReplaceAll(d.email, "@", ".")),
+		Serial:  uint32(record.Version.Revision),
 		Refresh: 28800,
 		Retry:   7200,
 		Expire:  604800,
 		Minttl:  86400,
 	}
-	d.records[d.domain] = append(d.records[d.domain], soaRR)
-	d.soa = soaRR
+	view.records[d.domain] = append(view.records[d.domain], view.soa)
+	d.view.Store(view)
+	d.logger.Info("ACME DNS configured", zap.String("domain", d.domain), zap.String("version", version), zap.Any("ns", dnsConfig.Nameservers))
+	return nil
+}
+
+func (d *DNS) ConfigVersion() string {
+	return d.view.Load().version
 }
 
 func (d *DNS) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -125,15 +139,15 @@ func (d *DNS) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 	if r.Opcode == dns.OpcodeQuery {
-		d.readQuery(m)
+		d.readQuery(m, d.view.Load())
 	}
 }
 
-func (d *DNS) readQuery(m *dns.Msg) {
+func (d *DNS) readQuery(m *dns.Msg, view *dnsView) {
 	var authoritative = false
 
 	for _, que := range m.Question {
-		rr, rc, auth := d.answer(que)
+		rr, rc, auth := d.answer(que, view)
 		if auth {
 			authoritative = auth
 		}
@@ -143,7 +157,7 @@ func (d *DNS) readQuery(m *dns.Msg) {
 
 	m.MsgHdr.Authoritative = authoritative
 	if authoritative && m.MsgHdr.Rcode == dns.RcodeNameError {
-		m.Ns = append(m.Ns, d.soa)
+		m.Ns = append(m.Ns, view.soa)
 	}
 }
 
@@ -151,13 +165,15 @@ func (d *DNS) isImmediate(q dns.Question) bool {
 	qname := strings.ToLower(q.Name)
 	query := strings.Split(qname, ".")
 	self := strings.Split(d.domain, ".")
-	return strings.HasSuffix(qname, d.domain) &&
+	return dns.IsSubDomain(d.domain, qname) &&
 		len(query) >= len(self) &&
 		len(query)-len(self) <= 1
 }
 
-func (d *DNS) answer(q dns.Question) (rr []dns.RR, rcode int, auth bool) {
-	auth = d.isImmediate(q)
+func (d *DNS) answer(q dns.Question, view *dnsView) (rr []dns.RR, rcode int, auth bool) {
+	qname := strings.ToLower(q.Name)
+	defined := view.records[qname]
+	auth = len(defined) > 0 || d.isImmediate(q)
 	if !auth {
 		return nil, dns.RcodeNameError, true
 	}
@@ -167,15 +183,13 @@ func (d *DNS) answer(q dns.Question) (rr []dns.RR, rcode int, auth bool) {
 		return
 	}
 
-	qname := strings.ToLower(q.Name)
-	defined := d.records[qname]
 	for _, ri := range defined {
 		if ri.Header().Rrtype == q.Qtype {
 			rr = append(rr, ri)
 		}
 	}
 
-	if q.Qtype == dns.TypeTXT {
+	if q.Qtype == dns.TypeTXT && d.isImmediate(q) {
 		txtRRs, err := d.answerTXT(q)
 		if err != nil {
 			rcode = dns.RcodeServerFailure

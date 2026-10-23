@@ -42,7 +42,35 @@ This section walks you through a minimal, reproducible setup of an initial Spect
 ### 1. Prepare Certificates
 Specter requires a private CA bundle for inter-node and client authentication. You will need a directory containing the following files: `ca.crt`, `client-ca.crt`, `client-ca.key`, `node.crt`, and `node.key`.
 
-### 2. Launch the Initial Node
+### 2. Initialize DNS Configuration
+Create `initial-config.json` with the ACME zone, nameserver names, and public
+addresses you will use:
+
+```json
+[
+  {
+    "name": "dns",
+    "schema": 1,
+    "value": {
+      "zone": "acme-hosted.net",
+      "nameservers": [
+        {"host": "ns1.acme-hosted.net", "addresses": ["203.0.113.10"]}
+      ]
+    }
+  }
+]
+```
+
+Run this once on the first server as its service user:
+
+```sh
+specter config init --data-dir /var/lib/specter --file initial-config.json
+```
+
+Other servers obtain the configuration from peers. For an existing installation,
+follow the [upgrade sequence](docs/shared-configuration.md#first-setup-or-upgrade).
+
+### 3. Launch the Initial Node
 The first node in your cluster takes the role of the "seed" node. It must be started without the `--join` flag.
 
 ```sh
@@ -54,23 +82,25 @@ specter --verbose server \
   --listen-rpc unix:///run/specter/rpc.sock
 ```
 
-### 3. Start the ACME DNS Solver
-The DNS solver handles Let's Encrypt (or other ACME provider) challenges. It communicates with the local Specter node via the RPC socket.
+### 4. Start the ACME DNS Solver
+The DNS solver reads its records and ACME challenges from the local Specter
+server through the RPC socket. It waits for usable DNS configuration at startup
+and picks up later edits without a restart.
 
 ```sh
 specter dns \
   --acme acme://ops@example.net@acme-hosted.net \
-  --acme-ns ns1.acme-hosted.net/203.0.113.10 \
   --rpc unix:///run/specter/rpc.sock
 ```
 
-### 4. Configure DNS Delegation
+### 5. Configure DNS Delegation
 In your DNS provider's control panel:
 - Delegate `_acme-challenge.example.com` to `managed.acme-hosted.net` using a CNAME record.
-- Publish NS records for the delegated ACME zone using the names you pass via `--acme-ns` (for example `ns1.acme-hosted.net`), and publish matching A/AAAA records for those names. If those NS hostnames live inside the delegated zone, add glue records at the parent zone.
+- Publish NS records for the delegated ACME zone using the names in your DNS configuration (for example `ns1.acme-hosted.net`), and publish matching A/AAAA records for those names. If those NS hostnames live inside the delegated zone, add glue records at the parent zone.
 
-### 5. Expand the Cluster
+### 6. Expand the Cluster
 To add more servers to your cluster, start them with the `--join <seed-advertise-addr>` flag, using the same CA bundle and `--apex` list as the initial node.
+They synchronize the shared configuration automatically; do not rerun initialization.
 
 ---
 
@@ -94,7 +124,7 @@ Specter uses a Chord Distributed Hash Table (DHT) to form a cluster (the "ring")
 ### Addresses and Listeners
 - **Listen Address (`--listen-addr`):** The local interface and port to bind for TCP and UDP traffic. You can override these per-protocol using `--listen-tcp` and `--listen-udp`.
 - **Advertise Address (`--advertise-addr`):** The public, routable address that clients and other nodes use to reach this server. It must remain stable across restarts.
-- **RPC Listener (`--listen-rpc`):** Exposes internal KV and node-to-node RPC endpoints. Because it lacks authentication, **always bind this to a loopback address (`127.0.0.1`) or a secure Unix socket.**
+- **RPC Listener (`--listen-rpc`):** Exposes internal KV and node-to-node RPC endpoints, plus read-only shared configuration. Because it lacks authentication, **always bind this to a loopback address (`127.0.0.1`) or a secure Unix socket.**
 
 ---
 
@@ -104,8 +134,16 @@ Packaged services read `/etc/specter/{server,dns,client}.env` as shell files. As
 
 Override the file path with `SPECTER_SERVER_ENV_FILE`, `SPECTER_DNS_ENV_FILE`, or `SPECTER_CLIENT_ENV_FILE`. `SPECTER_*_ARGS` split on whitespace; `SPECTER_CLIENT_CONFIG` supports paths containing spaces.
 
-### Shared Configuration
+### Common CLI Flags
 You can set `SPECTER_GLOBAL_ARGS` in any environment file to pass shared flags, such as `--verbose` for detailed logging.
+
+### Shared DNS Settings
+Edit nameservers and addresses through **ACME DNS** in the operator page at
+`/_internal/config/dns`. Each server keeps a durable copy and synchronizes with
+peers. A successful save confirms storage on the responding server; replication
+follows. The ACME zone stays in deployment configuration and must match the DNS
+document. See the [shared configuration guide](docs/shared-configuration.md) for
+initialization, upgrades, and backups.
 
 ### Server Configuration (`server.env`)
 Use `--join` to connect to an existing ring and `--acme` for managed TLS certificates. Keep admin credentials and the Sentry DSN in environment variables.
@@ -129,9 +167,11 @@ The DNS solver must share the same ACME configuration as the server. Using a Uni
 # /etc/specter/dns.env
 SPECTER_GLOBAL_ARGS="--verbose"
 SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock \
-  --acme acme://ops@example.net@acme-hosted.net \
-  --acme-ns ns1.acme-hosted.net/203.0.113.10"
+  --acme acme://ops@example.net@acme-hosted.net"
 ```
+
+`--acme-ns` and `ACME_NS` are accepted for upgrade compatibility but ignored.
+Nameserver records come from the shared DNS document.
 
 ### Client Configuration (`client.env`)
 The client service reads a YAML configuration file to define the tunnels it should establish. 
@@ -147,6 +187,8 @@ SPECTER_CLIENT_ARGS=""
 
 ### Enabling Services
 After configuring the `.env` files, enable and start the services using systemd. The packaged units run as the unprivileged `specter` user. The server and DNS units are granted only the privilege needed to bind low ports.
+Initialize DNS on the first server as shown below. DNS waits for usable
+configuration at startup. Client-only installations do not need initialization.
 
 **Systemd (Linux):**
 ```sh
@@ -178,17 +220,24 @@ SPECTER_SERVER_ARGS="--data-dir /var/lib/specter \
 # /etc/specter/dns.env
 SPECTER_GLOBAL_ARGS="--verbose"
 SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock \
-  --acme acme://ops@example.net@acme-hosted.net \
-  --acme-ns ns1.acme-hosted.net/203.0.113.10"
+  --acme acme://ops@example.net@acme-hosted.net"
 ```
 
-Then reload systemd and start the units:
+On the first server, save the [initial DNS document](#2-initialize-dns-configuration)
+as `/etc/specter/initial-config.json`, readable by `specter`, and initialize it:
 
 ```sh
+sudo -u specter specter config init --data-dir /var/lib/specter \
+  --file /etc/specter/initial-config.json
 systemctl daemon-reload
 systemctl enable --now specter-server
 systemctl enable --now specter-dns
 ```
+
+On the remaining servers, skip initialization and start both services. DNS waits
+for configuration to arrive from peers. During a rolling upgrade, check that DNS
+answers correctly before moving to the next server. Routine restarts preserve
+the data directory and do not need initialization.
 
 ---
 
@@ -206,6 +255,8 @@ Specter integrates tightly with ACME providers (like Let's Encrypt) to automate 
 
 ### Storage and Durability
 The `--data-dir` is critical for Specter's operation. Each virtual node stores its key-value data in `<data-dir>/<index>`.
+Shared configuration is stored separately in `<data-dir>/config/db`, once per
+physical server, using SQLite regardless of the selected KV backend.
 
 Specter supports different KV backends:
 - **`aof` (Append-Only File):** A supported fallback backend that remains the default. It uses a write-ahead log and flushes to disk approximately every 3 seconds.
@@ -218,7 +269,7 @@ Select storage with `--kv-provider` or `KV_PROVIDER` (default: `aof`). Startup r
 
 **Empty-value transfers:** Membership transfers preserve empty simple values, including keys shared with prefix or lease state. Complete the cluster upgrade before relying on this guarantee: older senders omit empty-value presence, and older nodes lose it on re-export. Older AOF nodes also omit it when logging an imported value, so it disappears after restart. Upgraded AOF nodes preserve imported empty values in the existing WAL format. This change cannot recover presence already lost by an older writer.
 
-**Important:** You must persist the entire `--data-dir`. It holds tunnel routing mappings, client tokens and hostname bindings, custom-host validation state, and ACME-related state when ACME is enabled. Using ephemeral storage will result in orphaned tunnels and force unnecessary ACME re-issuance.
+**Important:** You must persist the entire `--data-dir`. It holds shared configuration, tunnel routing mappings, client tokens and hostname bindings, custom-host validation state, and ACME-related state when ACME is enabled. Using ephemeral storage will result in orphaned tunnels and force unnecessary ACME re-issuance.
 
 ### Observability and Internal Endpoints
 Specter provides a suite of administrative and observability endpoints under the `/_internal` path. 
@@ -230,6 +281,7 @@ Once authenticated, you can access:
 - ACME certificate inventory
 - Chord DHT statistics and routing graphs
 - Connected clients: `/_internal/tun/`
+- Shared DNS settings: `/_internal/config/dns`
 - Profiling data (`pprof`/`expvar`)
 
 The overview uses local observations; detailed ring statistics scan keys. See `/_internal/endpoints` for the endpoint reference.
@@ -243,4 +295,4 @@ By default, Specter logs in JSON format to standard error. Passing the `--verbos
 - **Graceful Shutdown:** Specter handles `SIGINT` and `SIGTERM` signals by gracefully calling `Leave` on each virtual node in the Chord ring. Ensure your orchestrator gives the process at least 60–120 seconds to allow for ownership transfers to complete before forcefully terminating it.
 - **Rolling Restarts:** When changing `--advertise-addr`, plan your deployment carefully because it changes the node identity. Add the newly configured nodes to the cluster first, allow them to stabilize, and then remove the old ones. Changes to `--apex` or CA material still need a coordinated rollout, but they do not by themselves change the Chord node ID.
 - **PROXY Protocol:** Only enable `--proxy-protocol` if your upstream load balancer explicitly injects it. When enabled, any TCP connection lacking a valid PROXY header will be rejected.
-- **Data Backups:** Always back up your `--data-dir` before performing migrations or changing KV providers. If using the SQLite backend, ensure the `cache/` subdirectory is included in your backup.
+- **Data Backups:** Back up the entire `--data-dir` before migrations or KV provider changes. Stop the server before copying, and include `config/` and the SQLite backend's `cache/` directory. Keep backups separately from replicas: configuration mistakes replicate too. See the [backup instructions](docs/shared-configuration.md#restarts-and-backups).

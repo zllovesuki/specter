@@ -40,7 +40,7 @@ services:
       - DOH=false
     networks:
       - specter
-    command: --verbose dns --acme acme://admin@example.com@hostedacme.com --acme-ns ns.hostedacme.com/127.0.0.1 --listen :1153 --rpc tcp://seed:1280
+    command: --verbose dns --acme acme://admin@example.com@hostedacme.com --listen :1153 --rpc tcp://seed:1280
 
   seed:
     image: specter-dev

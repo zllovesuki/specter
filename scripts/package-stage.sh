@@ -72,8 +72,10 @@ SPECTER_SERVER_ARGS="--data-dir /var/lib/specter --cert-dir $sysconfdir/specter/
 EOF
 
 cat > "$stage_root$sysconfdir/specter/dns.env" <<EOF
+# Initialize shared DNS configuration on the first server before starting DNS.
+# Setup and upgrade instructions: https://github.com/zllovesuki/specter/blob/main/docs/shared-configuration.md
 SPECTER_GLOBAL_ARGS=
-SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock --acme acme://ops@example.net@acme-hosted.net --acme-ns ns1.acme-hosted.net/203.0.113.10"
+SPECTER_DNS_ARGS="--rpc unix:///run/specter/rpc.sock --acme acme://ops@example.net@acme-hosted.net"
 EOF
 
 cat > "$stage_root$sysconfdir/specter/client.env" <<EOF
