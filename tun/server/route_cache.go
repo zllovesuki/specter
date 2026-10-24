@@ -43,6 +43,16 @@ func (s *Server) RoutesPreload(hostname string) {
 	s.lookupRoutes(s.ParentContext, hostname, nil)
 }
 
+// CheckRoute returns the cached route lookup result without opening a connection.
+// A nil error means route candidates exist, not that a client is connected.
+func (s *Server) CheckRoute(ctx context.Context, hostname string) error {
+	ret, err := s.lookupRoutes(ctx, hostname, nil)
+	if err != nil {
+		return err
+	}
+	return ret.err
+}
+
 // A stale result requests one refresh, unless another caller already replaced it
 // or the most recent refresh is still in its cooldown. Keep results immutable so
 // slow callers can identify the exact generation they exhausted.

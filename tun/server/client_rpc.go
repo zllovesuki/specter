@@ -76,7 +76,7 @@ func (s *Server) attachRPC(ctx context.Context, router *transport.StreamRouter) 
 	rpcHandler := chi.NewRouter()
 	rpcHandler.Use(middleware.Recoverer)
 	rpcHandler.Use(httprate.LimitByIP(10, time.Second))
-	rpcHandler.Use(util.LimitBody(1 << 10)) // 1KB
+	rpcHandler.Use(limitClientRPCBody)
 	rpcHandler.Mount(tunTwirp.PathPrefix(), tunTwirp)
 	rpcHandler.Mount(keylessTwirp.PathPrefix(), keylessTwirp)
 
@@ -379,6 +379,9 @@ func (s *Server) ReleaseTunnel(ctx context.Context, req *protocol.ReleaseTunnelR
 	hostname := req.GetHostname()
 	if err := s.unadvertiseTunnel(ctx, token, hostname); err != nil {
 		return nil, err
+	}
+	if err := s.clearHostWAF(ctx, token, hostname); err != nil {
+		return nil, rpc.WrapErrorKV(tun.HostWAFKey(hostname), err)
 	}
 	prefix := tun.ClientHostnamesPrefix(token)
 	if err := s.Chord.PrefixRemove(ctx, []byte(prefix), []byte(hostname)); err != nil {

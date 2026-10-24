@@ -34,6 +34,10 @@ func CustomHostnameKey(hostname string) string {
 	return fmt.Sprintf("/tunnel/client/custom/%s", hostname)
 }
 
+func HostWAFKey(hostname string) string {
+	return "/tunnel/waf/" + hostname
+}
+
 func DelegationKey(id string) string { return "/tunnel/delegation/" + id }
 
 func ClientDelegationsPrefix(token *protocol.ClientToken) string {

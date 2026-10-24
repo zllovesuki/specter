@@ -49,19 +49,21 @@ type Options struct {
 }
 
 type GatewayConfig struct {
-	Handlers          InternalHandlers
-	PKIServer         protocol.PKIService
-	TunnelServer      tun.Server
-	HTTPListener      net.Listener
-	H2Listener        net.Listener
-	H3Listener        q.Listener
-	Logger            *zap.Logger
-	HandshakeHintFunc cipher.OnHandshakeFunc
-	AdminUser         string
-	AdminPass         string
-	RootDomains       []string
-	GatewayPort       int
-	Options           Options
+	Handlers              InternalHandlers
+	PKIServer             protocol.PKIService
+	TunnelServer          tun.Server
+	HTTPListener          net.Listener
+	H2Listener            net.Listener
+	H3Listener            q.Listener
+	Logger                *zap.Logger
+	HandshakeHintFunc     cipher.OnHandshakeFunc
+	RouteCheckFunc        func(context.Context, string) error
+	ApplicationMiddleware func(http.Handler, func(*http.Request) (string, error)) http.Handler
+	AdminUser             string
+	AdminPass             string
+	RootDomains           []string
+	GatewayPort           int
+	Options               Options
 }
 
 type Gateway struct {

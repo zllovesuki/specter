@@ -1932,7 +1932,7 @@ var File_spec_proto_tunnel_proto protoreflect.FileDescriptor
 
 const file_spec_proto_tunnel_proto_rawDesc = "" +
 	"\n" +
-	"\x17spec/proto/tunnel.proto\x12\bprotocol\x1a\x15spec/proto/node.proto\x1a\x14spec/proto/pow.proto\x1a google/protobuf/descriptor.proto\"\x92\x02\n" +
+	"\x17spec/proto/tunnel.proto\x12\bprotocol\x1a\x15spec/proto/node.proto\x1a\x14spec/proto/pow.proto\x1a\x14spec/proto/waf.proto\x1a google/protobuf/descriptor.proto\"\x92\x02\n" +
 	"\x04Link\x12'\n" +
 	"\x04alpn\x18\x01 \x01(\x0e2\x13.protocol.Link.ALPNR\x04alpn\x12\x1a\n" +
 	"\bhostname\x18\x02 \x01(\tR\bhostname\x12\x16\n" +
@@ -2046,8 +2046,7 @@ const file_spec_proto_tunnel_proto_rawDesc = "" +
 	"\x10TunnelStatusCode\x12\r\n" +
 	"\tSTATUS_OK\x10\x00\x12\x11\n" +
 	"\rUNKNOWN_ERROR\x10\x01\x12\r\n" +
-	"\tNO_DIRECT\x10\x022\x86\n" +
-	"\n" +
+	"\tNO_DIRECT\x10\x022\x92\v\n" +
 	"\rTunnelService\x12S\n" +
 	"\x0eMintDelegation\x12\x1f.protocol.MintDelegationRequest\x1a .protocol.MintDelegationResponse\x12V\n" +
 	"\x0fListDelegations\x12 .protocol.ListDelegationsRequest\x1a!.protocol.ListDelegationsResponse\x12Y\n" +
@@ -2059,7 +2058,11 @@ const file_spec_proto_tunnel_proto_rawDesc = "" +
 	"\x13RegisteredHostnames\x12$.protocol.RegisteredHostnamesRequest\x1a%.protocol.RegisteredHostnamesResponse\x12P\n" +
 	"\rPublishTunnel\x12\x1e.protocol.PublishTunnelRequest\x1a\x1f.protocol.PublishTunnelResponse\x12V\n" +
 	"\x0fUnpublishTunnel\x12 .protocol.UnpublishTunnelRequest\x1a!.protocol.UnpublishTunnelResponse\x12P\n" +
-	"\rReleaseTunnel\x12\x1e.protocol.ReleaseTunnelRequest\x1a\x1f.protocol.ReleaseTunnelResponse\x12N\n" +
+	"\rReleaseTunnel\x12\x1e.protocol.ReleaseTunnelRequest\x1a\x1f.protocol.ReleaseTunnelResponse\x12D\n" +
+	"\n" +
+	"GetHostWAF\x12\x1b.protocol.GetHostWAFRequest\x1a\x19.protocol.HostWAFResponse\x12D\n" +
+	"\n" +
+	"SetHostWAF\x12\x1b.protocol.SetHostWAFRequest\x1a\x19.protocol.HostWAFResponse\x12N\n" +
 	"\x0fAcmeInstruction\x12\x1c.protocol.InstructionRequest\x1a\x1d.protocol.InstructionResponse\x12E\n" +
 	"\fAcmeValidate\x12\x19.protocol.ValidateRequest\x1a\x1a.protocol.ValidateResponse\x12\\\n" +
 	"\x14OpenEphemeralSession\x12%.protocol.OpenEphemeralSessionRequest\x1a\x1d.protocol.OpenSessionResponse\x12\\\n" +
@@ -2123,6 +2126,9 @@ var file_spec_proto_tunnel_proto_goTypes = []any{
 	(*Node)(nil),                          // 39: protocol.Node
 	(*ProofOfWork)(nil),                   // 40: protocol.ProofOfWork
 	(*descriptorpb.EnumValueOptions)(nil), // 41: google.protobuf.EnumValueOptions
+	(*GetHostWAFRequest)(nil),             // 42: protocol.GetHostWAFRequest
+	(*SetHostWAFRequest)(nil),             // 43: protocol.SetHostWAFRequest
+	(*HostWAFResponse)(nil),               // 44: protocol.HostWAFResponse
 }
 var file_spec_proto_tunnel_proto_depIdxs = []int32{
 	1,  // 0: protocol.Link.alpn:type_name -> protocol.Link.ALPN
@@ -2156,27 +2162,31 @@ var file_spec_proto_tunnel_proto_depIdxs = []int32{
 	18, // 28: protocol.TunnelService.PublishTunnel:input_type -> protocol.PublishTunnelRequest
 	20, // 29: protocol.TunnelService.UnpublishTunnel:input_type -> protocol.UnpublishTunnelRequest
 	22, // 30: protocol.TunnelService.ReleaseTunnel:input_type -> protocol.ReleaseTunnelRequest
-	24, // 31: protocol.TunnelService.AcmeInstruction:input_type -> protocol.InstructionRequest
-	26, // 32: protocol.TunnelService.AcmeValidate:input_type -> protocol.ValidateRequest
-	36, // 33: protocol.TunnelService.OpenEphemeralSession:input_type -> protocol.OpenEphemeralSessionRequest
-	37, // 34: protocol.TunnelService.OpenDelegatedSession:input_type -> protocol.OpenDelegatedSessionRequest
-	31, // 35: protocol.TunnelService.MintDelegation:output_type -> protocol.MintDelegationResponse
-	33, // 36: protocol.TunnelService.ListDelegations:output_type -> protocol.ListDelegationsResponse
-	35, // 37: protocol.TunnelService.RevokeDelegation:output_type -> protocol.RevokeDelegationResponse
-	9,  // 38: protocol.TunnelService.Ping:output_type -> protocol.ClientPingResponse
-	11, // 39: protocol.TunnelService.RegisterIdentity:output_type -> protocol.RegisterIdentityResponse
-	13, // 40: protocol.TunnelService.GetNodes:output_type -> protocol.GetNodesResponse
-	15, // 41: protocol.TunnelService.GenerateHostname:output_type -> protocol.GenerateHostnameResponse
-	17, // 42: protocol.TunnelService.RegisteredHostnames:output_type -> protocol.RegisteredHostnamesResponse
-	19, // 43: protocol.TunnelService.PublishTunnel:output_type -> protocol.PublishTunnelResponse
-	21, // 44: protocol.TunnelService.UnpublishTunnel:output_type -> protocol.UnpublishTunnelResponse
-	23, // 45: protocol.TunnelService.ReleaseTunnel:output_type -> protocol.ReleaseTunnelResponse
-	25, // 46: protocol.TunnelService.AcmeInstruction:output_type -> protocol.InstructionResponse
-	27, // 47: protocol.TunnelService.AcmeValidate:output_type -> protocol.ValidateResponse
-	38, // 48: protocol.TunnelService.OpenEphemeralSession:output_type -> protocol.OpenSessionResponse
-	38, // 49: protocol.TunnelService.OpenDelegatedSession:output_type -> protocol.OpenSessionResponse
-	35, // [35:50] is the sub-list for method output_type
-	20, // [20:35] is the sub-list for method input_type
+	42, // 31: protocol.TunnelService.GetHostWAF:input_type -> protocol.GetHostWAFRequest
+	43, // 32: protocol.TunnelService.SetHostWAF:input_type -> protocol.SetHostWAFRequest
+	24, // 33: protocol.TunnelService.AcmeInstruction:input_type -> protocol.InstructionRequest
+	26, // 34: protocol.TunnelService.AcmeValidate:input_type -> protocol.ValidateRequest
+	36, // 35: protocol.TunnelService.OpenEphemeralSession:input_type -> protocol.OpenEphemeralSessionRequest
+	37, // 36: protocol.TunnelService.OpenDelegatedSession:input_type -> protocol.OpenDelegatedSessionRequest
+	31, // 37: protocol.TunnelService.MintDelegation:output_type -> protocol.MintDelegationResponse
+	33, // 38: protocol.TunnelService.ListDelegations:output_type -> protocol.ListDelegationsResponse
+	35, // 39: protocol.TunnelService.RevokeDelegation:output_type -> protocol.RevokeDelegationResponse
+	9,  // 40: protocol.TunnelService.Ping:output_type -> protocol.ClientPingResponse
+	11, // 41: protocol.TunnelService.RegisterIdentity:output_type -> protocol.RegisterIdentityResponse
+	13, // 42: protocol.TunnelService.GetNodes:output_type -> protocol.GetNodesResponse
+	15, // 43: protocol.TunnelService.GenerateHostname:output_type -> protocol.GenerateHostnameResponse
+	17, // 44: protocol.TunnelService.RegisteredHostnames:output_type -> protocol.RegisteredHostnamesResponse
+	19, // 45: protocol.TunnelService.PublishTunnel:output_type -> protocol.PublishTunnelResponse
+	21, // 46: protocol.TunnelService.UnpublishTunnel:output_type -> protocol.UnpublishTunnelResponse
+	23, // 47: protocol.TunnelService.ReleaseTunnel:output_type -> protocol.ReleaseTunnelResponse
+	44, // 48: protocol.TunnelService.GetHostWAF:output_type -> protocol.HostWAFResponse
+	44, // 49: protocol.TunnelService.SetHostWAF:output_type -> protocol.HostWAFResponse
+	25, // 50: protocol.TunnelService.AcmeInstruction:output_type -> protocol.InstructionResponse
+	27, // 51: protocol.TunnelService.AcmeValidate:output_type -> protocol.ValidateResponse
+	38, // 52: protocol.TunnelService.OpenEphemeralSession:output_type -> protocol.OpenSessionResponse
+	38, // 53: protocol.TunnelService.OpenDelegatedSession:output_type -> protocol.OpenSessionResponse
+	37, // [37:54] is the sub-list for method output_type
+	20, // [20:37] is the sub-list for method input_type
 	20, // [20:20] is the sub-list for extension type_name
 	19, // [19:20] is the sub-list for extension extendee
 	0,  // [0:19] is the sub-list for field type_name
@@ -2189,6 +2199,7 @@ func file_spec_proto_tunnel_proto_init() {
 	}
 	file_spec_proto_node_proto_init()
 	file_spec_proto_pow_proto_init()
+	file_spec_proto_waf_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

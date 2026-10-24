@@ -17,6 +17,22 @@ type TunnelService struct {
 
 var _ protocol.TunnelService = (*TunnelService)(nil)
 
+func (t *TunnelService) GetHostWAF(ctx context.Context, req *protocol.GetHostWAFRequest) (*protocol.HostWAFResponse, error) {
+	args := t.Called(ctx, req)
+	if err := args.Error(1); err != nil {
+		return nil, err
+	}
+	return args.Get(0).(*protocol.HostWAFResponse), nil
+}
+
+func (t *TunnelService) SetHostWAF(ctx context.Context, req *protocol.SetHostWAFRequest) (*protocol.HostWAFResponse, error) {
+	args := t.Called(ctx, req)
+	if err := args.Error(1); err != nil {
+		return nil, err
+	}
+	return args.Get(0).(*protocol.HostWAFResponse), nil
+}
+
 func (t *TunnelService) OpenEphemeralSession(ctx context.Context, req *protocol.OpenEphemeralSessionRequest) (*protocol.OpenSessionResponse, error) {
 	args := t.Called(ctx, req)
 	if err := args.Error(1); err != nil {

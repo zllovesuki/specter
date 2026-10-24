@@ -89,6 +89,8 @@ func (a *apexServer) Mount(r *chi.Mux) {
 			page := ui.OperatorPage()
 			r.Handle("/config/dns", page)
 			r.Handle("/config/dns/", page)
+			r.Handle("/config/waf", page)
+			r.Handle("/config/waf/", page)
 			r.Mount("/api/config", a.handlers.Configuration)
 		}
 		r.Get("/endpoints", func(w http.ResponseWriter, _ *http.Request) {

@@ -780,6 +780,7 @@ func TestReleaseTunnel(t *testing.T) {
 	ctx := t.Context()
 
 	hostname := "test-1234"
+	node.On("Get", mock.Anything, []byte(tun.HostWAFKey(hostname))).Return(nil, nil).Once()
 	token := &protocol.ClientToken{
 		Token: mustGenerateToken(),
 	}

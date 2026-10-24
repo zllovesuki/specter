@@ -206,6 +206,7 @@ type encRequest http.Request
 var _ zapcore.ObjectMarshaler = (*encRequest)(nil)
 
 func (r *encRequest) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("request_id", r.Header.Get("X-Request-ID"))
 	enc.AddString("method", r.Method)
 	enc.AddString("path", r.RequestURI)
 	proxied := r.Header.Get("x-forwarded-for")

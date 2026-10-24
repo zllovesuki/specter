@@ -41,26 +41,32 @@ func (s *Server) readDelegation(ctx context.Context, id string) (*protocol.Deleg
 }
 
 func (s *Server) verifyDelegatedAuthority(ctx context.Context, rec *protocol.DelegationRecord) error {
-	owned, err := s.Chord.PrefixContains(ctx, []byte(tun.ClientHostnamesPrefix(rec.GetOwner())), []byte(rec.GetHostname()))
+	owned, err := s.ownsHostname(ctx, rec.GetOwner(), rec.GetHostname())
 	if err != nil {
 		return err
 	}
 	if !owned {
 		return errDelegationNotOwned
 	}
-	if strings.Contains(rec.GetHostname(), ".") {
-		custom, err := tun.FindCustomHostname(ctx, s.Chord, rec.GetHostname())
+	return nil
+}
+
+func (s *Server) ownsHostname(ctx context.Context, owner *protocol.ClientToken, hostname string) (bool, error) {
+	owned, err := s.Chord.PrefixContains(ctx, []byte(tun.ClientHostnamesPrefix(owner)), []byte(hostname))
+	if err != nil || !owned {
+		return false, err
+	}
+	if strings.Contains(hostname, ".") {
+		custom, err := tun.FindCustomHostname(ctx, s.Chord, hostname)
 		if errors.Is(err, tun.ErrHostnameNotFound) {
-			return errDelegationNotOwned
+			return false, nil
 		}
 		if err != nil {
-			return err
+			return false, err
 		}
-		if !bytes.Equal(custom.GetClientToken().GetToken(), rec.GetOwner().GetToken()) {
-			return errDelegationNotOwned
-		}
+		return bytes.Equal(custom.GetClientToken().GetToken(), owner.GetToken()), nil
 	}
-	return nil
+	return true, nil
 }
 
 func delegationAuthorityError(err error) error {

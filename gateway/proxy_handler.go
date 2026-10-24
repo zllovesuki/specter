@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/alecthomas/units"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -203,23 +205,24 @@ func (g *Gateway) forwardTCP(ctx context.Context, host string, remote string, co
 	return nil
 }
 
+func effectiveRequestHost(in *http.Request) string {
+	host := in.Host
+	// Most browsers' connection coalescing behavior for http3 is the same as http2,
+	// as they could be reusing the same tcp/quic connection for different hosts.
+	// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
+	// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
+	if !in.ProtoAtLeast(2, 0) && in.TLS != nil {
+		host = in.TLS.ServerName
+	}
+	return (&url.URL{Host: host}).Hostname()
+}
+
 func (g *Gateway) proxyRewrite(preq *httputil.ProxyRequest) {
 	in := preq.In
 	out := preq.Out
 
 	out.URL.Scheme = "https"
-	// Most browsers' connection coalescing behavior for http3 is the same as http2,
-	// as they could be reusing the same tcp/quic connection for different hosts.
-	// https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
-	// https://mailarchive.ietf.org/arch/msg/quic/ffjARd8-IobIE2T9_r5u9hBDbuk/
-	if in.ProtoAtLeast(2, 0) {
-		out.URL.Host = in.Host
-	} else if in.TLS != nil {
-		out.URL.Host = in.TLS.ServerName
-	} else {
-		out.URL.Host = in.Host
-	}
-	out.URL.Host = out.URL.Hostname()
+	out.URL.Host = effectiveRequestHost(in)
 	out.Host = out.URL.Host
 
 	for _, header := range delHeaders {
@@ -236,11 +239,13 @@ func (g *Gateway) proxyRewrite(preq *httputil.ProxyRequest) {
 		out.Header.Set("X-Forwarded-Host", fmt.Sprintf("%s:%d", out.URL.Host, g.GatewayPort))
 	}
 	out.Header.Set("X-Forwarded-Proto", "https")
+	out.Header.Set(middleware.RequestIDHeader, middleware.GetReqID(in.Context()))
 }
 
 func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 	respHandler := func(r *http.Response) error {
 		r.Header.Del("alt-svc")
+		r.Header.Set(middleware.RequestIDHeader, middleware.GetReqID(r.Request.Context()))
 		g.appendHeaders(r.Request.ProtoAtLeast(3, 0))(r.Header)
 		return nil
 	}
@@ -278,23 +283,67 @@ func (g *Gateway) proxyHandler(proxyLogger *log.Logger) http.Handler {
 	router := chi.NewRouter()
 
 	g.mountCgiHandler(router)
-	router.Handle("/*", proxy)
+	router.Handle("/*", g.applicationHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Proxy response hooks set the final ID after any informational response
+		// clears these headers, without appending a duplicate backend value.
+		w.Header().Del(middleware.RequestIDHeader)
+		proxy.ServeHTTP(w, r)
+	})))
 
 	return router
 }
 
+func (g *Gateway) applicationHandler(next http.Handler) http.Handler {
+	application := next
+	if g.ApplicationMiddleware != nil {
+		application = g.ApplicationMiddleware(application, func(r *http.Request) (string, error) {
+			return g.extractHostname(effectiveRequestHost(r))
+		})
+	}
+
+	identified := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(middleware.RequestIDHeader, middleware.GetReqID(r.Context()))
+
+		// Route and inspect the same authority that Rewrite forwards to the client.
+		host := effectiveRequestHost(r)
+		if r.Host != host {
+			copy := *r
+			copy.Host = host
+			r = &copy
+		}
+		if g.RouteCheckFunc != nil {
+			hostname, err := g.extractHostname(host)
+			// Only established absence skips inspection. Uncertain lookups keep
+			// the normal inspection and proxy recovery path.
+			if err == nil && errors.Is(g.RouteCheckFunc(r.Context(), hostname), tun.ErrDestinationNotFound) {
+				g.errorHandler(w, r, tun.ErrDestinationNotFound)
+				return
+			}
+		}
+		application.ServeHTTP(w, r)
+	}))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The public gateway owns request identity; visitors cannot select it.
+		r.Header.Del(middleware.RequestIDHeader)
+		identified.ServeHTTP(w, r)
+	})
+}
+
 func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) {
 	g.appendHeaders(r.ProtoAtLeast(3, 0))(w.Header())
+	requestID := middleware.GetReqID(r.Context())
+	w.Header().Set(middleware.RequestIDHeader, requestID)
+	hostname := effectiveRequestHost(r)
 
 	if errors.Is(e, tun.ErrDestinationNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Destination %s not found on the specter network.", r.URL.Hostname())
+		fmt.Fprintf(w, "Destination %s not found on the specter network.", hostname)
 		return
 	}
 
 	if errors.Is(e, tun.ErrTunnelClientNotConnected) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintf(w, "Destination %s is not connected to specter network.", r.URL.Hostname())
+		fmt.Fprintf(w, "Destination %s is not connected to specter network.", hostname)
 		return
 	}
 
@@ -303,13 +352,13 @@ func (g *Gateway) errorHandler(w http.ResponseWriter, r *http.Request, e error) 
 		return
 	}
 
-	logger := g.Logger.With(zap.String("hostname", r.URL.Hostname()))
+	logger := g.Logger.With(zap.String("hostname", hostname), zap.String("request_id", requestID))
 
 	logger.Debug("error forwarding http request", zap.Error(e))
 
 	if tun.IsTimeout(e) {
 		w.WriteHeader(http.StatusGatewayTimeout)
-		fmt.Fprintf(w, "Destination %s is taking too long to respond.", r.URL.Hostname())
+		fmt.Fprintf(w, "Destination %s is taking too long to respond.", hostname)
 		return
 	}
 

@@ -132,6 +132,8 @@ func (c *Client) localHandler() http.Handler {
 	r.Use(middleware.Heartbeat("/healthz"))
 
 	api := chi.NewRouter()
+	api.With(middleware.SetHeader("Cache-Control", "no-store")).Get("/waf", c.getHostWAFHandler)
+	api.With(middleware.SetHeader("Cache-Control", "no-store"), http.NewCrossOriginProtection().Handler, util.LimitBody(maxHostWAFRequestBytes)).Put("/waf", c.setHostWAFHandler)
 
 	api.Route("/tokens", func(tokens chi.Router) {
 		tokens.Use(func(next http.Handler) http.Handler {

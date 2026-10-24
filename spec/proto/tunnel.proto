@@ -6,6 +6,7 @@ option go_package = "go.miragespace.co/specter/spec/protocol";
 
 import "spec/proto/node.proto";
 import "spec/proto/pow.proto";
+import "spec/proto/waf.proto";
 
 import "google/protobuf/descriptor.proto";
 
@@ -21,6 +22,8 @@ service TunnelService {
     rpc PublishTunnel(PublishTunnelRequest) returns (PublishTunnelResponse);
     rpc UnpublishTunnel(UnpublishTunnelRequest) returns (UnpublishTunnelResponse);
     rpc ReleaseTunnel(ReleaseTunnelRequest) returns (ReleaseTunnelResponse);
+    rpc GetHostWAF(GetHostWAFRequest) returns (HostWAFResponse);
+    rpc SetHostWAF(SetHostWAFRequest) returns (HostWAFResponse);
 
     rpc AcmeInstruction(InstructionRequest) returns (InstructionResponse);
     rpc AcmeValidate(ValidateRequest) returns (ValidateResponse);

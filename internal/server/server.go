@@ -33,10 +33,12 @@ import (
 	"go.miragespace.co/specter/tun/server"
 	"go.miragespace.co/specter/util/migrator"
 	"go.miragespace.co/specter/util/reuse"
+	"go.miragespace.co/specter/waf"
 
 	"github.com/TheZeroSlave/zapsentry"
 	"github.com/alecthomas/units"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-chi/chi/v5"
 	"github.com/pires/go-proxyproto"
 	"github.com/quic-go/quic-go"
 	"go.uber.org/zap"
@@ -524,6 +526,28 @@ func Run(ctx context.Context, options Options) error {
 	tunServer.MustRegister(ctx)
 
 	go tunnelTransport.AcceptWithListener(ctx, clientListener)
+	wafManager, err := waf.NewManager(configStore, filepath.Join(dataDir, "waf"), logger.With(zap.String("component", "waf")), tunServer.WAFPolicy)
+	if err != nil {
+		return fmt.Errorf("initializing web protection: %w", err)
+	}
+	wafCtx, stopWAF := context.WithCancel(ctx)
+	wafDone := make(chan struct{})
+	go func() {
+		defer close(wafDone)
+		wafManager.Run(wafCtx)
+	}()
+	defer func() {
+		stopWAF()
+		<-wafDone
+		_ = wafManager.Close()
+	}()
+
+	configuration := chi.NewRouter()
+	configuration.Handle("/dns", acme.DNSConfigHandler(configStore, rootNode.Identity(), options.ACMEZone, logger, configSync.Wake))
+	configuration.Handle("/waf", waf.SettingsHandler(configStore, rootNode.Identity(), wafManager.Status, func() {
+		configSync.Wake()
+		wafManager.Wake()
+	}, logger))
 
 	var acmeHandler http.Handler
 	if mgr, ok := certProvider.(*acme.Manager); ok {
@@ -535,24 +559,26 @@ func Run(ctx context.Context, options Options) error {
 			ClientCA: bundle.clientCaCert,
 		},
 		Handlers: gateway.InternalHandlers{
-			Configuration: acme.DNSConfigHandler(configStore, rootNode.Identity(), options.ACMEZone, logger, configSync.Wake),
+			Configuration: configuration,
 			Acme:          acmeHandler,
 			Chord:         chordImpl.ChordStatsHandler(rootNode, virtualNodes),
 			Overview:      chordImpl.OverviewHandler(rootNode, virtualNodes, kvOption),
 			TunnelServer:  server.TunnelServerHandler(tunServer),
 			Migrator:      migrator.ConfigMigratorHandler(logger.With(zapsentry.NewScope()).With(zap.String("component", "migrator")), bundle.clientCaCert),
 		},
-		Logger:            logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
-		TunnelServer:      tunServer,
-		HTTPListener:      httpListener,
-		H2Listener:        gwH2Listener,
-		H3Listener:        gwH3Listener,
-		RootDomains:       managedDomains,
-		GatewayPort:       int(advertisePort),
-		Options:           gwOptions,
-		AdminUser:         options.AdminUser,
-		AdminPass:         options.AdminPass,
-		HandshakeHintFunc: tunServer.RoutesPreload,
+		Logger:                logger.With(zapsentry.NewScope()).With(zap.String("component", "gateway")),
+		TunnelServer:          tunServer,
+		HTTPListener:          httpListener,
+		H2Listener:            gwH2Listener,
+		H3Listener:            gwH3Listener,
+		RootDomains:           managedDomains,
+		GatewayPort:           int(advertisePort),
+		Options:               gwOptions,
+		AdminUser:             options.AdminUser,
+		AdminPass:             options.AdminPass,
+		HandshakeHintFunc:     tunServer.RoutesPreload,
+		RouteCheckFunc:        tunServer.CheckRoute,
+		ApplicationMiddleware: wafManager.Wrap,
 	})
 	defer gw.Close()
 

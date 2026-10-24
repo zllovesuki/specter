@@ -30,6 +30,7 @@ type forwardedRequest struct {
 }
 
 func captureForwardedRequest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Request-ID", "upstream-request-id")
 	_ = json.NewEncoder(w).Encode(forwardedRequest{Host: r.Host, URI: r.RequestURI, Headers: r.Header})
 }
 
@@ -159,11 +160,12 @@ func TestGatewayClientForwardedContext(t *testing.T) {
 				"X-Forwarded-For":   {"198.51.100.1, 198.51.100.2", "198.51.100.3"},
 				"X-Forwarded-Host":  {"attacker.example:1234", "second.example"},
 				"X-Forwarded-Proto": {"http", "ftp"},
+				"X-Request-Id":      {"visitor-request-id"},
 				"X-Real-Ip":         {"198.51.100.4"},
 				"True-Client-Ip":    {"198.51.100.5"},
 			}
 			if proto == "http/1.1" {
-				req.Header.Set("Connection", "X-Forwarded-For, x-forwarded-host, X-Forwarded-Proto")
+				req.Header.Set("Connection", "X-Forwarded-For, x-forwarded-host, X-Forwarded-Proto, X-Request-ID")
 			}
 			resp, err := visitor.Do(req)
 			as.NoError(err)
@@ -172,6 +174,14 @@ func TestGatewayClientForwardedContext(t *testing.T) {
 			as.Equal(proto == "h2", resp.ProtoMajor == 2)
 			var received forwardedRequest
 			as.NoError(json.NewDecoder(resp.Body).Decode(&received))
+			requestIDs := received.Headers.Values("X-Request-ID")
+			if len(requestIDs) != 1 || requestIDs[0] == "" || requestIDs[0] == "visitor-request-id" {
+				t.Fatalf("upstream request IDs = %v, want one gateway-generated ID", requestIDs)
+			}
+			requestID := requestIDs[0]
+			if responseIDs := resp.Header.Values("X-Request-ID"); len(responseIDs) != 1 || responseIDs[0] != requestID {
+				t.Fatalf("response request IDs = %v, want %q", responseIDs, requestID)
+			}
 
 			expectedHost := cfg.Tunnels[0].parsed.Host
 			if pipeTarget {
