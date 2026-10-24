@@ -23,21 +23,21 @@ import (
 )
 
 type compatLog struct {
-	mu sync.Mutex
-	bytes.Buffer
+	mu     sync.Mutex
+	buffer bytes.Buffer
 }
 
 func (b *compatLog) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 
 func (b *compatLog) messages() []map[string]any {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	var messages []map[string]any
-	for _, line := range strings.Split(b.Buffer.String(), "\n") {
+	for _, line := range strings.Split(b.buffer.String(), "\n") {
 		var msg map[string]any
 		if json.Unmarshal([]byte(line), &msg) == nil {
 			messages = append(messages, msg)
@@ -105,7 +105,8 @@ func TestIntegrationCompat(t *testing.T) {
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	out, err := build.CombinedOutput()
 	require.NoError(t, err, string(out))
-	startLightweightServers(t, []int{21968, 21969}, []int{21868, 21869})
+	// Keep the legacy address between upgraded peers to exercise both authority orderings.
+	startLightweightServers(t, []int{21968, 21974}, []int{21868, 21874})
 	certs, err := filepath.Abs("../certs")
 	require.NoError(t, err)
 	oldLogs, _ := startCompatBinary(t, binary, syscall.SIGTERM, "server", "--cert-dir", certs, "--data-dir", t.TempDir(), "--listen", "127.0.0.1:21973", "--listen-http", "21873", "--apex", serverApex, "--join", "127.0.0.1:21968")
@@ -175,7 +176,7 @@ func TestIntegrationCompat(t *testing.T) {
 	require.NotEmpty(t, minted.Token)
 	tokenPath := filepath.Join(t.TempDir(), "token")
 	require.NoError(t, os.WriteFile(tokenPath, []byte(minted.Token), 0600))
-	logs, _ := startIntegrationApp(t, clientcmd.Generate(), "client", "--insecure", "serve", "--apex", "127.0.0.1:21969", "--token-file", tokenPath, target.URL)
+	logs, _ := startIntegrationApp(t, clientcmd.Generate(), "client", "--insecure", "serve", "--apex", "127.0.0.1:21974", "--token-file", tokenPath, target.URL)
 	require.Equal(t, authority, lightweightAuthority(t, logs))
 	code, body = fetchLightweight(t, authority, 21973)
 	require.Equal(t, 200, code, body)

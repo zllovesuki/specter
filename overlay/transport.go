@@ -50,6 +50,7 @@ func NewQUIC(conf TransportConfig) *QUIC {
 
 		cachedConnections: skipmap.NewString[*nodeConnection](),
 		cachedMutex:       atomic.NewKeyedRWMutex(),
+		negotiations:      skipmap.NewString[chan struct{}](),
 
 		streamChan: make(chan *transport.StreamDelegate, 32),
 		dgramChan:  make(chan *transport.DatagramDelegate, 32),
@@ -101,12 +102,21 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 		}),
 	)
 	q, err := retrier.Do(func() (*quic.Conn, error) {
-		rUnlock := t.cachedMutex.RLock(qKey)
-		if cached, ok := t.cachedConnections.Load(qKey); ok {
+		for {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			rUnlock := t.cachedMutex.RLock(qKey)
+			cached, ok := t.cachedConnections.Load(qKey)
 			rUnlock()
-			return cached.quic, nil
+			if !ok {
+				break
+			}
+			if cached.quic.Context().Err() == nil {
+				return cached.quic, nil
+			}
+			t.reapPeer(cached.quic, cached.peer)
 		}
-		rUnlock()
 
 		if peer.GetRendezvous() || peer.GetAddress() == "" {
 			return nil, transport.ErrNoDirect

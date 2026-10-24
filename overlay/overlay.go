@@ -44,6 +44,7 @@ type QUIC struct {
 
 	cachedConnections *skipmap.StringMap[*nodeConnection]
 	cachedMutex       *atomic.KeyedRWMutex
+	negotiations      *skipmap.StringMap[chan struct{}] // present only during negotiation
 
 	started *uberAtomic.Bool
 	closed  *uberAtomic.Bool
