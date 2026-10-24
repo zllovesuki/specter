@@ -144,6 +144,10 @@ func (n *LocalNode) FindSuccessor(key uint64) (chord.VNode, error) {
 	}
 	// find next in ring according to finger table
 	closest := n.closestPrecedingNode(key)
+	if closest == n {
+		// The successor list can advance before the separate finger table.
+		closest = succ
+	}
 	// contact possibly remote node
 	return closest.FindSuccessor(key)
 }

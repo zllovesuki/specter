@@ -40,7 +40,13 @@ func (n *LocalNode) hash(nodes []chord.VNode) uint64 {
 }
 
 // routine based on pseudo code from the paper "How to Make Chord Correct"
-func (n *LocalNode) stabilize() error {
+func (n *LocalNode) stabilize() (err error) {
+	defer func() {
+		if err != nil {
+			n.logger.Error("Stabilize task", zap.Error(err))
+		}
+	}()
+
 	succList := n.getSuccessors()
 	modified := false
 
@@ -68,20 +74,23 @@ func (n *LocalNode) stabilize() error {
 		succList = succList[1:]
 	}
 
-	n.lastStabilized.Store(time.Now())
+	if !modified {
+		return chord.ErrNodeNoSuccessor
+	}
 
 	listHash := n.hash(succList)
-	if modified && n.succListHash.Load() != listHash {
+	if n.succListHash.Load() != listHash {
 		n.successorsMu.Lock()
 		n.updateSuccessorsList(listHash, succList)
 		n.successorsMu.Unlock()
 	}
 
-	if modified && len(succList) > 0 && n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
+	if n.checkNodeState(true) == nil { // don't re-notify our successor when we are leaving
 		succ := succList[0]
 		if err := succ.Notify(n); err != nil {
-			n.logger.Error("Error notifying successor about us", zap.Object("successor", succ.Identity()), zap.Error(err))
+			return fmt.Errorf("notifying successor %d: %w", succ.ID(), err)
 		}
+		n.lastStabilized.Store(time.Now())
 	}
 
 	return nil
@@ -166,9 +175,7 @@ func (n *LocalNode) periodicStabilize() {
 			n.logger.Debug("Stopping Stabilize task")
 			return
 		default:
-			if err := n.stabilize(); err != nil {
-				n.logger.Error("Stabilize task", zap.Error(err))
-			}
+			n.stabilize()
 			time.Sleep(util.RandomTimeRange(n.StabilizeInterval))
 		}
 	}

@@ -28,7 +28,7 @@ type LocalNode struct {
 	kvRate         *ratecounter.Rate                       // track how chatty incoming kv rpc is
 	kvStaleCount   *atomic.Uint64                          // track the number of kv stale ownership
 	rpcErrorCount  *atomic.Uint64                          // track the number of non-retryable rpc request errors
-	lastStabilized *atomic.Time                            // last stablized time
+	lastStabilized *atomic.Time                            // last recorded successful successor probe and notification
 	stopWg         sync.WaitGroup                          // used to wait for task goroutines to be stopped
 	stopCh         chan struct{}                           // used to signal task goroutines to stop
 	state          *nodeState                              // a replacement of LockQueue from the paper
