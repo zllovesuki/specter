@@ -7,6 +7,7 @@ import (
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
 
+	"github.com/avast/retry-go/v5"
 	"go.uber.org/zap"
 )
 
@@ -26,8 +27,16 @@ func (s *Server) publishDestinations(ctx context.Context) error {
 		tun.DestinationByTunnelKey(s.TunnelTransport.Identity()),
 	}
 
+	retrier := retry.New(
+		retry.Context(ctx),
+		retry.Attempts(3),
+		retry.LastErrorOnly(true),
+	)
 	for _, key := range keys {
-		err := s.Chord.Put(ctx, []byte(key), buf)
+		// Repeating this fixed value is safe even if a previous write's response was lost.
+		err := retrier.Do(func() error {
+			return s.Chord.Put(ctx, []byte(key), buf)
+		})
 		if err != nil {
 			return err
 		}

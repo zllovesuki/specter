@@ -96,7 +96,7 @@ func (s *Server) AttachRouter(ctx context.Context, router *transport.StreamRoute
 func (s *Server) MustRegister(ctx context.Context) {
 	s.Logger.Info("Publishing destinations to chord")
 
-	publishCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	publishCtx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
 	if err := s.publishDestinations(publishCtx); err != nil {
