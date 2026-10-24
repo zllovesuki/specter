@@ -167,8 +167,6 @@ func (m *Manager) GetCertificateWithContext(ctx context.Context, chi *tls.Client
 		return nil, ErrInvalid
 	}
 
-	acmeHostname.Add(sni, 1)
-
 	onHandshake := m.onHandshake.Load()
 	(*onHandshake)(sni)
 
