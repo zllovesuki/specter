@@ -65,7 +65,6 @@ func TestPrepareStatementsReuseReaderExportStatements(t *testing.T) {
 
 	as.Same(kv.stmts.simpleGet, kv.stmts.exportSimpleGet)
 	as.Same(kv.stmts.prefixList, kv.stmts.exportPrefixList)
-	as.NotSame(kv.stmts.leaseGet, kv.stmts.exportLeaseGet)
 }
 
 func TestImportRejectsLengthMismatch(t *testing.T) {

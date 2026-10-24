@@ -44,13 +44,17 @@ type LeaseKV interface {
 	// Acquire obtains a lease with given time-to-live, and returns a token for
 	// later renewal and release.
 	// On conflicting lease acquisition, ErrKVLeaseConflict error is returned.
-	// If ttl is less than a second, ErrKVLeaseInvalidTTL error is returned.
+	// If ttl is less than a second or its expiry cannot be represented,
+	// ErrKVLeaseInvalidTTL is returned.
 	// Not to be confused with memory ordering acquire/release semantics.
 	Acquire(ctx context.Context, lease []byte, ttl time.Duration) (token uint64, err error)
-	// Renew extends the lease with given time-to-live, given that prevToken
-	// is still valid. If the renewal occurs after a previous acquire
-	// has expired and a different lease was acquired, ErrKVLeaseExpired error is returned.
-	// If ttl is less than a second, ErrKVLeaseInvalidTTL error is returned.
+	// Renew extends the lease without shortening its current expiry, given that
+	// prevToken is still valid. Success returns a larger token that replaces
+	// prevToken for subsequent renewal and release of this lease.
+	// If prevToken is no longer current, has expired, or cannot advance within
+	// the supported timestamp range, ErrKVLeaseExpired is returned.
+	// If ttl is less than a second or its expiry cannot be represented,
+	// ErrKVLeaseInvalidTTL is returned.
 	Renew(ctx context.Context, lease []byte, ttl time.Duration, prevToken uint64) (newToken uint64, err error)
 	// Release relinquish the lease held previously by the given token.
 	// If the lease holder has changed, ErrKVLeaseExpired error is returned.

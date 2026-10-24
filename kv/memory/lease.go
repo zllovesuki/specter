@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	leaseToken "go.miragespace.co/specter/kv/internal/lease"
 	"go.miragespace.co/specter/spec/chord"
 )
 
@@ -24,11 +25,14 @@ func (m *MemoryKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 	}
 	v, _ := m.fetchVal(lease)
 	curr := v.lease.Load()
-	ref := time.Now() // questionable
+	ref := time.Now()
+	next, err := leaseToken.Next(ref, ttl, 0)
+	if err != nil {
+		return 0, err
+	}
 	if curr > uint64(ref.UnixNano()) {
 		return 0, chord.ErrKVLeaseConflict
 	}
-	next := uint64(ref.Add(ttl).UnixNano())
 	if !v.lease.CompareAndSwap(curr, next) {
 		return 0, chord.ErrKVLeaseConflict
 	}
@@ -42,16 +46,20 @@ func (m *MemoryKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	}
 	v, _ := m.fetchVal(lease)
 	curr := v.lease.Load()
+	now := time.Now()
+	next, err := leaseToken.Next(now, ttl, prevToken)
+	if err != nil {
+		return 0, err
+	}
 	if curr == 0 {
 		return 0, chord.ErrKVLeaseExpired
 	}
-	if time.Now().UnixNano() > int64(curr) {
+	if now.UnixNano() >= int64(curr) {
 		return 0, chord.ErrKVLeaseExpired
 	}
 	if curr != prevToken {
 		return 0, chord.ErrKVLeaseExpired
 	}
-	next := uint64(time.Now().Add(ttl).UnixNano())
 	if !v.lease.CompareAndSwap(curr, next) {
 		return 0, chord.ErrKVLeaseExpired
 	}

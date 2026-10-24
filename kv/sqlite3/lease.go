@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	leaseToken "go.miragespace.co/specter/kv/internal/lease"
 	"go.miragespace.co/specter/spec/chord"
 )
 
@@ -25,7 +26,11 @@ func (s *SqliteKV) Acquire(ctx context.Context, lease []byte, ttl time.Duration)
 	var next uint64
 	err := withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
 		now := time.Now()
-		next = uint64(now.Add(ttl).UnixNano())
+		var err error
+		next, err = leaseToken.Next(now, ttl, 0)
+		if err != nil {
+			return err
+		}
 
 		res, err := tx.StmtContext(ctx, s.stmts.leaseAcquire).Exec(bindBytesAsBlob(lease), bindUint64AsInt64(next), bindUint64AsInt64(uint64(now.UnixNano())))
 		if err != nil {
@@ -55,7 +60,11 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	var next uint64
 	err := withWriteTx(ctx, s.writer, func(tx *sql.Tx) error {
 		now := time.Now()
-		next = uint64(time.Now().Add(ttl).UnixNano())
+		var err error
+		next, err = leaseToken.Next(now, ttl, prevToken)
+		if err != nil {
+			return err
+		}
 
 		res, err := tx.StmtContext(ctx, s.stmts.leaseRenew).Exec(
 			bindUint64AsInt64(next),
@@ -77,22 +86,6 @@ func (s *SqliteKV) Renew(ctx context.Context, lease []byte, ttl time.Duration, p
 	})
 	if err != nil {
 		return 0, err
-	}
-	// Post-commit check: re-read the row in a new session
-	//    If the database row's token is no longer what we set, it means
-	//    some other transaction updated it after we did our compare-and-set.
-	var curToken int64
-	readErr := s.stmts.leaseGet.QueryRowContext(ctx, bindBytesAsBlob(lease)).Scan(&curToken)
-	if readErr != nil {
-		// If the row no longer exists or some other error,
-		// you could consider that as concurrency override or just return readErr.
-		return 0, readErr
-	}
-
-	// 3. Compare the token we set (`next`) vs. what's actually in the DB now
-	if scanInt64AsUint64(curToken) != next {
-		// Another transaction must have updated it post-commit => concurrency lost
-		return 0, chord.ErrKVLeaseExpired
 	}
 	return next, nil
 }

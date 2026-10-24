@@ -25,7 +25,6 @@ type statements struct {
 	leaseAcquire *sql.Stmt
 	leaseRenew   *sql.Stmt
 	leaseRelease *sql.Stmt
-	leaseGet     *sql.Stmt
 	leaseImport  *sql.Stmt
 
 	trackerLookup *sql.Stmt
@@ -70,7 +69,6 @@ func prepareStatements(reader, writer *sql.DB) (_ *statements, err error) {
 		{writer, queryLeaseAcquire, &s.leaseAcquire},
 		{writer, queryLeaseRenew, &s.leaseRenew},
 		{writer, queryLeaseRelease, &s.leaseRelease},
-		{writer, queryLeaseGet, &s.leaseGet},
 		{writer, queryLeaseImport, &s.leaseImport},
 		{writer, queryTrackerLookup, &s.trackerLookup},
 		{writer, queryTrackerInsert, &s.trackerInsert},
