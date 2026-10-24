@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Request blocked · Specter</title>
+  <style nonce="{{.Nonce}}">
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #221f21; color: #f5f4f4; font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    ::selection { background: #57bfcd; color: #1b181a; }
+    .page { width: min(38rem, calc(100% - 32px)); margin: clamp(28px, 8vh, 80px) auto 32px; }
+    .brand { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; margin-bottom: 32px; border-bottom: 1px solid #423f42; }
+    .brand strong { font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
+    .brand span { padding-left: 12px; border-left: 1px solid #423f42; color: #a3a1a8; font-size: 13px; }
+    h1 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 26px; line-height: 1.25; font-weight: 650; letter-spacing: -.02em; }
+    h1 svg { width: 26px; height: 26px; flex: none; color: #e9c581; }
+    p { margin: 0; }
+    .lead { max-width: 60ch; color: #a3a1a8; }
+    h2 { margin: 28px 0 8px; font-size: 15px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { font-size: 12px; color: #a3a1a8; font-weight: 500; }
+    th, td { border-bottom: 1px solid #423f42; padding: 10px 0; vertical-align: top; }
+    th:first-child, td:first-child { width: 6rem; padding-right: 16px; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; font-variant-numeric: tabular-nums; }
+    td code, .reference { user-select: all; }
+    .safeguard { display: block; color: #a3a1a8; font-size: 12px; }
+    dl { margin: 24px 0; }
+    dt { color: #a3a1a8; font-size: 12px; margin-bottom: 4px; }
+    dd { margin: 0 0 16px; }
+    .reference { display: inline-block; padding: 8px 12px; background: #1b181a; border: 1px solid #423f42; border-radius: 6px; overflow-wrap: anywhere; }
+    .help { padding-top: 20px; border-top: 1px solid #423f42; }
+    .owner { margin-top: 8px; color: #a3a1a8; font-size: 13px; }
+    @media (max-width: 420px) { h1 { font-size: 24px; } .brand { margin-bottom: 24px; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="brand"><strong>specter</strong><span>Web protection</span></header>
+    <main>
+      <h1>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v5c0 5-8 10-8 10S4 16 4 11V6l8-3Z"/><path d="M9 9l6 6m0-6-6 6"/></svg>
+        Request blocked
+      </h1>
+      <p class="lead">The request matched a security rule and was not forwarded to the application.</p>
+      {{if .Rules}}
+      <h2>Matched rules</h2>
+      <table>
+        <thead><tr><th scope="col">Rule ID</th><th scope="col">Reason</th></tr></thead>
+        <tbody>{{range .Rules}}
+          <tr><td><code>{{.ID}}</code></td><td>{{.Category}}{{if not .Excludable}}<span class="safeguard">Request safeguard</span>{{end}}</td></tr>
+        {{end}}</tbody>
+      </table>
+      {{end}}
+      <dl>
+        <dt>Request ID</dt><dd><code class="reference">{{.RequestID}}</code></dd>
+        <dt>Rules version</dt><dd><code>{{.Version}}</code></dd>
+      </dl>
+      <p class="help">If this looks like a mistake, share the request ID and rule IDs with the site owner.</p>
+      {{if .CanExclude}}
+      <p class="owner">If you manage this hostname, review rule exceptions in your Specter client’s Web protection settings.</p>
+      {{else}}
+      <p class="owner">Request safeguards cannot be disabled through rule exceptions.</p>
+      {{end}}
+    </main>
+  </div>
+</body>
+</html>

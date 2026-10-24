@@ -38,12 +38,6 @@ type dnsConfigResponse struct {
 	Error      string               `json:"error,omitempty"`
 }
 
-type configError struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Fields  map[string]string `json:"fields,omitempty"`
-}
-
 // DNSConfigHandler serves the DNS document editor API. Mount it behind operator authentication.
 func DNSConfigHandler(store *config.Store, identity *protocol.Node, zone string, logger *zap.Logger, wake func()) http.Handler {
 	h := &dnsConfigHandler{store: store, identity: identity, zone: zone, logger: logger, wake: wake}
@@ -75,7 +69,7 @@ func (h *dnsConfigHandler) get(w http.ResponseWriter, r *http.Request) {
 	record, found, err := h.store.Get(DNSConfigName)
 	if err != nil {
 		h.logger.Error("Could not read shared DNS configuration", zap.Error(err))
-		writeConfigJSON(w, http.StatusServiceUnavailable, configError{Code: "not_ready", Message: "Could not read the configuration on this server. Try refreshing again shortly."})
+		config.WriteJSON(w, http.StatusServiceUnavailable, config.HTTPErrorResponse{Code: "not_ready", Message: "Could not read the configuration on this server. Try refreshing again shortly."})
 		return
 	}
 	// Keep this editor's reads from moving backward without waiting for peers.
@@ -86,21 +80,21 @@ func (h *dnsConfigHandler) get(w http.ResponseWriter, r *http.Request) {
 		}
 		comparison, err := record.CompareVersion(after)
 		if err != nil {
-			writeConfigJSON(w, http.StatusBadRequest, configError{Code: "invalid_version", Message: "The configuration version is invalid."})
+			config.WriteJSON(w, http.StatusBadRequest, config.HTTPErrorResponse{Code: "invalid_version", Message: "The configuration version is invalid."})
 			return
 		}
 		if !found || comparison < 0 {
-			writeConfigJSON(w, http.StatusServiceUnavailable, configError{Code: "not_ready", Message: "This server has not caught up with the configuration you last viewed. Try again shortly."})
+			config.WriteJSON(w, http.StatusServiceUnavailable, config.HTTPErrorResponse{Code: "not_ready", Message: "This server has not caught up with the configuration you last viewed. Try again shortly."})
 			return
 		}
 	}
-	writeConfigJSON(w, http.StatusOK, h.response(record, found))
+	config.WriteJSON(w, http.StatusOK, h.response(record, found))
 }
 
 func (h *dnsConfigHandler) put(w http.ResponseWriter, r *http.Request) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
-		writeConfigJSON(w, http.StatusUnsupportedMediaType, configError{Code: "validation_failed", Message: "Send configuration as application/json."})
+		config.WriteJSON(w, http.StatusUnsupportedMediaType, config.HTTPErrorResponse{Code: "validation_failed", Message: "Send configuration as application/json."})
 		return
 	}
 	var input struct {
@@ -108,13 +102,13 @@ func (h *dnsConfigHandler) put(w http.ResponseWriter, r *http.Request) {
 		Config          DNSConfig `json:"config"`
 	}
 	if err := util.DecodeJSON(r.Body, &input); err != nil {
-		writeConfigJSON(w, http.StatusBadRequest, configError{Code: "validation_failed", Message: "Invalid configuration JSON."})
+		config.WriteJSON(w, http.StatusBadRequest, config.HTTPErrorResponse{Code: "validation_failed", Message: "Invalid configuration JSON."})
 		return
 	}
 	current, found, err := h.store.Get(DNSConfigName)
 	if err != nil {
 		h.logger.Error("Could not read shared DNS configuration", zap.Error(err))
-		writeConfigJSON(w, http.StatusServiceUnavailable, configError{Code: "not_ready", Message: "Could not read the configuration on this server. Try again shortly."})
+		config.WriteJSON(w, http.StatusServiceUnavailable, config.HTTPErrorResponse{Code: "not_ready", Message: "Could not read the configuration on this server. Try again shortly."})
 		return
 	}
 	if current.Token() != input.ExpectedVersion {
@@ -125,7 +119,7 @@ func (h *dnsConfigHandler) put(w http.ResponseWriter, r *http.Request) {
 	if found {
 		previous, err := DecodeDNSConfig(current, h.zone)
 		if err != nil {
-			writeConfigJSON(w, http.StatusConflict, configError{Code: "unsupported_configuration", Message: "This server cannot edit the stored DNS configuration. Use a compatible Specter version."})
+			config.WriteJSON(w, http.StatusConflict, config.HTTPErrorResponse{Code: "unsupported_configuration", Message: "This server cannot edit the stored DNS configuration. Use a compatible Specter version."})
 			return
 		}
 		// Changing the hosted zone also changes deployment and certificate
@@ -134,45 +128,28 @@ func (h *dnsConfigHandler) put(w http.ResponseWriter, r *http.Request) {
 	}
 	dnsConfig, err := ValidateDNSConfig(input.Config, zone)
 	if err != nil {
-		response := configError{Code: "validation_failed", Message: err.Error()}
+		response := config.HTTPErrorResponse{Code: "validation_failed", Message: err.Error()}
 		var field *DNSConfigError
 		if errors.As(err, &field) {
 			response.Fields = map[string]string{field.Field: field.Message}
 		}
-		writeConfigJSON(w, http.StatusBadRequest, response)
+		config.WriteJSON(w, http.StatusBadRequest, response)
 		return
 	}
 	payload, err := json.Marshal(dnsConfig)
 	if err != nil {
-		writeConfigJSON(w, http.StatusInternalServerError, configError{Code: "save_failed", Message: "Could not encode the configuration."})
+		config.WriteJSON(w, http.StatusInternalServerError, config.HTTPErrorResponse{Code: "save_failed", Message: "Could not encode the configuration."})
 		return
 	}
 	record, err := h.store.Put(DNSConfigName, DNSConfigSchema, payload, input.ExpectedVersion)
 	if h.wake != nil && (err == nil || errors.Is(err, config.ErrDurabilityUncertain)) {
 		h.wake()
 	}
-	switch {
-	case errors.Is(err, config.ErrConflict), errors.Is(err, config.ErrSchemaRegression):
-		h.conflict(w)
-	case errors.Is(err, config.ErrDurabilityUncertain):
-		h.logger.Error("Shared DNS configuration durability is uncertain", zap.Error(err))
-		writeConfigJSON(w, http.StatusServiceUnavailable, configError{Code: "outcome_unknown", Message: "The save result is uncertain. Retry the save or refresh to review the current configuration."})
-	case errors.Is(err, config.ErrTooLarge):
-		writeConfigJSON(w, http.StatusRequestEntityTooLarge, configError{Code: "validation_failed", Message: "The shared configuration is too large."})
-	case err != nil:
-		h.logger.Error("Could not save shared DNS configuration", zap.Error(err))
-		writeConfigJSON(w, http.StatusInternalServerError, configError{Code: "save_failed", Message: "Could not save the configuration on this server."})
-	default:
-		writeConfigJSON(w, http.StatusOK, h.response(record, true))
+	if !config.WriteSaveError(w, DNSConfigName, h.logger, err) {
+		config.WriteJSON(w, http.StatusOK, h.response(record, true))
 	}
 }
 
 func (h *dnsConfigHandler) conflict(w http.ResponseWriter) {
-	writeConfigJSON(w, http.StatusConflict, configError{Code: "version_conflict", Message: "The stored configuration changed. Load the latest settings before saving again."})
-}
-
-func writeConfigJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	config.WriteJSON(w, http.StatusConflict, config.HTTPErrorResponse{Code: "version_conflict", Message: "The stored configuration changed. Load the latest settings before saving again."})
 }

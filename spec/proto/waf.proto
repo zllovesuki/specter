@@ -1,0 +1,65 @@
+syntax = "proto3";
+package protocol;
+
+option optimize_for = SPEED;
+option go_package = "go.miragespace.co/specter/spec/protocol";
+
+message WAFExclusion {
+    uint32 rule_id = 1;
+    // Exact escaped URL path without a query string. Empty means every path.
+    string path = 2;
+}
+
+message WAFPolicy {
+    enum Mode {
+        UNKNOWN_MODE = 0;
+        INHERIT = 1;
+        BLOCK = 2;
+        MONITOR = 3;
+        OFF = 4;
+    }
+
+    Mode mode = 1;
+    repeated WAFExclusion exclusions = 2;
+}
+
+// Shared operator intent. Downloaders never write it.
+message WAFSettings {
+    enum Channel {
+        UNKNOWN_CHANNEL = 0;
+        LTS = 1;
+        STABLE = 2;
+    }
+
+    bool enabled = 1;
+    WAFPolicy.Mode default_mode = 2;
+    Channel channel = 3;
+    string pinned_version = 4;
+}
+
+message SetWAFSettingsRequest {
+    string expected_version = 1;
+    WAFSettings config = 2;
+}
+
+message HostWAFRecord {
+    uint32 schema = 1;
+    bytes owner = 2;
+    WAFPolicy policy = 3;
+}
+
+message GetHostWAFRequest {
+    string hostname = 1;
+}
+
+message SetHostWAFRequest {
+    string hostname = 1;
+    string expected_version = 2;
+    WAFPolicy policy = 3;
+}
+
+message HostWAFResponse {
+    string hostname = 1;
+    string version = 2;
+    WAFPolicy policy = 3;
+}
