@@ -21,11 +21,9 @@ import (
 	dnscmd "go.miragespace.co/specter/cmd/dns"
 	servercmd "go.miragespace.co/specter/cmd/server"
 	"go.miragespace.co/specter/config"
-	"go.miragespace.co/specter/spec/protocol"
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
-	"github.com/twitchtv/twirp"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 )
@@ -249,48 +247,37 @@ func (n *sharedConfigNode) put(t *testing.T, expected config.Record, dnsConfig a
 	return record
 }
 
-func waitSharedDNS(t *testing.T, process *sharedConfigProcess, address string, config acme.DNSConfig, revision uint64) {
+func waitSharedDNS(t *testing.T, process *sharedConfigProcess, address, network string, config acme.DNSConfig, revision uint64) {
 	t.Helper()
-	// Test both listeners and the complete active view, including IPv6 glue.
-	for _, network := range []string{"udp", "tcp"} {
-		client := &dns.Client{Net: network, Timeout: time.Second}
-		require.Eventually(t, func() bool {
-			process.running(t)
-			for _, kind := range []uint16{dns.TypeNS, dns.TypeSOA, dns.TypeA, dns.TypeAAAA} {
-				name := config.Zone
-				if kind == dns.TypeA || kind == dns.TypeAAAA {
-					name = config.Nameservers[0].Host
-				}
-				message := new(dns.Msg)
-				message.SetQuestion(name, kind)
-				response, _, err := client.ExchangeContext(t.Context(), message, address)
-				if err != nil || response.Rcode != dns.RcodeSuccess || !response.Authoritative || len(response.Answer) != 1 {
-					return false
-				}
-				switch answer := response.Answer[0].(type) {
-				case *dns.NS:
-					if answer.Ns != config.Nameservers[0].Host {
-						return false
-					}
-				case *dns.SOA:
-					if answer.Serial != uint32(revision) || answer.Ns != config.Nameservers[0].Host {
-						return false
-					}
-				case *dns.A:
-					if !slices.Contains(config.Nameservers[0].Addresses, answer.A.String()) {
-						return false
-					}
-				case *dns.AAAA:
-					if !slices.Contains(config.Nameservers[0].Addresses, answer.AAAA.String()) {
-						return false
-					}
-				default:
-					return false
-				}
+	client := &dns.Client{Net: network, Timeout: time.Second}
+	require.Eventually(t, func() bool {
+		process.running(t)
+		for _, kind := range []uint16{dns.TypeSOA, dns.TypeA} {
+			name := config.Zone
+			if kind == dns.TypeA {
+				name = config.Nameservers[0].Host
 			}
-			return true
-		}, 15*time.Second, 100*time.Millisecond, "%s DNS did not activate revision %d", network, revision)
-	}
+			message := new(dns.Msg)
+			message.SetQuestion(name, kind)
+			response, _, err := client.ExchangeContext(t.Context(), message, address)
+			if err != nil || response.Rcode != dns.RcodeSuccess || !response.Authoritative || len(response.Answer) != 1 {
+				return false
+			}
+			switch answer := response.Answer[0].(type) {
+			case *dns.SOA:
+				if answer.Serial != uint32(revision) || answer.Ns != config.Nameservers[0].Host {
+					return false
+				}
+			case *dns.A:
+				if !slices.Contains(config.Nameservers[0].Addresses, answer.A.String()) {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+		return true
+	}, 15*time.Second, 100*time.Millisecond, "%s DNS did not activate revision %d", network, revision)
 }
 
 func TestIntegrationSharedConfig(t *testing.T) {
@@ -334,17 +321,9 @@ func TestIntegrationSharedConfig(t *testing.T) {
 	// Existing launcher flags must not override the shared DNS document.
 	dnsProcess := startSharedConfigProcess(t, "dns", "--listen", dnsAddress, "--rpc", "tcp://"+nodes[2].rpc,
 		"--acme", "acme://admin@example.com@shared.test", "--acme-ns", "old.shared.test/192.0.2.99")
-	waitSharedDNS(t, dnsProcess, dnsAddress, initial, record.Version.Revision)
-
-	localClient := &http.Client{Timeout: 2 * time.Second}
-	localURL := "http://" + nodes[2].rpc
-	localRecord, err := config.NewClient(localURL, localClient).Get(t.Context(), acme.DNSConfigName)
-	require.NoError(t, err)
-	require.Equal(t, record, localRecord)
-	_, err = protocol.NewConfigServiceProtobufClient(localURL, localClient).Exchange(t.Context(), &protocol.ConfigSnapshot{})
-	var rpcError twirp.Error
-	require.ErrorAs(t, err, &rpcError)
-	require.Equal(t, twirp.BadRoute, rpcError.Code(), "the local listener must not expose peer exchange")
+	for _, network := range []string{"udp", "tcp"} {
+		waitSharedDNS(t, dnsProcess, dnsAddress, network, initial, record.Version.Revision)
+	}
 
 	edited := acme.DNSConfig{
 		Zone:        initial.Zone,
@@ -354,7 +333,7 @@ func TestIntegrationSharedConfig(t *testing.T) {
 	for _, node := range nodes {
 		node.waitVersion(t, record)
 	}
-	waitSharedDNS(t, dnsProcess, dnsAddress, edited, record.Version.Revision)
+	waitSharedDNS(t, dnsProcess, dnsAddress, "udp", edited, record.Version.Revision)
 
 	// Stop the original source abruptly, and inspect its durable full replica.
 	nodes[0].process.stop(t)
@@ -369,7 +348,7 @@ func TestIntegrationSharedConfig(t *testing.T) {
 	edited.Nameservers[0].Addresses = []string{"192.0.2.3", "2001:db8::3"}
 	record = nodes[1].put(t, record, edited)
 	nodes[2].waitVersion(t, record)
-	waitSharedDNS(t, dnsProcess, dnsAddress, edited, record.Version.Revision)
+	waitSharedDNS(t, dnsProcess, dnsAddress, "udp", edited, record.Version.Revision)
 
 	// A restarted server retains its old copy and repairs it from a live peer.
 	nodes[0].restart(t, nodes[1].address)

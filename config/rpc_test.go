@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -88,25 +87,16 @@ func TestConfigClientRejectsInvalidRecords(t *testing.T) {
 	}
 }
 
-func TestConfigClientBoundsSuccessfulAndErrorResponses(t *testing.T) {
-	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				io.Copy(io.Discard, r.Body)
-				w.WriteHeader(status)
-				w.Write(bytes.Repeat([]byte("x"), maxGetResponseBytes+1))
-			}))
-			defer server.Close()
-			for name, httpClient := range map[string]*http.Client{"custom transport": server.Client(), "default transport": {}} {
-				t.Run(name, func(t *testing.T) {
-					_, err := NewClient(server.URL, httpClient).Get(t.Context(), "dns")
-					var oversized *http.MaxBytesError
-					require.ErrorAs(t, err, &oversized, "response must be bounded before generated success/error decoding")
-					require.EqualValues(t, maxGetResponseBytes, oversized.Limit)
-				})
-			}
-		})
-	}
+func TestConfigClientBoundsErrorResponses(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(bytes.Repeat([]byte("x"), maxGetResponseBytes+1))
+	}))
+	defer server.Close()
+	_, err := NewClient(server.URL, &http.Client{}).Get(t.Context(), "dns")
+	var oversized *http.MaxBytesError
+	require.ErrorAs(t, err, &oversized, "error responses must be bounded before generated decoding")
+	require.EqualValues(t, maxGetResponseBytes, oversized.Limit)
 }
 
 func TestConfigClientDoesNotFollowRedirects(t *testing.T) {

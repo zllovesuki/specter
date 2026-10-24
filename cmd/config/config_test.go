@@ -88,6 +88,15 @@ func TestInitNeverReplacesExistingConfiguration(t *testing.T) {
 }
 
 func TestInitRejectsInvalidInputBeforeCreatingSharedData(t *testing.T) {
+	dataDir := t.TempDir()
+	output, err := runInit(t, dataDir, `[`+initialDNS+`,{"name":"future-policy","schema":0,"value":{}}]`)
+	require.Error(t, err)
+	require.Empty(t, output)
+	_, err = os.Stat(filepath.Join(dataDir, "config"))
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+func TestReadInitialDocumentsRejectsInvalidInput(t *testing.T) {
 	documents := make([]string, config.MaxDocuments+1)
 	for i := range documents {
 		documents[i] = fmt.Sprintf(`{"name":"doc-%d","schema":1,"value":{}}`, i)
@@ -112,15 +121,11 @@ func TestInitRejectsInvalidInputBeforeCreatingSharedData(t *testing.T) {
 		{name: "too many documents", input: `[` + strings.Join(documents, ",") + `]`, message: "initial configuration must contain between"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			dataDir := t.TempDir()
-			output, err := runInit(t, dataDir, test.input)
+			_, err := readInitialDocuments(strings.NewReader(test.input))
 			require.Error(t, err)
 			if test.message != "" {
 				require.ErrorContains(t, err, test.message)
 			}
-			require.Empty(t, output)
-			_, err = os.Stat(filepath.Join(dataDir, "config"))
-			require.ErrorIs(t, err, fs.ErrNotExist)
 		})
 	}
 }

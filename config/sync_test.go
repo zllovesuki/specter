@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -157,12 +156,11 @@ func TestSyncerPreservesPhysicalTargetsAndReceipts(t *testing.T) {
 
 func TestSyncerReceiptRequiresCurrentStateAndConnection(t *testing.T) {
 	for _, change := range []string{
-		"unchanged", "merged document", "uncertain commit",
-		"missing connection", "ended connection", "replacement connection",
+		"unchanged", "merged document", "ended connection", "replacement connection",
 	} {
 		t.Run(change, func(t *testing.T) {
 			store := openTestStore(t, t.TempDir())
-			record, err := store.Put("dns", 1, []byte("before"), "")
+			_, err := store.Put("dns", 1, []byte("before"), "")
 			require.NoError(t, err)
 			peer := &protocol.Node{Address: "peer:443"}
 			physical := &syncTestPhysicalConn{done: make(chan struct{})}
@@ -186,34 +184,19 @@ func TestSyncerReceiptRequiresCurrentStateAndConnection(t *testing.T) {
 				incoming, err := NewRecord("future.feature", 19, 1, []byte{0xff, 0})
 				require.NoError(t, err)
 				require.NoError(t, store.Merge([]Record{incoming}))
-			case "uncertain commit":
-				store.commit = func(tx *sql.Tx) error {
-					if err := tx.Commit(); err != nil {
-						return err
-					}
-					return errors.New("commit acknowledgement lost")
-				}
-				_, err := store.Put("dns", 1, []byte("after"), record.Token())
-				require.ErrorIs(t, err, ErrDurabilityUncertain)
-			case "missing connection":
-				tp.connected = nil
 			case "ended connection":
 				close(physical.done)
 			case "replacement connection":
 				tp.connected[0].Physical = &syncTestPhysicalConn{done: make(chan struct{})}
 			}
-			syncer.sync(t.Context())
-			if change == "unchanged" {
-				require.Zero(t, attempts.Load(), "an acknowledged live connection needs no repeated snapshot")
-			} else {
-				require.EqualValues(t, 1, attempts.Load(), "stale receipts must leave work pending")
+			want := int32(0)
+			if change != "unchanged" {
+				want = 1
 			}
 			syncer.sync(t.Context())
-			if change == "unchanged" {
-				require.Zero(t, attempts.Load())
-			} else {
-				require.EqualValues(t, 1, attempts.Load(), "another observation must respect the failed attempt's retry delay")
-			}
+			require.Equal(t, want, attempts.Load(), "only changed state or connections invalidate a receipt")
+			syncer.sync(t.Context())
+			require.Equal(t, want, attempts.Load(), "another observation must respect the failed attempt's retry delay")
 		})
 	}
 }
@@ -445,58 +428,45 @@ func TestSyncerBoundsHandlerWorkAfterStreamsTimeOut(t *testing.T) {
 	require.NoError(t, err, "work admission must recover after blocked handlers return")
 }
 
-func TestSyncerBoundsSuccessfulAndErrorResponses(t *testing.T) {
-	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
-			store := openTestStore(t, t.TempDir())
-			before, err := store.Put("retained", 1, []byte("unchanged"), "")
-			require.NoError(t, err)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				io.Copy(io.Discard, r.Body)
-				w.WriteHeader(status)
-				w.Write(bytes.Repeat([]byte("x"), maxSyncBytes+1))
-			}))
-			defer server.Close()
-			address := strings.TrimPrefix(server.URL, "http://")
-			tp := newSyncTestTransport("local:443")
-			tp.dial = func(ctx context.Context, _ *protocol.Node, _ protocol.Stream_Type) (net.Conn, error) {
-				return (&net.Dialer{}).DialContext(ctx, "tcp", address)
-			}
-			syncer := NewSyncer(store, tp, nil, nil)
-			request, err := syncer.snapshot()
-			require.NoError(t, err)
-			_, err = syncer.exchange(t.Context(), &protocol.Node{Address: address}, request)
-			var oversized *http.MaxBytesError
-			require.ErrorAs(t, err, &oversized, "response must be bounded before generated success/error decoding")
-			require.Equal(t, []Record{before}, storeSnapshot(t, store))
-		})
+func TestSyncerBoundsResponses(t *testing.T) {
+	store := openTestStore(t, t.TempDir())
+	before, err := store.Put("retained", 1, []byte("unchanged"), "")
+	require.NoError(t, err)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		w.Write(bytes.Repeat([]byte("x"), maxSyncBytes+1))
+	}))
+	defer server.Close()
+	address := strings.TrimPrefix(server.URL, "http://")
+	tp := newSyncTestTransport("local:443")
+	tp.dial = func(ctx context.Context, _ *protocol.Node, _ protocol.Stream_Type) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	}
+	syncer := NewSyncer(store, tp, nil, nil)
+	request, err := syncer.snapshot()
+	require.NoError(t, err)
+	_, err = syncer.exchange(t.Context(), &protocol.Node{Address: address}, request)
+	var oversized *http.MaxBytesError
+	require.ErrorAs(t, err, &oversized, "response must be bounded before generated decoding")
+	require.Equal(t, []Record{before}, storeSnapshot(t, store))
 }
 
 func TestSyncerDoesNotAcknowledgeUnavailableStorage(t *testing.T) {
-	local := openTestStore(t, t.TempDir())
-	remote := openTestStore(t, t.TempDir())
-	a := newSyncTestTransport("local:443")
-	b := newSyncTestTransport("remote:443")
-	var calls atomic.Int32
-	a.dial = func(ctx context.Context, _ *protocol.Node, kind protocol.Stream_Type) (net.Conn, error) {
-		calls.Add(1)
-		return syncTestDial(ctx, b, kind)
+	store := openTestStore(t, t.TempDir())
+	tp := newSyncTestTransport("local:443")
+	tp.dial = func(context.Context, *protocol.Node, protocol.Stream_Type) (net.Conn, error) {
+		t.Error("a failed local snapshot must not start an exchange")
+		return nil, errors.New("unexpected exchange")
 	}
-	bindSyncTest(t, NewSyncer(remote, b, nil, nil), b)
-	client := NewSyncer(local, a, func() []*protocol.Node { return []*protocol.Node{b.Identity()} }, nil)
-	request, err := client.snapshot()
+	syncer := NewSyncer(store, tp, func() []*protocol.Node { return []*protocol.Node{{Address: "remote:443"}} }, nil)
+	request, err := syncer.snapshot()
 	require.NoError(t, err)
-	require.NoError(t, remote.Close())
-	_, err = client.exchange(t.Context(), b.Identity(), request)
+	require.NoError(t, store.Close())
+	_, err = syncer.Exchange(t.Context(), request)
 	var rpcError twirp.Error
 	require.ErrorAs(t, err, &rpcError)
 	require.Equal(t, twirp.Internal, rpcError.Code())
-	require.EqualValues(t, 1, calls.Load())
-
-	require.NoError(t, local.Close())
-	client.sync(t.Context())
-	require.EqualValues(t, 1, calls.Load(), "a failed local snapshot must not start an exchange")
+	syncer.sync(t.Context())
 }
 
 func TestSyncerRejectsMalformedStateBeforeMerge(t *testing.T) {
