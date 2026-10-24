@@ -6,7 +6,8 @@ their tunnel configuration.
 
 ## Enable protection
 
-Upgrade the gateways, then open **Web protection** in the operator page at
+Upgrade all gateways before enabling protection or editing hostname settings.
+Then open **Web protection** in the operator page at
 `/_internal/config/waf`. Protection starts Off. Enable it and save once; the
 settings propagate to the other servers without an initialization command.
 
@@ -43,6 +44,8 @@ Owners can also inherit the operator default, choose Block or Monitor, or turn
 protection Off for their hostname. Unpublishing preserves these settings;
 releasing the hostname removes them. Delegated clients inherit the owner's
 settings. Temporary hostnames use the operator default.
+Hostname edits and resets may take up to 30 seconds to become visible on a gateway.
+If hostname settings are temporarily unavailable, requests use the operator default.
 
 ## Inspection coverage
 

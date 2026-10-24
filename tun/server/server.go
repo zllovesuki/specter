@@ -48,6 +48,8 @@ type Server struct {
 	routeCache     *theine.Cache[string, *routesResult]
 	routeLoads     singleflight.Group
 	keylessCache   *theine.LoadingCache[string, keylessCertResult]
+	hostWAFCache   *theine.Cache[string, *hostWAFCacheEntry]
+	hostWAFLoads   singleflight.Group
 	Config
 }
 
@@ -64,6 +66,7 @@ func New(cfg Config) *Server {
 	}
 	s.initRouteCache()
 	s.initKeylessCache()
+	s.initHostWAFCache()
 	return s
 }
 
@@ -109,6 +112,7 @@ func (s *Server) MustRegister(ctx context.Context) {
 func (s *Server) Stop() {
 	defer s.routeCache.Close()
 	defer s.keylessCache.Close()
+	defer s.hostWAFCache.Close()
 
 	s.rpcAcceptor.Close()
 

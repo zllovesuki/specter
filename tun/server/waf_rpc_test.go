@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"go.miragespace.co/specter/spec/protocol"
 	"go.miragespace.co/specter/spec/tun"
@@ -29,7 +31,15 @@ func TestHostWAFPolicyOwnershipAndVersion(t *testing.T) {
 	n.On("PrefixContains", mock.Anything, prefix, []byte(hostname)).Return(true, nil).Times(4)
 	n.On("Acquire", mock.Anything, lease, mock.Anything).Return(uint64(1), nil).Twice()
 	n.On("Release", mock.Anything, lease, uint64(1)).Return(nil).Twice()
-	n.On("Get", mock.Anything, key).Return(nil, nil).Twice()
+	n.On("Get", mock.Anything, key).Return(nil, nil).Times(3)
+
+	// Successful absence is reusable, but saving an override invalidates it.
+	policy, err := s.WAFPolicy(ctx, hostname)
+	require.NoError(t, err)
+	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
+	policy, err = s.WAFPolicy(ctx, hostname)
+	require.NoError(t, err)
+	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
 
 	initial, err := s.GetHostWAF(ctx, &protocol.GetHostWAFRequest{Hostname: hostname})
 	require.NoError(t, err)
@@ -44,8 +54,8 @@ func TestHostWAFPolicyOwnershipAndVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, updated.Version)
-	n.On("Get", mock.Anything, key).Return(saved, nil).Times(3)
-	policy, err := s.WAFPolicy(ctx, hostname)
+	n.On("Get", mock.Anything, key).Return(saved, nil).Twice()
+	policy, err = s.WAFPolicy(ctx, hostname)
 	require.NoError(t, err)
 	require.Equal(t, protocol.WAFPolicy_OFF, policy.Mode)
 	_, err = s.SetHostWAF(ctx, &protocol.SetHostWAFRequest{
@@ -53,10 +63,49 @@ func TestHostWAFPolicyOwnershipAndVersion(t *testing.T) {
 	})
 	require.Equal(t, twirp.FailedPrecondition, err.(twirp.Error).Code())
 
+	// Unavailable ownership checks use the operator default, never cached Off.
+	n.On("PrefixContains", mock.Anything, prefix, []byte(hostname)).Return(false, errors.New("storage unavailable")).Once()
+	policy, err = s.WAFPolicy(ctx, hostname)
+	require.NoError(t, err)
+	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
+
 	// A saved exception loses authority when the hostname leaves its owner,
-	// even if the record remains and a route is still cached elsewhere.
+	// even when its policy data is cached.
 	n.On("PrefixContains", mock.Anything, prefix, []byte(hostname)).Return(false, nil).Once()
 	policy, err = s.WAFPolicy(ctx, hostname)
+	require.NoError(t, err)
+	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
+	n.AssertExpectations(t)
+}
+
+func TestHostWAFCacheExpiryAndErrors(t *testing.T) {
+	_, n, _, _, s := getFixture(t, require.New(t))
+	s.Chord, s.ParentContext = n, t.Context()
+	hostname := "test"
+	key := []byte(tun.HostWAFKey(hostname))
+	previous := &protocol.HostWAFRecord{Schema: 1, Owner: []byte("owner"), Policy: &protocol.WAFPolicy{Mode: protocol.WAFPolicy_OFF}}
+	// An expired Off policy must not mask a failed refresh.
+	require.True(t, s.hostWAFCache.SetWithTTL(hostname, &hostWAFCacheEntry{
+		record: previous, expiresAt: time.Now().Add(-time.Second),
+	}, 512, hostWAFCacheTTL))
+	unavailable := errors.New("storage unavailable")
+	n.On("Get", mock.Anything, key).Return(nil, unavailable).Once()
+	policy, err := s.WAFPolicy(t.Context(), hostname)
+	require.NoError(t, err)
+	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
+
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = s.WAFPolicy(cancelled, hostname)
+	require.ErrorIs(t, err, context.Canceled)
+
+	n.On("Get", mock.Anything, key).Return([]byte(`{"schema":2,"owner":"b3duZXI=","policy":{"mode":"INHERIT"}}`), nil).Once()
+	_, err = s.WAFPolicy(t.Context(), hostname)
+	require.ErrorContains(t, err, "unsupported saved WAF policy")
+
+	// Failed reads must not be cached as absence.
+	n.On("Get", mock.Anything, key).Return(nil, nil).Once()
+	policy, err = s.WAFPolicy(t.Context(), hostname)
 	require.NoError(t, err)
 	require.Equal(t, protocol.WAFPolicy_INHERIT, policy.Mode)
 	n.AssertExpectations(t)

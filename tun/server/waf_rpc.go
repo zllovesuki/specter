@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,10 +14,14 @@ import (
 	"go.miragespace.co/specter/spec/tun"
 	"go.miragespace.co/specter/waf"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/twitchtv/twirp"
+	"go.uber.org/zap"
 )
 
 const maxHostWAFBytes = 64 << 10
+
+var errHostWAFUnavailable = errors.New("WAF policy lookup unavailable")
 
 func limitClientRPCBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,8 +56,11 @@ func hostWAFVersion(hostname string, data []byte) string {
 
 func (s *Server) readHostWAF(ctx context.Context, hostname string) (*protocol.HostWAFRecord, string, error) {
 	data, err := s.Chord.Get(ctx, []byte(tun.HostWAFKey(hostname)))
-	if err != nil || len(data) == 0 {
-		return nil, "", err
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %w", errHostWAFUnavailable, err)
+	}
+	if len(data) == 0 {
+		return nil, "", nil
 	}
 	if len(data) > maxHostWAFBytes {
 		return nil, "", fmt.Errorf("saved WAF policy exceeds size limit")
@@ -161,36 +169,53 @@ func (s *Server) SetHostWAF(ctx context.Context, req *protocol.SetHostWAFRequest
 	if version != req.GetExpectedVersion() {
 		return nil, twirp.FailedPrecondition.Error("WAF settings changed; refresh before saving again")
 	}
-	if err := s.Chord.Put(ctx, []byte(tun.HostWAFKey(hostname)), data); err != nil {
+	err = s.Chord.Put(ctx, []byte(tun.HostWAFKey(hostname)), data)
+	s.hostWAFCache.Delete(hostname)
+	if err != nil {
 		return nil, twirp.Unavailable.Errorf("WAF save result is uncertain; refresh to review saved settings: %v", err)
 	}
 	return hostWAFResponse(hostname, hostWAFVersion(hostname, data), record), nil
 }
 
-// WAFPolicy resolves request policy without retaining stale ownership authority.
-// The usual inherited profile needs no owner lookups; an override does.
+// WAFPolicy returns immutable policy data. Only that data is cached; ownership
+// of an override is checked for every request. Unavailable lookups inherit the
+// operator default without caching that fallback.
 func (s *Server) WAFPolicy(ctx context.Context, hostname string) (*protocol.WAFPolicy, error) {
-	inherit := waf.DefaultPolicy()
+	policy := waf.DefaultPolicy()
+	if err := ctx.Err(); err != nil {
+		return policy, err
+	}
 	if _, _, ephemeral := tun.ParseEphemeralLabel(hostname); ephemeral {
-		return inherit, nil
+		return policy, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
+	lookupCtx, cancel := context.WithTimeout(ctx, lookupTimeout)
 	defer cancel()
-	record, _, err := s.readHostWAF(ctx, hostname)
-	if err != nil || record == nil {
-		return inherit, err
+	record, err := s.readCachedHostWAF(lookupCtx, hostname)
+	if err == nil && record != nil && (record.Policy.Mode != protocol.WAFPolicy_INHERIT || len(record.Policy.Exclusions) != 0) {
+		var owned bool
+		owned, err = s.ownsHostname(lookupCtx, &protocol.ClientToken{Token: record.Owner}, hostname)
+		if err != nil {
+			err = fmt.Errorf("%w: %w", errHostWAFUnavailable, err)
+		} else if owned {
+			policy = record.Policy
+		}
 	}
-	if record.Policy.Mode == protocol.WAFPolicy_INHERIT && len(record.Policy.Exclusions) == 0 {
-		return inherit, nil
+	if !errors.Is(err, errHostWAFUnavailable) && !errors.Is(err, context.DeadlineExceeded) {
+		return policy, err
 	}
-	owned, err := s.ownsHostname(ctx, &protocol.ClientToken{Token: record.Owner}, hostname)
-	if err != nil || !owned {
-		return inherit, err
+	if err := ctx.Err(); err != nil {
+		return policy, err
 	}
-	return record.Policy, nil
+	if err := s.ParentContext.Err(); err != nil {
+		return policy, err
+	}
+	s.Logger.Warn("WAF policy unavailable; inheriting operator default",
+		zap.String("hostname", hostname), zap.String("request_id", middleware.GetReqID(ctx)))
+	return policy, nil
 }
 
 func (s *Server) clearHostWAF(ctx context.Context, owner *protocol.ClientToken, hostname string) error {
+	defer s.hostWAFCache.Delete(hostname)
 	record, _, err := s.readHostWAF(ctx, hostname)
 	if err != nil || record == nil || !bytes.Equal(record.Owner, owner.GetToken()) {
 		return err

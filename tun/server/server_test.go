@@ -68,6 +68,7 @@ func getFixture(t *testing.T, as *require.Assertions, options ...configOption) (
 	}
 
 	s := New(cfg)
+	t.Cleanup(s.hostWAFCache.Close)
 
 	return logger, n, clt, cht, s
 }

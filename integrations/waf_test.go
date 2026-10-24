@@ -197,9 +197,11 @@ func TestIntegrationWAF(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, localTokenRequest(t, 21972, http.MethodPut, policyPath, json.RawMessage(policyRequest), &policyJSON))
 	for _, c := range clients {
-		code, data, _ := request(c, attackPath, "")
-		require.Equal(t, http.StatusOK, code, string(data))
-		code, data, _ = request(c, strings.Replace(attackPath, "/allowed", "/other", 1), "")
+		require.Eventually(t, func() bool {
+			code, _, _ := request(c, attackPath, "")
+			return code == http.StatusOK
+		}, 35*time.Second, time.Second, "saved hostname policy must become visible")
+		code, data, _ := request(c, strings.Replace(attackPath, "/allowed", "/other", 1), "")
 		require.Equal(t, http.StatusForbidden, code, string(data))
 	}
 	body := `{"message":"` + strings.Repeat("a", waf.DefaultBodyLimit*2) + `"}`
