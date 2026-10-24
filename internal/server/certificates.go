@@ -1,6 +1,9 @@
 package server
 
 import (
+	"crypto"
+	"crypto/hkdf"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -12,6 +15,7 @@ import (
 	"go.miragespace.co/specter/spec/chord"
 	"go.miragespace.co/specter/spec/cipher"
 
+	"github.com/quic-go/quic-go"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +33,22 @@ type certBundle struct {
 	clientCa     *x509.CertPool
 	clientCaCert tls.Certificate
 	node         tls.Certificate
+}
+
+// Keep reset tokens valid across restarts and certificate renewals that retain
+// the node key. Independent UDP transports must not issue each other's resets.
+func quicStatelessResetKey(privateKey crypto.PrivateKey, advertise, binding string) (*quic.StatelessResetKey, error) {
+	secret, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("encoding node private key: %w", err)
+	}
+	var key quic.StatelessResetKey
+	derived, err := hkdf.Key(sha256.New, secret, nil, "specter/quic/stateless-reset/v1\x00"+advertise+"\x00"+binding, len(key))
+	if err != nil {
+		return nil, err
+	}
+	copy(key[:], derived)
+	return &key, nil
 }
 
 func certLoaderFilesystem(dir string) (*certBundle, error) {

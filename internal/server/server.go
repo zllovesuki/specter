@@ -261,7 +261,14 @@ func Run(ctx context.Context, options Options) error {
 		if err != nil {
 			return fmt.Errorf("error setting up gateway udp listener on %s: %w", addr.Address, err)
 		}
-		tr := &quic.Transport{Conn: pconn}
+		defer pconn.Close()
+		binding := addr.Network + "\x00" + addr.Address + "\x00" + pconn.LocalAddr().String()
+		resetKey, err := quicStatelessResetKey(bundle.node.PrivateKey, advertise, binding)
+		if err != nil {
+			return fmt.Errorf("deriving QUIC stateless reset key: %w", err)
+		}
+		tr := &quic.Transport{Conn: pconn, StatelessResetKey: resetKey}
+		defer tr.Close()
 		udpBindings = append(udpBindings, udpBinding{
 			listen:     addr,
 			packetConn: pconn,
@@ -270,10 +277,6 @@ func Run(ctx context.Context, options Options) error {
 	}
 	if len(udpBindings) == 0 {
 		return fmt.Errorf("no udp listeners configured")
-	}
-	for i := range udpBindings {
-		defer udpBindings[i].transport.Close()
-		defer udpBindings[i].packetConn.Close()
 	}
 
 	var httpListener net.Listener
