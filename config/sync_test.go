@@ -252,11 +252,11 @@ func TestSyncerBoundsStalledStreamsAndCancellation(t *testing.T) {
 		t.Run(fmt.Sprintf("cancel=%t", cancelEarly), func(t *testing.T) {
 			store := openTestStore(t, t.TempDir())
 			a := newSyncTestTransport("a:443")
-			peerReady := make(chan net.Conn, 1)
+			stream, peer := net.Pipe()
+			defer stream.Close()
+			defer peer.Close()
 			a.dial = func(context.Context, *protocol.Node, protocol.Stream_Type) (net.Conn, error) {
-				client, server := net.Pipe()
-				peerReady <- server
-				return client, nil
+				return stream, nil
 			}
 			client := NewSyncer(store, a, nil, nil)
 			request, err := client.snapshot()
@@ -272,15 +272,14 @@ func TestSyncerBoundsStalledStreamsAndCancellation(t *testing.T) {
 				_, err := client.exchange(ctx, &protocol.Node{Address: "stalled:443"}, request)
 				done <- err
 			}()
-			peer := <-peerReady
-			defer peer.Close()
-			// Consume the request so the exchange stalls reading the response.
-			httpRequest, err := http.ReadRequest(bufio.NewReader(peer))
-			require.NoError(t, err)
-			_, err = io.Copy(io.Discard, httpRequest.Body)
-			require.NoError(t, err)
-			require.NoError(t, httpRequest.Body.Close())
 			if cancelEarly {
+				// Cancel while waiting for a response. The timeout case may
+				// expire before the request is written, which is also valid.
+				httpRequest, err := http.ReadRequest(bufio.NewReader(peer))
+				require.NoError(t, err)
+				_, err = io.Copy(io.Discard, httpRequest.Body)
+				require.NoError(t, err)
+				require.NoError(t, httpRequest.Body.Close())
 				cancel()
 			}
 			select {
@@ -360,7 +359,9 @@ func TestSyncerAdmissionLastsUntilStreamCloses(t *testing.T) {
 	rejected, err := syncTestDial(t.Context(), tp, protocol.Stream_CONFIG)
 	require.NoError(t, err)
 	defer rejected.Close()
-	require.NoError(t, rejected.SetReadDeadline(time.Now().Add(time.Second)))
+	if err := rejected.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		require.ErrorIs(t, err, io.ErrClosedPipe)
+	}
 	_, err = rejected.Read(make([]byte, 1))
 	require.ErrorIs(t, err, io.EOF, "a fifth stream must be rejected while the first four are still idle")
 
@@ -387,7 +388,9 @@ func TestSyncerBoundsIncomingStreamLifetime(t *testing.T) {
 	peer, err := syncTestDial(t.Context(), tp, protocol.Stream_CONFIG)
 	require.NoError(t, err)
 	defer peer.Close()
-	require.NoError(t, peer.SetReadDeadline(time.Now().Add(time.Second)))
+	if err := peer.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		require.ErrorIs(t, err, io.ErrClosedPipe)
+	}
 	_, err = peer.Read(make([]byte, 1))
 	require.ErrorIs(t, err, io.EOF)
 	require.Eventually(t, func() bool { return len(syncer.incoming) == 0 }, time.Second, time.Millisecond)
@@ -536,11 +539,12 @@ func TestSyncerDoesNotExposeConfigOnTunnelTransport(t *testing.T) {
 	defer cancel()
 	router := transport.NewStreamRouter(zap.NewNop(), chordTransport, tunnelTransport)
 	NewSyncer(store, chordTransport, nil, nil).Bind(ctx, router)
-	router.Accept(ctx)
 	conn, err := syncTestDial(ctx, tunnelTransport, protocol.Stream_CONFIG)
 	require.NoError(t, err)
 	defer conn.Close()
+	// Set the deadline before the router can reject and close the stream.
 	require.NoError(t, conn.SetDeadline(time.Now().Add(time.Second)))
+	router.Accept(ctx)
 	_, err = conn.Read(make([]byte, 1))
 	require.Error(t, err)
 	var timeout net.Error

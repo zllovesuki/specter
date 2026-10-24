@@ -60,11 +60,11 @@ func TestCachedConnectionOutlivesFirstDialContext(t *testing.T) {
 	select {
 	case delegate := <-remote.AcceptStream():
 		require.Equal(t, protocol.Stream_CONFIG, delegate.Kind)
+		require.NoError(t, first.Close())
 		delegate.Close()
 	case <-ctx.Done():
 		t.Fatal("initial configuration stream did not arrive")
 	}
-	require.NoError(t, first.Close())
 	finishExchange()
 	require.NoError(t, local.backgroundCtx.Err(), "a completed dial must not cancel transport-wide workers")
 
