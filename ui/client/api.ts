@@ -1,3 +1,8 @@
+import { queryOptions } from '@tanstack/svelte-query';
+import { RequestError, requestJSON } from '../shared/http';
+
+export { RequestError as APIError } from '../shared/http';
+
 export interface TunnelSyncResult {
   hostname: string;
   target: string;
@@ -40,64 +45,25 @@ export interface DomainRecord {
   content: string;
 }
 
-export class APIError extends Error {
-  constructor(message: string, readonly outcome?: Partial<SyncResult>) {
-    super(message);
-    this.name = "APIError";
-  }
-}
-
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Request failed.";
+  const message = error instanceof Error ? error.message : "Request failed.";
+  return error instanceof RequestError && error.code === 'outcome_unknown' && typeof error.data?.applied !== 'boolean'
+    ? `${message} Result unknown; refresh before retrying.` : message;
 }
 
-export function createAPI() {
-  const requests = new Set<AbortController>();
-
-  async function request<T = void>(path: string, options: RequestInit = {}): Promise<T> {
-    const controller = new AbortController();
-    requests.add(controller);
-    const timer = setTimeout(() => controller.abort(), 60_000);
-    try {
-      const response = await fetch(path, { ...options, signal: controller.signal });
-      const body = await response.text();
-      let data: unknown = null;
-      try {
-        data = body ? JSON.parse(body) : null;
-      } catch {
-        // Some API successes are plain text.
-      }
-      if (!response.ok) {
-        const outcome = data && typeof data === "object" && !Array.isArray(data)
-          ? data as Partial<SyncResult>
-          : undefined;
-        throw new APIError(
-          outcome?.error || body.trim() || `Request failed (${response.status}).`,
-          outcome,
-        );
-      }
-      return data as T;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(
-          options.method === "POST"
-            ? "Timed out; result unknown. Refresh before retrying."
-            : "Timed out. Check the client, then refresh.",
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timer);
-      requests.delete(controller);
-    }
-  }
-
-  function abort() {
-    for (const controller of requests) controller.abort();
-  }
-
-  return { request, abort };
+export function requestAPI<T = void>(path: string, options: RequestInit = {}): Promise<T> {
+  return requestJSON<T>(path, { timeout: 60_000, ...options });
 }
+
+export const hostnameQueryOptions = queryOptions({
+  queryKey: ['client', 'hostnames'],
+  queryFn: ({ signal }) => requestAPI<RegisteredTunnel[]>('/api/ls', { signal }),
+});
+
+export const statusQueryOptions = queryOptions({
+  queryKey: ['client', 'status'],
+  queryFn: ({ signal }) => requestAPI<ClientStatus>('/api/status', { signal }),
+});
 
 export interface DomainToken {
   id: string;

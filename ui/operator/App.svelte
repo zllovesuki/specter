@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createQuery } from '@tanstack/svelte-query';
   import Button from '../shared/Button.svelte';
   import Shell from '../shared/Shell.svelte';
+  import { RequestError, requestJSON } from '../shared/http';
   import Overview from './Overview.svelte';
   import Clients from './Clients.svelte';
   import ClientTunnels from './ClientTunnels.svelte';
@@ -31,64 +32,26 @@
     { label: 'Endpoint reference', href: '/_internal/endpoints' },
   ];
 
-  let snapshot = $state<Snapshot | null>(null);
-  let loading = $state(true);
-  let error = $state('');
-  let pending: AbortController | undefined;
-
-  async function refresh() {
-    if (kind === 'dns' || kind === 'waf') return;
-    pending?.abort();
-    const controller = new AbortController();
-    pending = controller;
-    let timedOut = false;
-    const timeout = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, 12_000);
-    loading = true;
-    error = '';
-
-    try {
-      const response = await fetch(endpoint, {
-        signal: controller.signal,
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        throw new Error(response.status === 401
-          ? 'Authentication required (401).'
-          : response.status === 403
-            ? 'Access denied (403).'
-            : `Server returned ${response.status}.`);
-      }
-      const data = await response.json();
-      if (!data || typeof data !== 'object' || !Array.isArray(data[kind === 'overview' ? 'vnodes' : kind === 'clients' ? 'clients' : 'tunnels'])) {
+  const query = createQuery(() => ({
+    queryKey: ['operator', 'snapshot', endpoint],
+    enabled: kind !== 'dns' && kind !== 'waf',
+    queryFn: async ({ signal }): Promise<Snapshot> => {
+      const data = await requestJSON<unknown>(endpoint, { signal });
+      if (!data || typeof data !== 'object' || !Array.isArray((data as Record<string, unknown>)[kind === 'overview' ? 'vnodes' : kind === 'clients' ? 'clients' : 'tunnels'])) {
         throw new Error('Unexpected server response.');
       }
-      if (controller.signal.aborted) return;
-      snapshot = kind === 'overview'
+      return kind === 'overview'
         ? { kind, data: data as OverviewData }
         : kind === 'clients'
           ? { kind, data: data as ClientList }
-          : { kind, data: data as TunnelDetail };
-    } catch (cause) {
-      if (controller.signal.aborted && !timedOut) return;
-      error = timedOut ? 'Request timed out.' : cause instanceof Error ? cause.message : 'Request failed.';
-    } finally {
-      window.clearTimeout(timeout);
-      if (pending === controller) {
-        pending = undefined;
-        loading = false;
-      }
-    }
-  }
-
-  onMount(() => {
-    void refresh();
-    return () => pending?.abort();
-  });
+          : { kind: 'tunnels', data: data as TunnelDetail };
+    },
+  }));
+  const snapshot = $derived(query.data);
+  const loading = $derived(query.isFetching);
+  const error = $derived(loading ? '' : query.error instanceof RequestError && query.error.status === 401
+    ? 'Authentication required (401).'
+    : query.error instanceof RequestError && query.error.status === 403 ? 'Access denied (403).' : query.error?.message ?? '');
 </script>
 
 <svelte:head><title>{title} · Specter</title></svelte:head>
@@ -108,7 +71,7 @@
       {#if kind === 'overview'}
         <a class="inline-flex min-h-10 items-center rounded-md border border-zinc-500 bg-surface px-3 py-1.5 text-sm leading-5 font-semibold text-foreground hover:border-zinc-400 hover:bg-zinc-700" href={endpoint}>View JSON</a>
       {/if}
-      <Button variant="secondary" onclick={refresh} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</Button>
+      <Button variant="secondary" onclick={() => query.refetch()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</Button>
     </div>
   </div>
   {#if error}

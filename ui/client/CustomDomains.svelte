@@ -2,18 +2,17 @@
   import { onDestroy } from "svelte";
   import Button from "../shared/Button.svelte";
   import { INPUT_CLASSES } from "../shared/styles";
-  import { createAPI, errorMessage, type DomainRecord } from "./api";
+  import { errorMessage, requestAPI, type DomainRecord } from "./api";
 
   type DomainAction = "acme" | "validate";
   type DomainResult = DomainRecord & { domain: string; verified: boolean };
 
   let domain = $state("");
-  let pending = $state<DomainAction | "">("");
-  let requestedDomain = $state("");
+  let pending = $state<{ action: DomainAction; domain: string } | null>(null);
   let output = $state<DomainResult | null>(null);
   let error = $state("");
   let domainRevision = 0;
-  const api = createAPI();
+  const requests = new AbortController();
 
   function editDomain() {
     domainRevision += 1;
@@ -29,23 +28,21 @@
       return;
     }
     const revision = domainRevision;
-    pending = action;
-    requestedDomain = submittedDomain;
+    pending = { action, domain: submittedDomain };
     error = "";
     output = null;
     try {
-      const record = await api.request<DomainRecord>(`/api/${action}/${encodeURIComponent(submittedDomain)}`);
+      const record = await requestAPI<DomainRecord>(`/api/${action}/${encodeURIComponent(submittedDomain)}`, { signal: requests.signal });
       if (revision === domainRevision)
         output = { ...record, domain: submittedDomain, verified: action === "validate" };
     } catch (cause) {
       if (revision === domainRevision) error = `${submittedDomain}: ${errorMessage(cause)}`;
     } finally {
-      pending = "";
-      requestedDomain = "";
+      pending = null;
     }
   }
 
-  onDestroy(api.abort);
+  onDestroy(() => requests.abort());
 </script>
 
 <section id="domains" class="min-w-0 scroll-mt-6" aria-labelledby="domains-heading">
@@ -70,15 +67,15 @@
     />
     <p id="domain-hint" class="mt-1.5 mb-2.5 text-[0.8125rem] text-muted">Add the record in DNS, then verify.</p>
     <div class="flex flex-wrap items-center gap-2">
-      <Button type="submit" disabled={Boolean(pending) || !domain.trim()}>{pending === "acme" ? "Getting record…" : "Get DNS record"}</Button>
-      <Button disabled={Boolean(pending) || !domain.trim()} onclick={() => domainAction("validate")}>{pending === "validate" ? "Verifying…" : "Verify ownership"}</Button>
+      <Button type="submit" disabled={Boolean(pending) || !domain.trim()}>{pending?.action === "acme" ? "Getting record…" : "Get DNS record"}</Button>
+      <Button disabled={Boolean(pending) || !domain.trim()} onclick={() => domainAction("validate")}>{pending?.action === "validate" ? "Verifying…" : "Verify ownership"}</Button>
     </div>
   </form>
 
   <div id="domain-feedback" aria-live="polite" aria-busy={Boolean(pending)}>
     {#if pending}
       <p class="my-2.5 rounded-md border border-line bg-chrome px-3 py-2 wrap-anywhere">
-        {pending === "validate" ? "Verifying" : "Fetching"} <span class="font-mono text-[0.8125rem]">{requestedDomain}</span>…
+        {pending.action === "validate" ? "Verifying" : "Fetching"} <span class="font-mono text-[0.8125rem]">{pending.domain}</span>…
       </p>
     {/if}
     {#if error}

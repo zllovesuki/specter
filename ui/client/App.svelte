@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onDestroy, tick } from "svelte";
+  import { createQuery } from "@tanstack/svelte-query";
   import Button from "../shared/Button.svelte";
   import Shell from "../shared/Shell.svelte";
   import ScrollRegion from "../shared/ScrollRegion.svelte";
+  import { queryClient } from "../shared/query";
   import DomainTokens from "./DomainTokens.svelte";
   import CustomDomains from "./CustomDomains.svelte";
   import WebProtection from "./WebProtection.svelte";
   import {
     APIError,
-    createAPI,
     errorMessage,
-    type ClientStatus,
+    hostnameQueryOptions,
+    requestAPI,
+    statusQueryOptions,
     type RegisteredTunnel,
+    type SyncResult,
     type TunnelSyncResult,
   } from "./api";
 
@@ -32,24 +36,26 @@
     restore?: string | null;
   };
 
-  let status = $state<ClientStatus | null>(null);
-  let registered = $state<RegisteredTunnel[] | null>(null);
-  let statusError = $state("");
-  let listError = $state("");
-  let statusCheckedAt = $state<Date | null>(null);
-  let listCheckedAt = $state<Date | null>(null);
-  let refreshing = $state(false);
-  let checkingStatus = $state(false);
-  let checkingHostnames = $state(false);
-  let pendingAction = $state<RemovalAction | "synchronize" | "">("");
+  let pendingAction = $state<RemovalAction | "synchronize" | "refresh" | "">("");
   let confirmation = $state<Confirmation | null>(null);
   let confirmButton = $state<HTMLButtonElement>();
   let tunnelsHeading = $state<HTMLHeadingElement>();
   let tunnelNotice = $state<Notice | null>(null);
-  let statusRequestID = 0;
-  let hostnameRequestID = 0;
-  const api = createAPI();
+  const writes = new AbortController();
+  const statusQuery = createQuery(() => ({
+    ...statusQueryOptions,
+    refetchInterval: pendingAction ? false : 15_000,
+  }));
+  const hostnameQuery = createQuery(() => ({
+    ...hostnameQueryOptions,
+    refetchInterval: pendingAction ? false : 15_000,
+  }));
 
+  const status = $derived(statusQuery.data);
+  const registered = $derived(hostnameQuery.data);
+  const statusError = $derived(statusQuery.error?.message ?? "");
+  const listError = $derived(hostnameQuery.error?.message ?? "");
+  const refreshing = $derived(pendingAction === "refresh" || statusQuery.isLoading || hostnameQuery.isLoading);
   const synchronization = $derived(status?.synchronization);
   const connectedNodes = $derived(status?.connectedNodes ?? []);
   const actionBusy = $derived(Boolean(pendingAction));
@@ -69,7 +75,7 @@
     syncIssue && tunnelNotice?.tone === "success" ? syncIssue : tunnelNotice || syncIssue,
   );
 
-  function mergeTunnels(hostnames: RegisteredTunnel[] | null, outcomes?: TunnelSyncResult[]): TunnelRow[] {
+  function mergeTunnels(hostnames: RegisteredTunnel[] | undefined, outcomes?: TunnelSyncResult[]): TunnelRow[] {
     const rows = new Map<string, TunnelRow>();
     for (const [index, tunnel] of (outcomes ?? []).entries()) {
       rows.set(tunnel.hostname || `unassigned:${index}`, { ...tunnel, registered: false });
@@ -87,7 +93,7 @@
     return [...rows.values()];
   }
 
-  function timeLabel(value: string | Date | null | undefined): string {
+  function timeLabel(value: string | number | null | undefined): string {
     return value
       ? new Date(value).toLocaleTimeString([], {
           hour: "2-digit",
@@ -109,45 +115,11 @@
     return `  - hostname: ${JSON.stringify(tunnel.hostname)}\n    target: ${JSON.stringify(tunnel.target || "http://127.0.0.1:8080")}${tunnel.headerHost ? `\n    headerHost: ${JSON.stringify(tunnel.headerHost)}` : ""}`;
   }
 
-  async function loadStatus(force = false) {
-    if (checkingStatus && !force) return;
-    const requestID = ++statusRequestID;
-    checkingStatus = true;
-    try {
-      const nextStatus = await api.request<ClientStatus>("/api/status");
-      if (requestID !== statusRequestID) return;
-      status = nextStatus;
-      statusCheckedAt = new Date();
-      statusError = "";
-    } catch (error) {
-      if (requestID === statusRequestID) statusError = errorMessage(error);
-    } finally {
-      if (requestID === statusRequestID) checkingStatus = false;
-    }
-  }
-
-  async function loadHostnames(force = false) {
-    if (checkingHostnames && !force) return;
-    const requestID = ++hostnameRequestID;
-    checkingHostnames = true;
-    try {
-      const next = await api.request<RegisteredTunnel[]>("/api/ls");
-      if (requestID !== hostnameRequestID) return;
-      registered = next;
-      listCheckedAt = new Date();
-      listError = "";
-    } catch (error) {
-      if (requestID === hostnameRequestID) listError = errorMessage(error);
-    } finally {
-      if (requestID === hostnameRequestID) checkingHostnames = false;
-    }
-  }
-
   async function refresh() {
     if (refreshing || pendingAction) return;
-    refreshing = true;
-    await Promise.allSettled([loadStatus(true), loadHostnames(true)]);
-    refreshing = false;
+    pendingAction = "refresh";
+    await Promise.allSettled([statusQuery.refetch(), hostnameQuery.refetch()]);
+    pendingAction = "";
   }
 
   async function synchronize() {
@@ -155,12 +127,13 @@
     pendingAction = "synchronize";
     tunnelNotice = null;
     try {
-      await api.request("/api/reload", { method: "POST" });
+      await Promise.all([statusQueryOptions, hostnameQueryOptions].map(({ queryKey }) => queryClient.cancelQueries({ queryKey })));
+      await requestAPI("/api/reload", { method: "POST", signal: writes.signal });
       tunnelNotice = { tone: "success", title: "Synchronized and saved." };
     } catch (error) {
-      const outcome = error instanceof APIError ? error.outcome : undefined;
+      const outcome = error instanceof APIError ? error.data as Partial<SyncResult> | undefined : undefined;
       if (outcome?.applied && outcome.tunnels && status) {
-        status = {
+        queryClient.setQueryData(statusQueryOptions.queryKey, {
           ...status,
           synchronization: {
             applied: true,
@@ -169,7 +142,7 @@
             attemptedAt: outcome.attemptedAt,
             tunnels: outcome.tunnels,
           },
-        };
+        }, { updatedAt: statusQuery.dataUpdatedAt });
       }
       tunnelNotice = {
         tone: outcome?.applied ? "warning" : "error",
@@ -208,7 +181,8 @@
     pendingAction = action;
     tunnelNotice = null;
     try {
-      await api.request(`/api/${action}/${encodeURIComponent(tunnel.hostname)}`, { method: "POST" });
+      await Promise.all([statusQueryOptions, hostnameQueryOptions].map(({ queryKey }) => queryClient.cancelQueries({ queryKey })));
+      await requestAPI(`/api/${action}/${encodeURIComponent(tunnel.hostname)}`, { method: "POST", signal: writes.signal });
       tunnelNotice = {
         tone: "success",
         title: `${tunnel.hostname} ${action === "unpublish" ? "unpublished" : "released"}.`,
@@ -216,7 +190,7 @@
       };
       confirmation = null;
     } catch (error) {
-      const outcome = error instanceof APIError ? error.outcome : undefined;
+      const outcome = error instanceof APIError ? error.data as Partial<SyncResult> | undefined : undefined;
       const applied = outcome?.applied;
       tunnelNotice = {
         tone: applied ? "warning" : "error",
@@ -237,19 +211,7 @@
     }
   }
 
-  onMount(() => {
-    void refresh();
-    const timer = setInterval(() => {
-      if (!refreshing && !pendingAction && !document.hidden) {
-        void loadStatus();
-        void loadHostnames();
-      }
-    }, 15_000);
-    return () => {
-      clearInterval(timer);
-      api.abort();
-    };
-  });
+  onDestroy(() => writes.abort());
 </script>
 
 <svelte:head>
@@ -271,7 +233,7 @@
       </div>
     </div>
 
-    <div class="mb-4 flex flex-col gap-2.5 border-y border-line py-2.5 min-[600px]:flex-row min-[600px]:flex-wrap min-[600px]:gap-x-8 min-[600px]:gap-y-4 [&>div]:flex [&>div]:min-w-0 [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-2.5" aria-busy={checkingStatus}>
+    <div class="mb-4 flex flex-col gap-2.5 border-y border-line py-2.5 min-[600px]:flex-row min-[600px]:flex-wrap min-[600px]:gap-x-8 min-[600px]:gap-y-4 [&>div]:flex [&>div]:min-w-0 [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-2.5" aria-busy={statusQuery.isFetching}>
       <div><span class="min-w-[7.625rem] text-[0.8125rem] text-muted min-[600px]:min-w-0">Server</span><span class="font-mono text-[0.8125rem] wrap-anywhere">{status?.apex || (statusError ? "Unavailable" : "Loading…")}</span></div>
       <div>
         <span class="min-w-[7.625rem] text-[0.8125rem] text-muted min-[600px]:min-w-0">Connected</span>
@@ -300,13 +262,13 @@
     {/if}
     {#if statusError || listError}
       <div class="my-2.5 rounded-md border border-danger/40 bg-chrome px-3 py-2 text-danger wrap-anywhere" role="status">
-        {#if statusError}<div><strong class="font-semibold">Status unavailable.</strong>{#if status} Snapshot {timeLabel(statusCheckedAt)}.{/if}<details class="mt-1"><summary class="cursor-pointer text-[0.8125rem] text-zinc-200">Status error</summary><p class="mt-2">{statusError}</p></details></div>{/if}
-        {#if listError}<div><strong class="font-semibold">Hostnames unavailable.</strong>{#if registered} Snapshot {timeLabel(listCheckedAt)}.{/if}<details class="mt-1"><summary class="cursor-pointer text-[0.8125rem] text-zinc-200">Hostname error</summary><p class="mt-2">{listError}</p></details></div>{/if}
+        {#if statusError}<div><strong class="font-semibold">Status unavailable.</strong>{#if status} Snapshot {timeLabel(statusQuery.dataUpdatedAt)}.{/if}<details class="mt-1"><summary class="cursor-pointer text-[0.8125rem] text-zinc-200">Status error</summary><p class="mt-2">{statusError}</p></details></div>{/if}
+        {#if listError}<div><strong class="font-semibold">Hostnames unavailable.</strong>{#if registered} Snapshot {timeLabel(hostnameQuery.dataUpdatedAt)}.{/if}<details class="mt-1"><summary class="cursor-pointer text-[0.8125rem] text-zinc-200">Hostname error</summary><p class="mt-2">{listError}</p></details></div>{/if}
       </div>
     {/if}
 
     <div aria-busy={refreshing}>
-      {#if registered === null && refreshing && !tunnelRows.length}
+      {#if !registered && refreshing && !tunnelRows.length}
         <div class="rounded-md border border-line bg-chrome px-4 py-4.5" role="status">Loading tunnels…</div>
       {:else if tunnelRows.length === 0}
         <div class="rounded-md border border-line bg-chrome px-4 py-4.5">{#if statusError || listError}No data. Refresh to retry.{:else}No tunnels. <a href="#configuration" class="text-accent-300 underline underline-offset-4 hover:text-accent-200">Add a target</a>, then synchronize.{/if}</div>
@@ -348,12 +310,7 @@
     <p class="mt-2.5 text-[0.8125rem] text-muted min-[600px]:text-xs">Publication: last acknowledgement; target health unchecked.</p>
   </section>
 
-  <WebProtection
-    hostnames={registered?.map((t) => t.hostname).filter(Boolean) ?? null}
-    loadingHostnames={checkingHostnames}
-    hostnameError={listError}
-    onRefreshHostnames={() => loadHostnames(true)}
-  />
+  <WebProtection />
 
   <div class="mt-6 grid grid-cols-1 gap-7 border-t border-line pt-5 min-[600px]:grid-cols-2 min-[800px]:gap-8">
     <CustomDomains />
@@ -371,12 +328,7 @@
     </section>
   </div>
 
-  <DomainTokens
-    hostnames={registered?.map((t) => t.hostname).filter(Boolean) ?? null}
-    loadingHostnames={checkingHostnames}
-    hostnameError={listError}
-    onRefreshHostnames={() => loadHostnames(true)}
-  />
+  <DomainTokens />
 
-  <footer class="mt-6 flex justify-end border-t border-line py-3 text-xs text-muted">{statusCheckedAt ? `Checked ${timeLabel(statusCheckedAt)}` : statusError ? "Status unavailable" : "Connecting…"}</footer>
+  <footer class="mt-6 flex justify-end border-t border-line py-3 text-xs text-muted">{statusQuery.dataUpdatedAt ? `Checked ${timeLabel(statusQuery.dataUpdatedAt)}` : statusError ? "Status unavailable" : "Connecting…"}</footer>
 </Shell>

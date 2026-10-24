@@ -1,133 +1,36 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Button from '../shared/Button.svelte';
+  import SaveNotice from '../shared/SaveNotice.svelte';
+  import { createEditor } from '../shared/editor.svelte';
   import { INPUT_CLASSES } from '../shared/styles';
+  import type { WAFChannel, WAFDefaultMode } from '../shared/waf';
   import SnapshotTime from './SnapshotTime.svelte';
-  import { requestWAFConfig, WAFRequestError, type WAFConfig, type WAFSnapshot } from './waf-api';
+  import { requestWAFConfig, type WAFConfig } from './waf-api';
 
-  type Notice = { tone: 'success' | 'warning' | 'error'; message: string; detail?: string };
-  let snapshot = $state<WAFSnapshot | null>(null);
-  let draft = $state<WAFConfig>({ enabled: false, default_mode: 'BLOCK', channel: 'LTS', pinned_version: '' });
-  let baseline = $state('');
-  let expectedVersion = $state('');
-  let initialized = $state(false);
-  let loading = $state(true);
-  let saving = $state(false);
-  let conflict = $state(false);
-  let readError = $state('');
-  let notice = $state<Notice | null>(null);
-  let pendingRead: AbortController | undefined;
-  let pendingWrite: AbortController | undefined;
-  let disposed = false;
-
-  const draftValue = $derived(JSON.stringify(draft));
-  const dirty = $derived(initialized && draftValue !== baseline);
-  const readOnly = $derived(Boolean(snapshot?.error || (snapshot && !snapshot.config)));
-  const stale = $derived(conflict || (initialized && snapshot !== null && snapshot.version !== expectedVersion));
-  const canSave = $derived(initialized && dirty && !loading && !saving && !readOnly && !stale);
+  const editor = createEditor({
+    key: () => '/_internal/api/config/waf',
+    defaults: { enabled: false, default_mode: 'BLOCK', channel: 'LTS', pinned_version: '' } as WAFConfig,
+    load: (signal, after) => requestWAFConfig(signal, undefined, after),
+    save: (value, version, signal) => requestWAFConfig(signal, JSON.stringify({ expected_version: version, config: value })),
+    draft: snapshot => ({ ...snapshot.config! }),
+    editable: snapshot => !snapshot.error && snapshot.config !== null,
+  });
+  const snapshot = $derived(editor.query.data);
+  const draft = $derived(editor.values);
+  const readError = $derived(editor.query.error?.message ?? '');
   const pending = $derived(Boolean(snapshot?.version && snapshot.status.applied_version !== snapshot.version));
-  const channelResumes = $derived(Boolean(snapshot?.config?.pinned_version
-    && draft.channel !== snapshot.config.channel && !draft.pinned_version));
+  const channelResumes = $derived(Boolean(snapshot?.config?.pinned_version && draft.channel !== snapshot.config.channel && !draft.pinned_version));
   const pinChanged = $derived(draft.pinned_version !== (snapshot?.config?.pinned_version ?? ''));
 
-  function loadSaved() {
-    if (!snapshot?.config || readOnly) return;
-    draft = { ...snapshot.config };
-    baseline = JSON.stringify(draft);
-    expectedVersion = snapshot.version;
-    initialized = true;
-    conflict = false;
-    notice = null;
-  }
-
-  function edited() {
-    if (notice?.tone !== 'warning') notice = null;
-  }
-
-  function changeChannel() {
-    draft.pinned_version = '';
-    edited();
-  }
-
   function setPin(version = '') {
-    draft.pinned_version = version;
-    edited();
+    editor.form.setFieldValue('pinned_version', version);
+    editor.edited();
   }
-
-  async function refresh() {
-    if (saving) return;
-    pendingRead?.abort();
-    const controller = new AbortController();
-    pendingRead = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 12_000);
-    loading = true;
-    try {
-      const data = await requestWAFConfig(controller.signal, undefined, snapshot?.version);
-      if (disposed || pendingRead !== controller) return;
-      const replaceDraft = !initialized || (!dirty && !conflict && data.version !== expectedVersion);
-      snapshot = data;
-      readError = '';
-      if (replaceDraft) loadSaved();
-    } catch (cause) {
-      if (disposed || pendingRead !== controller) return;
-      readError = cause instanceof Error ? cause.message : 'Request failed.';
-    } finally {
-      window.clearTimeout(timeout);
-      if (pendingRead === controller) {
-        pendingRead = undefined;
-        loading = false;
-      }
-    }
-  }
-
-  async function save(event: SubmitEvent) {
-    event.preventDefault();
-    if (!canSave) return;
-    saving = true;
-    notice = null;
-    const controller = new AbortController();
-    pendingWrite = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 15_000);
-    let reread = false;
-    try {
-      const data = await requestWAFConfig(controller.signal, JSON.stringify({ expected_version: expectedVersion, config: draft }));
-      if (disposed) return;
-      snapshot = data;
-      readError = '';
-      loadSaved();
-      notice = { tone: 'success', message: `Saved on ${data.server.address}.` };
-    } catch (cause) {
-      if (disposed) return;
-      const error = cause instanceof WAFRequestError ? cause : new WAFRequestError('Save result unknown.', 'outcome_unknown');
-      if (error.code === 'version_conflict') {
-        conflict = true;
-        reread = true;
-      } else {
-        notice = error.code === 'outcome_unknown'
-          ? { tone: 'warning', message: 'Save result unknown. Your draft is unchanged.', detail: error.message }
-          : { tone: 'error', message: 'Could not save web protection.', detail: error.message };
-      }
-    } finally {
-      window.clearTimeout(timeout);
-      pendingWrite = undefined;
-      saving = false;
-    }
-    if (reread) await refresh();
-  }
-
-  onMount(() => {
-    void refresh();
-    return () => {
-      disposed = true;
-      pendingRead?.abort();
-      pendingWrite?.abort();
-    };
-  });
 </script>
 
 <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
   <h1 class="text-[22px] leading-tight font-semibold tracking-tight sm:text-2xl">Web protection</h1>
-  <Button onclick={refresh} disabled={loading || saving}>{loading ? 'Refreshing…' : 'Refresh'}</Button>
+  <Button onclick={() => editor.refresh()} disabled={editor.query.isFetching || editor.saving}>{editor.query.isFetching ? 'Refreshing…' : 'Refresh'}</Button>
 </div>
 
 {#if snapshot}
@@ -159,47 +62,42 @@
 {/if}
 
 {#if snapshot}
-  {#if readOnly}
+  {#if editor.readOnly}
     <div class="mt-4 rounded-md border border-warning/40 bg-surface px-4 py-3" role="alert">
       <p class="font-medium text-warning">Saved settings cannot be edited by this server.</p>
       <p class="mt-1 max-w-[72ch] text-sm wrap-anywhere">{snapshot.error || 'Use a compatible Specter version.'}</p>
     </div>
-  {:else if initialized}
-    {#if stale}
+  {:else if editor.initialized}
+    {#if editor.stale}
       <div class="mt-4 rounded-md border border-warning/40 bg-surface px-4 py-3" role="alert">
         <p class="font-medium text-warning">Saved settings changed. Your draft is unchanged.</p>
         {#if snapshot.config}
           <p class="mt-1 text-sm">Latest: {snapshot.config.enabled ? 'Enabled' : 'Off'} · {snapshot.config.default_mode === 'BLOCK' ? 'Block' : 'Monitor'} · {snapshot.config.channel === 'LTS' ? 'LTS' : 'Current stable'}{snapshot.config.pinned_version ? ` · Pinned ${snapshot.config.pinned_version}` : ''}</p>
         {/if}
-        <Button class="mt-2" size="sm" onclick={loadSaved} disabled={loading || saving || Boolean(readError)}>Load latest and discard draft</Button>
+        <Button class="mt-2" size="sm" onclick={() => editor.accept()} disabled={editor.query.isFetching || editor.saving || Boolean(readError)}>Load latest and discard draft</Button>
       </div>
     {/if}
-    {#if notice}
-      <div class={['mt-4 rounded-md border bg-surface px-4 py-3', notice.tone === 'success' ? 'border-success/40' : notice.tone === 'warning' ? 'border-warning/40' : 'border-danger/40']} role={notice.tone === 'success' ? 'status' : 'alert'}>
-        <p class="font-medium wrap-anywhere" class:text-success={notice.tone === 'success'} class:text-warning={notice.tone === 'warning'} class:text-danger={notice.tone === 'error'}>{notice.message}</p>
-        {#if notice.detail}<details class="mt-1"><summary class="min-h-8 cursor-pointer py-1 text-muted">Request details</summary><p class="mt-1 max-w-[72ch] text-sm wrap-anywhere">{notice.detail}</p></details>{/if}
-      </div>
-    {/if}
+    <SaveNotice outcome={editor.outcome} saved={editor.outcome?.kind === 'saved' ? `Saved on ${editor.outcome.snapshot.server.address}.` : ''} failed="Could not save web protection." />
 
-    <form onsubmit={save} class="mt-5 max-w-2xl" aria-label="Web protection settings">
-      <fieldset disabled={saving}>
+    <form onsubmit={editor.submit} class="mt-5 max-w-2xl" aria-label="Web protection settings">
+      <fieldset disabled={editor.saving}>
         <legend class="sr-only">Shared web protection</legend>
         <label class="flex min-h-10 w-fit cursor-pointer items-center gap-3 font-medium">
-          <input type="checkbox" class="size-4 accent-accent-500" bind:checked={draft.enabled} onchange={edited} aria-describedby="waf-enabled-help" />
+          <input type="checkbox" class="size-4 accent-accent-500" checked={draft.enabled} onchange={(event) => { editor.form.setFieldValue('enabled', event.currentTarget.checked); editor.edited(); }} aria-describedby="waf-enabled-help" />
           Enabled
         </label>
         <p id="waf-enabled-help" class="mt-1 text-sm text-muted">Turning this off disables protection for every hostname.</p>
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label for="waf-mode" class="mb-1 block text-sm font-medium">Default mode</label>
-            <select id="waf-mode" class={INPUT_CLASSES} bind:value={draft.default_mode} onchange={edited} disabled={!draft.enabled} aria-describedby="waf-mode-help">
+            <select id="waf-mode" class={INPUT_CLASSES} value={draft.default_mode} onchange={(event) => { editor.form.setFieldValue('default_mode', event.currentTarget.value as WAFDefaultMode); editor.edited(); }} disabled={!draft.enabled} aria-describedby="waf-mode-help">
               <option value="BLOCK">Block</option><option value="MONITOR">Monitor</option>
             </select>
             <p id="waf-mode-help" class="mt-1 text-xs text-muted">Hostname owners can override this default.</p>
           </div>
           <div>
             <label for="waf-channel" class="mb-1 block text-sm font-medium">Rules channel</label>
-            <select id="waf-channel" class={INPUT_CLASSES} bind:value={draft.channel} onchange={changeChannel}>
+            <select id="waf-channel" class={INPUT_CLASSES} value={draft.channel} onchange={(event) => { editor.form.setFieldValue('channel', event.currentTarget.value as WAFChannel); setPin(); }}>
               <option value="LTS">LTS</option><option value="STABLE">Current stable</option>
             </select>
           </div>
@@ -218,13 +116,13 @@
         </details>
       </fieldset>
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <Button variant="primary" type="submit" disabled={!canSave}>{saving ? 'Saving…' : 'Save settings'}</Button>
-        {#if dirty && !stale}<Button variant="ghost" onclick={loadSaved} disabled={saving}>Discard changes</Button>{/if}
-        {#if dirty}<span class="text-sm text-muted">Unsaved changes</span>{/if}
+        <Button variant="primary" type="submit" disabled={!editor.canSave}>{editor.saving ? 'Saving…' : 'Save settings'}</Button>
+        {#if editor.dirty && !editor.stale}<Button variant="ghost" onclick={() => editor.accept()} disabled={editor.saving}>Discard changes</Button>{/if}
+        {#if editor.dirty}<span class="text-sm text-muted">Unsaved changes</span>{/if}
       </div>
     </form>
   {/if}
-{:else if loading}
+{:else if editor.query.isFetching}
   <div class="mt-5 space-y-3" role="status">
     <span class="sr-only">Loading web protection…</span>
     <div class="h-4 w-48 max-w-full rounded bg-surface" aria-hidden="true"></div>
