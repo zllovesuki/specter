@@ -23,7 +23,12 @@ func wrapReuseError(msg string) error {
 	return fmt.Errorf("%s: %s", reuseErrorState, msg)
 }
 
-func (t *QUIC) reuseConnection(_ context.Context, q *quic.Conn, s *quic.Stream, dir direction) (*nodeConnection, bool, error) {
+func (t *QUIC) reuseConnection(ctx context.Context, q *quic.Conn, s *quic.Stream, dir direction) (*nodeConnection, bool, error) {
+	// Setup owns the fresh connection until cancellation is disarmed under
+	// the cache lock. Once published, other callers may already be using it.
+	stopSetup := context.AfterFunc(ctx, func() { q.CloseWithError(406, "Connection setup canceled") })
+	defer stopSetup()
+
 	negotiation := &protocol.Connection{
 		Identity: t.Endpoint,
 		Version:  spec.BuildVersion,
@@ -183,6 +188,9 @@ func (t *QUIC) reuseConnection(_ context.Context, q *quic.Conn, s *quic.Stream, 
 					} else {
 						// other:    new incoming
 						//    us:    new outgoing
+						if !stopSetup() {
+							return nil, false, ctx.Err()
+						}
 						t.cachedConnections.Store(qKey, fresh)
 						return fresh, false, nil
 					}
@@ -211,6 +219,9 @@ func (t *QUIC) reuseConnection(_ context.Context, q *quic.Conn, s *quic.Stream, 
 					} else {
 						// other:    new outgoing
 						//    us:    new incoming
+						if !stopSetup() {
+							return nil, false, ctx.Err()
+						}
 						t.cachedConnections.Store(qKey, fresh)
 						return fresh, false, nil
 					}

@@ -144,10 +144,6 @@ func (t *QUIC) getCachedConnection(ctx context.Context, peer *protocol.Node) (*q
 			return nil, err
 		}
 
-		// Until negotiation adopts this connection into the cache, the dial
-		// owns it. Canceling setup must also release its pending QUIC I/O.
-		stopSetup := context.AfterFunc(dialCtx, func() { newQ.CloseWithError(406, "Connection setup canceled") })
-		defer stopSetup()
 		connected, err := t.handleOutgoing(dialCtx, newQ)
 		if err != nil {
 			newQ.CloseWithError(406, err.Error())
