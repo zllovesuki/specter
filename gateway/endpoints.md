@@ -42,6 +42,18 @@ without an overview handler continue to return the documentation at the index.
 Local assets at `/_internal/ui/` use the same authentication.
 
 
+## Web Protection
+
+`GET /_internal/config/waf` opens the web protection editor. `GET` and `PUT`
+`/_internal/api/config/waf` read and save its shared settings using the same
+operator authentication and version guards as DNS. The response also includes
+the selected server's active rules and update status. Enabling creates the
+document automatically; no initializer is required.
+
+`PUT` accepts JSON with `expected_version` and `config`. Settings are `enabled`,
+`default_mode` (`BLOCK` or `MONITOR`), `channel` (`LTS` or `STABLE`), and
+`pinned_version` (empty for automatic updates).
+
 ## Shared DNS Configuration
 
 `GET /_internal/config/dns` opens the DNS nameserver/address editor. Use its

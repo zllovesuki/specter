@@ -145,6 +145,12 @@ follows. The ACME zone stays in deployment configuration and must match the DNS
 document. See the [shared configuration guide](docs/shared-configuration.md) for
 initialization, upgrades, and backups.
 
+### Web Protection
+After upgrading the gateways, open **Web protection** at `/_internal/config/waf`
+and enable it once. Choose Block or Monitor and the rules channel there;
+hostname owners manage exceptions in their client UI. See
+[web protection](docs/web-protection.md) for inspection coverage and recovery.
+
 ### Server Configuration (`server.env`)
 Use `--join` to connect to an existing ring and `--acme` for managed TLS certificates. Keep admin credentials and the Sentry DSN in environment variables.
 

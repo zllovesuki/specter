@@ -1,10 +1,10 @@
 # Shared configuration
 
-Shared configuration lets you change DNS settings once, through the operator
-page. Each Specter server keeps a local copy and synchronizes with its peers.
-The DNS process picks up changes without a restart.
+Shared configuration lets you change DNS and web protection settings once,
+through the operator page. Each Specter server keeps a local copy and
+synchronizes with its peers. Settings take effect without a restart.
 
-DNS nameservers and their addresses are the first supported settings. Listener
+DNS records and [web protection](web-protection.md) settings are shared. Listener
 addresses, certificates, join peers, and the ACME email and zone still belong
 in your deployment configuration. Installations without Specter DNS need no
 initial configuration.

@@ -45,6 +45,9 @@ See the [operator guide](OPERATOR.md) for deployment and the
 [shared configuration guide](docs/shared-configuration.md) for DNS initialization
 and rolling upgrades.
 
+Optional [web protection](docs/web-protection.md) uses Coraza and OWASP CRS on the
+servers, with automatic rule updates and hostname exceptions in the client UI.
+
 ## Client Configuration
 
 ### CLI

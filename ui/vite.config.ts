@@ -14,7 +14,7 @@ function routePages(preview = false): Connect.NextHandleFunction {
       } else if (!wantsJSON) {
         if (url.pathname === '/') {
           request.url = `/client/index.html${url.search}`;
-        } else if (/^\/_internal\/(?:overview\/?|tun(?:\/.*)?|config\/dns\/?)?$/.test(url.pathname)) {
+        } else if (/^\/_internal\/(?:overview\/?|tun(?:\/.*)?|config\/(?:dns|waf)\/?)?$/.test(url.pathname)) {
           request.url = `/operator/index.html${url.search}`;
         }
       }

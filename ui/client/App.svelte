@@ -5,6 +5,7 @@
   import ScrollRegion from "../shared/ScrollRegion.svelte";
   import DomainTokens from "./DomainTokens.svelte";
   import CustomDomains from "./CustomDomains.svelte";
+  import WebProtection from "./WebProtection.svelte";
   import {
     APIError,
     createAPI,
@@ -346,6 +347,13 @@
     </div>
     <p class="mt-2.5 text-[0.8125rem] text-muted min-[600px]:text-xs">Publication: last acknowledgement; target health unchecked.</p>
   </section>
+
+  <WebProtection
+    hostnames={registered?.map((t) => t.hostname).filter(Boolean) ?? null}
+    loadingHostnames={checkingHostnames}
+    hostnameError={listError}
+    onRefreshHostnames={() => loadHostnames(true)}
+  />
 
   <div class="mt-6 grid grid-cols-1 gap-7 border-t border-line pt-5 min-[600px]:grid-cols-2 min-[800px]:gap-8">
     <CustomDomains />

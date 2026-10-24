@@ -13,10 +13,10 @@ configuring tunnels or investigating an unreliable connection.
 
 ## Product Purpose
 
-The client manager helps users understand their configured tunnels and complete
-hostname, publication, and custom-domain actions. The operator interface makes
-local server observations available during normal operation and partial failure,
-with links to detailed diagnostics and an editor for shared DNS settings.
+The client manager helps users configure tunnels, manage hostnames and custom
+domains, and adjust web protection. The operator interface shows local server
+observations during normal operation and partial failure, with detailed
+diagnostics and editors for shared DNS and web protection settings.
 Reliability and enjoyment both matter; improvements should remain bounded and
 understandable.
 
